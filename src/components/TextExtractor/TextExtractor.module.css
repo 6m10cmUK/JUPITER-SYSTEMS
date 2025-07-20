@@ -3,6 +3,7 @@
   background-color: #f5f5f5;
   border-radius: 8px;
   margin: 20px;
+  color: #333;
 }
 
 .container h2 {
@@ -30,7 +31,7 @@
   align-items: center;
   gap: 8px;
   font-size: 14px;
-  color: #666;
+  color: #333;
 }
 
 .pageInput {
@@ -39,6 +40,8 @@
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 14px;
+  background-color: white;
+  color: #333;
 }
 
 .separator {
@@ -49,6 +52,7 @@
 .currentPageButton {
   padding: 6px 12px;
   background-color: #e0e0e0;
+  color: #333;
   border: none;
   border-radius: 4px;
   cursor: pointer;
@@ -142,7 +146,58 @@
 }
 
 .summary span {
-  color: #666;
+  color: #333;
+}
+
+.columnSection {
+  margin: 16px 0;
+}
+
+.toggleButton {
+  background: none;
+  border: none;
+  color: #1976d2;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 8px 12px;
+  text-align: left;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+  border-radius: 4px;
+}
+
+.toggleButton:hover {
+  background-color: rgba(25, 118, 210, 0.08);
+}
+
+.pageInfo {
+  margin-top: 8px;
+  padding: 12px;
+  background-color: #e8f0fe;
+  border-radius: 4px;
+  max-height: 150px;
+  overflow-y: auto;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.pageColumn {
+  font-size: 14px;
+  color: #1976d2;
+  margin: 4px 0;
 }
 
 .textPreview {
@@ -151,12 +206,13 @@
 
 .textPreview h4 {
   margin: 0 0 12px 0;
-  color: #666;
+  color: #333;
   font-size: 16px;
 }
 
 .previewText {
   background-color: #f5f5f5;
+  color: #333;
   padding: 16px;
   border-radius: 4px;
   font-family: monospace;
@@ -179,6 +235,7 @@
   padding: 8px 16px;
   border: 1px solid #ddd;
   background-color: white;
+  color: #333;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;

@@ -1,4 +1,6 @@
-import React, { useState, useRef, type DragEvent } from 'react';
+import React, { useState, useRef, useEffect, type DragEvent } from 'react';
+import { AuthService } from '../../services/auth';
+import type { User } from 'firebase/auth';
 import styles from './PDFUploader.module.css';
 
 interface PDFUploaderProps {
@@ -12,7 +14,15 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = AuthService.onAuthStateChanged((user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const validateFile = (file: File): boolean => {
     setError(null);
@@ -32,6 +42,13 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
   };
 
   const handleFile = (file: File) => {
+    // ログインチェック
+    const currentUser = AuthService.getCurrentUser();
+    if (!currentUser) {
+      setError('この機能を使用するにはログインが必要です');
+      return;
+    }
+    
     if (validateFile(file)) {
       onFileSelect(file);
     }
@@ -108,11 +125,21 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
           </svg>
           
           <p className={styles.uploadText}>
-            PDFファイルをドラッグ&ドロップ
-            <br />
-            または
-            <br />
-            <span className={styles.clickText}>クリックして選択</span>
+            {user ? (
+              <>
+                PDFファイルをドラッグ&ドロップ
+                <br />
+                または
+                <br />
+                <span className={styles.clickText}>クリックして選択</span>
+              </>
+            ) : (
+              <>
+                この機能を使用するには
+                <br />
+                ログインが必要です
+              </>
+            )}
           </p>
           
           <p className={styles.sizeLimit}>
