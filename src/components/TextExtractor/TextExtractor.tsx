@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PDFApiService, ExtractResponse } from '../../services/api';
+import { PDFApiService } from '../../services/api';
+import type { ExtractResponse } from '../../services/api';
 import styles from './TextExtractor.module.css';
 
 interface TextExtractorProps {
