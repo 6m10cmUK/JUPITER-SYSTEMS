@@ -5,7 +5,6 @@ import fitz  # PyMuPDF
 import io
 from typing import Optional, List, Dict
 from pydantic import BaseModel
-import base64
 
 app = FastAPI(title="PDF to Markdown API")
 
