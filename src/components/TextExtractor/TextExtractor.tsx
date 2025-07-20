@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { PDFApiService } from '../../services/api';
-import type { ExtractResponse } from '../../services/api';
+import { PDFApiService, type ExtractResponse } from '../../services/api';
+import { AuthService } from '../../services/auth';
+import { EncryptionKeyService } from '../../services/encryptionKey';
+import { EncryptionService } from '../../services/encryption';
 import styles from './TextExtractor.module.css';
 
 interface TextExtractorProps {
@@ -20,6 +22,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
   const [startPage, setStartPage] = useState(1);
   const [endPage, setEndPage] = useState(numPages);
   const [isServerAwake, setIsServerAwake] = useState(true);
+  const [showColumnInfo, setShowColumnInfo] = useState(false);
 
   useEffect(() => {
     setEndPage(numPages);
@@ -30,6 +33,14 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     setError(null);
     setExtractedData(null);
 
+    // ログインチェック
+    const currentUser = AuthService.getCurrentUser();
+    if (!currentUser) {
+      setError('ログインが必要です');
+      setIsExtracting(false);
+      return;
+    }
+
     // サーバーの状態をチェック
     const isHealthy = await PDFApiService.checkHealth();
     if (!isHealthy) {
@@ -37,12 +48,31 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     }
 
     try {
-      const data = await PDFApiService.extractText(
+      // ユーザーの暗号化キーを取得
+      console.log('暗号化キーを取得中...');
+      const encryptionKey = await EncryptionKeyService.getUserKey(currentUser);
+      console.log('暗号化キー取得完了');
+
+      // 暗号化APIを使用してテキストを抽出
+      console.log('暗号化APIでテキスト抽出中...');
+      const encryptedResponse = await PDFApiService.extractTextEncrypted(
         file,
+        encryptionKey,
         startPage,
         endPage,
         true
       );
+      
+      // 復号化
+      console.log('レスポンスを復号化中...');
+      const decryptedJson = await EncryptionService.decrypt(
+        encryptedResponse.encrypted_data,
+        encryptedResponse.iv,
+        encryptionKey
+      );
+      
+      // JSONをパース
+      const data: ExtractResponse = JSON.parse(decryptedJson);
       setExtractedData(data);
       setIsServerAwake(true);
     } catch (err) {
@@ -141,11 +171,28 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
             <span>抽出ページ数: {extractedData.extracted_pages.length}</span>
           </div>
           
+          <div className={styles.columnSection}>
+            <button 
+              className={styles.toggleButton}
+              onClick={() => setShowColumnInfo(!showColumnInfo)}
+            >
+              カラム情報 {showColumnInfo ? '▼' : '▶'}
+            </button>
+            {showColumnInfo && (
+              <div className={styles.pageInfo}>
+                {extractedData.extracted_pages.map((page) => (
+                  <div key={page.page_number} className={styles.pageColumn}>
+                    ページ {page.page_number}: {page.column_count || 1}カラム
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
           <div className={styles.textPreview}>
             <h4>プレビュー</h4>
             <pre className={styles.previewText}>
-              {extractedData.full_text.substring(0, 500)}
-              {extractedData.full_text.length > 500 && '...'}
+              {extractedData.full_text}
             </pre>
           </div>
           

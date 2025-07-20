@@ -9,12 +9,23 @@ export interface ExtractedPage {
     font_size: number;
     is_bold: boolean;
   }>;
+  column_count?: number;
 }
 
 export interface ExtractResponse {
   total_pages: number;
   extracted_pages: ExtractedPage[];
   full_text: string;
+}
+
+export interface EncryptedExtractResponse {
+  encrypted_data: string;
+  iv: string;
+  metadata: {
+    total_pages: number;
+    extracted_pages_count: number;
+    status: string;
+  };
 }
 
 export class PDFApiService {
@@ -59,6 +70,34 @@ export class PDFApiService {
     });
 
     return this.handleResponse<ExtractResponse>(response);
+  }
+
+  static async extractTextEncrypted(
+    file: File,
+    encryptionKey: string,
+    startPage: number = 1,
+    endPage?: number,
+    preserveLayout: boolean = true
+  ): Promise<EncryptedExtractResponse> {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const params = new URLSearchParams({
+      start_page: startPage.toString(),
+      preserve_layout: preserveLayout.toString(),
+      user_key: encryptionKey,
+    });
+    
+    if (endPage) {
+      params.append('end_page', endPage.toString());
+    }
+
+    const response = await fetch(`${API_URL}/api/extract-text-encrypted?${params}`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    return this.handleResponse<EncryptedExtractResponse>(response);
   }
 
   static async analyzeLayout(file: File): Promise<any> {

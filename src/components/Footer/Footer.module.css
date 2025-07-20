@@ -1,0 +1,118 @@
+.footer {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 10px 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+}
+
+.container {
+  /* 右下配置のため不要 */
+}
+
+.content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+}
+
+.supportedBy {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.developer {
+  color: rgba(255, 255, 255, 0.87);
+  font-weight: 500;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.userAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.userName {
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+.developerInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.socialLinks {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.socialIcon {
+  color: rgba(255, 255, 255, 0.5);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.socialIcon svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+.socialIcon:hover {
+  color: rgba(255, 255, 255, 0.87);
+  transform: translateY(-1px);
+}
+
+.separator {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.repoLink {
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: none;
+  font-size: 13px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.repoLink:hover {
+  color: rgba(255, 255, 255, 0.87);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .content {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .links {
+    margin-left: 0;
+  }
+  
+  .separator {
+    display: none;
+  }
+}
