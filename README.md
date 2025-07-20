@@ -63,21 +63,38 @@ uvicorn main:app --reload
 ### バックエンド（Render.com）
 
 1. [Render.com](https://render.com)でアカウント作成
-2. New > Web Service を選択
-3. GitHubリポジトリを接続
+2. Dashboard → 「New +」→「Web Service」を選択
+3. GitHubリポジトリを接続（「Connect a repository」→ TRPG-pdf2mdTOOL を選択）
 4. 以下の設定を使用：
+   - **Name**: `trpg-pdf2md-api`（任意の名前）
+   - **Region**: `Singapore`（日本から近い）
+   - **Branch**: `main`
    - **Root Directory**: `backend`
-   - **Environment**: `Docker`
-   - **Port**: `8000`
+   - **Language**: `Python 3`
+   - **Build Command**: `pip install -r requirements.txt`（自動検出される場合あり）
+   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+   - **Instance Type**: `Free`（無料プラン）
+5. 「Deploy」をクリック（デプロイに5-10分かかります）
+6. デプロイ完了後、URLが発行されます（例: `https://trpg-pdf2md-api.onrender.com`）
 
 ### フロントエンド（Vercel）
 
-1. [Vercel](https://vercel.com)でアカウント作成
-2. GitHubリポジトリをインポート
-3. 環境変数を設定：
+1. [Vercel](https://vercel.com)でアカウント作成（GitHubでサインアップ）
+2. ダッシュボードで「Add New...」→「Project」
+3. GitHubリポジトリ一覧から「TRPG-pdf2mdTOOL」を選択して「Import」
+4. プロジェクト設定：
+   - **Framework Preset**: `Vite`（自動検出される）
+   - **Root Directory**: そのまま（変更不要）
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+5. 環境変数を設定（Environment Variables）：
    ```
-   VITE_API_URL=https://your-api.onrender.com
+   Name: VITE_API_URL
+   Value: https://your-api.onrender.com（Render.comで発行されたURL）
    ```
+   ※最初は仮の値（例: `https://example.com`）でも可。後で更新できます
+6. 「Deploy」をクリック
+7. デプロイ完了後、URLが発行されます（例: `https://trpg-pdf2md-tool.vercel.app`）
 
 ### 代替デプロイ先
 
@@ -122,9 +139,6 @@ PDFからテキストを抽出
 
 MIT License
 
-## 貢献
-
-プルリクエストを歓迎します！
 
 1. Fork it
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
