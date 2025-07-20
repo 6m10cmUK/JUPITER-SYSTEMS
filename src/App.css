@@ -88,3 +88,41 @@
   flex: 1;
   overflow: hidden;
 }
+
+.content-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+}
+
+.pdf-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.extractor-section {
+  width: 400px;
+  overflow-y: auto;
+  background-color: #fafafa;
+  border-left: 1px solid #e0e0e0;
+}
+
+@media (max-width: 1024px) {
+  .content-container {
+    flex-direction: column;
+  }
+  
+  .pdf-section {
+    height: 60%;
+  }
+  
+  .extractor-section {
+    width: 100%;
+    height: 40%;
+    border-left: none;
+    border-top: 1px solid #e0e0e0;
+  }
+}

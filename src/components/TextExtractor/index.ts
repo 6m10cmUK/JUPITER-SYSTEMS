@@ -1,0 +1,1 @@
+export { TextExtractor } from './TextExtractor';

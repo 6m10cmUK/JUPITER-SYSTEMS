@@ -1,0 +1,14 @@
+# Spacefile for Deta Space
+v: 0
+micros:
+  - name: pdf2md-api
+    src: .
+    engine: python3.9
+    primary: true
+    public_routes:
+      - "/*"
+    presets:
+      env:
+        - name: PYTHON_VERSION
+          default: "3.9"
+    run: uvicorn main:app --host 0.0.0.0 --port $PORT

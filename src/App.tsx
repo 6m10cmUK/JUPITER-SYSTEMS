@@ -3,6 +3,7 @@ import './App.css'
 import { PDFUploader } from './components/PDFUploader'
 import { PDFViewer } from './components/PDFViewer'
 import { PageNavigator } from './components/PageNavigator'
+import { TextExtractor } from './components/TextExtractor'
 import { usePDF } from './hooks/usePDF'
 
 function App() {
@@ -57,23 +58,32 @@ function App() {
                 </button>
               </div>
             ) : (
-              <>
-                <div className="viewer-wrapper">
-                  <PDFViewer 
-                    pdf={pdf}
+              <div className="content-container">
+                <div className="pdf-section">
+                  <div className="viewer-wrapper">
+                    <PDFViewer 
+                      pdf={pdf}
+                      currentPage={currentPage}
+                      zoom={zoom}
+                      rotation={rotation}
+                    />
+                  </div>
+                  <PageNavigator 
                     currentPage={currentPage}
+                    totalPages={numPages}
+                    onPageChange={handlePageChange}
                     zoom={zoom}
-                    rotation={rotation}
+                    onZoomChange={handleZoomChange}
                   />
                 </div>
-                <PageNavigator 
-                  currentPage={currentPage}
-                  totalPages={numPages}
-                  onPageChange={handlePageChange}
-                  zoom={zoom}
-                  onZoomChange={handleZoomChange}
-                />
-              </>
+                <div className="extractor-section">
+                  <TextExtractor 
+                    file={file}
+                    numPages={numPages}
+                    currentPage={currentPage}
+                  />
+                </div>
+              </div>
             )}
           </div>
         )}
