@@ -116,9 +116,27 @@ async def startup_event():
     logger.info(f"Working directory: {os.getcwd()}")
 
 # CORS設定
+# 本番環境のURLも追加
+allowed_origins = [
+    "http://localhost:5173", 
+    "http://localhost:5174", 
+    "http://localhost:5175", 
+    "http://localhost:5176", 
+    "http://localhost:5177", 
+    "http://localhost:5178", 
+    "http://localhost:4173",
+    "https://trpg-pdf2md-tool.vercel.app",  # Vercelのデフォルトドメイン
+    "https://*.vercel.app",  # Vercelのプレビューデプロイ用
+]
+
+# 環境変数から追加のオリジンを取得（カスタムドメイン対応）
+custom_origin = os.getenv("ALLOWED_ORIGIN")
+if custom_origin:
+    allowed_origins.append(custom_origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177", "http://localhost:5178", "http://localhost:4173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
