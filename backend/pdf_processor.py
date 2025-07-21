@@ -9,7 +9,11 @@ from common import (
     process_blocks_to_text,
     merge_paragraph_blocks,
     extract_block_text,
-    contains_japanese
+    contains_japanese,
+    analyze_text_styles,
+    classify_text_style,
+    format_text_with_style,
+    process_blocks_to_text_with_style
 )
 
 class PDFProcessor:
@@ -18,13 +22,23 @@ class PDFProcessor:
     def __init__(self):
         pass
     
-    def extract_text_with_structure(self, page) -> Dict:
-        """構造を保持したテキスト抽出"""
+    def extract_text_with_structure(self, page, apply_text_style: bool = False) -> Dict:
+        """構造を保持したテキスト抽出
+        
+        Args:
+            page: PDFページオブジェクト
+            apply_text_style: テキストスタイル（太字、サイズ）を適用するか
+        """
         blocks = page.get_text("dict")
         page_height = page.rect.height
         
         # テキストブロックのみを抽出
         text_blocks = [b for b in blocks["blocks"] if b["type"] == 0]
+        
+        # テキストスタイルを解析
+        style_stats = None
+        if apply_text_style:
+            style_stats = analyze_text_styles(text_blocks)
         
         # ヘッダー・フッター境界を検出
         header_threshold, footer_threshold = detect_header_footer_boundaries(text_blocks, page_height)
@@ -49,7 +63,7 @@ class PDFProcessor:
         headers = []
         footers = []
         
-        for block in text_blocks:
+        for idx, block in enumerate(text_blocks):
             y_pos = block["bbox"][1]
             
             # 位置のみによる分類（パターンマッチングなし）
@@ -61,6 +75,10 @@ class PDFProcessor:
                 logger.info(f"[PDFProcessor] フッターブロック検出: y_pos={y_pos}, bbox={block['bbox']}, text='{extract_block_text(block)}'")
             else:
                 main_blocks.append(block)
+                # メインブロックの詳細をログ出力（20個まで）
+                if len(main_blocks) <= 20:
+                    text = extract_block_text(block)
+                    logger.info(f"[PDFProcessor] メインブロック{len(main_blocks)-1} (元index={idx}): Y={y_pos:.1f}, X={block['bbox'][0]:.1f}-{block['bbox'][2]:.1f}, text='{text[:30]}'...")
         
         # ページ幅を取得
         page_width = page.rect.width
@@ -77,31 +95,15 @@ class PDFProcessor:
             logger.info(f"[PDFProcessor] 最初の5ブロックのX座標: {x_coords[:5]}")
             logger.info(f"[PDFProcessor] 最後の5ブロックのX座標: {x_coords[-5:]}")
         
-        # メインコンテンツの処理
-        structured_text = self._process_main_blocks(main_blocks, page_height, header_threshold, footer_threshold, vertical_gaps)
+        # メインコンテンツの処理（ヘッダー・フッターも渡す）
+        structured_text = self._process_main_blocks(main_blocks, page_height, header_threshold, footer_threshold, vertical_gaps, headers, footers, style_stats)
         
-        # ヘッダー・フッターをフォーマット
-        header_text = ""
-        footer_text = ""
-        
-        if headers:
-            header_lines = [extract_block_text(h) for h in headers]
-            header_text = "【ヘッダー】\n" + "\n".join(header_lines)
-        
-        if footers:
-            footer_lines = [extract_block_text(f) for f in footers]
-            footer_text = "【フッター】\n" + "\n".join(footer_lines)
-        
-        # 全体のテキストを結合
+        # 処理結果を使用
         full_text_parts = []
-        if header_text:
-            full_text_parts.append(header_text)
         if structured_text:
             full_text_parts.append(structured_text)
-        if footer_text:
-            full_text_parts.append(footer_text)
         
-        return {
+        result = {
             "main_text": "\n\n".join(full_text_parts),
             "headers": [extract_block_text(h) for h in headers],
             "footers": [extract_block_text(f) for f in footers],
@@ -116,6 +118,12 @@ class PDFProcessor:
             "raw_main_blocks": main_blocks,
             "vertical_gaps": vertical_gaps
         }
+        
+        # スタイル統計情報を追加
+        if style_stats:
+            result["style_stats"] = style_stats
+        
+        return result
     
     def _is_header(self, text: str) -> bool:
         """ヘッダーかどうかを判定（位置ベースで判定するため、ここでは常にFalse）"""
@@ -130,7 +138,7 @@ class PDFProcessor:
         # 余白数 + 1 = カラム数
         return len(vertical_gaps) + 1 if vertical_gaps else 1
     
-    def _process_main_blocks(self, blocks, page_height, header_boundary, footer_boundary, vertical_gaps) -> str:
+    def _process_main_blocks(self, blocks, page_height, header_boundary, footer_boundary, vertical_gaps, header_blocks=[], footer_blocks=[], style_stats=None) -> str:
         """メインブロックを処理してテキストを生成"""
         if not blocks:
             return ""
@@ -147,14 +155,19 @@ class PDFProcessor:
         # vertical_gapsもextract_text_with_structureで計算済み
         logger.info(f"[PDFProcessor] _process_main_blocks: main_blocks数={len(blocks)}, 受け取った余白数={len(vertical_gaps)}")
         
+        # メインコンテンツのみを処理
         # 余白が検出されたらマルチカラムとして処理
         if vertical_gaps:
-            return self._process_multicolumn_blocks(blocks, page_height, header_boundary, footer_boundary, vertical_gaps)
+            return self._process_multicolumn_blocks(blocks, page_height, header_boundary, footer_boundary, vertical_gaps, style_stats)
         else:
-            # シングルカラムの場合：従来通りの処理
-            return process_blocks_to_text(blocks)
+            # シングルカラムの場合も---を付ける
+            if style_stats:
+                text = process_blocks_to_text_with_style(blocks, style_stats)
+            else:
+                text = process_blocks_to_text(blocks)
+            return f"---\n\n{text}" if text else ""
     
-    def _process_multicolumn_blocks(self, blocks, page_height, header_boundary, footer_boundary, vertical_gaps) -> str:
+    def _process_multicolumn_blocks(self, blocks, page_height, header_boundary, footer_boundary, vertical_gaps, style_stats=None) -> str:
         """マルチカラムのブロックを処理"""
         if not blocks:
             return ""
@@ -168,30 +181,56 @@ class PDFProcessor:
         
         # 余白がない場合はシングルカラムとして処理
         if not vertical_gaps:
-            return process_blocks_to_text(blocks)
+            text = process_blocks_to_text(blocks)
+            return f"【カラム1】\n{text}" if text else ""
         
         # カラム領域を計算
         columns = calculate_columns_from_gaps(vertical_gaps, main_blocks, page_width, header_boundary, footer_boundary)
         
-        # ブロックをカラムに割り当て
-        column_blocks_list = assign_blocks_to_column_regions(main_blocks, columns)
+        # ブロックをカラムに割り当て（余白情報も渡す）
+        column_blocks_list = assign_blocks_to_column_regions(main_blocks, columns, vertical_gaps)
         
         # カラムごとにテキストを処理
         column_texts = []
-        for column_blocks in column_blocks_list:
+        for i, column_blocks in enumerate(column_blocks_list):
             if column_blocks:
-                column_text = process_blocks_to_text(column_blocks)
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.info(f"[PDFProcessor] カラム{i+1}のブロック数: {len(column_blocks)}")
+                # 最初と最後のブロックを表示
+                if len(column_blocks) > 0:
+                    # 最初の3ブロック
+                    for j, block in enumerate(column_blocks[:3]):
+                        text = extract_block_text(block)
+                        logger.info(f"  最初のブロック{j}: Y={block['bbox'][1]:.1f}, text='{text[:20]}'")
+                    
+                    # 最後の3ブロック（「このとき」を含む可能性）
+                    if len(column_blocks) > 6:
+                        logger.info("  ...")
+                        for j, block in enumerate(column_blocks[-3:], len(column_blocks)-3):
+                            text = extract_block_text(block)
+                            logger.info(f"  最後のブロック{j}: Y={block['bbox'][1]:.1f}, text='{text[:20]}'")
+                
+                # カラムごとのブロックはすでにソート済み
+                if style_stats:
+                    column_text = process_blocks_to_text_with_style(column_blocks, style_stats, already_sorted=True)
+                else:
+                    column_text = process_blocks_to_text(column_blocks, already_sorted=True)
                 if column_text:
-                    column_texts.append(column_text)
+                    column_texts.append((i + 1, column_text))
         
         # カラムテキストを結合（単純に左→右の順番）
         if len(column_texts) == 0:
             return ""
-        elif len(column_texts) == 1:
-            return column_texts[0]
         else:
-            # 複数カラムの場合は単純に結合
-            return "\n\n".join(column_texts)
+            # カラムは常に---で区切る（最初のカラムの前にも）
+            texts = [text for _, text in column_texts]
+            if len(texts) == 1:
+                # シングルカラムの場合
+                return f"---\n\n{texts[0]}"
+            else:
+                # マルチカラムの場合
+                return "---\n\n" + "\n\n---\n\n".join(texts)
     
     def _classify_blocks_by_column(self, blocks) -> List[List]:
         """ブロックをカラムごとに分類"""

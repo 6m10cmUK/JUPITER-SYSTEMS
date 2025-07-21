@@ -19,6 +19,16 @@ import secrets
 import sys
 import tempfile
 from logging.handlers import RotatingFileHandler
+import glob
+
+# 環境変数で環境を判定
+IS_LOCAL = os.getenv("ENVIRONMENT", "local") == "local"
+
+# __think__ディレクトリを作成（プロジェクトルート）
+THINK_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "__think__")
+if not os.path.exists(THINK_DIR):
+    os.makedirs(THINK_DIR)
+    print(f"Created directory: {THINK_DIR}")
 
 # FastAPI/uvicorn用のロギング設定
 logging_config = {
@@ -41,41 +51,56 @@ logging_config = {
         "file": {
             "class": "logging.handlers.RotatingFileHandler",
             "formatter": "default",
-            "filename": "app.log",
+            "filename": os.path.join(THINK_DIR, "app.log") if IS_LOCAL else "app.log",
             "maxBytes": 10485760,  # 10MB
             "backupCount": 3,
+            "encoding": "utf-8",
         },
     },
     "root": {
         "level": "INFO",
-        "handlers": ["console", "file"],
+        "handlers": ["console", "file"] if IS_LOCAL else ["console"],
     },
     "loggers": {
         "uvicorn": {
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console", "file"] if IS_LOCAL else ["console"],
             "propagate": False,
         },
         "uvicorn.error": {
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console", "file"] if IS_LOCAL else ["console"],
             "propagate": False,
             "formatter": "uvicorn",
         },
         "uvicorn.access": {
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console", "file"] if IS_LOCAL else ["console"],
             "propagate": False,
         },
         "__main__": {
             "level": "INFO",
-            "handlers": ["console", "file"],
+            "handlers": ["console", "file"] if IS_LOCAL else ["console"],
             "propagate": False,
         },
     },
 }
 
 import logging.config
+
+# ログファイルをクリアする（ローカル環境のみ）
+log_file = os.path.join(THINK_DIR, "app.log")
+if IS_LOCAL and os.path.exists(log_file):
+    with open(log_file, 'w', encoding='utf-8') as f:
+        f.truncate(0)
+    print(f"Cleared log file: {log_file}")
+
+# 抽出結果ディレクトリを作成（存在しない場合）
+EXTRACTED_TEXT_DIR = os.path.join(THINK_DIR, "extracted_texts")
+if not os.path.exists(EXTRACTED_TEXT_DIR):
+    os.makedirs(EXTRACTED_TEXT_DIR)
+    print(f"Created directory: {EXTRACTED_TEXT_DIR}")
+
 logging.config.dictConfig(logging_config)
 
 # uvicorn用のloggerを使用
@@ -202,7 +227,7 @@ async def extract_text(
                 if apply_formatting:
                     from pdf_processor import PDFProcessor
                     processor = PDFProcessor()
-                    structure = processor.extract_text_with_structure(page)
+                    structure = processor.extract_text_with_structure(page, apply_text_style=apply_formatting)
                     
                     # 構造化されたテキストを使用
                     text = structure["main_text"]
@@ -301,6 +326,38 @@ async def extract_text(
         if start_page <= 3 <= end_page:  # ページ3が範囲内の場合のみ
             logger.info(f"[extract_text] 抽出完了: {len(extracted_pages)}ページ")
         
+        # 抽出結果をファイルに保存
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = file.filename.replace('.pdf', '').replace(' ', '_')
+        output_filename = os.path.join(EXTRACTED_TEXT_DIR, f"{safe_filename}_{timestamp}_p{start_page}-{end_page}.txt")
+        
+        # 古いファイルを削除（同じPDFの同じページ範囲のファイルが10個を超えたら）
+        pattern = f"{safe_filename}_*_p{start_page}-{end_page}.txt"
+        existing_files = sorted(glob.glob(os.path.join(EXTRACTED_TEXT_DIR, pattern)))
+        
+        if len(existing_files) >= 10:
+            # 最も古いファイルから削除（最新10個を残す）
+            files_to_delete = existing_files[:-9]  # 最新9個を残して削除（新しいファイルを追加するので）
+            for old_file in files_to_delete:
+                try:
+                    os.remove(old_file)
+                    logger.info(f"[extract_text] 古いファイルを削除: {os.path.basename(old_file)}")
+                except Exception as e:
+                    logger.error(f"[extract_text] ファイル削除エラー: {e}")
+        
+        try:
+            with open(output_filename, 'w', encoding='utf-8') as f:
+                f.write(f"# PDF: {file.filename}\n")
+                f.write(f"# 抽出日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# ページ範囲: {start_page}-{end_page}\n")
+                f.write(f"# 総ページ数: {total_pages}\n")
+                f.write(f"# オプション: preserve_layout={preserve_layout}, apply_formatting={apply_formatting}\n")
+                f.write("=" * 80 + "\n\n")
+                f.write("\n".join(full_text))
+            logger.info(f"[extract_text] 抽出結果を保存: {output_filename}")
+        except Exception as e:
+            logger.error(f"[extract_text] ファイル保存エラー: {str(e)}")
+        
         return ExtractResponse(
             total_pages=total_pages,
             extracted_pages=extracted_pages,
@@ -371,6 +428,39 @@ async def extract_text_encrypted(
         
         # 暗号化データと認証タグを結合
         encrypted_with_tag = encrypted_data + auth_tag
+        
+        # 暗号化前の抽出結果をファイルに保存
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_filename = file.filename.replace('.pdf', '').replace(' ', '_')
+        output_filename = os.path.join(EXTRACTED_TEXT_DIR, f"{safe_filename}_{timestamp}_p{start_page}-{end_page}_encrypted.txt")
+        
+        # 古いファイルを削除（同じPDFの同じページ範囲のファイルが10個を超えたら）
+        pattern = f"{safe_filename}_*_p{start_page}-{end_page}_encrypted.txt"
+        existing_files = sorted(glob.glob(os.path.join(EXTRACTED_TEXT_DIR, pattern)))
+        
+        if len(existing_files) >= 10:
+            # 最も古いファイルから削除（最新10個を残す）
+            files_to_delete = existing_files[:-9]  # 最新9個を残して削除（新しいファイルを追加するので）
+            for old_file in files_to_delete:
+                try:
+                    os.remove(old_file)
+                    logger.info(f"[extract_text_encrypted] 古いファイルを削除: {os.path.basename(old_file)}")
+                except Exception as e:
+                    logger.error(f"[extract_text_encrypted] ファイル削除エラー: {e}")
+        
+        try:
+            with open(output_filename, 'w', encoding='utf-8') as f:
+                f.write(f"# PDF: {file.filename}\n")
+                f.write(f"# 抽出日時: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"# ページ範囲: {start_page}-{end_page}\n")
+                f.write(f"# 総ページ数: {result_dict['total_pages']}\n")
+                f.write(f"# オプション: preserve_layout={preserve_layout}, apply_formatting={apply_formatting}\n")
+                f.write(f"# 暗号化: あり\n")
+                f.write("=" * 80 + "\n\n")
+                f.write(result_dict["full_text"])
+            logger.info(f"[extract_text_encrypted] 抽出結果を保存: {output_filename}")
+        except Exception as e:
+            logger.error(f"[extract_text_encrypted] ファイル保存エラー: {str(e)}")
         
         return EncryptedExtractResponse(
             encrypted_data=base64.b64encode(encrypted_with_tag).decode(),
@@ -1403,7 +1493,7 @@ async def analyze_layout(
                 columns_base = calculate_columns_from_gaps(vertical_gaps, main_blocks, page_width, header_boundary, footer_boundary)
                 
                 # ブロックをカラムに割り当て
-                column_blocks_list = assign_blocks_to_column_regions(main_blocks, columns_base)
+                column_blocks_list = assign_blocks_to_column_regions(main_blocks, columns_base, vertical_gaps)
                 
                 # column_numberとblock_countを追加
                 columns = []
