@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
+import { LayoutOverlay } from '../LayoutOverlay/LayoutOverlay';
 import styles from './PDFViewer.module.css';
 
 interface PDFViewerProps {
@@ -7,6 +8,9 @@ interface PDFViewerProps {
   currentPage: number;
   zoom: number;
   rotation: number;
+  layoutData?: any;
+  showLayoutOverlay?: boolean;
+  onRegionClick?: (regionType: string, region: any) => void;
 }
 
 export const PDFViewer: React.FC<PDFViewerProps> = ({
@@ -14,6 +18,9 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   currentPage,
   zoom,
   rotation,
+  layoutData,
+  showLayoutOverlay = false,
+  onRegionClick,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isRendering, setIsRendering] = useState(false);
@@ -149,6 +156,10 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
     );
   }
 
+  const currentPageLayout = layoutData?.pages?.find(
+    (p: any) => p.page_number === currentPage
+  );
+
   return (
     <div className={styles.container}>
       <div className={styles.canvasWrapper}>
@@ -165,6 +176,14 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
           <div className={styles.error}>
             {pageError}
           </div>
+        )}
+        {currentPageLayout && (
+          <LayoutOverlay
+            pageLayout={currentPageLayout}
+            scale={zoom / 100}
+            showOverlay={showLayoutOverlay}
+            onRegionClick={onRegionClick}
+          />
         )}
       </div>
     </div>

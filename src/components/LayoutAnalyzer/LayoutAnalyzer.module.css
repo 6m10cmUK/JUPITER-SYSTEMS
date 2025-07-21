@@ -1,0 +1,140 @@
+.container {
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.analyzeButton {
+  padding: 0.5rem 1rem;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.analyzeButton:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.analyzeButton:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+}
+
+.detailsButton {
+  padding: 0.5rem 1rem;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.detailsButton:hover {
+  background-color: #218838;
+}
+
+.details {
+  background-color: white;
+  padding: 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.details h3 {
+  margin-top: 0;
+  color: #333;
+  font-size: 18px;
+}
+
+.section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.section h4 {
+  color: #495057;
+  font-size: 16px;
+  margin-bottom: 0.5rem;
+}
+
+.regionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.regionInfo span {
+  font-size: 14px;
+  color: #6c757d;
+}
+
+.textPreview {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow-y: auto;
+  color: #495057;
+}
+
+.columnInfo {
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.columnInfo h5 {
+  margin: 0 0 0.5rem 0;
+  color: #495057;
+  font-size: 14px;
+}
+
+.columnInfo span {
+  display: inline-block;
+  margin-right: 1rem;
+  font-size: 12px;
+  color: #6c757d;
+}
+
+.regionDetails {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.regionDetails h4 {
+  margin-top: 0;
+  color: #495057;
+}
+
+.regionDetails pre {
+  margin: 0;
+  font-size: 12px;
+  overflow-x: auto;
+}

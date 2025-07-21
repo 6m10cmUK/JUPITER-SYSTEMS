@@ -6,6 +6,7 @@ import { PageNavigator } from './components/PageNavigator'
 import { TextExtractor } from './components/TextExtractor'
 import { Footer } from './components/Footer'
 import { Auth } from './components/Auth'
+import { LayoutAnalyzer } from './components/LayoutAnalyzer/LayoutAnalyzer'
 import { usePDF } from './hooks/usePDF'
 import { PDFApiService } from './services/api'
 import type { User } from 'firebase/auth'
@@ -16,6 +17,9 @@ function App() {
   const [zoom, setZoom] = useState(100)
   const [rotation] = useState(0)
   const [user, setUser] = useState<User | null>(null)
+  const [showPdfPreview, setShowPdfPreview] = useState(true)
+  const [layoutData, setLayoutData] = useState<any>(null)
+  const [showLayoutOverlay, setShowLayoutOverlay] = useState(false)
   
   const { pdf, numPages, isLoading, error, loadPDF } = usePDF()
 
@@ -47,10 +51,26 @@ function App() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page)
+    // ページ変更時は新しいページのレイアウト解析が必要
+    if (layoutData) {
+      const hasPageData = layoutData.pages?.some((p: any) => p.page_number === page)
+      if (!hasPageData) {
+        setShowLayoutOverlay(false)
+      }
+    }
   }
 
   const handleZoomChange = (newZoom: number) => {
     setZoom(newZoom)
+  }
+
+  const handleLayoutAnalyzed = (data: any) => {
+    setLayoutData(data)
+    setShowLayoutOverlay(true)
+  }
+
+  const handleRegionClick = (regionType: string, region: any) => {
+    console.log('領域クリック:', regionType, region)
   }
 
   return (
@@ -92,24 +112,66 @@ function App() {
               </div>
             ) : (
               <div className="content-container">
-                <div className="pdf-section">
-                  <div className="viewer-wrapper">
-                    <PDFViewer 
-                      pdf={pdf}
+                {showPdfPreview && (
+                  <div className="pdf-section">
+                    <div className="pdf-section-header">
+                      <h3>PDFプレビュー</h3>
+                      <button 
+                        className="close-preview-button"
+                        onClick={() => setShowPdfPreview(false)}
+                        title="プレビューを閉じる"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    <div className="viewer-wrapper">
+                      <PDFViewer 
+                        pdf={pdf}
+                        currentPage={currentPage}
+                        zoom={zoom}
+                        rotation={rotation}
+                        layoutData={layoutData}
+                        showLayoutOverlay={showLayoutOverlay}
+                        onRegionClick={handleRegionClick}
+                      />
+                    </div>
+                    <PageNavigator 
                       currentPage={currentPage}
+                      totalPages={numPages}
+                      onPageChange={handlePageChange}
                       zoom={zoom}
-                      rotation={rotation}
+                      onZoomChange={handleZoomChange}
                     />
+                    <LayoutAnalyzer
+                      pdfFile={file}
+                      currentPage={currentPage}
+                      onLayoutAnalyzed={handleLayoutAnalyzed}
+                    />
+                    {layoutData && (
+                      <div className="overlay-toggle">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={showLayoutOverlay}
+                            onChange={(e) => setShowLayoutOverlay(e.target.checked)}
+                          />
+                          レイアウトオーバーレイを表示
+                        </label>
+                      </div>
+                    )}
                   </div>
-                  <PageNavigator 
-                    currentPage={currentPage}
-                    totalPages={numPages}
-                    onPageChange={handlePageChange}
-                    zoom={zoom}
-                    onZoomChange={handleZoomChange}
-                  />
-                </div>
-                <div className="extractor-section">
+                )}
+                {!showPdfPreview && (
+                  <div className="preview-toggle">
+                    <button 
+                      className="show-preview-button"
+                      onClick={() => setShowPdfPreview(true)}
+                    >
+                      PDFプレビューを表示
+                    </button>
+                  </div>
+                )}
+                <div className={`extractor-section ${!showPdfPreview ? 'expanded' : ''}`}>
                   <TextExtractor 
                     file={file}
                     numPages={numPages}
