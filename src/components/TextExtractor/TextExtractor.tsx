@@ -99,6 +99,43 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     setEndPage(currentPage);
   };
 
+  const handleCopyToClipboard = async () => {
+    if (!extractedData) return;
+    
+    try {
+      await navigator.clipboard.writeText(extractedData.full_text);
+      alert('テキストをクリップボードにコピーしました');
+    } catch (err) {
+      console.error('コピーに失敗しました:', err);
+      alert('コピーに失敗しました');
+    }
+  };
+
+  const handleDownloadAsText = () => {
+    if (!extractedData) return;
+    
+    // ファイル名を生成（PDFファイル名から拡張子を除いて.txtを追加）
+    const baseFileName = file.name.replace(/\.pdf$/i, '');
+    const fileName = `${baseFileName}_extracted.txt`;
+    
+    // Blob作成
+    const blob = new Blob([extractedData.full_text], { type: 'text/plain;charset=utf-8' });
+    
+    // ダウンロードリンクを作成
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    
+    // クリックしてダウンロード
+    document.body.appendChild(link);
+    link.click();
+    
+    // クリーンアップ
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className={styles.container}>
       <div className={styles.controlPanel}>
@@ -219,10 +256,16 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
             </div>
             
             <div className={styles.actions}>
-              <button className={styles.copyButton}>
+              <button 
+                className={styles.copyButton}
+                onClick={handleCopyToClipboard}
+              >
                 全文をコピー
               </button>
-              <button className={styles.downloadButton}>
+              <button 
+                className={styles.downloadButton}
+                onClick={handleDownloadAsText}
+              >
                 テキストファイルとしてダウンロード
               </button>
             </div>
