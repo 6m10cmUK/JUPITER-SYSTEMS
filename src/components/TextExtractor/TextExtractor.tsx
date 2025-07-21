@@ -22,7 +22,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
   const [startPage, setStartPage] = useState(1);
   const [endPage, setEndPage] = useState(numPages);
   const [isServerAwake, setIsServerAwake] = useState(true);
-  const [showColumnInfo, setShowColumnInfo] = useState(false);
+  const [showLayoutInfo, setShowLayoutInfo] = useState(false);
 
   useEffect(() => {
     setEndPage(numPages);
@@ -48,19 +48,20 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     }
 
     try {
-      // ユーザーの暗号化キーを取得
+      // 暗号化は絶対要件 - ユーザーの暗号化キーを取得
       console.log('暗号化キーを取得中...');
       const encryptionKey = await EncryptionKeyService.getUserKey(currentUser);
       console.log('暗号化キー取得完了');
 
-      // 暗号化APIを使用してテキストを抽出
+      // 暗号化APIを使用してテキストを抽出（成形オプション有効）
       console.log('暗号化APIでテキスト抽出中...');
       const encryptedResponse = await PDFApiService.extractTextEncrypted(
         file,
         encryptionKey,
         startPage,
         endPage,
-        true
+        true,
+        true  // apply_formatting を有効化
       );
       
       // 復号化
@@ -100,109 +101,142 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
 
   return (
     <div className={styles.container}>
-      <h2>テキスト抽出</h2>
-      
-      <div className={styles.controls}>
-        <div className={styles.pageRange}>
-          <label>
-            開始ページ:
-            <input
-              type="number"
-              min="1"
-              max={numPages}
-              value={startPage}
-              onChange={(e) => handlePageRangeChange('start', e.target.value)}
-              className={styles.pageInput}
-            />
-          </label>
-          
-          <span className={styles.separator}>〜</span>
-          
-          <label>
-            終了ページ:
-            <input
-              type="number"
-              min="1"
-              max={numPages}
-              value={endPage}
-              onChange={(e) => handlePageRangeChange('end', e.target.value)}
-              className={styles.pageInput}
-            />
-          </label>
-          
+      <div className={styles.controlPanel}>
+        <h2>テキスト抽出</h2>
+        
+        <div className={styles.controls}>
+          <div className={styles.pageRange}>
+            <label>
+              開始ページ:
+              <input
+                type="number"
+                min="1"
+                max={numPages}
+                value={startPage}
+                onChange={(e) => handlePageRangeChange('start', e.target.value)}
+                className={styles.pageInput}
+              />
+            </label>
+            
+            <span className={styles.separator}>〜</span>
+            
+            <label>
+              終了ページ:
+              <input
+                type="number"
+                min="1"
+                max={numPages}
+                value={endPage}
+                onChange={(e) => handlePageRangeChange('end', e.target.value)}
+                className={styles.pageInput}
+              />
+            </label>
+            
+            <button
+              onClick={handleSetCurrentPage}
+              className={styles.currentPageButton}
+              title="現在のページのみ"
+            >
+              現在のページ
+            </button>
+          </div>
+
           <button
-            onClick={handleSetCurrentPage}
-            className={styles.currentPageButton}
-            title="現在のページのみ"
+            onClick={handleExtract}
+            disabled={isExtracting || startPage > endPage}
+            className={styles.extractButton}
           >
-            現在のページ
+            {isExtracting ? '抽出中...' : 'テキスト抽出'}
           </button>
         </div>
 
-        <button
-          onClick={handleExtract}
-          disabled={isExtracting || startPage > endPage}
-          className={styles.extractButton}
-        >
-          {isExtracting ? '抽出中...' : 'テキスト抽出'}
-        </button>
-      </div>
-
-      {!isServerAwake && (
-        <div className={styles.serverStatus}>
-          <div className={styles.wakeupMessage}>
-            🌙 サーバーが休止状態です。起動中です...（最大1分かかります）
-            <div className={styles.spinner}></div>
+        {!isServerAwake && (
+          <div className={styles.serverStatus}>
+            <div className={styles.wakeupMessage}>
+              🌙 サーバーが休止状態です。起動中です...（最大1分かかります）
+              <div className={styles.spinner}></div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {error && (
-        <div className={styles.error}>
-          エラー: {error}
-        </div>
-      )}
+        {error && (
+          <div className={styles.error}>
+            エラー: {error}
+          </div>
+        )}
+
+        {extractedData && (
+          <>
+            <div className={styles.summary}>
+              <h3>抽出情報</h3>
+              <div className={styles.summaryDetails}>
+                <span>総ページ数: {extractedData.total_pages}</span>
+                <span>抽出ページ数: {extractedData.extracted_pages.length}</span>
+              </div>
+            </div>
+            
+            <div className={styles.layoutSection}>
+              <button 
+                className={styles.toggleButton}
+                onClick={() => setShowLayoutInfo(!showLayoutInfo)}
+              >
+                レイアウト解析情報 {showLayoutInfo ? '▼' : '▶'}
+              </button>
+              {showLayoutInfo && (
+                <div className={styles.layoutInfo}>
+                  {extractedData.extracted_pages.map((page) => (
+                    <div key={page.page_number} className={styles.pageLayout}>
+                      <div className={styles.pageLayoutHeader}>
+                        ページ {page.page_number}
+                      </div>
+                      <div className={styles.layoutDetails}>
+                        <div className={styles.layoutItem}>
+                          <span className={styles.layoutLabel}>カラム数:</span>
+                          <span className={styles.layoutValue}>{page.column_count || 1}</span>
+                        </div>
+                        {page.has_header && (
+                          <div className={styles.layoutItem}>
+                            <span className={styles.layoutLabel}>ヘッダー:</span>
+                            <span className={styles.layoutValue}>{page.header_text || '検出済み'}</span>
+                          </div>
+                        )}
+                        {page.has_footer && (
+                          <div className={styles.layoutItem}>
+                            <span className={styles.layoutLabel}>フッター:</span>
+                            <span className={styles.layoutValue}>{page.footer_text || '検出済み'}</span>
+                          </div>
+                        )}
+                        {!page.has_header && !page.has_footer && (
+                          <div className={styles.layoutItem}>
+                            <span className={styles.layoutNote}>ヘッダー/フッターなし</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            
+            <div className={styles.actions}>
+              <button className={styles.copyButton}>
+                全文をコピー
+              </button>
+              <button className={styles.downloadButton}>
+                テキストファイルとしてダウンロード
+              </button>
+            </div>
+          </>
+        )}
+      </div>
 
       {extractedData && (
         <div className={styles.results}>
-          <h3>抽出結果</h3>
-          <div className={styles.summary}>
-            <span>総ページ数: {extractedData.total_pages}</span>
-            <span>抽出ページ数: {extractedData.extracted_pages.length}</span>
-          </div>
-          
-          <div className={styles.columnSection}>
-            <button 
-              className={styles.toggleButton}
-              onClick={() => setShowColumnInfo(!showColumnInfo)}
-            >
-              カラム情報 {showColumnInfo ? '▼' : '▶'}
-            </button>
-            {showColumnInfo && (
-              <div className={styles.pageInfo}>
-                {extractedData.extracted_pages.map((page) => (
-                  <div key={page.page_number} className={styles.pageColumn}>
-                    ページ {page.page_number}: {page.column_count || 1}カラム
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          
           <div className={styles.textPreview}>
-            <h4>プレビュー</h4>
+            <h3>抽出結果プレビュー</h3>
             <pre className={styles.previewText}>
               {extractedData.full_text}
             </pre>
-          </div>
-          
-          <div className={styles.actions}>
-            <button className={styles.copyButton}>
-              全文をコピー
-            </button>
-            <button className={styles.downloadButton}>
-              テキストファイルとしてダウンロード
-            </button>
           </div>
         </div>
       )}

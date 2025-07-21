@@ -1,9 +1,29 @@
 .container {
+  display: flex;
+  gap: 20px;
+  height: 100%;
+  padding: 20px;
+  background-color: transparent;
+  color: #333;
+}
+
+.controlPanel {
+  width: 350px;
   padding: 20px;
   background-color: #f5f5f5;
   border-radius: 8px;
-  margin: 20px;
-  color: #333;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.results {
+  flex: 1;
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .container h2 {
@@ -122,26 +142,24 @@
   margin: 16px 0;
 }
 
-.results {
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.results h3 {
-  margin: 0 0 16px 0;
-  color: #333;
-  font-size: 18px;
-}
-
 .summary {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 20px;
-  padding: 12px;
-  background-color: #f5f5f5;
+  margin-top: 20px;
+  padding: 16px;
+  background-color: white;
   border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.summary h3 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.summaryDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   font-size: 14px;
 }
 
@@ -201,28 +219,34 @@
 }
 
 .textPreview {
-  margin-bottom: 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  padding-bottom: 60px; /* サポートバッジとの重なりを防ぐため余白を追加 */
+  min-height: 0;
 }
 
-.textPreview h4 {
-  margin: 0 0 12px 0;
+.textPreview h3 {
+  margin: 0 0 16px 0;
   color: #333;
-  font-size: 16px;
+  font-size: 18px;
+  flex-shrink: 0;
 }
 
 .previewText {
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
   color: #333;
   padding: 16px;
   border-radius: 4px;
   font-family: monospace;
   font-size: 14px;
   line-height: 1.5;
-  overflow-x: auto;
+  overflow-y: auto;
   white-space: pre-wrap;
   word-wrap: break-word;
-  max-height: 300px;
-  overflow-y: auto;
+  flex: 1;
 }
 
 .actions {
@@ -246,4 +270,60 @@
 .downloadButton:hover {
   background-color: #f5f5f5;
   border-color: #999;
+}
+
+.layoutSection {
+  margin-top: 16px;
+}
+
+.layoutInfo {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pageLayout {
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.pageLayoutHeader {
+  background-color: #e9ecef;
+  padding: 8px 12px;
+  font-weight: 500;
+  color: #495057;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.layoutDetails {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layoutItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.layoutLabel {
+  font-weight: 500;
+  color: #495057;
+  min-width: 80px;
+}
+
+.layoutValue {
+  color: #212529;
+  flex: 1;
+  word-break: break-word;
+}
+
+.layoutNote {
+  color: #6c757d;
+  font-style: italic;
 }

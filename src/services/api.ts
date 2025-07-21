@@ -10,6 +10,10 @@ export interface ExtractedPage {
     is_bold: boolean;
   }>;
   column_count?: number;
+  has_header?: boolean;
+  has_footer?: boolean;
+  header_text?: string;
+  footer_text?: string;
 }
 
 export interface ExtractResponse {
@@ -27,6 +31,17 @@ export interface EncryptedExtractResponse {
     status: string;
   };
 }
+
+export const analyzeLayout = (file: File, startPage?: number, endPage?: number) => 
+  PDFApiService.analyzeLayout(file, startPage, endPage);
+
+export const extractText = (
+  file: File,
+  startPage?: number,
+  endPage?: number,
+  preserveLayout?: boolean,
+  applyFormatting?: boolean
+) => PDFApiService.extractText(file, startPage, endPage, preserveLayout, applyFormatting);
 
 export class PDFApiService {
   private static async handleResponse<T>(response: Response): Promise<T> {
@@ -50,7 +65,8 @@ export class PDFApiService {
     file: File,
     startPage: number = 1,
     endPage?: number,
-    preserveLayout: boolean = true
+    preserveLayout: boolean = true,
+    applyFormatting: boolean = true
   ): Promise<ExtractResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -58,6 +74,11 @@ export class PDFApiService {
     const params = new URLSearchParams({
       start_page: startPage.toString(),
       preserve_layout: preserveLayout.toString(),
+      apply_formatting: applyFormatting.toString(),
+      remove_headers_footers: 'true',
+      merge_paragraphs: 'true',
+      normalize_spaces: 'true',
+      fix_hyphenation: 'true'
     });
     
     if (endPage) {
@@ -77,7 +98,8 @@ export class PDFApiService {
     encryptionKey: string,
     startPage: number = 1,
     endPage?: number,
-    preserveLayout: boolean = true
+    preserveLayout: boolean = true,
+    applyFormatting: boolean = true
   ): Promise<EncryptedExtractResponse> {
     const formData = new FormData();
     formData.append('file', file);
@@ -86,6 +108,11 @@ export class PDFApiService {
       start_page: startPage.toString(),
       preserve_layout: preserveLayout.toString(),
       user_key: encryptionKey,
+      apply_formatting: applyFormatting.toString(),
+      remove_headers_footers: 'true',
+      merge_paragraphs: 'true',
+      normalize_spaces: 'true',
+      fix_hyphenation: 'true'
     });
     
     if (endPage) {
@@ -100,11 +127,23 @@ export class PDFApiService {
     return this.handleResponse<EncryptedExtractResponse>(response);
   }
 
-  static async analyzeLayout(file: File): Promise<any> {
+  static async analyzeLayout(
+    file: File,
+    startPage: number = 1,
+    endPage?: number
+  ): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(`${API_URL}/api/analyze-layout`, {
+    const params = new URLSearchParams({
+      start_page: startPage.toString(),
+    });
+    
+    if (endPage) {
+      params.append('end_page', endPage.toString());
+    }
+
+    const response = await fetch(`${API_URL}/api/analyze-layout?${params}`, {
       method: 'POST',
       body: formData,
     });
