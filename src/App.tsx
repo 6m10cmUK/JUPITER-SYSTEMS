@@ -20,6 +20,7 @@ function App() {
   const [showPdfPreview, setShowPdfPreview] = useState(true)
   const [layoutData, setLayoutData] = useState<any>(null)
   const [showLayoutOverlay, setShowLayoutOverlay] = useState(false)
+  const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking')
   
   const { pdf, numPages, isLoading, error, loadPDF } = usePDF()
 
@@ -28,14 +29,30 @@ function App() {
     const wakeUpServer = async () => {
       try {
         console.log('サーバーにping送信中...')
+        setServerStatus('checking')
         await PDFApiService.checkHealth()
         console.log('サーバーが起動しました')
+        setServerStatus('online')
       } catch (error) {
         console.log('サーバーへの接続を試行中...', error)
+        setServerStatus('offline')
+        // 5秒後に再試行
+        setTimeout(wakeUpServer, 5000)
       }
     }
     
+    // 初回起動
     wakeUpServer()
+    
+    // 10分ごとにping送信（サーバーを起きたままにする）
+    const keepAliveInterval = setInterval(() => {
+      console.log('キープアライブping送信中...')
+      wakeUpServer()
+    }, 10 * 60 * 1000) // 10分
+    
+    return () => {
+      clearInterval(keepAliveInterval)
+    }
   }, [])
 
   useEffect(() => {
@@ -89,6 +106,26 @@ function App() {
       </header>
       
       <main className="app-main">
+        {serverStatus === 'checking' && (
+          <div className="server-status-banner" style={{ 
+            backgroundColor: '#ffc107', 
+            color: '#000', 
+            padding: '10px', 
+            textAlign: 'center' 
+          }}>
+            🔄 サーバーを起動中です... 初回は最大30秒かかる場合があります
+          </div>
+        )}
+        {serverStatus === 'offline' && (
+          <div className="server-status-banner" style={{ 
+            backgroundColor: '#dc3545', 
+            color: '#fff', 
+            padding: '10px', 
+            textAlign: 'center' 
+          }}>
+            ⚠️ サーバーに接続できません。再接続を試行中...
+          </div>
+        )}
         {!file ? (
           <div className="upload-container">
             <PDFUploader onFileSelect={handleFileSelect} />
