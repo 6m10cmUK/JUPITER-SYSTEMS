@@ -3,7 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 // PDF.js workerの設定
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.js/pdf.worker.js';
+// CDNから読み込む（より確実）
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 interface UsePDFResult {
   pdf: PDFDocumentProxy | null;
