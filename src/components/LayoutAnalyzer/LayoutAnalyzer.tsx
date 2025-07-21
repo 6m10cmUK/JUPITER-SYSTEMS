@@ -16,7 +16,7 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [layoutData, setLayoutData] = useState<any>(null);
-  const [selectedRegion, setSelectedRegion] = useState<any>(null);
+  const [selectedRegion] = useState<any>(null);
 
   const handleAnalyzeLayout = async () => {
     if (!pdfFile) return;
@@ -34,10 +34,6 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
     }
   };
 
-  const handleRegionClick = (type: string, region: any) => {
-    setSelectedRegion({ type, ...region });
-    setShowDetails(true);
-  };
 
   const currentPageLayout = layoutData?.pages?.find(
     (p: any) => p.page_number === currentPage

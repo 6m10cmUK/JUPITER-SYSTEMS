@@ -16,7 +16,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1)
   const [zoom, setZoom] = useState(100)
   const [rotation] = useState(0)
-  const [user, setUser] = useState<User | null>(null)
+  const [, setUser] = useState<User | null>(null)
   const [showPdfPreview, setShowPdfPreview] = useState(true)
   const [layoutData, setLayoutData] = useState<any>(null)
   const [showLayoutOverlay, setShowLayoutOverlay] = useState(false)
@@ -67,10 +67,6 @@ function App() {
   const handleLayoutAnalyzed = (data: any) => {
     setLayoutData(data)
     setShowLayoutOverlay(true)
-  }
-
-  const handleRegionClick = (regionType: string, region: any) => {
-    console.log('領域クリック:', regionType, region)
   }
 
   return (
@@ -132,7 +128,7 @@ function App() {
                         rotation={rotation}
                         layoutData={layoutData}
                         showLayoutOverlay={showLayoutOverlay}
-                        onRegionClick={handleRegionClick}
+                        onRegionClick={() => {}}
                       />
                     </div>
                     <PageNavigator 
