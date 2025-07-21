@@ -161,10 +161,12 @@ class PDFProcessor:
             return self._process_multicolumn_blocks(blocks, page_height, header_boundary, footer_boundary, vertical_gaps, style_stats)
         else:
             # シングルカラムの場合も---を付ける
+            # シングルカラムの場合のカラム右端はページ幅
+            column_right_edge = page_width
             if style_stats:
-                text = process_blocks_to_text_with_style(blocks, style_stats)
+                text = process_blocks_to_text_with_style(blocks, style_stats, column_right_edge=column_right_edge)
             else:
-                text = process_blocks_to_text(blocks)
+                text = process_blocks_to_text(blocks, column_right_edge=column_right_edge)
             return f"---\n\n{text}" if text else ""
     
     def _process_multicolumn_blocks(self, blocks, page_height, header_boundary, footer_boundary, vertical_gaps, style_stats=None) -> str:
@@ -211,11 +213,14 @@ class PDFProcessor:
                             text = extract_block_text(block)
                             logger.info(f"  最後のブロック{j}: Y={block['bbox'][1]:.1f}, text='{text[:20]}'")
                 
+                # カラムの右端を取得
+                column_right_edge = columns[i]['x'] + columns[i]['width'] if i < len(columns) else None
+                
                 # カラムごとのブロックはすでにソート済み
                 if style_stats:
-                    column_text = process_blocks_to_text_with_style(column_blocks, style_stats, already_sorted=True)
+                    column_text = process_blocks_to_text_with_style(column_blocks, style_stats, already_sorted=True, column_right_edge=column_right_edge)
                 else:
-                    column_text = process_blocks_to_text(column_blocks, already_sorted=True)
+                    column_text = process_blocks_to_text(column_blocks, already_sorted=True, column_right_edge=column_right_edge)
                 if column_text:
                     column_texts.append((i + 1, column_text))
         
