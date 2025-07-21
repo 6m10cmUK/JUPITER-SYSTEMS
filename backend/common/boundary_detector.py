@@ -31,9 +31,22 @@ def detect_header_footer_boundaries(blocks: List[Dict], page_height: float) -> T
     content_top = sorted_blocks[0]["bbox"][1] if sorted_blocks else 0
     content_bottom = sorted_blocks[-1]["bbox"][3] if sorted_blocks else page_height
     
-    # ヘッダー候補：ページ上部5%以内かつ35ポイント以内のブロック
-    header_limit = min(page_height * 0.05, 35)
-    header_candidates = [b for b in sorted_blocks if b["bbox"][1] < header_limit]
+    # ヘッダー候補：ページ上部8%以内かつ50ポイント以内のブロック
+    header_limit = min(page_height * 0.08, 50)
+    # 上から順に見て、大きな間隔が開くまでをヘッダーとする
+    header_candidates = []
+    prev_bottom = 0
+    for b in sorted_blocks:
+        if b["bbox"][1] > header_limit:
+            break
+        # 前のブロックとの間隔が15ポイント以上開いたら終了
+        if header_candidates and b["bbox"][1] - prev_bottom > 15:
+            break
+        # 2つ以上のブロックは含めない（通常ヘッダーは1行）
+        if len(header_candidates) >= 1:
+            break
+        header_candidates.append(b)
+        prev_bottom = b["bbox"][3]
     
     # フッター候補：ページ下部10%以内かつ下から60ポイント以内のブロック
     footer_limit = max(page_height * 0.9, page_height - 60)
