@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import './App.css'
 import { PDFUploader } from './components/PDFUploader'
 import { PDFViewer } from './components/PDFViewer'
@@ -7,11 +8,14 @@ import { TextExtractor } from './components/TextExtractor'
 import { Footer } from './components/Footer'
 import { Auth } from './components/Auth'
 import { LayoutAnalyzer } from './components/LayoutAnalyzer/LayoutAnalyzer'
+import CharacterDisplay from './pages/CharacterDisplay'
+import CharacterDisplayTest from './pages/CharacterDisplayTest'
+import CharacterDisplayPixiv from './pages/CharacterDisplayPixiv'
 import { usePDF } from './hooks/usePDF'
 import { PDFApiService } from './services/api'
 import type { User } from 'firebase/auth'
 
-function App() {
+function PDFConverter() {
   const [file, setFile] = useState<File | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [zoom, setZoom] = useState(100)
@@ -218,6 +222,19 @@ function App() {
       </main>
       <Footer />
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<PDFConverter />} />
+        <Route path="/character-display" element={<CharacterDisplayPixiv />} />
+        <Route path="/character-display-old" element={<CharacterDisplay />} />
+        <Route path="/test" element={<CharacterDisplayTest />} />
+      </Routes>
+    </Router>
   )
 }
 
