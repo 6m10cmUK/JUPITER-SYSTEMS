@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import CharacterCanvas from '../components/CharacterDisplay/CharacterCanvas';
 import CharacterFormPixiv from '../components/CharacterDisplay/CharacterFormPixiv';
-import ThemeSelector from '../components/CharacterDisplay/ThemeSelector';
+import ThemeSelectorModal from '../components/CharacterDisplay/ThemeSelectorModal';
 import { Footer } from '../components/Footer/Footer';
 import type { CharacterData, Theme } from '../types/characterDisplay.tsx';
 import { themes } from '../config/themes';
@@ -15,9 +15,10 @@ const CharacterDisplayPixiv: React.FC = () => {
     scenarioName: ''
   });
   
-  const [selectedTheme, setSelectedTheme] = useState<Theme>(themes[0]);
-  const [activeTab, setActiveTab] = useState<'theme' | 'settings'>('theme');
+  // デフォルトはModernテーマ
+  const [selectedTheme, setSelectedTheme] = useState<Theme>(themes.find(t => t.id === 'modern') || themes[3]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [showThemeModal, setShowThemeModal] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const handleDownload = () => {
@@ -65,44 +66,61 @@ const CharacterDisplayPixiv: React.FC = () => {
           }}
         >
           <div style={{ width: '380px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* タブ */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #e8eaed', background: 'white' }}>
-              <button
-                className={`pixiv-tab ${activeTab === 'theme' ? 'active' : ''}`}
-                onClick={() => setActiveTab('theme')}
-                style={{ flex: 1, border: 'none', background: 'none' }}
-              >
-                テーマ
-              </button>
-              <button
-                className={`pixiv-tab ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('settings')}
-                style={{ flex: 1, border: 'none', background: 'none' }}
-              >
-                設定
-              </button>
-            </div>
-
-            {/* タブコンテンツ */}
+            {/* キャラクター設定のみ */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '20px' }}>
-              {activeTab === 'theme' ? (
-                <div>
-                  <h2 className="pixiv-section-header">テーマを選択</h2>
-                  <ThemeSelector 
-                    themes={themes}
-                    selectedTheme={selectedTheme}
-                    onThemeChange={setSelectedTheme}
-                  />
-                </div>
-              ) : (
-                <div>
-                  <h2 className="pixiv-section-header">キャラクター設定</h2>
-                  <CharacterFormPixiv
-                    characterData={characterData}
-                    onDataChange={setCharacterData}
-                  />
-                </div>
-              )}
+              <h2 className="pixiv-section-header">キャラクター設定</h2>
+              
+              {/* テーマ変更ボタン */}
+              <div style={{ marginBottom: '24px' }}>
+                <button
+                  onClick={() => setShowThemeModal(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'white',
+                    border: '1px solid #d2d5da',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#0096fa';
+                    e.currentTarget.style.background = '#f0f8ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#d2d5da';
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '4px',
+                      background: `linear-gradient(135deg, ${selectedTheme.backgroundColor}, ${selectedTheme.secondaryColor || selectedTheme.backgroundColor})`,
+                      border: '1px solid #d2d5da'
+                    }} />
+                    <span style={{
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      color: '#35383f'
+                    }}>
+                      テーマ: {selectedTheme.name}
+                    </span>
+                  </div>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#70757e" strokeWidth="2">
+                    <path d="M9 18l6-6-6-6" />
+                  </svg>
+                </button>
+              </div>
+              
+              <CharacterFormPixiv
+                characterData={characterData}
+                onDataChange={setCharacterData}
+              />
             </div>
           </div>
           
@@ -196,6 +214,14 @@ const CharacterDisplayPixiv: React.FC = () => {
           </div>
         </main>
       </div>
+      
+      {/* テーマ選択モーダル */}
+      <ThemeSelectorModal
+        isOpen={showThemeModal}
+        onClose={() => setShowThemeModal(false)}
+        selectedTheme={selectedTheme}
+        onThemeSelect={setSelectedTheme}
+      />
       
       <Footer />
     </div>
