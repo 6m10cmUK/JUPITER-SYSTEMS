@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import ImageUploadModal from './ImageUploadModal';
+import ImageUploadModal from './ImageUploadModal';  // react-easy-crop版（表情差分用）
+import ImageUploadModalReactCrop from './ImageUploadModalReactCrop';  // ReactCrop版（キャラクター画像用）
 import ExpressionGrid from './ExpressionGrid';
 import type { CharacterData, CharacterImage } from '../../types/characterDisplay.tsx';
 
@@ -14,6 +15,7 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
 }) => {
   const [showBaseImageModal, setShowBaseImageModal] = useState(false);
   const [showExpressionModal, setShowExpressionModal] = useState(false);
+  const [lastExpressionCrop, setLastExpressionCrop] = useState<{ x: number; y: number; size: number } | null>(null);
   
   const handleBaseImageUpload = (image: CharacterImage) => {
     onDataChange({
@@ -23,6 +25,15 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
   };
 
   const handleExpressionUpload = (image: CharacterImage) => {
+    // クロップ情報を保存
+    if (image.cropData) {
+      setLastExpressionCrop({
+        x: image.cropData.x,
+        y: image.cropData.y,
+        size: image.cropData.width  // 1:1なのでwidthをsizeとして保存
+      });
+    }
+    
     onDataChange({
       ...characterData,
       expressions: [...characterData.expressions, image]
@@ -45,62 +56,6 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* キャラクター名 */}
-      <div>
-        <label style={{ 
-          display: 'block', 
-          fontSize: '12px', 
-          fontWeight: '600', 
-          color: '#70757e', 
-          marginBottom: '8px' 
-        }}>
-          キャラクター名
-        </label>
-        <input
-          type="text"
-          value={characterData.characterName}
-          onChange={(e) => onDataChange({ ...characterData, characterName: e.target.value })}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            border: '1px solid #d2d5da',
-            borderRadius: '8px',
-            fontSize: '14px',
-            transition: 'all 0.2s ease',
-            outline: 'none'
-          }}
-          placeholder="キャラクターの名前"
-        />
-      </div>
-
-      {/* シナリオ名 */}
-      <div>
-        <label style={{ 
-          display: 'block', 
-          fontSize: '12px', 
-          fontWeight: '600', 
-          color: '#70757e', 
-          marginBottom: '8px' 
-        }}>
-          シナリオ名
-        </label>
-        <input
-          type="text"
-          value={characterData.scenarioName}
-          onChange={(e) => onDataChange({ ...characterData, scenarioName: e.target.value })}
-          style={{
-            width: '100%',
-            padding: '8px 12px',
-            border: '1px solid #d2d5da',
-            borderRadius: '8px',
-            fontSize: '14px',
-            transition: 'all 0.2s ease',
-            outline: 'none'
-          }}
-          placeholder="シナリオの名前"
-        />
-      </div>
-
       {/* キャラクター画像 */}
       <div>
         <label style={{ 
@@ -227,8 +182,64 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
         onAdd={handleAddExpression}
       />
 
+      {/* キャラクター名 */}
+      <div>
+        <label style={{ 
+          display: 'block', 
+          fontSize: '12px', 
+          fontWeight: '600', 
+          color: '#70757e', 
+          marginBottom: '8px' 
+        }}>
+          キャラクター名
+        </label>
+        <input
+          type="text"
+          value={characterData.characterName}
+          onChange={(e) => onDataChange({ ...characterData, characterName: e.target.value })}
+          style={{
+            width: '200px',
+            padding: '8px 12px',
+            border: '1px solid #d2d5da',
+            borderRadius: '8px',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+            outline: 'none'
+          }}
+          placeholder="キャラクターの名前"
+        />
+      </div>
+
+      {/* シナリオ名 */}
+      <div>
+        <label style={{ 
+          display: 'block', 
+          fontSize: '12px', 
+          fontWeight: '600', 
+          color: '#70757e', 
+          marginBottom: '8px' 
+        }}>
+          シナリオ名
+        </label>
+        <input
+          type="text"
+          value={characterData.scenarioName}
+          onChange={(e) => onDataChange({ ...characterData, scenarioName: e.target.value })}
+          style={{
+            width: '200px',
+            padding: '8px 12px',
+            border: '1px solid #d2d5da',
+            borderRadius: '8px',
+            fontSize: '14px',
+            transition: 'all 0.2s ease',
+            outline: 'none'
+          }}
+          placeholder="シナリオの名前"
+        />
+      </div>
+
       {/* モーダル */}
-      <ImageUploadModal
+      <ImageUploadModalReactCrop
         isOpen={showBaseImageModal}
         onClose={() => setShowBaseImageModal(false)}
         onImageUpload={(image) => {
@@ -243,6 +254,8 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
         onClose={() => setShowExpressionModal(false)}
         onImageUpload={handleExpressionUpload}
         title="表情差分を追加"
+        cropAspect={1}  // 1:1固定
+        initialCrop={lastExpressionCrop}  // 前回の座標を渡す
       />
     </div>
   );
