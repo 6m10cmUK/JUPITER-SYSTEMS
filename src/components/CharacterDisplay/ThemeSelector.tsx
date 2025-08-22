@@ -38,9 +38,9 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({
             <p className="text-sm font-medium text-center">
               {theme.name}
             </p>
-            {theme.decorations && (
+            {theme.decorations?.elements && theme.decorations.elements.length > 0 && (
               <div className="absolute top-2 left-2 text-xs opacity-60">
-                {theme.decorations.topLeft}
+                {theme.decorations.elements[0]?.content}
               </div>
             )}
           </button>

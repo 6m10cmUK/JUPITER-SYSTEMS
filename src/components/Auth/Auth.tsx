@@ -61,26 +61,57 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
         <div className={styles.userSection}>
           <button 
             onClick={() => {
-              console.log('Avatar clicked, showMenu:', !showMenu);
               setShowMenu(!showMenu);
             }} 
             className={styles.avatarButton}
             aria-label="ユーザーメニュー"
           >
-            <img 
-              src={user.photoURL || ''} 
-              alt={user.displayName || 'User'} 
-              className={styles.userAvatar}
-            />
+            {user.photoURL ? (
+              <img 
+                src={user.photoURL} 
+                alt={user.displayName || 'User'} 
+                className={styles.userAvatar}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                onError={(e) => {
+                  // エラー時は文字表示にフォールバック
+                  const target = e.target as HTMLImageElement;
+                  const fallbackDiv = document.createElement('div');
+                  fallbackDiv.className = styles.userAvatar;
+                  fallbackDiv.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                  target.parentNode?.replaceChild(fallbackDiv, target);
+                }}
+              />
+            ) : (
+              <div className={styles.userAvatar}>
+                {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+              </div>
+            )}
           </button>
           {showMenu && (
             <div className={styles.dropdownMenu}>
               <div className={styles.menuHeader}>
-                <img 
-                  src={user.photoURL || ''} 
-                  alt={user.displayName || 'User'} 
-                  className={styles.menuAvatar}
-                />
+                {user.photoURL ? (
+                  <img 
+                    src={user.photoURL} 
+                    alt={user.displayName || 'User'} 
+                    className={styles.menuAvatar}
+                    crossOrigin="anonymous"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      // エラー時は文字表示にフォールバック
+                      const target = e.target as HTMLImageElement;
+                      const fallbackDiv = document.createElement('div');
+                      fallbackDiv.className = styles.menuAvatar;
+                      fallbackDiv.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                      target.parentNode?.replaceChild(fallbackDiv, target);
+                    }}
+                  />
+                ) : (
+                  <div className={styles.menuAvatar}>
+                    {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
                 <div className={styles.userDetails}>
                   <span className={styles.userName}>{user.displayName}</span>
                   <span className={styles.userEmail}>{user.email}</span>

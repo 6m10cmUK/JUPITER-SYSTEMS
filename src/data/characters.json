@@ -1,0 +1,51 @@
+{
+  "characters": [
+    {
+      "name": "陽那ヶ峰 遊",
+      "iconImage": "/images/characters/hinagamine_icon.png",
+      "fullImages": [
+        "/images/characters/hinagamine_full.png",
+        "/images/characters/hinagamine_full2.png",
+        "/images/characters/hinagamine_full3.png",
+        "/images/characters/hinagamine_full4.png",
+        "/images/characters/hinagamine_full5.png",
+        "/images/characters/hinagamine_full6.png",
+        "/images/characters/hinagamine_full7.png",
+        "/images/characters/hinagamine_full8.png",
+        "/images/characters/hinagamine_full9.png"
+      ],
+      "tags": ["CoC6", "風の又三郎"],
+      "scenarios": [
+        "風の又三郎",
+        "光芒",
+        "癒し癒されから騒ぎ",
+        "らぼらとり",
+        "PISTE",
+        "そうだ、いちご狩り行こう",
+        "猫カフェ行ったら猫耳生えた!?",
+        "Snowdrops Hex Sphere",
+        "白波と青に泳ぐ"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/7618562"
+    },
+    {
+      "name": "相生 航",
+      "iconImage": "/images/characters/aioiwataru_icon.png",
+      "fullImages": [
+        "/images/characters/aioiwataru_full.png",
+        "/images/characters/aioiwataru_full2.png",
+        "/images/characters/aioiwataru_full3.png",
+        "/images/characters/aioiwataru_full4.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "沼男は誰だ",
+        "Hazy Night",
+        "マインドイーター",
+        "終雪のアポストロフィ",
+        "Midnight Junction"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/7570150"
+    }
+  ]
+}

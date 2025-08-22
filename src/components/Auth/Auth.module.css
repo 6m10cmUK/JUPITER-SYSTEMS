@@ -31,7 +31,14 @@
   height: 36px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.2);
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0074E8;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  object-fit: cover;
 }
 
 .dropdownMenu {
@@ -69,6 +76,14 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #0074E8;
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+  object-fit: cover;
 }
 
 .userDetails {

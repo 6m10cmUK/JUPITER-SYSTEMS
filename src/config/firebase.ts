@@ -20,6 +20,13 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Google Providerにスコープを追加してプロフィール情報を確実に取得
+googleProvider.addScope('profile');
+googleProvider.addScope('email');
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
+});
+
 // Firestoreの初期化
 export const db = getFirestore(app);
 

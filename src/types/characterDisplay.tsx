@@ -13,7 +13,8 @@ interface CropData {
 
 interface CharacterData {
   baseImage: CharacterImage | null;
-  expressions: CharacterImage[];  // 表情差分の配列
+  expressions: Record<string, CharacterImage>;  // 表情差分のマップ
+  currentExpression: string;  // 現在選択中の表情
   characterName: string;
   characterNameFurigana?: string;  // ふりがな（オプション）
   scenarioName: string;
@@ -47,6 +48,14 @@ interface Theme {
   name: string;
   description: string;  // テーマ詳細
   
+  // 色設定
+  primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
+  
+  // フォント設定
+  fontFamily: string;
+  
   // 画像サイズ
   canvasSize: {
     width: number;
@@ -56,6 +65,9 @@ interface Theme {
   // 背景
   backgroundImage?: string;  // 背景画像URL
   backgroundColor: string;   // 背景色（画像がない場合のフォールバック）
+  
+  // ボーダースタイル
+  borderStyle: 'none' | 'solid' | 'gradient' | 'ornate';
   
   // レイアウト設定
   layout: {
