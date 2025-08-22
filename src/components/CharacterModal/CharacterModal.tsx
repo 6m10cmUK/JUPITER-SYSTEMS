@@ -33,21 +33,21 @@ export function CharacterModal({ character, isOpen, onClose }: CharacterModalPro
       />
       
       {/* モーダル本体 */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
         <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden pointer-events-auto animate-slide-up"
+          className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col pointer-events-auto animate-slide-up my-auto"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex flex-col md:flex-row h-full">
+          <div className="flex flex-col md:flex-row flex-1 overflow-hidden rounded-2xl">
             {/* 左側：立ち絵 */}
-            <div className="md:w-1/2 bg-gray-50 p-8 flex flex-col items-center justify-center">
+            <div className="md:w-1/2 bg-gray-50 p-8 flex flex-col items-center justify-center overflow-y-auto rounded-t-2xl md:rounded-tr-none md:rounded-l-2xl">
               {character.fullImages && character.fullImages.length > 0 ? (
                 <>
                   <div className="flex-1 flex items-center justify-center mb-4">
                     <img 
                       src={character.fullImages[selectedImageIndex]} 
                       alt={`${character.name} - 立ち絵${selectedImageIndex + 1}`}
-                      className="max-w-full max-h-[50vh] object-contain"
+                      className="max-w-full max-h-[40vh] md:max-h-[50vh] object-contain"
                     />
                   </div>
                   {/* 画像サムネイル切り替え */}
