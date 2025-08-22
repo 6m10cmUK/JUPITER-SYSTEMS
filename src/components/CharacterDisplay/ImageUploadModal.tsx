@@ -200,7 +200,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       />
       
       {/* モーダル本体 */}
-      <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+      <div className="relative bg-white rounded-lg shadow-xl w-[900px] h-[750px] mx-4 overflow-hidden">
         {/* ヘッダー */}
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">
@@ -209,11 +209,11 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         </div>
 
         {/* コンテンツ */}
-        <div className="p-6">
+        <div className="p-6 h-[calc(100%-73px)]">
           {!imageSrc ? (
             // ファイル選択エリア
             <div 
-              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer ${
+              className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors cursor-pointer h-full flex flex-col items-center justify-center ${
                 isDragging 
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-300 hover:border-blue-500'
@@ -244,15 +244,16 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
             </div>
           ) : (
             // クロッパーとボタンを横並びに
-            <div className="flex gap-3">
-              <div className="flex-1 bg-gray-100 rounded-lg p-4">
+            <div className="flex gap-3 h-full">
+              <div className="flex-1 bg-gray-100 rounded-lg p-4 h-full">
                 <Cropper
                   ref={cropperRef}
                   src={imageSrc}
-                  className={settings.className}
+                  className="h-full"
                   aspectRatio={settings.aspectRatio as any}
                   style={{
-                    background: '#f3f4f6'
+                    background: '#f3f4f6',
+                    height: '100%'
                   }}
                   onReady={() => {
                     if (cropperRef.current) {
