@@ -6,13 +6,15 @@ interface UseServerStatusOptions {
   checkInterval?: number;  // ミリ秒単位
   keepAliveInterval?: number;  // ミリ秒単位
   enableKeepalive?: boolean;
+  autoStart?: boolean;  // 自動起動するかどうか
 }
 
 export const useServerStatus = (options: UseServerStatusOptions = {}) => {
   const {
     checkInterval = 5000,  // 5秒
     keepAliveInterval = 10 * 60 * 1000,  // 10分
-    enableKeepalive = true
+    enableKeepalive = true,
+    autoStart = false  // デフォルトは自動起動しない
   } = options;
 
   const [status, setStatus] = useState<ServerStatus>('checking');
@@ -57,16 +59,18 @@ export const useServerStatus = (options: UseServerStatusOptions = {}) => {
     }
   }, [checkHealth, checkInterval, retryCount]);
 
-  // 初回起動
+  // 初回起動（autoStartがtrueの場合のみ）
   useEffect(() => {
-    wakeUpServer();
+    if (autoStart) {
+      wakeUpServer();
+    }
 
     return () => {
       if (checkIntervalRef.current) {
         clearTimeout(checkIntervalRef.current);
       }
     };
-  }, []);
+  }, [autoStart, wakeUpServer]);
 
   // キープアライブ
   useEffect(() => {
