@@ -37,9 +37,9 @@ export function RoomModal({ room, isOpen, onClose }: RoomModalProps) {
       />
       
       {/* モーダル本体 */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none overflow-y-auto">
         <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto pointer-events-auto animate-slide-up"
+          className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto pointer-events-auto animate-slide-up my-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 画像 */}

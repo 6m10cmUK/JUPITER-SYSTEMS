@@ -27,7 +27,7 @@ export function CharacterGallery({ characters }: CharacterGalleryProps) {
     const updateRowCount = () => {
       const width = window.innerWidth;
       if (width < 640) {
-        setRowCount(4); // モバイル: 4行
+        setRowCount(3); // モバイル: 3行
       } else if (width < 1024) {
         setRowCount(3); // タブレット: 3行
       } else {
@@ -56,29 +56,67 @@ export function CharacterGallery({ characters }: CharacterGalleryProps) {
       scrollContainer.scrollLeft = oneSetWidth;
     }, 100);
 
+    // 無限ループ処理のチェック
+    const checkInfiniteLoop = () => {
+      const oneSetWidth = scrollContainer.scrollWidth / 3;
+      
+      if (scrollContainer.scrollLeft >= oneSetWidth * 2.5) {
+        scrollContainer.scrollLeft = scrollContainer.scrollLeft - oneSetWidth;
+      } else if (scrollContainer.scrollLeft <= oneSetWidth * 0.5) {
+        scrollContainer.scrollLeft = scrollContainer.scrollLeft + oneSetWidth;
+      }
+    };
+
     // マウスホイールでの手動スクロール
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      const oneSetWidth = scrollContainer.scrollWidth / 3;
       const scrollAmount = e.deltaY * 0.5 + e.deltaX * 0.5;
-      
-      let newScrollLeft = scrollContainer.scrollLeft + scrollAmount;
-      
-      // 無限ループ処理（より厳密な境界チェック）
-      if (newScrollLeft >= oneSetWidth * 2.5) {
-        newScrollLeft = newScrollLeft - oneSetWidth;
-      } else if (newScrollLeft <= oneSetWidth * 0.5) {
-        newScrollLeft = newScrollLeft + oneSetWidth;
-      }
-      
-      scrollContainer.scrollLeft = newScrollLeft;
+      scrollContainer.scrollLeft += scrollAmount;
+      checkInfiniteLoop();
+    };
+
+    // タッチデバイス用のスクロール処理
+    let startX = 0;
+    let scrollLeft = 0;
+    let isDown = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      isDown = true;
+      startX = e.touches[0].pageX - scrollContainer.offsetLeft;
+      scrollLeft = scrollContainer.scrollLeft;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.touches[0].pageX - scrollContainer.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      scrollContainer.scrollLeft = scrollLeft - walk;
+      checkInfiniteLoop();
+    };
+
+    const handleTouchEnd = () => {
+      isDown = false;
+    };
+
+    // スクロール終了時のチェック
+    const handleScroll = () => {
+      checkInfiniteLoop();
     };
 
     scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
+    scrollContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    scrollContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+    scrollContainer.addEventListener('touchend', handleTouchEnd);
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       scrollContainer.removeEventListener('wheel', handleWheel);
+      scrollContainer.removeEventListener('touchstart', handleTouchStart);
+      scrollContainer.removeEventListener('touchmove', handleTouchMove);
+      scrollContainer.removeEventListener('touchend', handleTouchEnd);
+      scrollContainer.removeEventListener('scroll', handleScroll);
     };
   }, [characters, rowCount]);
 
@@ -104,21 +142,24 @@ export function CharacterGallery({ characters }: CharacterGalleryProps) {
           </div>
           
           {characters.length > 0 ? (
-            <div className="overflow-x-hidden" ref={scrollRef}>
+            <div 
+              className="overflow-x-auto md:overflow-x-hidden touch-pan-x" 
+              ref={scrollRef}
+              style={{ WebkitOverflowScrolling: 'touch' }}>
               <div className="flex flex-col gap-2 sm:gap-3 lg:gap-4" style={{ width: 'max-content' }}>
                 {Array.from({ length: rowCount }, (_, rowIndex) => (
                   <div 
                     key={`row-${rowIndex}`}
                     className="flex gap-2 sm:gap-3 lg:gap-4" 
                     style={{ 
-                      marginLeft: `${rowIndex * (rowCount === 4 ? 3 : rowCount === 3 ? 5 : 7)}rem` 
+                      marginLeft: `${rowIndex * (rowCount === 3 ? 5 : 7)}rem` 
                     }}
                   >
                     {shuffledCharacters
                       .filter((_, index) => index % rowCount === rowIndex)
                       .map((character, index) => (
                         <div 
-                          className="flex-shrink-0 w-32 sm:w-44 lg:w-56" 
+                          className="flex-shrink-0 w-56" 
                           key={`${character.name}-row${rowIndex}-${index}`}
                         >
                           <CharacterTile 

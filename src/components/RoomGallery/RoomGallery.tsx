@@ -56,29 +56,67 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
       scrollContainer.scrollLeft = oneSetWidth;
     }, 100);
 
+    // 無限ループ処理のチェック
+    const checkInfiniteLoop = () => {
+      const oneSetWidth = scrollContainer.scrollWidth / 3;
+      
+      if (scrollContainer.scrollLeft >= oneSetWidth * 2.5) {
+        scrollContainer.scrollLeft = scrollContainer.scrollLeft - oneSetWidth;
+      } else if (scrollContainer.scrollLeft <= oneSetWidth * 0.5) {
+        scrollContainer.scrollLeft = scrollContainer.scrollLeft + oneSetWidth;
+      }
+    };
+
     // マウスホイールでの手動スクロール
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      const oneSetWidth = scrollContainer.scrollWidth / 3;
       const scrollAmount = e.deltaY * 0.5 + e.deltaX * 0.5;
-      
-      let newScrollLeft = scrollContainer.scrollLeft + scrollAmount;
-      
-      // 無限ループ処理（より厳密な境界チェック）
-      if (newScrollLeft >= oneSetWidth * 2.5) {
-        newScrollLeft = newScrollLeft - oneSetWidth;
-      } else if (newScrollLeft <= oneSetWidth * 0.5) {
-        newScrollLeft = newScrollLeft + oneSetWidth;
-      }
-      
-      scrollContainer.scrollLeft = newScrollLeft;
+      scrollContainer.scrollLeft += scrollAmount;
+      checkInfiniteLoop();
+    };
+
+    // タッチデバイス用のスクロール処理
+    let startX = 0;
+    let scrollLeft = 0;
+    let isDown = false;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      isDown = true;
+      startX = e.touches[0].pageX - scrollContainer.offsetLeft;
+      scrollLeft = scrollContainer.scrollLeft;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.touches[0].pageX - scrollContainer.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      scrollContainer.scrollLeft = scrollLeft - walk;
+      checkInfiniteLoop();
+    };
+
+    const handleTouchEnd = () => {
+      isDown = false;
+    };
+
+    // スクロール終了時のチェック
+    const handleScroll = () => {
+      checkInfiniteLoop();
     };
 
     scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
+    scrollContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
+    scrollContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+    scrollContainer.addEventListener('touchend', handleTouchEnd);
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
 
     return () => {
       scrollContainer.removeEventListener('wheel', handleWheel);
+      scrollContainer.removeEventListener('touchstart', handleTouchStart);
+      scrollContainer.removeEventListener('touchmove', handleTouchMove);
+      scrollContainer.removeEventListener('touchend', handleTouchEnd);
+      scrollContainer.removeEventListener('scroll', handleScroll);
     };
   }, [rooms, rowCount]);
 
@@ -103,7 +141,10 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
         </div>
         
         {rooms.length > 0 ? (
-          <div className="overflow-x-hidden" ref={scrollRef}>
+          <div 
+            className="overflow-x-auto md:overflow-x-hidden touch-pan-x" 
+            ref={scrollRef}
+            style={{ WebkitOverflowScrolling: 'touch' }}>
             <div 
               className={rowCount === 1 ? "flex gap-4 sm:gap-5 lg:gap-6" : "flex flex-col gap-3 sm:gap-4 lg:gap-5"} 
               style={{ width: 'max-content' }}
@@ -111,7 +152,7 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
               {rowCount === 1 ? (
                 // デスクトップ: 1行表示
                 shuffledRooms.map((room, index) => (
-                  <div className="flex-shrink-0 w-80 sm:w-88 lg:w-96" key={`${room.name}-${index}`}>
+                  <div className="flex-shrink-0 w-96" key={`${room.name}-${index}`}>
                     <RoomTile 
                       room={room}
                       onClick={handleRoomClick}
@@ -132,7 +173,7 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
                       .filter((_, index) => index % rowCount === rowIndex)
                       .map((room, index) => (
                         <div 
-                          className="flex-shrink-0 w-48 sm:w-64 lg:w-80" 
+                          className="flex-shrink-0 w-80" 
                           key={`${room.name}-row${rowIndex}-${index}`}
                         >
                           <RoomTile 
