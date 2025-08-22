@@ -15,6 +15,7 @@ interface CharacterData {
   baseImage: CharacterImage | null;
   expressions: CharacterImage[];  // 表情差分の配列
   characterName: string;
+  characterNameFurigana?: string;  // ふりがな（オプション）
   scenarioName: string;
 }
 
@@ -23,6 +24,8 @@ interface Position {
   y: number | string;
   width?: number | string;
   height?: number | string;
+  rotation?: number;  // 回転角度（度）
+  writingMode?: 'horizontal' | 'vertical';  // 縦書き/横書き
 }
 
 interface TextStyle {
@@ -32,6 +35,11 @@ interface TextStyle {
   color: string;
   shadow?: string;
   backgroundColor?: string;
+  letterSpacing?: number;  // 文字間隔（px）
+  scaleX?: number;  // 水平方向の拡大率（1.0が標準）
+  scaleY?: number;  // 垂直方向の拡大率（1.0が標準）
+  strokeWidth?: number;  // 文字の輪郭線の太さ
+  strokeColor?: string;  // 文字の輪郭線の色
 }
 
 interface Theme {
@@ -68,6 +76,7 @@ interface Theme {
   // テキストスタイル
   textStyles: {
     characterName: TextStyle;
+    characterNameFurigana?: TextStyle;  // ふりがなのスタイル
     scenarioName: TextStyle;
     expressionLabel?: TextStyle;
   };

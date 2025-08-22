@@ -9,7 +9,8 @@ interface ImageUploadModalProps {
   onImageUpload: (image: CharacterImage) => void;
   title: string;
   cropAspect?: number;
-  initialCrop?: { x: number; y: number; size: number } | null;
+  initialCrop?: { x: number; y: number; zoom: number } | null;
+  onCropChange?: (crop: { x: number; y: number; zoom: number }) => void;
 }
 
 // Canvas上で画像をクロップする関数
@@ -90,7 +91,8 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   onImageUpload,
   title,
   cropAspect,  // undefinedの場合は自由なアスペクト比
-  initialCrop
+  initialCrop,
+  onCropChange
 }) => {
   const [tempImageUrl, setTempImageUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -113,8 +115,9 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       
       // 初期クロップ位置を設定（前回の位置があれば使用）
       if (initialCrop) {
-        // TODO: initialCropのsize,x,yをcropとzoomに変換
-        // react-easy-cropは位置とズームで管理するため
+        setCrop({ x: initialCrop.x, y: initialCrop.y });
+        setZoom(initialCrop.zoom);
+      } else {
         setCrop({ x: 0, y: 0 });
         setZoom(1);
       }
@@ -160,6 +163,11 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
       );
       
       if (croppedImage) {
+        // クロップ情報を親コンポーネントに渡す
+        if (onCropChange) {
+          onCropChange({ x: crop.x, y: crop.y, zoom });
+        }
+        
         onImageUpload({
           file: croppedImage.file,
           url: croppedImage.url,
@@ -175,7 +183,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     } catch (e) {
       console.error('Error cropping image:', e);
     }
-  }, [tempImageUrl, croppedAreaPixels, onImageUpload]);
+  }, [tempImageUrl, croppedAreaPixels, crop, zoom, onImageUpload, onCropChange]);
 
   const handleDirectUpload = () => {
     if (!tempImageUrl || !selectedFile) return;

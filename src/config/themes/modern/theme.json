@@ -1,0 +1,73 @@
+{
+  "id": "modern",
+  "name": "モダン",
+  "description": "シンプルでクリーンなデザイン。汎用的に使えます。",
+  "canvasSize": {
+    "width": 794,
+    "height": 1123
+  },
+  "backgroundColor": "#CCCCCC",
+  "layout": {
+    "characterImage": {
+      "x": "65%",
+      "y": 80,
+      "maxWidth": "90%",
+      "maxHeight": "90%"
+    },
+    "expressions": {
+      "x": 60,
+      "y": "65%",
+      "thumbnailSize": 100,
+      "gap": 10,
+      "columns": 5
+    },
+    "characterName": {
+      "x": "3%",
+      "y": "45%",
+      "rotation": 0,
+      "writingMode": "horizontal"
+    },
+    "scenarioName": {
+      "x": "100%",
+      "y": "1%",
+      "rotation": 90,
+      "writingMode": "horizontal"
+    }
+  },
+  "textStyles": {
+    "characterName": {
+      "fontFamily": "sans-serif",
+      "fontSize": 72,
+      "fontWeight": "bold",
+      "color": "#000000",
+      "backgroundColor": "#FFFFFFE6",
+      "letterSpacing": 0,
+      "scaleX": 1.0,
+      "scaleY": 1.0
+    },
+    "characterNameFurigana": {
+      "fontFamily": "sans-serif",
+      "fontSize": 24,
+      "fontWeight": "normal",
+      "color": "#666666",
+      "letterSpacing": 2
+    },
+    "scenarioName": {
+      "fontFamily": "'Impact', 'Arial Black', 'Noto Sans JP Black', 'Hiragino Kaku Gothic Black', 'MS Gothic', sans-serif",
+      "fontSize": 100,
+      "fontWeight": "900",
+      "color": "#FFFFFF",
+      "letterSpacing": -5,
+      "scaleX": 1.1,
+      "scaleY": 1.0,
+      "strokeWidth": 3,
+      "strokeColor": "#000000"
+    },
+    "expressionLabel": {
+      "fontFamily": "sans-serif",
+      "fontSize": 24,
+      "fontWeight": "bold",
+      "color": "#000000"
+    }
+  }
+}
