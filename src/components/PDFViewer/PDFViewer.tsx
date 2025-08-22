@@ -2,13 +2,14 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import { LayoutOverlay } from '../LayoutOverlay/LayoutOverlay';
 import styles from './PDFViewer.module.css';
+import type { LayoutData } from '../../types/layout.types';
 
 interface PDFViewerProps {
   pdf: PDFDocumentProxy | null;
   currentPage: number;
   zoom: number;
   rotation: number;
-  layoutData?: any;
+  layoutData?: LayoutData | null;
   showLayoutOverlay?: boolean;
   onRegionClick?: (regionType: string, region: any) => void;
 }
@@ -157,7 +158,7 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   }
 
   const currentPageLayout = layoutData?.pages?.find(
-    (p: any) => p.page_number === currentPage
+    (p) => p.page_number === currentPage
   );
 
   return (

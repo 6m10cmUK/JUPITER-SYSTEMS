@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { analyzeLayout } from '../../services/api';
 import styles from './LayoutAnalyzer.module.css';
+import type { LayoutData } from '../../types/layout.types';
 
 interface LayoutAnalyzerProps {
   pdfFile: File | null;
   currentPage: number;
-  onLayoutAnalyzed: (layoutData: any) => void;
+  onLayoutAnalyzed: (layoutData: LayoutData) => void;
 }
 
 export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
@@ -15,7 +16,7 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
 }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
-  const [layoutData, setLayoutData] = useState<any>(null);
+  const [layoutData, setLayoutData] = useState<LayoutData | null>(null);
   const [selectedRegion] = useState<any>(null);
 
   const handleAnalyzeLayout = async () => {
@@ -36,7 +37,7 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
 
 
   const currentPageLayout = layoutData?.pages?.find(
-    (p: any) => p.page_number === currentPage
+    (p) => p.page_number === currentPage
   );
 
   return (
@@ -67,8 +68,8 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
           <div className={styles.section}>
             <h4>ヘッダー領域</h4>
             <div className={styles.regionInfo}>
-              <span>検出: {currentPageLayout.regions.header.detected ? '有り' : '無し'}</span>
-              {currentPageLayout.regions.header.detected && (
+              <span>検出: {currentPageLayout.regions.header?.detected ? '有り' : '無し'}</span>
+              {currentPageLayout.regions.header?.detected && currentPageLayout.height && (
                 <>
                   <span>高さ: {Math.round((currentPageLayout.regions.header.height / currentPageLayout.height) * 100)}%</span>
                   <div className={styles.textPreview}>
@@ -82,8 +83,8 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
           <div className={styles.section}>
             <h4>フッター領域</h4>
             <div className={styles.regionInfo}>
-              <span>検出: {currentPageLayout.regions.footer.detected ? '有り' : '無し'}</span>
-              {currentPageLayout.regions.footer.detected && (
+              <span>検出: {currentPageLayout.regions.footer?.detected ? '有り' : '無し'}</span>
+              {currentPageLayout.regions.footer?.detected && currentPageLayout.height && (
                 <>
                   <span>高さ: {Math.round((currentPageLayout.regions.footer.height / currentPageLayout.height) * 100)}%</span>
                   <div className={styles.textPreview}>
@@ -97,7 +98,7 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
           <div className={styles.section}>
             <h4>縦の余白領域</h4>
             {currentPageLayout.regions.vertical_gaps?.length > 0 ? (
-              currentPageLayout.regions.vertical_gaps.map((gap: any, index: number) => (
+              currentPageLayout.regions.vertical_gaps.map((gap, index: number) => (
                 <div key={index} className={styles.gapInfo}>
                   <h5>余白 {index + 1}</h5>
                   <span>位置: X={Math.round(gap.x)}px</span>
@@ -113,7 +114,7 @@ export const LayoutAnalyzer: React.FC<LayoutAnalyzerProps> = ({
           {currentPageLayout.regions.columns && currentPageLayout.regions.columns.length > 0 && (
             <div className={styles.section}>
               <h4>カラム領域</h4>
-              {currentPageLayout.regions.columns.map((column: any) => (
+              {currentPageLayout.regions.columns.map((column) => (
                 <div key={column.column_number} className={styles.columnInfo}>
                   <h5>カラム {column.column_number}</h5>
                   <span>ブロック数: {column.block_count}</span>

@@ -1,38 +1,9 @@
 import React from 'react';
 import styles from './LayoutOverlay.module.css';
-
-interface Region {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  detected?: boolean;
-  text?: string;
-  block_count?: number;
-  column_number?: number;
-}
-
-interface VerticalGap {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface PageLayout {
-  page_number: number;
-  width: number;
-  height: number;
-  regions: {
-    header: Region;
-    footer: Region;
-    vertical_gaps: VerticalGap[];
-    columns?: Region[];
-  };
-}
+import type { LayoutPage, Region } from '../../types/layout.types';
 
 interface LayoutOverlayProps {
-  pageLayout: PageLayout | null;
+  pageLayout: LayoutPage | null;
   scale: number;
   showOverlay: boolean;
   onRegionClick?: (regionType: string, region: Region) => void;
@@ -49,7 +20,7 @@ export const LayoutOverlay: React.FC<LayoutOverlayProps> = ({
   }
 
   const renderRegion = (
-    region: Region,
+    region: Region & { column_number?: number },
     type: string,
     className: string
   ) => {
@@ -85,11 +56,11 @@ export const LayoutOverlay: React.FC<LayoutOverlayProps> = ({
   return (
     <div className={styles.overlay}>
       {/* ヘッダー領域 */}
-      {pageLayout.regions.header.detected &&
+      {pageLayout.regions.header?.detected && pageLayout.regions.header &&
         renderRegion(pageLayout.regions.header, 'ヘッダー', 'header')}
       
       {/* フッター領域 */}
-      {pageLayout.regions.footer.detected &&
+      {pageLayout.regions.footer?.detected && pageLayout.regions.footer &&
         renderRegion(pageLayout.regions.footer, 'フッター', 'footer')}
       
       {/* 縦の余白領域 */}
@@ -112,7 +83,7 @@ export const LayoutOverlay: React.FC<LayoutOverlayProps> = ({
       ))}
       
       {/* カラム領域 */}
-      {pageLayout.regions.columns?.map((column) => (
+      {pageLayout.regions.columns?.map((column: Region & { column_number?: number }) => (
         <div
           key={`column-${column.column_number}`}
           className={`${styles.region} ${styles.column}`}
