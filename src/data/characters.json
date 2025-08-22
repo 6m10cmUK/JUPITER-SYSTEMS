@@ -1,0 +1,27 @@
+{
+  "characters": [
+    {
+      "id": "char_001",
+      "name": "陽那ヶ峰　遊",
+      "iconImage": "/images/characters/hinagamine_icon.png",
+      "fullImages": [
+        "/images/characters/hinagamine_full.png",
+        "/images/characters/hinagamine_full2.png",
+        "/images/characters/hinagamine_full3.png"
+      ],
+      "tags": ["CoC6", "風の又三郎"],
+      "scenarios": [
+        "風の又三郎",
+        "光芒",
+        "癒し癒されから騒ぎ",
+        "らぼらとり",
+        "PISTE",
+        "そうだ、いちご狩り行こう",
+        "猫カフェ行ったら猫耳生えた!?",
+        "Snowdrops Hex Sphere",
+        "白波と青に泳ぐ"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/7618562"
+    }
+  ]
+}
