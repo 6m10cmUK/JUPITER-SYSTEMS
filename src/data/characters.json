@@ -27,6 +27,25 @@
         "白波と青に泳ぐ"
       ],
       "characterSheetUrl": "https://iachara.com/view/7618562"
+    },
+    {
+      "name": "相生 航",
+      "iconImage": "/images/characters/aioiwataru_icon.png",
+      "fullImages": [
+        "/images/characters/aioiwataru_full.png",
+        "/images/characters/aioiwataru_full2.png",
+        "/images/characters/aioiwataru_full3.png",
+        "/images/characters/aioiwataru_full4.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "沼男は誰だ",
+        "Hazy Night",
+        "マインドイーター",
+        "終雪のアポストロフィ",
+        "Midnight Junction"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/7570150"
     }
   ]
 }

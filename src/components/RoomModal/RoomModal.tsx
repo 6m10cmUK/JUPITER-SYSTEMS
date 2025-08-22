@@ -39,15 +39,15 @@ export function RoomModal({ room, isOpen, onClose }: RoomModalProps) {
       {/* モーダル本体 */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden pointer-events-auto animate-slide-up"
+          className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-auto pointer-events-auto animate-slide-up"
           onClick={(e) => e.stopPropagation()}
         >
           {/* 画像 */}
-          <div className="aspect-[2/1] relative overflow-hidden bg-gray-100">
+          <div className="relative bg-gray-100">
             <img 
               src={room.image} 
               alt={room.name}
-              className="w-full h-full object-cover"
+              className="w-full h-auto"
             />
             {/* 閉じるボタン */}
             <button 
