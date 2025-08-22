@@ -34,16 +34,17 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
       });
     }
     
+    const expressionKey = `expression_${Date.now()}`;
     onDataChange({
       ...characterData,
-      expressions: [...characterData.expressions, image]
+      expressions: { ...characterData.expressions, [expressionKey]: image }
     });
     setShowExpressionModal(false);
   };
 
-  const handleRemoveExpression = (index: number) => {
-    const newExpressions = [...characterData.expressions];
-    newExpressions.splice(index, 1);
+  const handleRemoveExpression = (key: string) => {
+    const newExpressions = { ...characterData.expressions };
+    delete newExpressions[key];
     onDataChange({
       ...characterData,
       expressions: newExpressions

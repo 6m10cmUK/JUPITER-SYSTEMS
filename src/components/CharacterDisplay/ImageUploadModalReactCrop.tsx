@@ -309,9 +309,8 @@ const ImageUploadModalReactCrop: React.FC<ImageUploadModalProps> = ({
                       maxHeight: 'calc(85vh - 160px)',
                       objectFit: 'contain'
                     }}
-                    onLoad={(e) => {
+                    onLoad={(_e) => {
                       // 画像読み込み時に画像全体を選択
-                      const image = e.currentTarget;
                       setCrop({
                         unit: '%',
                         width: 100,

@@ -36,7 +36,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
         drawTexts(ctx);
 
         // 表情差分を描画
-        if (characterData.expressions.length > 0) {
+        if (Object.keys(characterData.expressions).length > 0) {
           drawExpressions(ctx);
         }
       };
@@ -61,7 +61,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
           drawTexts(ctx);
 
           // 表情差分を描画
-          if (characterData.expressions.length > 0) {
+          if (Object.keys(characterData.expressions).length > 0) {
             drawExpressions(ctx);
           }
         };
@@ -172,7 +172,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
     };
 
     const drawExpressions = (ctx: CanvasRenderingContext2D) => {
-      const expressions = characterData.expressions;
+      const expressions = Object.values(characterData.expressions);
       if (expressions.length === 0) return;
 
       // 表情差分セクションのタイトル

@@ -100,7 +100,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const onCropComplete = useCallback((croppedArea: Area, croppedAreaPixels: Area) => {
+  const onCropComplete = useCallback((_croppedArea: Area, croppedAreaPixels: Area) => {
     setCroppedAreaPixels(croppedAreaPixels);
   }, []);
 
