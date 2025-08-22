@@ -15,9 +15,19 @@ interface CharacterData {
   baseImage: CharacterImage | null;
   expressions: Record<string, CharacterImage>;  // 表情差分のマップ
   currentExpression: string;  // 現在選択中の表情
+  system?: string;  // TRPGシステム（CoC, D&D等）
+  scenarioName: string;
   characterName: string;
   characterNameFurigana?: string;  // ふりがな（オプション）
-  scenarioName: string;
+  
+  // TRPG情報
+  stats?: Array<{  // 能力値（ユーザー定義）
+    key: string;
+    value?: number;
+  }>;
+  date?: string;  // セッション日付
+  keeperName?: string;  // KP（キーパー）名
+  players?: string[];  // 同卓者リスト
 }
 
 interface Position {
@@ -75,6 +85,12 @@ interface Theme {
       maxWidth: string | number;
       maxHeight: string | number;
       objectFit?: 'cover' | 'contain' | 'fill';
+      shadow?: {  // 影の設定
+        color: string;
+        offsetX: number;
+        offsetY: number;
+        opacity: number;
+      };
     };
     expressions: Position & {
       thumbnailSize: number;
