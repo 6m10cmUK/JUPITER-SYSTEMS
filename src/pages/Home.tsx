@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { CharacterGallery } from '../components/CharacterGallery/CharacterGallery'
+import { RoomGallery } from '../components/RoomGallery/RoomGallery'
 import charactersData from '../data/characters.json'
+import roomsData from '../data/rooms.json'
 
 export function Home() {
   useEffect(() => {
@@ -466,6 +468,9 @@ export function Home() {
       
       {/* キャラクターギャラリー - 全幅セクション */}
       <CharacterGallery characters={charactersData.characters} />
+      
+      {/* ルームギャラリー - 全幅セクション */}
+      <RoomGallery rooms={roomsData.rooms} />
     </div>
   )
 }
