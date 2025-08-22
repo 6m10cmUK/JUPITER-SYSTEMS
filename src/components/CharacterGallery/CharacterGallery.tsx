@@ -31,14 +31,31 @@ export function CharacterGallery({ characters }: CharacterGalleryProps) {
           </h2>
           
           {characters.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-              {characters.map((character, index) => (
-                <CharacterTile 
-                  key={`${character.name}-${index}`}
-                  character={character}
-                  onClick={handleCharacterClick}
-                />
-              ))}
+            <div className="overflow-x-auto scrollbar-hide">
+              <div className="flex flex-col gap-4" style={{ width: 'max-content' }}>
+                {/* 上段 - 偶数インデックス */}
+                <div className="flex gap-4">
+                  {characters.filter((_, index) => index % 2 === 0).map((character, index) => (
+                    <div className="flex-shrink-0 w-48" key={`${character.name}-top-${index}`}>
+                      <CharacterTile 
+                        character={character}
+                        onClick={handleCharacterClick}
+                      />
+                    </div>
+                  ))}
+                </div>
+                {/* 下段 - 奇数インデックス（少し右にズラす） */}
+                <div className="flex gap-4" style={{ marginLeft: '6rem' }}>
+                  {characters.filter((_, index) => index % 2 === 1).map((character, index) => (
+                    <div className="flex-shrink-0 w-48" key={`${character.name}-bottom-${index}`}>
+                      <CharacterTile 
+                        character={character}
+                        onClick={handleCharacterClick}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : (
             <div className="text-center py-12 text-gray-500">
