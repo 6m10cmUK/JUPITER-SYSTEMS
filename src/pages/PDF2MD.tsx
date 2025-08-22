@@ -60,17 +60,6 @@ export function PDF2MD() {
     <div className="pdf2md-page">
       <ServerStatusBanner status={serverStatus} />
       <main className="app-main">
-        {file && (
-          <div className="page-header">
-            <h2>PDF to Markdown Converter</h2>
-            <button 
-              onClick={() => setFile(null)} 
-              className="new-file-button"
-            >
-              他のファイルを読み込む
-            </button>
-          </div>
-        )}
         {!file ? (
           <div className="upload-container">
             <PDFUploader onFileSelect={handleFileSelect} />
