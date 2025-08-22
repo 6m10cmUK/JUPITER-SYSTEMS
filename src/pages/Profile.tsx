@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { Helmet } from 'react-helmet-async'
 
 export function Profile() {
   useEffect(() => {
@@ -6,8 +7,30 @@ export function Profile() {
   }, [])
   
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* ヘッダー画像 */}
+    <>
+      <Helmet>
+        <title>木林ユピテル - JUPITER SYSTEMS</title>
+        <meta name="description" content="木林ユピテル（きばやし）のプロフィール。TRPG愛好家、イラストレーター、Discord Bot開発者。" />
+        
+        {/* OGP tags */}
+        <meta property="og:title" content="木林ユピテル - JUPITER SYSTEMS" />
+        <meta property="og:description" content="木林ユピテル（きばやし）のプロフィール。TRPG愛好家、イラストレーター、Discord Bot開発者。" />
+        <meta property="og:type" content="profile" />
+        <meta property="og:url" content="https://jupiter-systems.vercel.app/profile" />
+        <meta property="og:image" content="https://jupiter-systems.vercel.app/images/icon.jpg" />
+        <meta property="og:site_name" content="JUPITER SYSTEMS" />
+        
+        {/* Twitter Card tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@6m10cm" />
+        <meta name="twitter:creator" content="@6m10cm" />
+        <meta name="twitter:title" content="木林ユピテル - JUPITER SYSTEMS" />
+        <meta name="twitter:description" content="木林ユピテル（きばやし）のプロフィール。TRPG愛好家、イラストレーター、Discord Bot開発者。" />
+        <meta name="twitter:image" content="https://jupiter-systems.vercel.app/images/icon.jpg" />
+      </Helmet>
+      
+      <div className="min-h-screen bg-gray-50">
+        {/* ヘッダー画像 */}
       <div className="relative h-64 bg-gradient-to-r from-jupiter-600 to-jupiter-400 overflow-hidden">
         <img 
           src="/images/header.jpg" 
@@ -417,5 +440,6 @@ export function Profile() {
         </div>
       </div>
     </div>
+    </>
   )
 }
