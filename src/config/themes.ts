@@ -1,4 +1,4 @@
-import type { Theme } from '../types/characterDisplay.tsx';
+import type { Theme } from '../types/characterDisplay';
 
 export const themes: Theme[] = [
   {

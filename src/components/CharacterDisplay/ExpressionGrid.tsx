@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { CharacterImage } from '../../types/characterDisplay.tsx';
+import type { CharacterImage } from '../../types/characterDisplay';
 
 interface ExpressionGridProps {
   expressions: Record<string, CharacterImage>;
@@ -28,24 +28,24 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
           fontWeight: '600', 
           color: '#70757e'
         }}>
-          表情差分 ({expressions.length}/{MAX_EXPRESSIONS})
+          表情差分 ({Object.keys(expressions).length}/{MAX_EXPRESSIONS})
         </label>
         <button
           onClick={onAdd}
-          disabled={expressions.length >= MAX_EXPRESSIONS}
+          disabled={Object.keys(expressions).length >= MAX_EXPRESSIONS}
           style={{
             padding: '6px 12px',
-            background: expressions.length >= MAX_EXPRESSIONS ? '#d2d5da' : '#0096fa',
+            background: Object.keys(expressions).length >= MAX_EXPRESSIONS ? '#d2d5da' : '#0096fa',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             fontSize: '12px',
             fontWeight: '600',
-            cursor: expressions.length >= MAX_EXPRESSIONS ? 'not-allowed' : 'pointer',
+            cursor: Object.keys(expressions).length >= MAX_EXPRESSIONS ? 'not-allowed' : 'pointer',
             transition: 'all 0.2s ease',
-            opacity: expressions.length >= MAX_EXPRESSIONS ? 0.6 : 1
+            opacity: Object.keys(expressions).length >= MAX_EXPRESSIONS ? 0.6 : 1
           }}
-          title={expressions.length >= MAX_EXPRESSIONS ? `最大${MAX_EXPRESSIONS}個まで登録可能です` : '表情を追加'}
+          title={Object.keys(expressions).length >= MAX_EXPRESSIONS ? `最大${MAX_EXPRESSIONS}個まで登録可能です` : '表情を追加'}
         >
           + 表情を追加
         </button>

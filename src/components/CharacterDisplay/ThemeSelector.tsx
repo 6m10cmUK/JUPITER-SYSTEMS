@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Theme } from '../../types/characterDisplay.tsx';
+import type { Theme } from '../../types/characterDisplay';
 
 interface ThemeSelectorProps {
   themes: Theme[];

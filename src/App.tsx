@@ -3,7 +3,7 @@ import './App.css'
 import { Layout } from './components/Layout/Layout'
 import { Home } from './pages/Home'
 import { PDF2MD } from './pages/PDF2MD'
-import CharacterDisplay from './pages/CharacterDisplay'
+import CharacterDisplayGenerator from './pages/CharacterDisplayGenerator'
 
 function App() {
   return (
@@ -12,7 +12,7 @@ function App() {
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="pdf2md" element={<PDF2MD />} />
-          <Route path="character-display" element={<CharacterDisplay />} />
+          <Route path="character-display-generator" element={<CharacterDisplayGenerator />} />
         </Route>
       </Routes>
     </Router>
