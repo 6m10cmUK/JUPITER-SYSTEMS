@@ -61,7 +61,6 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
         <div className={styles.userSection}>
           <button 
             onClick={() => {
-              console.log('Avatar clicked, showMenu:', !showMenu);
               setShowMenu(!showMenu);
             }} 
             className={styles.avatarButton}

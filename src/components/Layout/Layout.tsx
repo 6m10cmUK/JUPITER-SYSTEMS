@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Auth } from '../Auth'
+import { ToolsMenu } from '../ToolsMenu/ToolsMenu'
 import { Footer } from '../Footer'
 import { useState, useMemo } from 'react'
 import type { User } from 'firebase/auth'
@@ -23,7 +24,8 @@ export function Layout() {
             <Link to="/" className="no-underline">
               <h1 className="text-jupiter-500 text-2xl font-bold">{pageTitle}</h1>
             </Link>
-            <div className="flex items-center">
+            <div className="flex items-center gap-3">
+              <ToolsMenu />
               <Auth onAuthChange={setUser} />
             </div>
           </div>
