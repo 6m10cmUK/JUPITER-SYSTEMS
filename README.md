@@ -1,20 +1,30 @@
-# PDF to Markdown Converter
+# JUPITER SYSTEMS
 
-高精度なPDFからMarkdownへの変換ツール。PyMuPDFを使用した精密なテキスト抽出とレイアウト解析を提供します。
+木林ユピテル（き-ばやし）の個人サイト。TRPGキャラクター管理ツールやPDF変換ツールなどを提供。
 
 ## 機能
 
-- 📄 PDFファイルのドラッグ&ドロップアップロード
-- 🔍 高精度テキスト抽出（PyMuPDF使用）
-- 📑 ページ範囲指定
-- 🎯 レイアウト解析（ヘッダー/フッター自動検出）
-- 📝 Markdown形式への変換
-- 💾 変換結果のダウンロード
+### 🎭 キャラクターギャラリー
+- TRPGキャラクターの一覧表示
+- キャラクター詳細情報の閲覧
+- 立ち絵・アイコン画像の管理
 
-## デモ
+### 🏠 ルームギャラリー
+- TRPG用背景素材の一覧表示
+- ルーム詳細情報の閲覧
 
-- フロントエンド: [https://your-app.vercel.app](https://your-app.vercel.app)
-- API: [https://your-api.onrender.com](https://your-api.onrender.com)
+### 📄 PDF→Markdown変換ツール
+- PDFファイルのドラッグ&ドロップアップロード
+- 高精度テキスト抽出（PyMuPDF使用）
+- ページ範囲指定
+- レイアウト解析（ヘッダー/フッター自動検出）
+- Markdown形式への変換
+- 変換結果のダウンロード
+
+### 🎨 Character Display
+- TRPGキャラクターシート生成ツール
+- 立ち絵アップロード・編集機能
+- 表情差分管理
 
 ## 技術スタック
 
