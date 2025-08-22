@@ -1,0 +1,22 @@
+{
+  "rooms": [
+    {
+      "id": "room_001",
+      "name": "Paranormal Crime",
+      "image": "/images/rooms/ParanormalCrime.png",
+      "tags": ["CoC6", "6PL"]
+    },
+    {
+      "id": "room_002",
+      "name": "Paranormal Crime2",
+      "image": "/images/rooms/ParanormalCrime2.png",
+      "tags": ["CoC6", "6PL"]
+    },
+    {
+      "id": "room_003",
+      "name": "東京ゴーストマティカ",
+      "image": "/images/rooms/tokyoGhostMatica.png",
+      "tags": ["CoC6", "4PL", "秘匿"]
+    }
+  ]
+}
