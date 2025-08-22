@@ -34,7 +34,9 @@ export interface EncryptedExtractResponse {
   };
 }
 
-export const analyzeLayout = (file: File, startPage?: number, endPage?: number) => 
+import type { LayoutData } from '../types/layout.types';
+
+export const analyzeLayout = (file: File, startPage?: number, endPage?: number): Promise<LayoutData> => 
   PDFApiService.analyzeLayout(file, startPage, endPage);
 
 export const extractText = (
@@ -133,7 +135,7 @@ export class PDFApiService {
     file: File,
     startPage: number = 1,
     endPage?: number
-  ): Promise<any> {
+  ): Promise<LayoutData> {
     const formData = new FormData();
     formData.append('file', file);
 

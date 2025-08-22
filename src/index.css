@@ -1,74 +1,93 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import "tailwindcss";
 
-  color-scheme: dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Jupiter Theme Configuration for Tailwind v4 */
+@theme {
+  --color-jupiter-50: #E6F2FF;
+  --color-jupiter-100: #CCE5FF;
+  --color-jupiter-200: #99CBFF;
+  --color-jupiter-300: #66B1FF;
+  --color-jupiter-400: #4DA3FF;
+  --color-jupiter-500: #0074E8;
+  --color-jupiter-600: #0058B3;
+  --color-jupiter-700: #004080;
+  --color-jupiter-800: #002966;
+  --color-jupiter-900: #001A4D;
+  
+  --radius-jupiter-sm: 8px;
+  --radius-jupiter-md: 12px;
+  --radius-jupiter-lg: 16px;
+  --radius-jupiter-xl: 24px;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  width: 100%;
-}
-
+/* Root App Settings */
 #root {
   width: 100%;
-  height: 100vh;
+  min-height: 100vh;
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+/* Custom Components */
+.btn-jupiter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.5rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  transition: all 0.2s;
+  min-height: 40px;
+  min-width: 60px;
 }
 
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  color: rgba(255, 255, 255, 0.87);
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+.btn-jupiter-primary {
+  background-color: var(--color-jupiter-500);
+  color: white;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.btn-jupiter-primary:hover {
+  background-color: var(--color-jupiter-600);
+  transform: scale(1.02);
+}
+
+.btn-jupiter-secondary {
+  background-color: rgb(243 244 246);
+  color: rgb(17 24 39);
+}
+
+.btn-jupiter-secondary:hover {
+  background-color: rgb(229 231 235);
+}
+
+.container-jupiter {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+/* Modal Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
-  a:hover {
-    color: #747bff;
+  to {
+    opacity: 1;
   }
-  button {
-    background-color: #f9f9f9;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
   }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

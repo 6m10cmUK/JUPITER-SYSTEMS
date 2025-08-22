@@ -21,6 +21,12 @@ import tempfile
 from logging.handlers import RotatingFileHandler
 import glob
 
+# Services imports (commented out for now - need to fix imports)
+# from services.pdf_validator import validate_and_save_pdf, validate_page_range
+# from services.text_processor import apply_text_formatting
+# from services.file_manager import save_extracted_text, cleanup_temp_file
+# from services.page_extractor import extract_page_text
+
 # 環境変数で環境を判定
 IS_LOCAL = os.getenv("ENVIRONMENT", "local") == "local"
 

@@ -1,0 +1,54 @@
+{
+  "rooms": [
+    {
+      "name": "Paranormal Crime",
+      "image": "/images/rooms/ParanormalCrime.png",
+      "tags": ["CoC6", "6PL"]
+    },
+    {
+      "name": "Paranormal Crime2",
+      "image": "/images/rooms/ParanormalCrime2.png",
+      "tags": ["CoC6", "6PL"]
+    },
+    {
+      "name": "東京ゴーストマティカ",
+      "image": "/images/rooms/tokyoGhostMatica.png",
+      "tags": ["CoC6", "4PL", "秘匿"]
+    },
+    {
+      "name": "HERO",
+      "image": "/images/rooms/hero.png",
+      "tags": ["CoC6", "4PL", "秘匿"]
+    },
+    {
+      "name": "異能警察は英雄じゃない",
+      "image": "/images/rooms/inokei.png",
+      "tags": ["CoC6", "4PL", "秘匿"]
+    },
+    {
+      "name": "台風の目",
+      "image": "/images/rooms/taihunome.png",
+      "tags": ["CoC6", "4PL"]
+    },
+    {
+      "name": "とある幸せな家族の話",
+      "image": "/images/rooms/toarusiawasenakazokunohanashi.png",
+      "tags": ["CoC6", "4PL", "秘匿"]
+    },
+    {
+      "name": "魂の境界",
+      "image": "/images/rooms/tamashinokyoukai.png",
+      "tags": ["CoC6", "ソロ"]
+    },
+    {
+      "name": "辜月のN",
+      "image": "/images/rooms/kogenu.png",
+      "tags": ["CoC6", "2PL", "秘匿"]
+    },
+    {
+      "name": "イノセント 霊能心霊社:402",
+      "image": "/images/rooms/innocent.png",
+      "tags": ["CoC6", "2PL", "秘匿"]
+    }
+  ]
+}

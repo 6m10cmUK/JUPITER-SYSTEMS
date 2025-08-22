@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import CharacterCanvas from '../components/CharacterDisplay/CharacterCanvas';
 import CharacterForm from '../components/CharacterDisplay/CharacterForm';
 import ThemeSelector from '../components/CharacterDisplay/ThemeSelector';
@@ -8,6 +8,9 @@ import type { CharacterData, Theme } from '../types/characterDisplay.tsx';
 import { themes } from '../config/themes';
 
 const CharacterDisplay: React.FC = () => {
+  useEffect(() => {
+    document.title = 'JUPITER SYSTEMS / Character Display'
+  }, [])
   const [characterData, setCharacterData] = useState<CharacterData>({
     baseImage: null,
     expressions: {},
