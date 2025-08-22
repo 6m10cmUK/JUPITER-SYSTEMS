@@ -249,7 +249,7 @@ async def extract_text(
             if preserve_layout:
                 # apply_formattingが有効な場合は改良版のPDFProcessorを使用
                 if apply_formatting:
-                    from pdf_processor import PDFProcessor
+                    from backend.pdf_processor import PDFProcessor
                     processor = PDFProcessor()
                     structure = processor.extract_text_with_structure(page, apply_text_style=apply_formatting)
                     
@@ -1446,7 +1446,7 @@ async def analyze_layout(
         }
         
         # PDFProcessorのインスタンスを作成
-        from pdf_processor import PDFProcessor
+        from backend.pdf_processor import PDFProcessor
         processor = PDFProcessor()
         
         for page_num in range(start_idx, end_idx):
