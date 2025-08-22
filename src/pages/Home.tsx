@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { CharacterGallery } from '../components/CharacterGallery/CharacterGallery'
+import charactersData from '../data/characters.json'
 
 export function Home() {
   useEffect(() => {
@@ -461,6 +463,9 @@ export function Home() {
           </div>
         </div>
       </div>
+      
+      {/* キャラクターギャラリー - 全幅セクション */}
+      <CharacterGallery characters={charactersData.characters} />
     </div>
   )
 }
