@@ -23,8 +23,8 @@ export function ToolsMenu() {
       description: 'PDFをMarkdown形式に変換'
     },
     {
-      path: '/character-display',
-      name: 'Character Display',
+      path: '/character-display-generator',
+      name: 'Character Display Generator',
       description: 'TRPGキャラクターシート生成'
     }
   ];

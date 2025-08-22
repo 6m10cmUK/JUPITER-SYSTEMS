@@ -296,22 +296,22 @@ export function Home() {
                   className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                 >
                   <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-jupiter-600">
-                    PDF→Markdown変換ツール
+                    PDF to Markdown
                   </h3>
                   <p className="text-sm text-gray-600">
-                    高精度なPDFからMarkdownへの変換ツール
+                    PDFからMarkdownへの変換ツール(開発中)
                   </p>
                 </Link>
                 
                 <Link 
-                  to="/character-display" 
+                  to="/character-display-generator" 
                   className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
                 >
                   <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-jupiter-600">
-                    Character Display
+                    Character Display Generator
                   </h3>
                   <p className="text-sm text-gray-600">
-                    TRPGキャラクターシート生成ツール
+                    TRPGキャラクターシート生成ツール(開発中)
                   </p>
                 </Link>
                 

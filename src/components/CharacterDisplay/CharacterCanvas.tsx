@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
-import type { CharacterData, Theme } from '../../types/characterDisplay.tsx';
+import type { CharacterData, Theme } from '../../types/characterDisplay';
 
 interface CharacterCanvasProps {
   characterData: CharacterData;
@@ -100,7 +100,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
           ctx.lineWidth = 2;
           ctx.strokeRect(40, 40, canvasWidth - 80, canvasHeight - 80);
           break;
-        case 'gradient':
+        case 'gradient': {
           const borderGradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
           borderGradient.addColorStop(0, theme.primaryColor);
           borderGradient.addColorStop(0.5, theme.secondaryColor);
@@ -109,6 +109,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
           ctx.lineWidth = 8;
           ctx.strokeRect(20, 20, canvasWidth - 40, canvasHeight - 40);
           break;
+        }
       }
     };
 
@@ -199,12 +200,13 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
             // 横書きの場合
             if (furiganaStyle.letterSpacing && furiganaStyle.letterSpacing !== 0) {
               // 文字間隔がある場合
+              const letterSpacing = furiganaStyle.letterSpacing;
               const furiganaChars = characterData.characterNameFurigana.split('');
               let currentX = x;
               
               furiganaChars.forEach(char => {
                 ctx.fillText(char, currentX, furiganaY);
-                currentX += ctx.measureText(char).width + furiganaStyle.letterSpacing;
+                currentX += ctx.measureText(char).width + letterSpacing;
               });
             } else {
               // 通常の描画
@@ -254,14 +256,15 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
           
           // 文字間隔がある場合は文字ごとに描画
           if (nameStyle.letterSpacing && nameStyle.letterSpacing !== 0) {
+            const letterSpacing = nameStyle.letterSpacing;
             // 背景描画（文字間隔考慮）
             if (nameStyle.backgroundColor) {
               const chars = characterData.characterName.split('');
               let totalWidth = 0;
               chars.forEach(char => {
-                totalWidth += ctx.measureText(char).width * scaleX + nameStyle.letterSpacing;
+                totalWidth += ctx.measureText(char).width * scaleX + letterSpacing;
               });
-              totalWidth -= nameStyle.letterSpacing; // 最後の文字間隔を除く
+              totalWidth -= letterSpacing; // 最後の文字間隔を除く
               
               ctx.fillStyle = nameStyle.backgroundColor;
               ctx.fillRect(
@@ -283,7 +286,7 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
               ctx.scale(scaleX, scaleY);
               ctx.fillText(char, 0, 0);
               ctx.restore();
-              currentX += ctx.measureText(char).width * scaleX + nameStyle.letterSpacing;
+              currentX += ctx.measureText(char).width * scaleX + letterSpacing;
             });
           } else {
             // 通常の描画（文字間隔なし）
@@ -402,8 +405,8 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
     };
 
     const drawExpressions = (ctx: CanvasRenderingContext2D) => {
-      const expressions = Object.values(characterData.expressions);
-      if (expressions.length === 0) return;
+      const expressionEntries = Object.entries(characterData.expressions);
+      if (expressionEntries.length === 0) return;
 
       // 表情サムネイルを2列固定で下寄せ配置
       const thumbnailSize = 130;
@@ -416,14 +419,14 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
       const startX = leftMargin;
       
       // 必要な行数を計算
-      const actualRows = Math.min(Math.ceil(expressions.length / cols), maxRows);
+      const actualRows = Math.min(Math.ceil(expressionEntries.length / cols), maxRows);
       const rowHeight = thumbnailSize + gap;
       
       // 下寄せのための開始Y座標を計算（画面下部から必要な行数分のスペースを確保）
       const bottomMargin = 50;  // 画面下部からの余白を減らして下に移動
       const startY = canvasHeight - bottomMargin - (actualRows * rowHeight) + gap;
       
-      expressions.forEach((expression, index) => {
+      expressionEntries.forEach(([, expression], index) => {
         if (index >= cols * maxRows) return;  // 最大6個まで
         
         const col = index % cols;

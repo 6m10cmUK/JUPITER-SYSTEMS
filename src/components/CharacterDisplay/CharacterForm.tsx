@@ -1,6 +1,7 @@
-import React from 'react';
-import ImageUploader from './ImageUploader';
-import type { CharacterData, CharacterImage } from '../../types/characterDisplay.tsx';
+import React, { useState } from 'react';
+import type { CharacterData, CharacterImage } from '../../types/characterDisplay';
+import ImageUploadModal from './ImageUploadModal';
+import ExpressionGrid from './ExpressionGrid';
 
 interface CharacterFormProps {
   characterData: CharacterData;
@@ -11,139 +12,161 @@ const CharacterForm: React.FC<CharacterFormProps> = ({
   characterData,
   onDataChange
 }) => {
-  const handleBaseImageUpload = (image: CharacterImage) => {
-    onDataChange({
-      ...characterData,
-      baseImage: image
-    });
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [modalMode, setModalMode] = useState<'base' | 'expression'>('base');
+  const [editingExpressionKey, setEditingExpressionKey] = useState<string>('');
+  const [lastExpressionCrop, setLastExpressionCrop] = useState<{
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
+  const handleImageUpload = (imageData: CharacterImage) => {
+    if (modalMode === 'base') {
+      onDataChange({
+        ...characterData,
+        baseImage: imageData
+      });
+    } else {
+      const newExpressions = { ...characterData.expressions };
+      const key = editingExpressionKey || `exp_${Date.now()}`;
+      newExpressions[key] = imageData;
+      onDataChange({
+        ...characterData,
+        expressions: newExpressions
+      });
+    }
+    setShowImageModal(false);
   };
 
-  const handleExpressionUpload = (expression: string, image: CharacterImage) => {
+  const handleRemoveExpression = (key: string) => {
+    const newExpressions = { ...characterData.expressions };
+    delete newExpressions[key];
     onDataChange({
       ...characterData,
-      expressions: {
-        ...characterData.expressions,
-        [expression]: image
-      }
+      expressions: newExpressions
     });
   };
 
   const handleAddExpression = () => {
-    const expressionName = prompt('表情名を入力してください（例：笑顔、怒り、悲しみ）');
-    if (expressionName && !characterData.expressions[expressionName]) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.onchange = (e) => {
-        const file = (e.target as HTMLInputElement).files?.[0];
-        if (file) {
-          const url = URL.createObjectURL(file);
-          handleExpressionUpload(expressionName, { file, url });
-        }
-      };
-      input.click();
-    }
-  };
-
-  const handleRemoveExpression = (expression: string) => {
-    const newExpressions = { ...characterData.expressions };
-    delete newExpressions[expression];
-    onDataChange({
-      ...characterData,
-      expressions: newExpressions,
-      currentExpression: expression === characterData.currentExpression ? '' : characterData.currentExpression
-    });
+    setModalMode('expression');
+    setEditingExpressionKey('');
+    setShowImageModal(true);
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-lg">
-      <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">
-        キャラクター設定
-      </h2>
-      
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            キャラクター名
-          </label>
-          <input
-            type="text"
-            value={characterData.characterName}
-            onChange={(e) => onDataChange({ ...characterData, characterName: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            placeholder="キャラクターの名前"
-          />
-        </div>
+    <div className="space-y-6">
+      {/* キャラクター名 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          キャラクター名
+        </label>
+        <input
+          type="text"
+          value={characterData.characterName}
+          onChange={(e) => onDataChange({
+            ...characterData,
+            characterName: e.target.value
+          })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-jupiter-primary focus:border-transparent"
+        />
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            シナリオ名
-          </label>
-          <input
-            type="text"
-            value={characterData.scenarioName}
-            onChange={(e) => onDataChange({ ...characterData, scenarioName: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            placeholder="シナリオの名前"
-          />
-        </div>
+      {/* ふりがな */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          ふりがな（オプション）
+        </label>
+        <input
+          type="text"
+          value={characterData.characterNameFurigana || ''}
+          onChange={(e) => onDataChange({
+            ...characterData,
+            characterNameFurigana: e.target.value
+          })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-jupiter-primary focus:border-transparent"
+        />
+      </div>
 
-        <div>
-          <ImageUploader
-            label="基本立ち絵"
-            onImageUpload={handleBaseImageUpload}
-            currentImage={characterData.baseImage}
-            recommendedSize={{ width: 800, height: 1200 }}
-          />
-        </div>
+      {/* シナリオ名 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          シナリオ名
+        </label>
+        <input
+          type="text"
+          value={characterData.scenarioName}
+          onChange={(e) => onDataChange({
+            ...characterData,
+            scenarioName: e.target.value
+          })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-jupiter-primary focus:border-transparent"
+        />
+      </div>
 
-        <div>
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              表情差分
-            </h3>
+      {/* ベース画像 */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          キャラクター画像
+        </label>
+        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-jupiter-primary transition-colors">
+          {characterData.baseImage ? (
+            <div className="relative">
+              <img
+                src={characterData.baseImage.url}
+                alt="Character"
+                className="max-w-full h-48 mx-auto object-contain rounded"
+              />
+              <button
+                onClick={() => {
+                  setModalMode('base');
+                  setShowImageModal(true);
+                }}
+                className="mt-3 text-sm text-jupiter-primary hover:text-jupiter-secondary"
+              >
+                画像を変更
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={handleAddExpression}
-              className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+              onClick={() => {
+                setModalMode('base');
+                setShowImageModal(true);
+              }}
+              className="px-6 py-3 border-2 border-blue-500 text-blue-500 rounded-lg hover:bg-blue-500 hover:text-white transition-all font-semibold"
             >
-              表情を追加
+              画像を選択
             </button>
-          </div>
-          
-          <div className="space-y-4">
-            {Object.entries(characterData.expressions).map(([expression, image]) => (
-              <div key={expression} className="flex items-center gap-4 p-3 border rounded-lg">
-                <img
-                  src={image.url}
-                  alt={expression}
-                  className="w-16 h-16 object-cover rounded"
-                />
-                <div className="flex-1">
-                  <p className="font-medium">{expression}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => onDataChange({ ...characterData, currentExpression: expression })}
-                    className={`px-3 py-1 rounded text-sm ${
-                      characterData.currentExpression === expression
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                    }`}
-                  >
-                    {characterData.currentExpression === expression ? '使用中' : '使用'}
-                  </button>
-                  <button
-                    onClick={() => handleRemoveExpression(expression)}
-                    className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
-                  >
-                    削除
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          )}
         </div>
       </div>
+
+      {/* 表情差分 */}
+      <div>
+        <ExpressionGrid
+          expressions={characterData.expressions}
+          onRemove={handleRemoveExpression}
+          onAdd={handleAddExpression}
+        />
+      </div>
+
+      {/* 画像アップロードモーダル */}
+      {showImageModal && (
+        <ImageUploadModal
+          isOpen={showImageModal}
+          onClose={() => setShowImageModal(false)}
+          onImageUpload={handleImageUpload}
+          initialImage={modalMode === 'base' ? characterData.baseImage : null}
+          mode={modalMode}
+          lastExpressionCrop={modalMode === 'expression' ? lastExpressionCrop : null}
+          onCropPositionSave={(position) => {
+            if (modalMode === 'expression') {
+              setLastExpressionCrop(position);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
