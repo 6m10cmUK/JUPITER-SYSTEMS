@@ -1,6 +1,5 @@
 
 export interface Character {
-  id: string;
   name: string;
   iconImage: string;
   fullImages?: string[];  // 複数の立ち絵URL
