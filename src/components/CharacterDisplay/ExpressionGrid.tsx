@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import type { CharacterImage } from '../../types/characterDisplay.tsx';
 
 interface ExpressionGridProps {
-  expressions: CharacterImage[];
-  onRemove: (index: number) => void;
+  expressions: Record<string, CharacterImage>;
+  onRemove: (key: string) => void;
   onAdd: () => void;
 }
 
@@ -12,7 +12,7 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
   onRemove,
   onAdd
 }) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   return (
     <div>
@@ -57,20 +57,20 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
         border: '1px solid #e8eaed',
         minHeight: '120px'
       }}>
-        {expressions.map((expression, index) => (
+        {Object.entries(expressions).map(([key, expression]) => (
           <div
-            key={index}
+            key={key}
             style={{
               position: 'relative',
               width: '80px',
               height: '80px'
             }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
+            onMouseEnter={() => setHoveredKey(key)}
+            onMouseLeave={() => setHoveredKey(null)}
           >
             <img
               src={expression.url}
-              alt={`表情${index + 1}`}
+              alt={`表情${key}`}
               style={{
                 width: '100%',
                 height: '100%',
@@ -81,9 +81,9 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
               }}
             />
-            {hoveredIndex === index && (
+            {hoveredKey === key && (
               <button
-                onClick={() => onRemove(index)}
+                onClick={() => onRemove(key)}
                 style={{
                   position: 'absolute',
                   top: '-8px',
@@ -110,7 +110,7 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
           </div>
         ))}
         
-        {expressions.length === 0 && (
+        {Object.keys(expressions).length === 0 && (
           <div style={{
             gridColumn: '1 / -1',
             display: 'flex',

@@ -80,39 +80,31 @@ export function Layout() {
           >
             Profile
           </Link>
-          <Link 
-            to="/pdf2md" 
-            className={`block px-6 py-3 rounded-lg mb-2 font-medium transition-all ${
-              location.pathname === '/pdf2md' 
-                ? 'bg-jupiter-500 text-white' 
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-            onClick={() => setIsMenuOpen(false)}
-          >
-            PDF→Markdown
-          </Link>
-          <Link 
-            to="/character-display" 
-            className={`block px-6 py-3 rounded-lg mb-2 font-medium transition-all ${
-              location.pathname === '/character-display' 
-                ? 'bg-jupiter-500 text-white' 
-                : 'text-gray-700 hover:bg-gray-50'
-            }`}
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Character Display
-          </Link>
-          <div className="mt-8 pt-4 border-t border-gray-200">
-            <h3 className="text-gray-400 text-xs uppercase tracking-wider mb-4 ml-4">Coming Soon</h3>
-            <div className="px-6 py-3 text-gray-400 opacity-50 cursor-not-allowed">
-              TRPG Session Tools
-            </div>
-            <div className="px-6 py-3 text-gray-400 opacity-50 cursor-not-allowed">
-              Analytics
-            </div>
-            <div className="px-6 py-3 text-gray-400 opacity-50 cursor-not-allowed">
-              Settings
-            </div>
+          
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <h3 className="text-gray-400 text-xs uppercase tracking-wider mb-4 ml-4">Tools</h3>
+            <Link 
+              to="/pdf2md" 
+              className={`block px-6 py-3 rounded-lg mb-2 font-medium transition-all ${
+                location.pathname === '/pdf2md' 
+                  ? 'bg-jupiter-500 text-white' 
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              PDF→Markdown
+            </Link>
+            <Link 
+              to="/character-display" 
+              className={`block px-6 py-3 rounded-lg mb-2 font-medium transition-all ${
+                location.pathname === '/character-display' 
+                  ? 'bg-jupiter-500 text-white' 
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Character Display
+            </Link>
           </div>
         </nav>
       </div>

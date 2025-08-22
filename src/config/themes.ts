@@ -6,6 +6,12 @@ export const themes: Theme[] = [
     name: 'モダン',
     description: 'シンプルでクリーンなデザイン。汎用的に使えます。',
     
+    primaryColor: '#333333',
+    secondaryColor: '#666666',
+    textColor: '#000000',
+    fontFamily: 'sans-serif',
+    borderStyle: 'solid',
+    
     canvasSize: {
       width: 794,  // A4 縦向き
       height: 1123
@@ -71,6 +77,13 @@ export const themes: Theme[] = [
     id: 'fantasy',
     name: 'ファンタジー',
     description: '中世ファンタジー風の装飾的なデザイン',
+    
+    
+    primaryColor: '#333333',
+    secondaryColor: '#666666',
+    textColor: '#000000',
+    fontFamily: 'sans-serif',
+    borderStyle: 'solid',
     
     canvasSize: {
       width: 794,
@@ -141,6 +154,13 @@ export const themes: Theme[] = [
     name: 'サイバーパンク',
     description: 'ネオンと電子回路をモチーフにした近未来的デザイン',
     
+    
+    primaryColor: '#333333',
+    secondaryColor: '#666666',
+    textColor: '#000000',
+    fontFamily: 'sans-serif',
+    borderStyle: 'solid',
+    
     canvasSize: {
       width: 794,
       height: 1123
@@ -203,6 +223,13 @@ export const themes: Theme[] = [
     id: 'horror',
     name: 'ホラー',
     description: 'ダークで不気味な雰囲気のデザイン',
+    
+    
+    primaryColor: '#333333',
+    secondaryColor: '#666666',
+    textColor: '#000000',
+    fontFamily: 'sans-serif',
+    borderStyle: 'solid',
     
     canvasSize: {
       width: 794,
@@ -271,6 +298,13 @@ export const themes: Theme[] = [
     id: 'steampunk',
     name: 'スチームパンク',
     description: '歯車と真鍮をモチーフにしたヴィクトリア朝風デザイン',
+    
+    
+    primaryColor: '#333333',
+    secondaryColor: '#666666',
+    textColor: '#000000',
+    fontFamily: 'sans-serif',
+    borderStyle: 'solid',
     
     canvasSize: {
       width: 794,
