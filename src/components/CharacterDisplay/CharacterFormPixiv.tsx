@@ -15,7 +15,7 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
 }) => {
   const [showBaseImageModal, setShowBaseImageModal] = useState(false);
   const [showExpressionModal, setShowExpressionModal] = useState(false);
-  const [lastExpressionCrop, setLastExpressionCrop] = useState<{ x: number; y: number; size: number } | null>(null);
+  const [lastExpressionCrop, setLastExpressionCrop] = useState<{ x: number; y: number; zoom: number } | null>(null);
   
   const handleBaseImageUpload = (image: CharacterImage) => {
     onDataChange({
@@ -25,14 +25,7 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
   };
 
   const handleExpressionUpload = (image: CharacterImage) => {
-    // クロップ情報を保存
-    if (image.cropData) {
-      setLastExpressionCrop({
-        x: image.cropData.x,
-        y: image.cropData.y,
-        size: image.cropData.width  // 1:1なのでwidthをsizeとして保存
-      });
-    }
+    // クロップ情報は別途保存する（ImageUploadModal側で処理）
     
     onDataChange({
       ...characterData,
@@ -193,21 +186,38 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
         }}>
           キャラクター名
         </label>
-        <input
-          type="text"
-          value={characterData.characterName}
-          onChange={(e) => onDataChange({ ...characterData, characterName: e.target.value })}
-          style={{
-            width: '200px',
-            padding: '8px 12px',
-            border: '1px solid #d2d5da',
-            borderRadius: '8px',
-            fontSize: '14px',
-            transition: 'all 0.2s ease',
-            outline: 'none'
-          }}
-          placeholder="キャラクターの名前"
-        />
+        <div style={{ display: 'flex', gap: '12px', flexDirection: 'column' }}>
+          <input
+            type="text"
+            value={characterData.characterName}
+            onChange={(e) => onDataChange({ ...characterData, characterName: e.target.value })}
+            style={{
+              width: '200px',
+              padding: '8px 12px',
+              border: '1px solid #d2d5da',
+              borderRadius: '8px',
+              fontSize: '14px',
+              transition: 'all 0.2s ease',
+              outline: 'none'
+            }}
+            placeholder="キャラクターの名前"
+          />
+          <input
+            type="text"
+            value={characterData.characterNameFurigana || ''}
+            onChange={(e) => onDataChange({ ...characterData, characterNameFurigana: e.target.value })}
+            style={{
+              width: '200px',
+              padding: '8px 12px',
+              border: '1px solid #d2d5da',
+              borderRadius: '8px',
+              fontSize: '12px',
+              transition: 'all 0.2s ease',
+              outline: 'none'
+            }}
+            placeholder="ふりがな（オプション）"
+          />
+        </div>
       </div>
 
       {/* シナリオ名 */}
@@ -256,6 +266,7 @@ const CharacterFormPixiv: React.FC<CharacterFormPixivProps> = ({
         title="表情差分を追加"
         cropAspect={1}  // 1:1固定
         initialCrop={lastExpressionCrop}  // 前回の座標を渡す
+        onCropChange={(crop) => setLastExpressionCrop(crop)}  // クロップ情報を保存
       />
     </div>
   );

@@ -13,6 +13,7 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
   onAdd
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const MAX_EXPRESSIONS = 6;  // 表情差分の最大数
 
   return (
     <div>
@@ -27,21 +28,24 @@ const ExpressionGrid: React.FC<ExpressionGridProps> = ({
           fontWeight: '600', 
           color: '#70757e'
         }}>
-          表情差分
+          表情差分 ({expressions.length}/{MAX_EXPRESSIONS})
         </label>
         <button
           onClick={onAdd}
+          disabled={expressions.length >= MAX_EXPRESSIONS}
           style={{
             padding: '6px 12px',
-            background: '#0096fa',
+            background: expressions.length >= MAX_EXPRESSIONS ? '#d2d5da' : '#0096fa',
             color: 'white',
             border: 'none',
             borderRadius: '6px',
             fontSize: '12px',
             fontWeight: '600',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease'
+            cursor: expressions.length >= MAX_EXPRESSIONS ? 'not-allowed' : 'pointer',
+            transition: 'all 0.2s ease',
+            opacity: expressions.length >= MAX_EXPRESSIONS ? 0.6 : 1
           }}
+          title={expressions.length >= MAX_EXPRESSIONS ? `最大${MAX_EXPRESSIONS}個まで登録可能です` : '表情を追加'}
         >
           + 表情を追加
         </button>

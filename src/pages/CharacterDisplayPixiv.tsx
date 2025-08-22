@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import CharacterCanvas from '../components/CharacterDisplay/CharacterCanvas';
 import CharacterFormPixiv from '../components/CharacterDisplay/CharacterFormPixiv';
 import ThemeSelectorModal from '../components/CharacterDisplay/ThemeSelectorModal';
@@ -6,12 +6,14 @@ import { Footer } from '../components/Footer/Footer';
 import type { CharacterData, Theme } from '../types/characterDisplay.tsx';
 import { themes } from '../config/themes';
 import '../styles/pixiv-theme.css';
+import '../styles/impact-fonts.css';
 
 const CharacterDisplayPixiv: React.FC = () => {
   const [characterData, setCharacterData] = useState<CharacterData>({
     baseImage: null,
     expressions: [],
     characterName: '',
+    characterNameFurigana: '',
     scenarioName: ''
   });
   
@@ -19,7 +21,37 @@ const CharacterDisplayPixiv: React.FC = () => {
   const [selectedTheme, setSelectedTheme] = useState<Theme>(themes.find(t => t.id === 'modern') || themes[3]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showThemeModal, setShowThemeModal] = useState(false);
+  const [themeRefreshKey, setThemeRefreshKey] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // テーマを再読み込みする関数
+  const handleReloadTheme = useCallback(async () => {
+    try {
+      // theme.jsonを直接フェッチして再読み込み
+      const response = await fetch('/src/config/themes/modern/theme.json');
+      const themeData = await response.json();
+      
+      // 画像パスを解決
+      const basePath = '/src/config/themes/modern';
+      if (themeData.backgroundImage && themeData.backgroundImage.startsWith('./')) {
+        themeData.backgroundImage = basePath + themeData.backgroundImage.substring(1);
+      }
+      if (themeData.decorations?.overlay && themeData.decorations.overlay.startsWith('./')) {
+        themeData.decorations.overlay = basePath + themeData.decorations.overlay.substring(1);
+      }
+      
+      // 現在のテーマを更新
+      setSelectedTheme(themeData);
+      
+      // キャンバスを再描画するためにキーを更新
+      setThemeRefreshKey(prev => prev + 1);
+      
+      console.log('テーマを再読み込みしました:', themeData.name);
+    } catch (error) {
+      console.error('テーマの再読み込みに失敗しました:', error);
+      alert('テーマの再読み込みに失敗しました。開発サーバーが起動していることを確認してください。');
+    }
+  }, []);
 
   const handleDownload = () => {
     if (!canvasRef.current) return;
@@ -115,6 +147,38 @@ const CharacterDisplayPixiv: React.FC = () => {
                     <path d="M9 18l6-6-6-6" />
                   </svg>
                 </button>
+                
+                {/* テーマ再読み込みボタン（開発用） */}
+                {import.meta.env.DEV && (
+                  <button
+                    onClick={handleReloadTheme}
+                    style={{
+                      marginLeft: '8px',
+                      padding: '8px',
+                      background: 'white',
+                      border: '1px solid #d2d5da',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = '#0096fa';
+                      e.currentTarget.style.background = '#f0f8ff';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = '#d2d5da';
+                      e.currentTarget.style.background = 'white';
+                    }}
+                    title="テーマを再読み込み（theme.jsonの変更を反映）"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#70757e" strokeWidth="2">
+                      <path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+                    </svg>
+                  </button>
+                )}
               </div>
               
               <CharacterFormPixiv
@@ -179,6 +243,7 @@ const CharacterDisplayPixiv: React.FC = () => {
                 <h2 className="pixiv-section-header">プレビュー</h2>
               </div>
               <CharacterCanvas
+                key={themeRefreshKey}
                 ref={canvasRef}
                 characterData={characterData}
                 theme={selectedTheme}
