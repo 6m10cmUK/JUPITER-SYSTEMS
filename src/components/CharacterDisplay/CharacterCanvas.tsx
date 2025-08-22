@@ -86,29 +86,71 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
     };
 
     const drawBorder = (ctx: CanvasRenderingContext2D) => {
+      const margin = 20; // 枠線の余白
+      const topMargin = 25; // 上部は少し多めに
+      
+      // システム名を取得
+      const systemName = characterData.system === 'coc' ? 'Call of Cthulhu 6th' :
+                        characterData.system === 'coc7' ? 'Call of Cthulhu 7th' :
+                        characterData.system === 'dnd' ? 'D&D' :
+                        characterData.system === 'other' ? 'その他' : '';
+      
       ctx.strokeStyle = theme.primaryColor;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 1;
 
-      switch (theme.borderStyle) {
-        case 'solid':
-          ctx.strokeRect(20, 20, canvasWidth - 40, canvasHeight - 40);
-          break;
-        case 'ornate':
-          // 装飾的な枠
-          ctx.lineWidth = 6;
-          ctx.strokeRect(30, 30, canvasWidth - 60, canvasHeight - 60);
-          ctx.lineWidth = 2;
-          ctx.strokeRect(40, 40, canvasWidth - 80, canvasHeight - 80);
-          break;
-        case 'gradient': {
-          const borderGradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
-          borderGradient.addColorStop(0, theme.primaryColor);
-          borderGradient.addColorStop(0.5, theme.secondaryColor);
-          borderGradient.addColorStop(1, theme.primaryColor);
-          ctx.strokeStyle = borderGradient;
-          ctx.lineWidth = 8;
-          ctx.strokeRect(20, 20, canvasWidth - 40, canvasHeight - 40);
-          break;
+      if (systemName) {
+        // システム名の背景を測定
+        ctx.font = `14px ${theme.fontFamily || 'sans-serif'}`;
+        const textMetrics = ctx.measureText(systemName);
+        const textWidth = textMetrics.width;
+        const textX = margin + 20; // 左から20px
+        const textY = topMargin;
+        
+        // 枠線を描画（システム名の部分を空ける）
+        ctx.beginPath();
+        // 左上から開始
+        ctx.moveTo(margin, topMargin);
+        ctx.lineTo(textX - 10, topMargin); // テキストの左まで
+        
+        // テキスト部分をスキップ
+        ctx.moveTo(textX + textWidth + 10, topMargin); // テキストの右から
+        ctx.lineTo(canvasWidth - margin, topMargin); // 右上まで
+        
+        // 右側
+        ctx.lineTo(canvasWidth - margin, canvasHeight - margin);
+        // 下側
+        ctx.lineTo(margin, canvasHeight - margin);
+        // 左側
+        ctx.lineTo(margin, topMargin);
+        ctx.stroke();
+        
+        // システム名を描画
+        ctx.fillStyle = theme.textColor || theme.primaryColor;
+        ctx.font = `14px ${theme.fontFamily || 'sans-serif'}`;
+        ctx.fillText(systemName, textX, textY + 4);
+      } else {
+        // システム名がない場合は通常の枠線
+        switch (theme.borderStyle) {
+          case 'solid':
+            ctx.strokeRect(margin, topMargin, canvasWidth - margin * 2, canvasHeight - margin - topMargin);
+            break;
+          case 'ornate':
+            // 装飾的な枠
+            ctx.lineWidth = 2;
+            ctx.strokeRect(margin, topMargin, canvasWidth - margin * 2, canvasHeight - margin - topMargin);
+            ctx.lineWidth = 1;
+            ctx.strokeRect(margin + 5, topMargin + 5, canvasWidth - (margin + 5) * 2, canvasHeight - (margin + 5) - (topMargin + 5));
+            break;
+          case 'gradient': {
+            const borderGradient = ctx.createLinearGradient(0, 0, canvasWidth, 0);
+            borderGradient.addColorStop(0, theme.primaryColor);
+            borderGradient.addColorStop(0.5, theme.secondaryColor);
+            borderGradient.addColorStop(1, theme.primaryColor);
+            ctx.strokeStyle = borderGradient;
+            ctx.lineWidth = 2;
+            ctx.strokeRect(margin, topMargin, canvasWidth - margin * 2, canvasHeight - margin - topMargin);
+            break;
+          }
         }
       }
     };
@@ -129,19 +171,40 @@ const CharacterCanvas = forwardRef<HTMLCanvasElement, CharacterCanvasProps>(
       const x = canvasWidth * 0.65 - drawWidth / 2; // 右から35%の位置を中心に
       const y = 80; // 上部に配置
       
-      // 影を追加
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetX = 10;
-      ctx.shadowOffsetY = 10;
+      // 影の設定を取得
+      const shadowConfig = theme.layout?.characterImage?.shadow || {
+        color: '#000000',
+        offsetX: 12,
+        offsetY: 12,
+        opacity: 0.3
+      };
       
+      // シャープな影を先に描画
+      ctx.save();
+      ctx.globalAlpha = shadowConfig.opacity;
+      
+      // 影用のキャンバスを作成
+      const shadowCanvas = document.createElement('canvas');
+      shadowCanvas.width = drawWidth;
+      shadowCanvas.height = drawHeight;
+      const shadowCtx = shadowCanvas.getContext('2d');
+      
+      if (shadowCtx) {
+        // 画像を影用キャンバスに描画
+        shadowCtx.drawImage(img, 0, 0, drawWidth, drawHeight);
+        
+        // 影の色で塗りつぶし
+        shadowCtx.globalCompositeOperation = 'source-in';
+        shadowCtx.fillStyle = shadowConfig.color;
+        shadowCtx.fillRect(0, 0, drawWidth, drawHeight);
+        
+        // メインキャンバスに影を描画
+        ctx.drawImage(shadowCanvas, x + shadowConfig.offsetX, y + shadowConfig.offsetY);
+      }
+      ctx.restore();
+      
+      // 本体の画像を描画
       ctx.drawImage(img, x, y, drawWidth, drawHeight);
-      
-      // 影をリセット
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.shadowOffsetX = 0;
-      ctx.shadowOffsetY = 0;
     };
 
     const drawTexts = (ctx: CanvasRenderingContext2D) => {
