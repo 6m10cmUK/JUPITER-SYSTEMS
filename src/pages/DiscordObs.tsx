@@ -13,6 +13,7 @@ interface GeneralSettings {
   maxImageWidth: number;
   borderRadius: number;
   dimWhenNotSpeaking: boolean;
+  hideWhenNotSpeaking: boolean;
 }
 
 const DiscordObs: React.FC = () => {
@@ -32,7 +33,8 @@ const DiscordObs: React.FC = () => {
     transparentBackground: true,
     maxImageWidth: 300,
     borderRadius: 0,
-    dimWhenNotSpeaking: true
+    dimWhenNotSpeaking: true,
+    hideWhenNotSpeaking: false
   });
   const [generatedCSS, setGeneratedCSS] = useState('');
   const [activeTab, setActiveTab] = useState<'preview' | 'css'>('preview');
@@ -83,8 +85,12 @@ const DiscordObs: React.FC = () => {
     css += '  margin-bottom: 0px;\n';
     css += '}\n\n';
     
-    // アバター基本設定
-    if (generalSettings.dimWhenNotSpeaking) {
+    // アバター基本設定（喋ってない時）
+    if (generalSettings.hideWhenNotSpeaking) {
+      css += '[class*="Voice_avatar__"]:not([class*="Voice_avatarSpeaking__"]) {\n';
+      css += '  display: none !important;\n';
+      css += '}\n\n';
+    } else if (generalSettings.dimWhenNotSpeaking) {
       css += '[class*="Voice_avatar__"] {\n';
       css += '  filter: brightness(70%);\n';
       css += '}\n\n';
@@ -175,7 +181,8 @@ const DiscordObs: React.FC = () => {
       transparentBackground: true,
       maxImageWidth: 300,
       borderRadius: 0,
-      dimWhenNotSpeaking: true
+      dimWhenNotSpeaking: true,
+      hideWhenNotSpeaking: false
     });
   };
 
@@ -484,12 +491,25 @@ const DiscordObs: React.FC = () => {
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="checkbox"
-                  checked={generalSettings.dimWhenNotSpeaking}
-                  onChange={(e) => setGeneralSettings(prev => ({ ...prev, dimWhenNotSpeaking: e.target.checked }))}
+                  checked={generalSettings.hideWhenNotSpeaking}
+                  onChange={(e) => setGeneralSettings(prev => ({ ...prev, hideWhenNotSpeaking: e.target.checked }))}
                 />
-                黙ってる時に暗くする
+                黙ってる時は完全に非表示
               </label>
             </div>
+            
+            {!generalSettings.hideWhenNotSpeaking && (
+              <div style={{ marginBottom: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="checkbox"
+                    checked={generalSettings.dimWhenNotSpeaking}
+                    onChange={(e) => setGeneralSettings(prev => ({ ...prev, dimWhenNotSpeaking: e.target.checked }))}
+                  />
+                  黙ってる時に暗くする
+                </label>
+              </div>
+            )}
           </div>
 
           {/* 自動生成の説明 */}
@@ -607,7 +627,7 @@ const DiscordObs: React.FC = () => {
                       left: '50%',
                       bottom: '40px',
                       transform: 'translateX(-50%)',
-                      display: 'flex',
+                      display: (!isSpeaking && generalSettings.hideWhenNotSpeaking) ? 'none' : 'flex',
                       flexDirection: 'column',
                       alignItems: 'center'
                     }}>
