@@ -1,13 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-interface DisplayNames {
-  showCharacterName: boolean;
-  showPlayerName: boolean;
-  characterName: string;
-  playerName: string;
-  namePosition: 'top' | 'bottom';
-}
-
 interface AnimationSettings {
   bounce: { enabled: boolean; distance: number };
   border: { enabled: boolean; thickness: number };
