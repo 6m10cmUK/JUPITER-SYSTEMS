@@ -15,7 +15,7 @@ export function Home() {
       {/* ヘッダー画像 */}
       <div className="relative h-64 bg-gradient-to-r from-jupiter-600 to-jupiter-400 overflow-hidden">
         <img 
-          src="/images/header.jpg" 
+          src="/images/allTRPGchar.webp" 
           alt="ヘッダー画像"
           className="w-full h-full object-cover"
           style={{ objectPosition: 'center 20%' }}
