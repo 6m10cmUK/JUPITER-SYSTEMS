@@ -11,9 +11,11 @@ interface GeneralSettings {
   hideOtherUsers: boolean;
   transparentBackground: boolean;
   maxImageWidth: number;
+  maxImageHeight: number;
   borderRadius: number;
   dimWhenNotSpeaking: boolean;
   hideWhenNotSpeaking: boolean;
+  showDefaultImage: boolean;
 }
 
 const DiscordObs: React.FC = () => {
@@ -31,14 +33,17 @@ const DiscordObs: React.FC = () => {
     hideNames: true,
     hideOtherUsers: true,
     transparentBackground: true,
-    maxImageWidth: 300,
+    maxImageWidth: 800,
+    maxImageHeight: 600,
     borderRadius: 0,
     dimWhenNotSpeaking: true,
-    hideWhenNotSpeaking: false
+    hideWhenNotSpeaking: false,
+    showDefaultImage: false
   });
   const [generatedCSS, setGeneratedCSS] = useState('');
   const [activeTab, setActiveTab] = useState<'preview' | 'css'>('preview');
   const [isSpeaking, setIsSpeaking] = useState(true);
+  const [isInChat, setIsInChat] = useState(true);
 
   // ID候補リスト
   const userCandidates = [
@@ -77,7 +82,13 @@ const DiscordObs: React.FC = () => {
     css += '[class*="Voice_voiceStates__"] {\n';
     css += '  display: flex;\n';
     css += '  align-items: flex-end;\n';
+    css += '  justify-content: flex-start;\n';
     css += '  padding: 16px;\n';
+    css += '  position: fixed;\n';
+    css += '  bottom: 0;\n';
+    css += '  left: 0;\n';
+    css += '  width: 100%;\n';
+    css += '  height: 100vh;\n';
     css += '}\n\n';
     
     css += '[class*="Voice_voiceState__"] {\n';
@@ -137,9 +148,50 @@ const DiscordObs: React.FC = () => {
     css += '  width: auto;\n';
     css += '  height: auto;\n';
     css += `  max-width: ${generalSettings.maxImageWidth}px;\n`;
+    css += `  max-height: ${generalSettings.maxImageHeight}px;\n`;
     css += `  border-radius: ${generalSettings.borderRadius}px;\n`;
     css += '  border: none;\n';
+    css += '  object-fit: contain;\n';
     css += '}\n\n';
+
+    // デフォルト画像の常時表示設定
+    if (generalSettings.showDefaultImage) {
+      css += `/* デフォルト画像の常時表示 */\n`;
+      css += '[class*="Voice_voiceStates__"] {\n';
+      css += '  position: relative;\n';
+      css += '}\n\n';
+      
+      css += '[class*="Voice_voiceStates__"]::before {\n';
+      css += `  content: var(--img-stand-url-${userId});\n`;
+      css += '  display: block;\n';
+      css += '  position: fixed;\n';
+      css += '  left: 16px;\n';
+      css += '  bottom: 16px;\n';
+      css += '  width: auto;\n';
+      css += '  height: auto;\n';
+      css += `  max-width: ${generalSettings.maxImageWidth}px;\n`;
+      css += `  max-height: ${generalSettings.maxImageHeight}px;\n`;
+      css += `  border-radius: ${generalSettings.borderRadius}px;\n`;
+      css += '  border: none;\n';
+      css += '  z-index: 1;\n';
+      css += '  object-fit: contain;\n';
+      css += '  object-position: bottom left;\n';
+      if (!generalSettings.hideWhenNotSpeaking && generalSettings.dimWhenNotSpeaking) {
+        css += '  filter: brightness(70%);\n';
+      }
+      css += '}\n\n';
+      
+      // 喋ってる時は疑似要素を非表示にして、実際のアバターを表示
+      css += '[class*="Voice_avatarSpeaking__"] ~ [class*="Voice_voiceStates__"]::before {\n';
+      css += '  display: none;\n';
+      css += '}\n\n';
+      
+      // 実際のアバターのz-indexを上に
+      css += '[class*="Voice_avatar__"] {\n';
+      css += '  position: relative;\n';
+      css += '  z-index: 2;\n';
+      css += '}\n\n';
+    }
     
     // 他のユーザーを非表示
     if (generalSettings.hideOtherUsers) {
@@ -179,10 +231,12 @@ const DiscordObs: React.FC = () => {
       hideNames: true,
       hideOtherUsers: true,
       transparentBackground: true,
-      maxImageWidth: 300,
+      maxImageWidth: 800,
+      maxImageHeight: 600,
       borderRadius: 0,
       dimWhenNotSpeaking: true,
-      hideWhenNotSpeaking: false
+      hideWhenNotSpeaking: false,
+      showDefaultImage: false
     });
   };
 
@@ -465,10 +519,25 @@ const DiscordObs: React.FC = () => {
               <input
                 type="range"
                 min="100"
-                max="800"
+                max="1200"
                 step="50"
                 value={generalSettings.maxImageWidth}
                 onChange={(e) => setGeneralSettings(prev => ({ ...prev, maxImageWidth: parseInt(e.target.value) }))}
+                style={{ width: '100%' }}
+              />
+            </div>
+            
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>
+                画像最大高さ: {generalSettings.maxImageHeight}px
+              </label>
+              <input
+                type="range"
+                min="100"
+                max="800"
+                step="50"
+                value={generalSettings.maxImageHeight}
+                onChange={(e) => setGeneralSettings(prev => ({ ...prev, maxImageHeight: parseInt(e.target.value) }))}
                 style={{ width: '100%' }}
               />
             </div>
@@ -485,6 +554,17 @@ const DiscordObs: React.FC = () => {
                 onChange={(e) => setGeneralSettings(prev => ({ ...prev, borderRadius: parseInt(e.target.value) }))}
                 style={{ width: '100%' }}
               />
+            </div>
+            
+            <div style={{ marginBottom: '10px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="checkbox"
+                  checked={generalSettings.showDefaultImage}
+                  onChange={(e) => setGeneralSettings(prev => ({ ...prev, showDefaultImage: e.target.checked }))}
+                />
+                チャット非表示時でもデフォルト画像を表示
+              </label>
             </div>
             
             <div style={{ marginBottom: '10px' }}>
@@ -584,12 +664,26 @@ const DiscordObs: React.FC = () => {
                     {/* 状態切り替えボタン */}
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
-                        onClick={() => setIsSpeaking(false)}
+                        onClick={() => { setIsInChat(false); setIsSpeaking(false); }}
                         style={{
                           padding: '8px 16px',
                           fontSize: '14px',
-                          backgroundColor: !isSpeaking ? '#dc3545' : '#f8f9fa',
-                          color: !isSpeaking ? 'white' : '#666',
+                          backgroundColor: !isInChat ? '#6c757d' : '#f8f9fa',
+                          color: !isInChat ? 'white' : '#666',
+                          border: '1px solid #ccc',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        💤 チャット非表示時
+                      </button>
+                      <button
+                        onClick={() => { setIsInChat(true); setIsSpeaking(false); }}
+                        style={{
+                          padding: '8px 16px',
+                          fontSize: '14px',
+                          backgroundColor: isInChat && !isSpeaking ? '#dc3545' : '#f8f9fa',
+                          color: isInChat && !isSpeaking ? 'white' : '#666',
                           border: '1px solid #ccc',
                           borderRadius: '4px',
                           cursor: 'pointer'
@@ -598,12 +692,12 @@ const DiscordObs: React.FC = () => {
                         🔇 黙ってる時
                       </button>
                       <button
-                        onClick={() => setIsSpeaking(true)}
+                        onClick={() => { setIsInChat(true); setIsSpeaking(true); }}
                         style={{
                           padding: '8px 16px',
                           fontSize: '14px',
-                          backgroundColor: isSpeaking ? '#28a745' : '#f8f9fa',
-                          color: isSpeaking ? 'white' : '#666',
+                          backgroundColor: isInChat && isSpeaking ? '#28a745' : '#f8f9fa',
+                          color: isInChat && isSpeaking ? 'white' : '#666',
                           border: '1px solid #ccc',
                           borderRadius: '4px',
                           cursor: 'pointer'
@@ -622,23 +716,68 @@ const DiscordObs: React.FC = () => {
                     position: 'relative',
                     overflow: 'hidden'
                   }}>
-                    <div style={{
-                      position: 'absolute',
-                      left: '50%',
-                      bottom: '40px',
-                      transform: 'translateX(-50%)',
-                      display: (!isSpeaking && generalSettings.hideWhenNotSpeaking) ? 'none' : 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center'
-                    }}>
+                    {/* チャット非表示時のデフォルト画像 */}
+                    {!isInChat && generalSettings.showDefaultImage && (
+                      <div style={{
+                        position: 'absolute',
+                        left: '40px',
+                        bottom: '40px',
+                        display: generalSettings.hideWhenNotSpeaking ? 'none' : 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        zIndex: 1
+                      }}>
+                        <img 
+                          src={standImageUrl}
+                          alt={`${userName || userId} (デフォルト)`}
+                          style={{
+                            maxWidth: `${Math.min(generalSettings.maxImageWidth / 2, 400)}px`,
+                            maxHeight: `${Math.min(generalSettings.maxImageHeight / 2, 300)}px`,
+                            height: 'auto',
+                            borderRadius: `${generalSettings.borderRadius}px`,
+                            border: 'none',
+                            filter: generalSettings.dimWhenNotSpeaking ? 'brightness(70%)' : 'brightness(100%)',
+                            opacity: 0.8,
+                            objectFit: 'contain'
+                          }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                        {!generalSettings.hideNames && (
+                          <div style={{
+                            color: '#dcddde',
+                            fontSize: '16px',
+                            marginTop: '15px',
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            opacity: 0.8
+                          }}>
+                            {userName || 'ユーザー'} (非表示時)
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* 通常のチャット参加時の画像 */}
+                    {isInChat && (
+                      <div style={{
+                        position: 'absolute',
+                        left: '40px',
+                        bottom: '40px',
+                        display: (!isSpeaking && generalSettings.hideWhenNotSpeaking) ? 'none' : 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'flex-start',
+                        zIndex: 2
+                      }}>
                       <img 
                         src={standImageUrl}
                         alt={userName || userId}
                         style={{
-                          maxWidth: `${Math.min(generalSettings.maxImageWidth / 1.5, 200)}px`,
+                          maxWidth: `${Math.min(generalSettings.maxImageWidth / 2, 400)}px`,
+                          maxHeight: `${Math.min(generalSettings.maxImageHeight / 2, 300)}px`,
                           height: 'auto',
                           borderRadius: `${generalSettings.borderRadius}px`,
                           border: 'none',
+                          objectFit: 'contain',
                           filter: (() => {
                             let filters = [isSpeaking ? 'brightness(100%)' : (generalSettings.dimWhenNotSpeaking ? 'brightness(70%)' : 'brightness(100%)')];
                             if (isSpeaking && animationSettings.border.enabled) {
@@ -670,6 +809,7 @@ const DiscordObs: React.FC = () => {
                         </div>
                       )}
                     </div>
+                    )}
                     
                     <div style={{
                       position: 'absolute',
@@ -681,7 +821,10 @@ const DiscordObs: React.FC = () => {
                       padding: '12px 16px',
                       borderRadius: '8px'
                     }}>
-                      {isSpeaking ? '🎤 喋ってる時のプレビュー' : '🔇 黙ってる時のプレビュー'}
+                      {!isInChat 
+                        ? '💤 チャット非表示時のプレビュー' 
+                        : (isSpeaking ? '🎤 喋ってる時のプレビュー' : '🔇 黙ってる時のプレビュー')
+                      }
                     </div>
                   </div>
 
