@@ -26,6 +26,11 @@ export function ToolsMenu() {
       path: '/character-display-generator',
       name: 'Character Display Generator',
       description: 'TRPGキャラクターシート生成'
+    },
+    {
+      path: '/discord-obs',
+      name: 'Discord Streamkit CSS Generator',
+      description: 'Discord StreamkitをOBS用にカスタマイズ'
     }
   ];
 
