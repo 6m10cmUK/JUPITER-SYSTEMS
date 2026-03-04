@@ -1,0 +1,17 @@
+import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
+import { TopToolbar } from '../TopToolbar';
+
+export function ToolbarDockPanel() {
+  const ctx = useAdrasteaContext();
+  return (
+    <TopToolbar
+      onAddPiece={ctx.addPiece}
+      onOpenSettings={() => ctx.setShowRoomSettings(true)}
+      onOpenProfile={() => ctx.setShowProfileEdit(true)}
+      onSignOut={ctx.signOut}
+      activeScene={ctx.activeScene}
+      profile={ctx.profile}
+      dockviewApi={ctx.dockviewApi}
+    />
+  );
+}

@@ -5,6 +5,8 @@ import { Home } from './pages/Home'
 import { PDF2MD } from './pages/PDF2MD'
 import CharacterDisplayGenerator from './pages/CharacterDisplayGenerator'
 import DiscordObs from './pages/DiscordObs'
+import Adrastea from './pages/Adrastea'
+import { AuthProvider } from './contexts/AuthContext'
 
 function NotFound() {
   return (
@@ -20,17 +22,21 @@ function NotFound() {
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Layout />} errorElement={<div>エラーが発生しました</div>}>
-          <Route index element={<Home />} />
-          <Route path="pdf2md" element={<PDF2MD />} />
-          <Route path="character-display-generator" element={<CharacterDisplayGenerator />} />
-          <Route path="discord-obs" element={<DiscordObs />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          <Route path="adrastea" element={<Adrastea />} />
+          <Route path="adrastea/:roomId" element={<Adrastea />} />
+          <Route path="/" element={<Layout />} errorElement={<div>エラーが発生しました</div>}>
+            <Route index element={<Home />} />
+            <Route path="pdf2md" element={<PDF2MD />} />
+            <Route path="character-display-generator" element={<CharacterDisplayGenerator />} />
+            <Route path="discord-obs" element={<DiscordObs />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+      </Router>
+    </AuthProvider>
   )
 }
 

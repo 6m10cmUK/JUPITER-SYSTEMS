@@ -1,0 +1,11 @@
+name = "adrastea-r2-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+FIREBASE_PROJECT_ID = "trpg-pdf2md"
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:6100,https://jupiter-systems.pages.dev"
+
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "adrastea-assets"

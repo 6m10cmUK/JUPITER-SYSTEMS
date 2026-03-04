@@ -2,11 +2,9 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { Auth } from '../Auth'
 import { ToolsMenu } from '../ToolsMenu/ToolsMenu'
 import { Footer } from '../Footer'
-import { useState, useMemo } from 'react'
-import type { User } from 'firebase/auth'
+import { useMemo } from 'react'
 
 export function Layout() {
-  const [, setUser] = useState<User | null>(null)
   const location = useLocation()
   
   const pageTitle = useMemo(() => {
@@ -26,7 +24,7 @@ export function Layout() {
             </Link>
             <div className="flex items-center gap-3">
               <ToolsMenu />
-              <Auth onAuthChange={setUser} />
+              <Auth />
             </div>
           </div>
         </div>

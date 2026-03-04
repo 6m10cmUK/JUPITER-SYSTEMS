@@ -1,0 +1,302 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import RoomLobby from '../components/Adrastea/RoomLobby';
+import { TopToolbar } from '../components/Adrastea/TopToolbar';
+import { DockLayout } from '../components/Adrastea/DockLayout';
+import { PieceEditor } from '../components/Adrastea/PieceEditor';
+import { RoomSettingsModal } from '../components/Adrastea/RoomSettingsModal';
+import { ProfileEditModal } from '../components/Adrastea/ProfileEditModal';
+import { SceneEditor } from '../components/Adrastea/SceneEditor';
+import { CharacterEditor } from '../components/Adrastea/CharacterEditor';
+import { ObjectEditor } from '../components/Adrastea/ObjectEditor';
+import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
+import { CutinEditor } from '../components/Adrastea/CutinEditor';
+import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
+import { useAuth } from '../contexts/AuthContext';
+import { theme } from '../styles/theme';
+
+/** Dockview + モーダル/オーバーレイ */
+function AdrasteaRoom() {
+  const ctx = useAdrasteaContext();
+  const editingPiece = ctx.editingPieceId ? ctx.pieces.find((p) => p.id === ctx.editingPieceId) : null;
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, overflow: 'hidden', background: theme.bgBase, display: 'flex', flexDirection: 'column' }}
+      className="adrastea-root"
+    >
+      {/* TopToolbar（Dockview外、常時表示） */}
+      <TopToolbar
+        onAddPiece={ctx.addPiece}
+        onOpenSettings={() => ctx.setShowRoomSettings(true)}
+        onOpenProfile={() => ctx.setShowProfileEdit(true)}
+        onSignOut={ctx.signOut}
+        activeScene={ctx.activeScene}
+        profile={ctx.profile}
+        dockviewApi={ctx.dockviewApi}
+      />
+
+      {/* Dockviewエリア */}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        <DockLayout />
+      </div>
+
+      {/* 表示中のシナリオテキスト（画面下部オーバーレイ） */}
+      {ctx.scenarioTexts.filter((t) => t.visible).map((text) => (
+        <div
+          key={text.id}
+          style={{
+            position: 'absolute',
+            bottom: '60px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 18,
+            background: 'rgba(255,255,255,0.95)',
+            border: `1px solid ${theme.border}`,
+            borderRadius: 0,
+            padding: '16px 24px',
+            maxWidth: '600px',
+            maxHeight: '200px',
+            overflowY: 'auto',
+            color: theme.textPrimary,
+          }}
+        >
+          {text.title && (
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px', color: theme.warning }}>
+              {text.title}
+            </div>
+          )}
+          <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+            {text.content}
+          </div>
+        </div>
+      ))}
+
+      {/* シーンエディタ */}
+      {ctx.editingScene !== undefined && ctx.roomId && (
+        <SceneEditor
+          scene={ctx.editingScene}
+          roomId={ctx.roomId}
+          onSave={async (data) => {
+            if (ctx.editingScene) {
+              await ctx.updateScene(ctx.editingScene.id, data);
+            } else {
+              await ctx.addScene(data);
+            }
+          }}
+          onClose={() => ctx.setEditingScene(undefined)}
+        />
+      )}
+
+      {/* キャラクターエディタ */}
+      {ctx.editingCharacter !== undefined && ctx.roomId && (
+        <CharacterEditor
+          character={ctx.editingCharacter}
+          roomId={ctx.roomId}
+          onSave={async (data) => {
+            if (ctx.editingCharacter) {
+              await ctx.updateCharacter(ctx.editingCharacter.id, data);
+            } else {
+              await ctx.addCharacter(data);
+            }
+          }}
+          onClose={() => ctx.setEditingCharacter(undefined)}
+        />
+      )}
+
+      {/* オブジェクトエディタ */}
+      {ctx.editingObjectId !== undefined && ctx.roomId && (
+        <ObjectEditor
+          object={ctx.editingObjectId ? ctx.mergedObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null}
+          scope={ctx.editingObjectScope}
+          roomId={ctx.roomId}
+          onSave={async (data) => {
+            if (ctx.editingObjectId) {
+              await ctx.updateObject(ctx.editingObjectScope, ctx.editingObjectId, data);
+            } else {
+              await ctx.addObject(ctx.editingObjectScope, data);
+            }
+          }}
+          onDelete={ctx.editingObjectId ? () => ctx.removeObject(ctx.editingObjectScope, ctx.editingObjectId!) : undefined}
+          onClose={() => ctx.setEditingObjectId(undefined)}
+        />
+      )}
+
+      {/* カットインエディタ */}
+      {ctx.editingCutin !== undefined && ctx.roomId && (
+        <CutinEditor
+          cutin={ctx.editingCutin}
+          roomId={ctx.roomId}
+          onSave={async (data) => {
+            if (ctx.editingCutin) {
+              await ctx.updateCutin(ctx.editingCutin.id, data);
+            } else {
+              await ctx.addCutin(data);
+            }
+          }}
+          onDelete={ctx.editingCutin ? () => ctx.removeCutin(ctx.editingCutin!.id) : undefined}
+          onClose={() => ctx.setEditingCutin(undefined)}
+        />
+      )}
+
+      {/* カットインオーバーレイ（全画面演出） */}
+      <CutinOverlay
+        cutins={ctx.cutins}
+        activeCutin={ctx.room?.active_cutin ?? null}
+        onCutinEnd={ctx.clearCutin}
+      />
+
+      {/* コマ編集ダイアログ */}
+      {editingPiece && (
+        <PieceEditor
+          piece={editingPiece}
+          characters={ctx.characters}
+          roomId={ctx.roomId}
+          onSave={ctx.updatePiece}
+          onClose={() => ctx.setEditingPieceId(null)}
+        />
+      )}
+
+      {/* ルーム設定モーダル */}
+      {ctx.showRoomSettings && ctx.room && (
+        <RoomSettingsModal
+          room={ctx.room}
+          onSave={ctx.updateRoom}
+          onClose={() => ctx.setShowRoomSettings(false)}
+        />
+      )}
+
+      {/* プロフィール編集モーダル */}
+      {ctx.showProfileEdit && ctx.profile && (
+        <ProfileEditModal
+          profile={ctx.profile}
+          onSave={ctx.updateProfile}
+          onClose={() => ctx.setShowProfileEdit(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+const Adrastea: React.FC = () => {
+  const { roomId } = useParams<{ roomId: string }>();
+  const navigate = useNavigate();
+  const { user, isGuest, loading: authLoading, signIn, signInAsGuest } = useAuth();
+  const [guestNameInput, setGuestNameInput] = useState('');
+
+  const handleRoomCreated = (newRoomId: string) => {
+    navigate(`/adrastea/${newRoomId}`);
+  };
+
+  // 認証ローディング
+  if (authLoading) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: theme.bgBase, color: theme.textPrimary, fontSize: '1rem',
+      }}>
+        読み込み中...
+      </div>
+    );
+  }
+
+  // 未認証 → ログイン画面
+  if (!user && !isGuest) {
+    return (
+      <div style={{
+        position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: theme.bgBase,
+      }}>
+        <div style={{
+          background: theme.bgBase, border: `1px solid ${theme.border}`, borderRadius: 0,
+          padding: '40px', textAlign: 'center', color: theme.textPrimary,
+          width: '340px',
+        }}>
+          <h2 style={{ margin: '0 0 8px', fontSize: '1.3rem' }}>Adrastea</h2>
+          <p style={{ margin: '0 0 24px', color: theme.textSecondary, fontSize: '0.9rem' }}>
+            TRPG盤面共有ツール
+          </p>
+          <button
+            onClick={signIn}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: '8px',
+              padding: '10px 20px', background: '#fff', color: '#333',
+              border: 'none', borderRadius: 0, fontSize: '0.9rem',
+              fontWeight: 600, cursor: 'pointer', width: '100%', justifyContent: 'center',
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Googleでログイン
+          </button>
+
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '12px',
+            margin: '20px 0', color: theme.textMuted, fontSize: '0.8rem',
+          }}>
+            <div style={{ flex: 1, height: '1px', background: theme.border }} />
+            <span>または</span>
+            <div style={{ flex: 1, height: '1px', background: theme.border }} />
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input
+              type="text"
+              value={guestNameInput}
+              onChange={(e) => setGuestNameInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && guestNameInput.trim()) signInAsGuest(guestNameInput.trim());
+              }}
+              placeholder="表示名を入力"
+              style={{
+                flex: 1,
+                padding: '10px 12px',
+                background: theme.bgInput,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 0,
+                color: theme.textPrimary,
+                fontSize: '0.9rem',
+                outline: 'none',
+              }}
+            />
+            <button
+              onClick={() => {
+                if (guestNameInput.trim()) signInAsGuest(guestNameInput.trim());
+              }}
+              style={{
+                padding: '10px 16px',
+                background: guestNameInput.trim() ? theme.accent : theme.bgInput,
+                color: guestNameInput.trim() ? theme.bgBase : theme.textMuted,
+                border: 'none',
+                borderRadius: 0,
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                cursor: guestNameInput.trim() ? 'pointer' : 'not-allowed',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              ゲスト参加
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ルーム未選択 → ロビー
+  if (!roomId) {
+    return <RoomLobby onRoomCreated={handleRoomCreated} />;
+  }
+
+  return (
+    <AdrasteaProvider roomId={roomId}>
+      <AdrasteaRoom />
+    </AdrasteaProvider>
+  );
+};
+
+export default Adrastea;
