@@ -1,26 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import type { User } from 'firebase/auth';
-import { AuthService } from '../../services/auth';
+import { useAuth } from '../../contexts/AuthContext';
+import { ProfileEditModal } from '../Adrastea/ProfileEditModal';
 import styles from './Auth.module.css';
 
 interface AuthProps {
-  onAuthChange?: (user: User | null) => void;
+  onAuthChange?: (user: import('firebase/auth').User | null) => void;
 }
 
 export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, profile, loading, signIn, signOut, updateProfile } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-      onAuthChange?.(user);
-    });
-
-    return () => unsubscribe();
-  }, [onAuthChange]);
+    onAuthChange?.(user);
+  }, [user, onAuthChange]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,7 +30,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
 
   const handleSignIn = async () => {
     try {
-      await AuthService.signInWithGoogle();
+      await signIn();
     } catch (error) {
       console.error('ログインエラー:', error);
     }
@@ -44,7 +38,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
 
   const handleSignOut = async () => {
     try {
-      await AuthService.signOut();
+      await signOut();
       setShowMenu(false);
     } catch (error) {
       console.error('ログアウトエラー:', error);
@@ -55,69 +49,77 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
     return <div className={styles.loading}>読み込み中...</div>;
   }
 
+  const displayName = profile?.display_name || user?.displayName || 'ユーザー';
+  const avatarUrl = profile?.avatar_url || user?.photoURL || null;
+
   return (
     <div className={styles.authContainer}>
       {user ? (
         <div className={styles.userSection}>
-          <button 
-            onClick={() => {
-              setShowMenu(!showMenu);
-            }} 
+          <button
+            onClick={() => setShowMenu(!showMenu)}
             className={styles.avatarButton}
             aria-label="ユーザーメニュー"
           >
-            {user.photoURL ? (
-              <img 
-                src={user.photoURL} 
-                alt={user.displayName || 'User'} 
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={displayName}
                 className={styles.userAvatar}
                 crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  // エラー時は文字表示にフォールバック
                   const target = e.target as HTMLImageElement;
                   const fallbackDiv = document.createElement('div');
                   fallbackDiv.className = styles.userAvatar;
-                  fallbackDiv.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                  fallbackDiv.textContent = displayName.charAt(0).toUpperCase();
                   target.parentNode?.replaceChild(fallbackDiv, target);
                 }}
               />
             ) : (
               <div className={styles.userAvatar}>
-                {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                {displayName.charAt(0).toUpperCase()}
               </div>
             )}
           </button>
           {showMenu && (
             <div className={styles.dropdownMenu}>
               <div className={styles.menuHeader}>
-                {user.photoURL ? (
-                  <img 
-                    src={user.photoURL} 
-                    alt={user.displayName || 'User'} 
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={displayName}
                     className={styles.menuAvatar}
                     crossOrigin="anonymous"
                     referrerPolicy="no-referrer"
                     onError={(e) => {
-                      // エラー時は文字表示にフォールバック
                       const target = e.target as HTMLImageElement;
                       const fallbackDiv = document.createElement('div');
                       fallbackDiv.className = styles.menuAvatar;
-                      fallbackDiv.textContent = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                      fallbackDiv.textContent = displayName.charAt(0).toUpperCase();
                       target.parentNode?.replaceChild(fallbackDiv, target);
                     }}
                   />
                 ) : (
                   <div className={styles.menuAvatar}>
-                    {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                    {displayName.charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className={styles.userDetails}>
-                  <span className={styles.userName}>{user.displayName}</span>
+                  <span className={styles.userName}>{displayName}</span>
                   <span className={styles.userEmail}>{user.email}</span>
                 </div>
               </div>
               <div className={styles.menuDivider} />
+              <button
+                onClick={() => { setShowProfileEdit(true); setShowMenu(false); }}
+                className={styles.menuItem}
+              >
+                <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>
+                プロフィール編集
+              </button>
               <button onClick={handleSignOut} className={styles.menuItem}>
                 <svg className={styles.menuIcon} viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 13v-2H7V8l-5 4 5 4v-3z"/>
@@ -138,6 +140,14 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
           </svg>
           Googleでログイン
         </button>
+      )}
+
+      {showProfileEdit && profile && (
+        <ProfileEditModal
+          profile={profile}
+          onSave={updateProfile}
+          onClose={() => setShowProfileEdit(false)}
+        />
       )}
     </div>
   );

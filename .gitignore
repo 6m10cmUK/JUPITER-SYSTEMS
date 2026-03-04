@@ -54,4 +54,4 @@ public/pdf.js/
 
 # Temporary files
 *.tmp
-*.temp
+*.temp.env
