@@ -52,6 +52,9 @@ public/pdf.js/
 .vscode/
 .idea/
 
+# Wrangler
+.wrangler/
+
 # Temporary files
 *.tmp
 *.temp.env
