@@ -112,6 +112,8 @@ export interface AdrasteaContextValue {
   setEditingPieceId: React.Dispatch<React.SetStateAction<string | null>>;
   editingObjectId: string | null | undefined;
   setEditingObjectId: React.Dispatch<React.SetStateAction<string | null | undefined>>;
+  selectedObjectIds: string[];
+  setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>>;
   editingObjectScope: BoardObjectScope;
   setEditingObjectScope: React.Dispatch<React.SetStateAction<BoardObjectScope>>;
   showRoomSettings: boolean;
@@ -192,6 +194,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingScene, setEditingScene] = useState<Scene | null | undefined>(undefined);
   const [editingCharacter, setEditingCharacter] = useState<Character | null | undefined>(undefined);
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
+  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingObjectScope, setEditingObjectScope] = useState<BoardObjectScope>('scene');
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
 
@@ -363,6 +366,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
     setEditingObjectId(undefined);
+    setSelectedObjectIds([]);
     setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
@@ -407,6 +411,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       editingCutin, setEditingCutin,
       editingPieceId, setEditingPieceId,
       editingObjectId, setEditingObjectId,
+      selectedObjectIds, setSelectedObjectIds,
       editingObjectScope, setEditingObjectScope,
       showRoomSettings, setShowRoomSettings,
       showProfileEdit, setShowProfileEdit,
@@ -445,7 +450,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
       cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
       editingScene, editingCharacter, editingCutin,
-      editingPieceId, editingObjectId, editingObjectScope,
+      editingPieceId, editingObjectId, selectedObjectIds, editingObjectScope,
       showRoomSettings, showProfileEdit,
       activeScene,
       profile, user, signOut, updateProfile,

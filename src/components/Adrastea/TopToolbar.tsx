@@ -91,7 +91,13 @@ export function TopToolbar({
       if (!dockviewApi) return;
       const existing = dockviewApi.getPanel(panelId);
       if (existing) {
-        existing.api.setActive();
+        const isFloating = existing.api.location.type === 'floating';
+        if (isFloating) {
+          existing.api.setActive();
+        } else {
+          // ドッキング状態 → フローティングに変換
+          dockviewApi.addFloatingGroup(existing);
+        }
       } else {
         dockviewApi.addPanel({ id: panelId, component, title });
       }

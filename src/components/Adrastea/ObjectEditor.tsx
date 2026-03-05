@@ -25,16 +25,22 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const [textColor, setTextColor] = useState(object?.text_color ?? '#ffffff');
   const [width, setWidth] = useState(object?.width ?? 4);
   const [height, setHeight] = useState(object?.height ?? 4);
-  const [imageFit, setImageFit] = useState<'cover' | 'contain'>(object?.image_fit ?? 'cover');
+  const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'cover');
   const [opacity, setOpacity] = useState(object?.opacity ?? 1);
   const [visible, setVisible] = useState(object?.visible ?? true);
 
-  // 外部からの変更（画像選択モーダル等）をローカルstateに同期
+  // 外部からの変更（画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
   useEffect(() => {
     if (object && object.image_url !== undefined) {
       setImageUrl(object.image_url ?? '');
     }
   }, [object?.image_url]);
+  useEffect(() => {
+    if (object) {
+      setWidth(object.width);
+      setHeight(object.height);
+    }
+  }, [object?.width, object?.height]);
 
   const ctx = useAdrasteaContext();
   const isSceneScope = _scope === 'scene';
@@ -45,43 +51,8 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const isBackground = type === 'background';
   const isForeground = type === 'foreground';
 
-  const handleSave = () => {
-    const data: Partial<BoardObject> = {
-      type,
-      name: isForeground ? '前景' : (name.trim() || '無題'),
-      visible,
-      opacity,
-    };
-
-    if (type === 'panel') {
-      data.image_url = imageUrl || null;
-      data.background_color = backgroundColor;
-      data.width = width;
-      data.height = height;
-      data.image_fit = imageFit;
-    } else if (type === 'text') {
-      data.text_content = textContent;
-      data.font_size = fontSize;
-      data.text_color = textColor;
-      data.background_color = backgroundColor;
-      data.width = width;
-      data.height = height;
-    } else if (type === 'foreground') {
-      data.image_url = imageUrl || null;
-      data.width = width;
-      data.height = height;
-      data.image_fit = imageFit;
-    } else if (type === 'background') {
-      data.image_url = imageUrl || null;
-      data.opacity = opacity;
-      data.visible = visible;
-    }
-
-    onSave(data);
-  };
-
   useEffect(() => {
-    if (!isSceneScope || isNew) return;
+    if (isNew) return;
     const data: Record<string, unknown> = {
       type,
       name: isForeground ? '前景' : (name.trim() || '無題'),
@@ -115,9 +86,9 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
       type: 'object',
       id: object?.id ?? null,
       data,
-      scope: 'scene',
+      scope: _scope,
     });
-  }, [isSceneScope, type, name, imageUrl, backgroundColor, textContent, fontSize, textColor, width, height, imageFit, opacity, visible]);
+  }, [type, name, imageUrl, backgroundColor, textContent, fontSize, textColor, width, height, imageFit, opacity, visible]);
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
@@ -131,8 +102,12 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const title = isNew
     ? '新規オブジェクト'
     : isBackground
-      ? '背景設定'
-      : 'オブジェクト編集';
+      ? '背景'
+      : isForeground
+        ? '前景'
+        : isSceneScope
+          ? 'シーンオブジェクト'
+          : 'ルームオブジェクト';
 
   return (
     <div style={panelStyle}>
@@ -168,11 +143,6 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
               label="グリッド表示"
             />
           </AdSection>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            {!isSceneScope && (
-              <AdButton variant="primary" onClick={handleSave}>保存</AdButton>
-            )}
-          </div>
         </>
       )}
 
@@ -196,6 +166,15 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                   onSelect={(url) => setImageUrl(url)}
                 />
               </AdSection>
+              {imageUrl && (
+                <AdSection label="画像表示">
+                  <AdCheckbox
+                    checked={imageFit === 'cover'}
+                    onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
+                    label="トリミング（比率を維持して切り抜き）"
+                  />
+                </AdSection>
+              )}
               <AdSection label="背景色">
                 <AdInput
                   value={backgroundColor}
@@ -204,32 +183,24 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                 />
               </AdSection>
               <AdSection label="サイズ">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>横マス</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
                     value={String(width)}
                     onChange={(e) => setWidth(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>縦マス</span>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
                     value={String(height)}
                     onChange={(e) => setHeight(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
                 </div>
-              </AdSection>
-              <AdSection label="画像フィット">
-                <AdToggleButtons
-                  value={imageFit}
-                  onChange={(v) => setImageFit(v as 'cover' | 'contain')}
-                  options={[
-                    { value: 'contain', label: '比率維持' },
-                    { value: 'cover', label: 'トリミング' },
-                  ]}
-                />
               </AdSection>
             </>
           )}
@@ -266,20 +237,22 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                 />
               </AdSection>
               <AdSection label="サイズ">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>横マス</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
                     value={String(width)}
                     onChange={(e) => setWidth(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>縦マス</span>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
                     value={String(height)}
                     onChange={(e) => setHeight(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
                 </div>
               </AdSection>
@@ -296,21 +269,32 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                   onSelect={(url) => setImageUrl(url)}
                 />
               </AdSection>
+              {imageUrl && (
+                <AdSection label="画像表示">
+                  <AdCheckbox
+                    checked={imageFit === 'cover'}
+                    onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
+                    label="トリミング（比率を維持して切り抜き）"
+                  />
+                </AdSection>
+              )}
               <AdSection label="サイズ">
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>横マス</span>
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
                     value={String(width)}
                     onChange={(e) => setWidth(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>縦マス</span>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
                     value={String(height)}
                     onChange={(e) => setHeight(Number(e.target.value))}
                     fullWidth={false}
+                    inputWidth="52px"
                   />
                 </div>
               </AdSection>
@@ -318,14 +302,11 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
           )}
 
           {/* ボタン */}
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            {!isNew && onDelete && type !== 'foreground' && (
+          {!isNew && onDelete && type !== 'foreground' && (
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }} style={{ marginRight: 'auto' }}>削除</AdButton>
-            )}
-            {!isSceneScope && (
-              <AdButton variant="primary" onClick={handleSave}>保存</AdButton>
-            )}
-          </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -12,9 +12,10 @@ const GAP = '4px';
 interface AdInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'style'> {
   label?: string;
   fullWidth?: boolean;
+  inputWidth?: string;
 }
 
-export function AdInput({ label, fullWidth = true, ...props }: AdInputProps) {
+export function AdInput({ label, fullWidth = true, inputWidth, ...props }: AdInputProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
@@ -30,7 +31,7 @@ export function AdInput({ label, fullWidth = true, ...props }: AdInputProps) {
           color: theme.textPrimary,
           outline: 'none',
           boxSizing: 'border-box',
-          width: fullWidth ? '100%' : undefined,
+          width: inputWidth ?? (fullWidth ? '100%' : undefined),
         }}
       />
     </div>
@@ -204,12 +205,14 @@ export function AdSlider({ label, value, min, max, step = 1, displayValue, onCha
 
 // ── AdSection ──
 interface AdSectionProps {
-  title: string;
+  title?: string;
+  label?: string;
   defaultOpen?: boolean;
   children: React.ReactNode;
 }
 
-export function AdSection({ title, defaultOpen = true, children }: AdSectionProps) {
+export function AdSection({ title, label, defaultOpen = true, children }: AdSectionProps) {
+  const heading = title ?? label;
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: GAP }}>
@@ -232,7 +235,7 @@ export function AdSection({ title, defaultOpen = true, children }: AdSectionProp
         }}
       >
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        {title}
+        {heading}
       </button>
       {open && (
         <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: GAP }}>

@@ -42,6 +42,15 @@ export function SceneDockPanel() {
     await ctx.activateScene(newSceneId);
   };
 
+  const handleReorderScenes = (orderedIds: string[]) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      const scene = ctx.scenes.find(s => s.id === orderedIds[i]);
+      if (scene && scene.sort_order !== i) {
+        ctx.updateScene(orderedIds[i], { sort_order: i });
+      }
+    }
+  };
+
   return (
     <ScenePanel
       scenes={ctx.scenes}
@@ -50,7 +59,7 @@ export function SceneDockPanel() {
       onAddScene={handleAddScene}
       onEditScene={(scene) => { ctx.clearAllEditing(); ctx.setEditingScene(scene); }}
       onRemoveScene={ctx.removeScene}
-      onClose={() => {}}
+      onReorderScenes={handleReorderScenes}
     />
   );
 }

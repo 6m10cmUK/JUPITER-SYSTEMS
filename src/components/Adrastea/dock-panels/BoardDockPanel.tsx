@@ -15,10 +15,15 @@ export function BoardDockPanel() {
     ctx.updateObject(getScope(id), id, { x, y });
   };
 
-  // シングルクリック → プロパティ表示
+  const handleResizeObject = (id: string, width: number, height: number) => {
+    ctx.updateObject(getScope(id), id, { width, height });
+  };
+
+  // シングルクリック → プロパティ表示（単一選択）
   const handleSelectObject = (id: string) => {
     ctx.clearAllEditing();
     const scope = getScope(id);
+    ctx.setSelectedObjectIds([id]);
     ctx.setEditingObjectScope(scope);
     ctx.setEditingObjectId(id);
   };
@@ -35,6 +40,7 @@ export function BoardDockPanel() {
         ref={ctx.boardRef}
         pieces={ctx.pieces}
         objects={ctx.mergedObjects}
+        activeScene={ctx.activeScene}
         gridVisible={ctx.gridVisible}
         onMovePiece={ctx.movePiece}
         onRemovePiece={ctx.removePiece}
@@ -42,6 +48,9 @@ export function BoardDockPanel() {
         onMoveObject={handleMoveObject}
         onSelectObject={handleSelectObject}
         onEditObject={handleEditObject}
+        onResizeObject={handleResizeObject}
+        selectedObjectId={ctx.editingObjectId}
+        selectedObjectIds={ctx.selectedObjectIds}
       />
       {imagePickerTarget && (
         <AssetPickerModal

@@ -19,6 +19,10 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
   const [bgmSource, setBgmSource] = useState(scene?.bgm_source ?? '');
   const [bgmVolume, setBgmVolume] = useState(scene?.bgm_volume ?? 0.5);
   const [bgmLoop, setBgmLoop] = useState(scene?.bgm_loop ?? true);
+  const [bgTransition, setBgTransition] = useState(scene?.bg_transition ?? 'none');
+  const [bgTransitionDuration, setBgTransitionDuration] = useState(scene?.bg_transition_duration ?? 500);
+  const [fgTransition, setFgTransition] = useState(scene?.fg_transition ?? 'none');
+  const [fgTransitionDuration, setFgTransitionDuration] = useState(scene?.fg_transition_duration ?? 500);
 
   useEffect(() => {
     ctx.setPendingEdit(`scene:${scene?.id ?? 'new'}`, {
@@ -30,9 +34,13 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
         bgm_source: bgmSource || null,
         bgm_volume: bgmVolume,
         bgm_loop: bgmLoop,
+        bg_transition: bgTransition,
+        bg_transition_duration: bgTransitionDuration,
+        fg_transition: fgTransition,
+        fg_transition_duration: fgTransitionDuration,
       },
     });
-  }, [name, bgmType, bgmSource, bgmVolume, bgmLoop]);
+  }, [name, bgmType, bgmSource, bgmVolume, bgmLoop, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration]);
 
   // YouTube動画IDを抽出
   const extractYoutubeId = (url: string): string => {
@@ -130,6 +138,43 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
           </AdSection>
         </>
       )}
+
+      {/* トランジション設定 */}
+      <AdSection label="背景トランジション">
+        <AdCheckbox
+          checked={bgTransition === 'fade'}
+          onChange={(v) => setBgTransition(v ? 'fade' : 'none')}
+          label="フェード"
+        />
+        {bgTransition === 'fade' && (
+          <AdSlider
+            min={100}
+            max={3000}
+            step={100}
+            value={bgTransitionDuration}
+            onChange={setBgTransitionDuration}
+            displayValue={`${bgTransitionDuration}ms`}
+          />
+        )}
+      </AdSection>
+
+      <AdSection label="前景トランジション">
+        <AdCheckbox
+          checked={fgTransition === 'fade'}
+          onChange={(v) => setFgTransition(v ? 'fade' : 'none')}
+          label="フェード"
+        />
+        {fgTransition === 'fade' && (
+          <AdSlider
+            min={100}
+            max={3000}
+            step={100}
+            value={fgTransitionDuration}
+            onChange={setFgTransitionDuration}
+            displayValue={`${fgTransitionDuration}ms`}
+          />
+        )}
+      </AdSection>
     </div>
   );
 }
