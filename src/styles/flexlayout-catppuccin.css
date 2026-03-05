@@ -1,0 +1,239 @@
+/* ==========================================================================
+   Adrastea Catppuccin Dark Theme for flexlayout-react
+   ========================================================================== */
+
+/* --- Adrastea テーマトークン --- */
+.adrastea-root {
+  /* 背景 */
+  --ad-bg-base: #2d2d2d;
+  --ad-bg-surface: #3a3a3a;
+  --ad-bg-toolbar: #333333;
+  --ad-bg-input: #252525;
+  --ad-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* テキスト */
+  --ad-text-primary: #e0e0e0;
+  --ad-text-secondary: #a0a0a0;
+  --ad-text-muted: #707070;
+  --ad-text-on-accent: #ffffff;
+
+  /* ボーダー */
+  --ad-border: #505050;
+  --ad-border-input: #555555;
+
+  /* アクセント */
+  --ad-accent: #4a90d9;
+  --ad-accent-hover: #5aa0e9;
+
+  /* セマンティック */
+  --ad-danger: #e05555;
+  --ad-danger-hover: #f06565;
+  --ad-success: #4caf50;
+  --ad-warning: #e0a020;
+
+  /* ステータス */
+  --ad-status-red: #e05555;
+  --ad-status-blue: #4a90d9;
+  --ad-status-green: #4caf50;
+  --ad-status-yellow: #e0a020;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  color: var(--ad-text-primary);
+}
+
+/* --- Tailwind リセット打ち消し --- */
+.adrastea-root button,
+.adrastea-root input,
+.adrastea-root select,
+.adrastea-root textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.adrastea-root *,
+.adrastea-root *::before,
+.adrastea-root *::after {
+  border-color: transparent;
+}
+
+/* --- flexlayout-react テーマオーバーライド --- */
+.adrastea-root .flexlayout__layout {
+  /* ベースカラー */
+  --color-text: var(--ad-text-primary);
+  --color-background: var(--ad-bg-base);
+  --color-base: var(--ad-bg-base);
+  --color-1: var(--ad-bg-input);
+  --color-2: var(--ad-bg-base);
+  --color-3: var(--ad-bg-toolbar);
+  --color-4: var(--ad-bg-surface);
+  --color-5: var(--ad-border);
+  --color-6: #5a5a5a;
+
+  /* ドラッグ */
+  --color-drag1: var(--ad-accent);
+  --color-drag2: var(--ad-success);
+  --color-drag1-background: rgba(74, 144, 217, 0.12);
+  --color-drag2-background: rgba(76, 175, 80, 0.12);
+
+  /* フォント */
+  --font-size: 11px;
+  --font-family: inherit;
+
+  /* オーバーフロー・アイコン */
+  --color-overflow: var(--ad-text-secondary);
+  --color-icon: var(--ad-text-secondary);
+
+  /* タブセット */
+  --color-tabset-background: var(--ad-bg-toolbar);
+  --color-tabset-background-selected: var(--ad-bg-toolbar);
+  --color-tabset-background-maximized: var(--ad-bg-surface);
+  --color-tabset-divider-line: var(--ad-border);
+  --color-tabset-header-background: var(--ad-bg-toolbar);
+  --color-tabset-header: var(--ad-text-primary);
+
+  /* タブコンテンツ領域 */
+  --color-tab-content: var(--ad-bg-base);
+  --color-border-tab-content: var(--ad-bg-base);
+
+  /* タブボタン */
+  --color-tab-selected: var(--ad-text-primary);
+  --color-tab-selected-background: var(--ad-bg-surface);
+  --color-tab-unselected: var(--ad-text-secondary);
+  --color-tab-unselected-background: transparent;
+  --color-tab-textbox: var(--ad-text-primary);
+  --color-tab-textbox-background: var(--ad-bg-input);
+
+  /* ボーダータブ */
+  --color-border-background: var(--ad-bg-toolbar);
+  --color-border-divider-line: var(--ad-border);
+  --color-border-tab-selected: var(--ad-text-primary);
+  --color-border-tab-selected-background: var(--ad-bg-surface);
+  --color-border-tab-unselected: var(--ad-text-secondary);
+  --color-border-tab-unselected-background: var(--ad-bg-base);
+
+  /* スプリッター */
+  --color-splitter: var(--ad-bg-base);
+  --color-splitter-hover: var(--ad-border);
+  --color-splitter-drag: var(--ad-accent);
+
+  /* ドラッグ矩形 */
+  --color-drag-rect-border: var(--ad-border);
+  --color-drag-rect-background: var(--ad-bg-toolbar);
+  --color-drag-rect: var(--ad-text-primary);
+
+  /* ポップアップメニュー */
+  --color-popup-border: var(--ad-border);
+  --color-popup-unselected: var(--ad-text-primary);
+  --color-popup-unselected-background: var(--ad-bg-toolbar);
+  --color-popup-selected: var(--ad-text-primary);
+  --color-popup-selected-background: var(--ad-bg-surface);
+
+  /* エッジ・その他 */
+  --color-edge-marker: var(--ad-text-muted);
+  --color-edge-icon: var(--ad-text-primary);
+  --color-mini-scroll-indicator: rgba(160, 160, 160, 0.35);
+  --color-mini-scroll-indicator-hovered: rgba(160, 160, 160, 0.7);
+  --size-mini-scroll-indicator: 3px;
+  --color-toolbar-button-hover: var(--ad-bg-surface);
+}
+
+/* --- タブのコンパクト化（28px / 11px） --- */
+.adrastea-root .flexlayout__tabset_tabbar_outer {
+  height: 28px;
+  font-size: 11px;
+}
+
+.adrastea-root .flexlayout__tab_button {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+.adrastea-root .flexlayout__tab_button_stretch {
+  font-size: 11px;
+}
+
+.adrastea-root .flexlayout__tabset_header {
+  padding: 2px 3px 2px 5px;
+  font-size: 11px;
+}
+
+.adrastea-root .flexlayout__border_button {
+  padding: 2px 8px;
+  font-size: 11px;
+}
+
+/* --- シャープコーナー（角丸なし） --- */
+.adrastea-root .flexlayout__tabset,
+.adrastea-root .flexlayout__tab,
+.adrastea-root .flexlayout__tab_button,
+.adrastea-root .flexlayout__tab_button_trailing,
+.adrastea-root .flexlayout__tab_button_textbox,
+.adrastea-root .flexlayout__tab_toolbar_button,
+.adrastea-root .flexlayout__border_button,
+.adrastea-root .flexlayout__border_button_trailing,
+.adrastea-root .flexlayout__border_toolbar_button,
+.adrastea-root .flexlayout__popup_menu_container,
+.adrastea-root .flexlayout__popup_menu_item,
+.adrastea-root .flexlayout__outline_rect,
+.adrastea-root .flexlayout__outline_rect_edge,
+.adrastea-root .flexlayout__drag_rect,
+.adrastea-root .flexlayout__splitter_drag,
+.adrastea-root .flexlayout__splitter_handle,
+.adrastea-root .flexlayout__mini_scrollbar {
+  border-radius: 0;
+}
+
+.adrastea-root .flexlayout__tab_top,
+.adrastea-root .flexlayout__tab_bottom {
+  border-radius: 0;
+}
+
+@media (hover: hover) {
+  .adrastea-root .flexlayout__splitter:hover {
+    border-radius: 0;
+  }
+}
+
+/* --- dark.css 装飾効果の除去（フラットスタイル） --- */
+.adrastea-root .flexlayout__tabset_header {
+  box-shadow: none;
+}
+
+.adrastea-root .flexlayout__tabset-selected {
+  background-image: none;
+}
+
+.adrastea-root .flexlayout__tabset-maximized {
+  background-image: none;
+}
+
+.adrastea-root .flexlayout__tab_top,
+.adrastea-root .flexlayout__tab_bottom {
+  box-shadow: none;
+}
+
+.adrastea-root .flexlayout__border_button {
+  box-shadow: none;
+}
+
+/* --- スクロールバーのコンパクト化（6px幅） --- */
+.adrastea-root .flexlayout__layout ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.adrastea-root .flexlayout__layout ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adrastea-root .flexlayout__layout ::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.3);
+  border-radius: 0;
+}
+
+.adrastea-root .flexlayout__layout ::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 160, 160, 0.5);
+}

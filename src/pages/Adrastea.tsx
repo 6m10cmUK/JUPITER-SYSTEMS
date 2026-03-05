@@ -34,11 +34,11 @@ function AdrasteaRoom() {
         onSignOut={ctx.signOut}
         activeScene={ctx.activeScene}
         profile={ctx.profile}
-        dockviewApi={ctx.dockviewApi}
+        flexModel={ctx.flexModel}
       />
 
       {/* Dockviewエリア */}
-      <div style={{ flex: 1, overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', zIndex: 0 }}>
         <DockLayout />
       </div>
 

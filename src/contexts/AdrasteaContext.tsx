@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import type { User } from 'firebase/auth';
-import type { DockviewApi } from 'dockview-react';
+import { type Model, type Layout } from 'flexlayout-react';
 import type { BoardHandle } from '../components/Adrastea/Board';
 import { getViewportCenter } from '../components/Adrastea/Board';
 import type {
@@ -140,9 +140,13 @@ export interface AdrasteaContextValue {
   gridVisible: boolean;
   setGridVisible: React.Dispatch<React.SetStateAction<boolean>>;
 
-  // --- Dockview API ---
-  dockviewApi: DockviewApi | null;
-  setDockviewApi: React.Dispatch<React.SetStateAction<DockviewApi | null>>;
+  // --- FlexLayout ---
+  flexModel: Model | null;
+  setFlexModel: React.Dispatch<React.SetStateAction<Model | null>>;
+  flexLayoutRef: React.RefObject<Layout | null>;
+  setFlexLayoutRef: (ref: React.RefObject<Layout | null>) => void;
+  nestedDockModel: Model | null;
+  setNestedDockModel: React.Dispatch<React.SetStateAction<Model | null>>;
 
   // --- Auto-save edits ---
   setPendingEdit: (key: string, edit: PendingEdit | null) => void;
@@ -204,9 +208,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     return getViewportCenter(boardRef.current?.getStage() ?? null);
   }, []);
 
-  // --- Dockview API ---
-  const [dockviewApi, setDockviewApi] = useState<DockviewApi | null>(null);
-
+  // --- FlexLayout ---
+  const [flexModel, setFlexModel] = useState<Model | null>(null);
+  const [nestedDockModel, setNestedDockModel] = useState<Model | null>(null);
+  const flexLayoutRefState = useRef<React.RefObject<Layout | null>>({ current: null });
+  const setFlexLayoutRef = useCallback((ref: React.RefObject<Layout | null>) => {
+    flexLayoutRefState.current = ref;
+  }, []);
 
   // --- Grid visibility ---
   const [gridVisible, setGridVisible] = useState(true);
@@ -429,9 +437,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       boardRef, getBoardCenter,
       gridVisible, setGridVisible,
 
-      // Dockview
-      dockviewApi, setDockviewApi,
-
+      // FlexLayout
+      flexModel, setFlexModel,
+      flexLayoutRef: flexLayoutRefState.current,
+      setFlexLayoutRef,
+      nestedDockModel, setNestedDockModel,
 
       // Auto-save edits
       setPendingEdit,
@@ -457,7 +467,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       onAddObject,
       boardRef, getBoardCenter,
       gridVisible,
-      dockviewApi,
+      flexModel, setFlexLayoutRef, nestedDockModel,
 
       setPendingEdit,
       clearAllEditing,
