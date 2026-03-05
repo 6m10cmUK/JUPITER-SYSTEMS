@@ -2,6 +2,9 @@ import { auth } from '../config/firebase';
 import { encode as encodeWebP } from '@jsquash/webp';
 
 const R2_WORKER_URL = import.meta.env.VITE_R2_WORKER_URL ?? '';
+if (!R2_WORKER_URL) {
+  throw new Error('VITE_R2_WORKER_URL is not configured');
+}
 
 /**
  * Canvas APIでリサイズ → jSquash(libwebp Wasm)でWebPエンコード

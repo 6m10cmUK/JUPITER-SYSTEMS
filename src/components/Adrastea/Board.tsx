@@ -185,7 +185,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     const padding = 0.9;
     const scaleX = (stageSize.width * padding) / targetW;
     const scaleY = (stageSize.height * padding) / targetH;
-    const scale = Math.min(Math.max(scaleX, scaleY), MAX_SCALE);
+    const scale = Math.min(Math.min(scaleX, scaleY), MAX_SCALE);
 
     // 背景の中心をビューポート中心に
     const centerX = targetX + targetW / 2;

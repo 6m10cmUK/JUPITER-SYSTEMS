@@ -13,18 +13,23 @@ export async function rollDice(
   input: string,
   gameSystem: string = 'DiceBot',
 ): Promise<DiceResult | null> {
-  const loader = await getLoader();
-  const GameSystem = await loader.dynamicLoad(gameSystem);
-  const result = GameSystem.eval(input);
+  try {
+    const loader = await getLoader();
+    const GameSystem = await loader.dynamicLoad(gameSystem);
+    const result = GameSystem.eval(input);
 
-  if (!result) return null;
+    if (!result) return null;
 
-  return {
-    text: result.text,
-    success: result.success,
-    result: input,
-    isSecret: result.secret,
-  };
+    return {
+      text: result.text,
+      success: result.success,
+      result: input,
+      isSecret: result.secret,
+    };
+  } catch (err) {
+    console.error('rollDice failed:', err);
+    return null;
+  }
 }
 
 export async function getAvailableSystems(): Promise<

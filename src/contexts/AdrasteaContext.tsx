@@ -283,9 +283,31 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // デバウンス付きDB保存
     const existing = debounceTimersRef.current.get(key);
     if (existing) clearTimeout(existing);
-    debounceTimersRef.current.set(key, setTimeout(() => {
+    debounceTimersRef.current.set(key, setTimeout(async () => {
       debounceTimersRef.current.delete(key);
-      flushEdit(edit);
+      try {
+        await flushEdit(edit);
+        // flush成功後にローカルオーバーライドをクリア
+        if (edit.id) {
+          if (edit.type === 'scene') {
+            setLocalSceneOverrides(prev => {
+              if (!prev.has(edit.id!)) return prev;
+              const next = new Map(prev);
+              next.delete(edit.id!);
+              return next;
+            });
+          } else if (edit.type === 'object') {
+            setLocalObjectOverrides(prev => {
+              if (!prev.has(edit.id!)) return prev;
+              const next = new Map(prev);
+              next.delete(edit.id!);
+              return next;
+            });
+          }
+        }
+      } catch (err) {
+        console.error('pendingEdit flush失敗:', err);
+      }
     }, 500));
   }, [flushEdit]);
 

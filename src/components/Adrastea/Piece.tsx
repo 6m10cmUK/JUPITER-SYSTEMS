@@ -1,3 +1,4 @@
+import React from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { Piece as PieceType } from '../../types/adrastea.types';

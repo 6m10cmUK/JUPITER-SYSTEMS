@@ -72,7 +72,7 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
       <AdSection label="シーン名">
         <AdInput
           value={name}
-          onChange={setName}
+          onChange={(e) => setName(e.target.value)}
           placeholder="シーン名"
         />
       </AdSection>

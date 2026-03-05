@@ -166,11 +166,8 @@ export default {
         return new Response('Bad Request: path required', { status: 400, headers });
       }
 
-      // パス配下のオブジェクトを全削除
-      const list = await env.R2_BUCKET.list({ prefix: path });
-      for (const obj of list.objects) {
-        await env.R2_BUCKET.delete(obj.key);
-      }
+      // 指定キーのみ削除（prefix一致ではなくexact match）
+      await env.R2_BUCKET.delete(path);
 
       return new Response('OK', { status: 200, headers });
     }

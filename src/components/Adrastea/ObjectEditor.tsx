@@ -45,8 +45,6 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const ctx = useAdrasteaContext();
   const isSceneScope = _scope === 'scene';
 
-  if (object === undefined) return null;
-
   const isNew = object === null;
   const isBackground = type === 'background';
   const isForeground = type === 'foreground';
@@ -89,6 +87,8 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
       scope: _scope,
     });
   }, [type, name, imageUrl, backgroundColor, textContent, fontSize, textColor, width, height, imageFit, opacity, visible]);
+
+  if (object === undefined) return null;
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
@@ -304,7 +304,9 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
           {/* ボタン */}
           {!isNew && onDelete && type !== 'foreground' && (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }} style={{ marginRight: 'auto' }}>削除</AdButton>
+              <div style={{ marginRight: 'auto' }}>
+                <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }}>削除</AdButton>
+              </div>
             </div>
           )}
         </>
