@@ -4,7 +4,7 @@ import { theme } from '../../styles/theme';
 import { ObjectOverlay } from './ObjectOverlay';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
-import type { Piece as PieceType, BoardObject } from '../../types/adrastea.types';
+import type { Piece as PieceType, BoardObject, Scene } from '../../types/adrastea.types';
 import type { ReactNode } from 'react';
 
 export interface BoardHandle {
@@ -14,6 +14,7 @@ export interface BoardHandle {
 interface BoardProps {
   pieces: PieceType[];
   objects?: BoardObject[];
+  activeScene?: Scene | null;
   gridVisible?: boolean;
   onMovePiece: (id: string, x: number, y: number) => void;
   onRemovePiece: (id: string) => void;
@@ -21,6 +22,9 @@ interface BoardProps {
   onMoveObject?: (id: string, x: number, y: number) => void;
   onSelectObject?: (id: string) => void;
   onEditObject?: (id: string) => void;
+  onResizeObject?: (id: string, width: number, height: number) => void;
+  selectedObjectId?: string | null;
+  selectedObjectIds?: string[];
   children?: ReactNode;
 }
 
@@ -153,7 +157,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, selectedObjectId, selectedObjectIds, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -305,6 +309,9 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             opacity: bgObjectOpacity,
             pointerEvents: 'none',
             zIndex: 0,
+            transition: activeScene?.bg_transition === 'fade'
+              ? `opacity ${activeScene.bg_transition_duration}ms ease`
+              : undefined,
           }}
         >
           {bgObjectUrl && (
@@ -344,18 +351,25 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
           {backgroundObjects.length > 0 && onEditObject && (
             <ObjectOverlay
               objects={backgroundObjects}
+              selectedObjectId={selectedObjectId}
+              selectedObjectIds={selectedObjectIds}
               onMoveObject={onMoveObject ?? (() => {})}
               onSelectObject={onSelectObject ?? (() => {})}
               onEditObject={onEditObject}
+              onResizeObject={onResizeObject}
             />
           )}
           {/* オブジェクト（sort_order順で一括描画） */}
           {interactiveObjects.length > 0 && onMoveObject && onEditObject && (
             <ObjectOverlay
               objects={interactiveObjects}
+              selectedObjectId={selectedObjectId}
+              selectedObjectIds={selectedObjectIds}
+              activeScene={activeScene}
               onMoveObject={onMoveObject}
               onSelectObject={onSelectObject ?? (() => {})}
               onEditObject={onEditObject}
+              onResizeObject={onResizeObject}
             />
           )}
           {/* コマ */}

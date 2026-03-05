@@ -1,7 +1,8 @@
 
+import { useState, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
-import { X } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -10,7 +11,7 @@ interface ScenePanelProps {
   onAddScene: () => void;
   onEditScene: (scene: Scene) => void;
   onRemoveScene: (sceneId: string) => void;
-  onClose: () => void;
+  onReorderScenes?: (orderedIds: string[]) => void;
 }
 
 export function ScenePanel({
@@ -20,8 +21,59 @@ export function ScenePanel({
   onAddScene,
   onEditScene,
   onRemoveScene,
-  onClose,
+  onReorderScenes,
 }: ScenePanelProps) {
+  const [dragId, setDragId] = useState<string | null>(null);
+  // dropPosition: { id: シーンID, position: 'before' | 'after' }
+  const [dropPosition, setDropPosition] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
+
+  const handleDragStart = useCallback((e: React.DragEvent, sceneId: string) => {
+    setDragId(sceneId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, sceneId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (sceneId === dragId) { setDropPosition(null); return; }
+    // カーソル位置がカード上半分なら before、下半分なら after
+    const rect = e.currentTarget.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    const position = e.clientY < midY ? 'before' : 'after';
+    setDropPosition({ id: sceneId, position });
+  }, [dragId]);
+
+  const handleDragLeave = useCallback(() => {
+    setDropPosition(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (!dragId || dragId === targetId || !onReorderScenes || !dropPosition) {
+      setDragId(null);
+      setDropPosition(null);
+      return;
+    }
+    const ids = scenes.map(s => s.id);
+    const fromIdx = ids.indexOf(dragId);
+    if (fromIdx === -1) { setDragId(null); setDropPosition(null); return; }
+    // ドラッグ元を削除
+    ids.splice(fromIdx, 1);
+    // 挿入先のインデックスを再計算（削除後のリスト基準）
+    const toIdx = ids.indexOf(dropPosition.id);
+    if (toIdx === -1) { setDragId(null); setDropPosition(null); return; }
+    const insertIdx = dropPosition.position === 'before' ? toIdx : toIdx + 1;
+    ids.splice(insertIdx, 0, dragId);
+    onReorderScenes(ids);
+    setDragId(null);
+    setDropPosition(null);
+  }, [dragId, dropPosition, scenes, onReorderScenes]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDropPosition(null);
+  }, []);
+
   return (
     <div
       style={{
@@ -47,43 +99,81 @@ export function ScenePanel({
           シーン
         </span>
         <button
-          onClick={onClose}
+          onClick={onAddScene}
           style={{
             background: 'transparent',
             border: 'none',
-            color: theme.textSecondary,
+            color: theme.textPrimary,
             cursor: 'pointer',
             padding: '0 4px',
             display: 'flex',
             alignItems: 'center',
           }}
         >
-          <X size={16} />
+          <Plus size={18} />
         </button>
       </div>
 
       {/* シーンリスト */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
-        {scenes.map((scene) => (
+        {scenes.map((scene) => {
+          const isDropBefore = dropPosition?.id === scene.id && dropPosition.position === 'before';
+          const isDropAfter = dropPosition?.id === scene.id && dropPosition.position === 'after';
+          return (
           <div
             key={scene.id}
+            draggable
+            onDragStart={(e) => handleDragStart(e, scene.id)}
+            onDragOver={(e) => handleDragOver(e, scene.id)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, scene.id)}
+            onDragEnd={handleDragEnd}
             style={{
+              position: 'relative',
               marginBottom: '4px',
-              border:
-                activeSceneId === scene.id
-                  ? `1px solid ${theme.accent}`
-                  : '1px solid transparent',
+              border: activeSceneId === scene.id
+                ? `1px solid ${theme.accent}`
+                : '1px solid transparent',
               borderRadius: 0,
-              background:
-                activeSceneId === scene.id
-                  ? 'rgba(137,180,250,0.15)'
-                  : 'transparent',
-              overflow: 'hidden',
+              background: activeSceneId === scene.id
+                ? 'rgba(137,180,250,0.15)'
+                : 'transparent',
+              overflow: 'visible',
+              opacity: dragId === scene.id ? 0.4 : 1,
+              cursor: 'grab',
             }}
           >
+            {/* 挿入インジケーター: before */}
+            {isDropBefore && (
+              <div style={{
+                position: 'absolute',
+                top: '-3px',
+                left: 0,
+                right: 0,
+                height: '2px',
+                background: theme.accent,
+                borderRadius: '1px',
+                zIndex: 10,
+                pointerEvents: 'none',
+              }} />
+            )}
+            {/* 挿入インジケーター: after */}
+            {isDropAfter && (
+              <div style={{
+                position: 'absolute',
+                bottom: '-3px',
+                left: 0,
+                right: 0,
+                height: '2px',
+                background: theme.accent,
+                borderRadius: '1px',
+                zIndex: 10,
+                pointerEvents: 'none',
+              }} />
+            )}
             {/* サムネイル */}
             <div
-              onClick={() => onActivateScene(scene.id)}
+              onClick={() => { onActivateScene(scene.id); onEditScene(scene); }}
               style={{
                 height: '40px',
                 background: scene.foreground_url
@@ -120,7 +210,7 @@ export function ScenePanel({
               }}
             >
               <span
-                onClick={() => onActivateScene(scene.id)}
+                onClick={() => { onActivateScene(scene.id); onEditScene(scene); }}
                 style={{
                   color: theme.textPrimary,
                   fontSize: '11px',
@@ -134,22 +224,6 @@ export function ScenePanel({
                 {scene.name}
               </span>
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onEditScene(scene);
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: theme.textSecondary,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    padding: '2px 4px',
-                  }}
-                >
-                  編集
-                </button>
                 {scenes.length > 1 && (
                   <button
                     onClick={(e) => {
@@ -160,39 +234,22 @@ export function ScenePanel({
                       background: 'transparent',
                       border: 'none',
                       color: theme.danger,
-                      fontSize: '0.75rem',
                       cursor: 'pointer',
                       padding: '2px 4px',
+                      display: 'flex',
+                      alignItems: 'center',
                     }}
                   >
-                    削除
+                    <Trash2 size={14} />
                   </button>
                 )}
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
-      {/* 追加ボタン */}
-      <div style={{ padding: '4px 8px', borderTop: `1px solid ${theme.border}` }}>
-        <button
-          onClick={onAddScene}
-          style={{
-            width: '100%',
-            padding: '4px 8px',
-            background: theme.accent,
-            color: theme.textOnAccent,
-            border: 'none',
-            borderRadius: 0,
-            fontWeight: 600,
-            fontSize: '12px',
-            cursor: 'pointer',
-          }}
-        >
-          + シーン追加
-        </button>
-      </div>
     </div>
   );
 }

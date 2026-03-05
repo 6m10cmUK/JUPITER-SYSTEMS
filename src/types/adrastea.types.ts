@@ -40,6 +40,10 @@ export interface Scene {
   bgm_source: string | null;
   bgm_volume: number;
   bgm_loop: boolean;
+  bg_transition: 'none' | 'fade';
+  bg_transition_duration: number;
+  fg_transition: 'none' | 'fade';
+  fg_transition_duration: number;
   sort_order: number;
   created_at: number;
   updated_at: number;
@@ -149,7 +153,7 @@ export interface BoardObject {
   // panel用
   image_url: string | null;
   background_color: string;
-  image_fit: 'contain' | 'cover';
+  image_fit: 'contain' | 'cover' | 'stretch';
 
   // text用
   text_content: string | null;

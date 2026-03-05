@@ -4,7 +4,6 @@ import { CharacterEditor } from '../CharacterEditor';
 import { ObjectEditor } from '../ObjectEditor';
 import { CutinEditor } from '../CutinEditor';
 import { PieceEditor } from '../PieceEditor';
-import { theme } from '../../../styles/theme';
 
 export function PropertyDockPanel() {
   const ctx = useAdrasteaContext();
@@ -105,17 +104,5 @@ export function PropertyDockPanel() {
     );
   }
 
-  // 何も選択されていない
-  return (
-    <div style={{
-      height: '100%',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: theme.textMuted,
-      fontSize: '12px',
-    }}>
-      対象を選択してください
-    </div>
-  );
+  return null;
 }
