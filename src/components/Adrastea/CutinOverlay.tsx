@@ -110,7 +110,7 @@ export function CutinOverlay({ cutins, activeCutin, onCutinEnd }: CutinOverlayPr
     }, 500);
 
     return cleanup;
-  }, [activeCutin, cutins, cleanup, onCutinEnd, phase]);
+  }, [activeCutin, cutins, cleanup, onCutinEnd]);
 
   useEffect(() => {
     return cleanup;

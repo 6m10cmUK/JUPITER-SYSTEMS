@@ -52,8 +52,13 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
 
   const handleDelete = useCallback(
     async (assetId: string, r2Key: string) => {
-      await deleteAsset(assetId, r2Key);
-      setConfirmDeleteId(null);
+      try {
+        await deleteAsset(assetId, r2Key);
+      } catch (err) {
+        console.error('アセット削除失敗:', err);
+      } finally {
+        setConfirmDeleteId(null);
+      }
     },
     [deleteAsset]
   );
@@ -64,9 +69,14 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
         .split(',')
         .map((t) => t.trim())
         .filter(Boolean);
-      await updateAssetTags(assetId, tags);
-      setEditingTagsId(null);
-      setTagInput('');
+      try {
+        await updateAssetTags(assetId, tags);
+      } catch (err) {
+        console.error('タグ保存失敗:', err);
+      } finally {
+        setEditingTagsId(null);
+        setTagInput('');
+      }
     },
     [tagInput, updateAssetTags]
   );

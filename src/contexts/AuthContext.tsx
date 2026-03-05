@@ -29,27 +29,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
 
       if (firebaseUser) {
+        setIsGuest(false);
         const profileRef = doc(db, 'users', firebaseUser.uid);
-        const snap = await getDoc(profileRef);
+        try {
+          const snap = await getDoc(profileRef);
 
-        if (snap.exists()) {
-          setProfile(snap.data() as UserProfile);
-        } else {
-          const newProfile: UserProfile = {
-            uid: firebaseUser.uid,
-            display_name: firebaseUser.displayName || 'ユーザー',
-            avatar_url: firebaseUser.photoURL || null,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          };
-          await setDoc(profileRef, newProfile);
-          setProfile(newProfile);
+          if (snap.exists()) {
+            setProfile(snap.data() as UserProfile);
+          } else {
+            const newProfile: UserProfile = {
+              uid: firebaseUser.uid,
+              display_name: firebaseUser.displayName || 'ユーザー',
+              avatar_url: firebaseUser.photoURL || null,
+              created_at: Date.now(),
+              updated_at: Date.now(),
+            };
+            await setDoc(profileRef, newProfile);
+            setProfile(newProfile);
+          }
+        } catch (err) {
+          console.error('Failed to load/create user profile:', err);
+          setProfile(null);
+        } finally {
+          setLoading(false);
         }
       } else {
         setProfile(null);
+        setLoading(false);
       }
-
-      setLoading(false);
     });
 
     return () => unsubscribe();
