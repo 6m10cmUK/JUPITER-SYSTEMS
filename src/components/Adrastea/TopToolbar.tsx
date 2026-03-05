@@ -122,7 +122,7 @@ export function TopToolbar({
     >
       {/* アプリ名 */}
       <span style={{ color: theme.textMuted, fontSize: '0.75rem', fontWeight: 600, marginRight: 4 }}>
-        Adrastea
+        Adrastea (α)
       </span>
 
       {/* セパレータ */}
