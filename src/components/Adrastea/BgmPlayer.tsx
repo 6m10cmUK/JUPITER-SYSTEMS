@@ -2,6 +2,7 @@ import { useRef, useEffect, useState, useCallback } from 'react';
 import YouTube from 'react-youtube';
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
+import { Play, Pause } from 'lucide-react';
 
 interface BgmPlayerProps {
   scene: Scene | null;
@@ -141,12 +142,13 @@ export function BgmPlayer({ scene }: BgmPlayerProps) {
           background: 'transparent',
           border: 'none',
           color: theme.accent,
-          fontSize: '1.2rem',
           cursor: 'pointer',
           padding: '2px 6px',
+          display: 'flex',
+          alignItems: 'center',
         }}
       >
-        {isPlaying ? '⏸' : '▶'}
+        {isPlaying ? <Pause size={16} /> : <Play size={16} />}
       </button>
 
       {/* 曲名 */}

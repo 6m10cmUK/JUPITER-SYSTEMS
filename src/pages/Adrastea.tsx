@@ -1,24 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
-import { PieceEditor } from '../components/Adrastea/PieceEditor';
 import { RoomSettingsModal } from '../components/Adrastea/RoomSettingsModal';
 import { ProfileEditModal } from '../components/Adrastea/ProfileEditModal';
-import { SceneEditor } from '../components/Adrastea/SceneEditor';
-import { CharacterEditor } from '../components/Adrastea/CharacterEditor';
-import { ObjectEditor } from '../components/Adrastea/ObjectEditor';
 import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
-import { CutinEditor } from '../components/Adrastea/CutinEditor';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../styles/theme';
 
-/** Dockview + モーダル/オーバーレイ */
+/** Dockview + オーバーレイ */
 function AdrasteaRoom() {
   const ctx = useAdrasteaContext();
-  const editingPiece = ctx.editingPieceId ? ctx.pieces.find((p) => p.id === ctx.editingPieceId) : null;
+
+  const handleAddPiece = useCallback((label: string, color: string) => {
+    const center = ctx.getBoardCenter();
+    const px = center.x * 50;
+    const py = center.y * 50;
+    ctx.addPiece(label, color, px, py);
+  }, [ctx.getBoardCenter, ctx.addPiece]);
 
   return (
     <div
@@ -27,7 +28,7 @@ function AdrasteaRoom() {
     >
       {/* TopToolbar（Dockview外、常時表示） */}
       <TopToolbar
-        onAddPiece={ctx.addPiece}
+        onAddPiece={handleAddPiece}
         onOpenSettings={() => ctx.setShowRoomSettings(true)}
         onOpenProfile={() => ctx.setShowProfileEdit(true)}
         onSignOut={ctx.signOut}
@@ -72,90 +73,12 @@ function AdrasteaRoom() {
         </div>
       ))}
 
-      {/* シーンエディタ */}
-      {ctx.editingScene !== undefined && ctx.roomId && (
-        <SceneEditor
-          scene={ctx.editingScene}
-          roomId={ctx.roomId}
-          onSave={async (data) => {
-            if (ctx.editingScene) {
-              await ctx.updateScene(ctx.editingScene.id, data);
-            } else {
-              await ctx.addScene(data);
-            }
-          }}
-          onClose={() => ctx.setEditingScene(undefined)}
-        />
-      )}
-
-      {/* キャラクターエディタ */}
-      {ctx.editingCharacter !== undefined && ctx.roomId && (
-        <CharacterEditor
-          character={ctx.editingCharacter}
-          roomId={ctx.roomId}
-          onSave={async (data) => {
-            if (ctx.editingCharacter) {
-              await ctx.updateCharacter(ctx.editingCharacter.id, data);
-            } else {
-              await ctx.addCharacter(data);
-            }
-          }}
-          onClose={() => ctx.setEditingCharacter(undefined)}
-        />
-      )}
-
-      {/* オブジェクトエディタ */}
-      {ctx.editingObjectId !== undefined && ctx.roomId && (
-        <ObjectEditor
-          object={ctx.editingObjectId ? ctx.mergedObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null}
-          scope={ctx.editingObjectScope}
-          roomId={ctx.roomId}
-          onSave={async (data) => {
-            if (ctx.editingObjectId) {
-              await ctx.updateObject(ctx.editingObjectScope, ctx.editingObjectId, data);
-            } else {
-              await ctx.addObject(ctx.editingObjectScope, data);
-            }
-          }}
-          onDelete={ctx.editingObjectId ? () => ctx.removeObject(ctx.editingObjectScope, ctx.editingObjectId!) : undefined}
-          onClose={() => ctx.setEditingObjectId(undefined)}
-        />
-      )}
-
-      {/* カットインエディタ */}
-      {ctx.editingCutin !== undefined && ctx.roomId && (
-        <CutinEditor
-          cutin={ctx.editingCutin}
-          roomId={ctx.roomId}
-          onSave={async (data) => {
-            if (ctx.editingCutin) {
-              await ctx.updateCutin(ctx.editingCutin.id, data);
-            } else {
-              await ctx.addCutin(data);
-            }
-          }}
-          onDelete={ctx.editingCutin ? () => ctx.removeCutin(ctx.editingCutin!.id) : undefined}
-          onClose={() => ctx.setEditingCutin(undefined)}
-        />
-      )}
-
       {/* カットインオーバーレイ（全画面演出） */}
       <CutinOverlay
         cutins={ctx.cutins}
         activeCutin={ctx.room?.active_cutin ?? null}
         onCutinEnd={ctx.clearCutin}
       />
-
-      {/* コマ編集ダイアログ */}
-      {editingPiece && (
-        <PieceEditor
-          piece={editingPiece}
-          characters={ctx.characters}
-          roomId={ctx.roomId}
-          onSave={ctx.updatePiece}
-          onClose={() => ctx.setEditingPieceId(null)}
-        />
-      )}
 
       {/* ルーム設定モーダル */}
       {ctx.showRoomSettings && ctx.room && (

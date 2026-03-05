@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, memo } from 'react';
 import { Group, Rect, Text, Image as KonvaImage } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { BoardObject } from '../../types/adrastea.types';
@@ -7,6 +7,7 @@ import { GRID_SIZE } from './Board';
 interface ObjectOverlayProps {
   objects: BoardObject[];
   onMoveObject: (id: string, x: number, y: number) => void;
+  onSelectObject: (id: string) => void;
   onEditObject: (id: string) => void;
 }
 
@@ -14,7 +15,7 @@ function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
 
-function ObjectImage({
+const ObjectImage = memo(function ObjectImage({
   url,
   width,
   height,
@@ -91,15 +92,17 @@ function ObjectImage({
       listening={false}
     />
   );
-}
+});
 
-function PanelObject({
+const PanelObject = memo(function PanelObject({
   obj,
   onMove,
+  onSelect,
   onEdit,
 }: {
   obj: BoardObject;
   onMove: (id: string, x: number, y: number) => void;
+  onSelect: (id: string) => void;
   onEdit: (id: string) => void;
 }) {
   const pxX = obj.x * GRID_SIZE;
@@ -124,24 +127,40 @@ function PanelObject({
       draggable
       opacity={obj.opacity}
       onDragEnd={handleDragEnd}
+      onClick={() => onSelect(obj.id)}
+      onTap={() => onSelect(obj.id)}
       onDblClick={() => onEdit(obj.id)}
       onDblTap={() => onEdit(obj.id)}
     >
-      <Rect width={pxW} height={pxH} fill={obj.background_color} />
+      <Rect width={pxW} height={pxH} fill={obj.background_color} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
       {obj.image_url && (
         <ObjectImage url={obj.image_url} width={pxW} height={pxH} fit={obj.image_fit} />
       )}
+      {!obj.image_url && (
+        <Text
+          text={obj.name}
+          width={pxW}
+          height={pxH}
+          align="center"
+          verticalAlign="middle"
+          fontSize={14}
+          fill="rgba(255,255,255,0.4)"
+          listening={false}
+        />
+      )}
     </Group>
   );
-}
+});
 
-function TextObject({
+const TextObject = memo(function TextObject({
   obj,
   onMove,
+  onSelect,
   onEdit,
 }: {
   obj: BoardObject;
   onMove: (id: string, x: number, y: number) => void;
+  onSelect: (id: string) => void;
   onEdit: (id: string) => void;
 }) {
   const pxX = obj.x * GRID_SIZE;
@@ -166,12 +185,14 @@ function TextObject({
       draggable
       opacity={obj.opacity}
       onDragEnd={handleDragEnd}
+      onClick={() => onSelect(obj.id)}
+      onTap={() => onSelect(obj.id)}
       onDblClick={() => onEdit(obj.id)}
       onDblTap={() => onEdit(obj.id)}
     >
-      <Rect width={pxW} height={pxH} fill={obj.background_color} />
+      <Rect width={pxW} height={pxH} fill={obj.background_color} stroke="rgba(255,255,255,0.2)" strokeWidth={1} />
       <Text
-        text={obj.text_content ?? ''}
+        text={obj.text_content || obj.name}
         fontSize={obj.font_size}
         fill={obj.text_color}
         width={pxW}
@@ -180,15 +201,46 @@ function TextObject({
       />
     </Group>
   );
-}
+});
 
-function ForegroundObject({
+const BackgroundObject = memo(function BackgroundObject({
+  obj,
+  onSelect,
+  onEdit,
+}: {
+  obj: BoardObject;
+  onSelect: (id: string) => void;
+  onEdit: (id: string) => void;
+}) {
+  const pxX = obj.x * GRID_SIZE;
+  const pxY = obj.y * GRID_SIZE;
+  const pxW = obj.width * GRID_SIZE;
+  const pxH = obj.height * GRID_SIZE;
+
+  return (
+    <Group
+      x={pxX}
+      y={pxY}
+      onClick={() => onSelect(obj.id)}
+      onTap={() => onSelect(obj.id)}
+      onDblClick={() => onEdit(obj.id)}
+      onDblTap={() => onEdit(obj.id)}
+    >
+      {/* 描画はHTML側。ここはクリック当たり判定 */}
+      <Rect width={pxW} height={pxH} fill="transparent" />
+    </Group>
+  );
+});
+
+const ForegroundObject = memo(function ForegroundObject({
   obj,
   onMove,
+  onSelect,
   onEdit,
 }: {
   obj: BoardObject;
   onMove: (id: string, x: number, y: number) => void;
+  onSelect: (id: string) => void;
   onEdit: (id: string) => void;
 }) {
   const pxX = obj.x * GRID_SIZE;
@@ -210,35 +262,38 @@ function ForegroundObject({
     <Group
       x={pxX}
       y={pxY}
-      draggable
+      draggable={false}
       opacity={obj.opacity}
-      listening={true}
-      onDragEnd={handleDragEnd}
+      onClick={() => onSelect(obj.id)}
+      onTap={() => onSelect(obj.id)}
       onDblClick={() => onEdit(obj.id)}
       onDblTap={() => onEdit(obj.id)}
     >
+      <Rect width={pxW} height={pxH} fill={obj.background_color ?? 'transparent'} stroke="rgba(255,255,255,0.15)" strokeWidth={1} dash={[6, 4]} />
       {obj.image_url && (
         <ObjectImage url={obj.image_url} width={pxW} height={pxH} fit={obj.image_fit} />
       )}
     </Group>
   );
-}
+});
 
-export function ObjectOverlay({ objects, onMoveObject, onEditObject }: ObjectOverlayProps) {
+export const ObjectOverlay = memo(function ObjectOverlay({ objects, onMoveObject, onSelectObject, onEditObject }: ObjectOverlayProps) {
   const visibleObjects = objects.filter((o) => o.visible);
 
   return (
     <>
       {visibleObjects.map((obj) => {
         switch (obj.type) {
+          case 'background':
+            return <BackgroundObject key={obj.id} obj={obj} onSelect={onSelectObject} onEdit={onEditObject} />;
           case 'panel':
-            return <PanelObject key={obj.id} obj={obj} onMove={onMoveObject} onEdit={onEditObject} />;
+            return <PanelObject key={obj.id} obj={obj} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} />;
           case 'text':
-            return <TextObject key={obj.id} obj={obj} onMove={onMoveObject} onEdit={onEditObject} />;
+            return <TextObject key={obj.id} obj={obj} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} />;
           case 'foreground':
-            return <ForegroundObject key={obj.id} obj={obj} onMove={onMoveObject} onEdit={onEditObject} />;
+            return <ForegroundObject key={obj.id} obj={obj} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} />;
         }
       })}
     </>
   );
-}
+});

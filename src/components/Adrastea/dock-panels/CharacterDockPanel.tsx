@@ -6,8 +6,8 @@ export function CharacterDockPanel() {
   return (
     <CharacterPanel
       characters={ctx.characters}
-      onAddCharacter={() => ctx.setEditingCharacter(null)}
-      onEditCharacter={(char) => ctx.setEditingCharacter(char)}
+      onAddCharacter={() => { ctx.clearAllEditing(); ctx.setEditingCharacter(null); }}
+      onEditCharacter={(char) => { ctx.clearAllEditing(); ctx.setEditingCharacter(char); }}
       onRemoveCharacter={ctx.removeCharacter}
       onClose={() => {}}
     />

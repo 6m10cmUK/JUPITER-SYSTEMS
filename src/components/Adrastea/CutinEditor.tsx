@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Cutin } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
+import { AdInput, AdButton, AdSection, AdSlider, AdColorPicker, AdToggleButtons } from './ui';
 
 interface CutinEditorProps {
   cutin?: Cutin | null;
@@ -30,146 +31,79 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
       text_color: textColor,
       background_color: backgroundColor,
     });
-    onClose();
-  };
-
-  const modalStyle: React.CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 200,
   };
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
-    border: `1px solid ${theme.border}`,
-    borderRadius: 0,
-    padding: '24px',
-    width: '420px',
-    maxHeight: '80vh',
+    padding: '8px',
+    height: '100%',
     overflowY: 'auto',
     color: theme.textPrimary,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 10px',
-    background: theme.bgInput,
-    border: `1px solid ${theme.borderInput}`,
-    borderRadius: 0,
-    color: theme.textPrimary,
-    fontSize: '0.85rem',
-    outline: 'none',
     boxSizing: 'border-box',
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: '0.8rem',
-    color: theme.textSecondary,
-    marginBottom: '4px',
-    display: 'block',
-  };
-
-  const sectionStyle: React.CSSProperties = {
-    marginBottom: '14px',
-  };
-
   return (
-    <div style={modalStyle} onClick={onClose}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>
-          {cutin ? 'カットイン編集' : '新規カットイン'}
-        </h3>
+    <div style={panelStyle}>
+      <h3 style={{ fontSize: '12px', fontWeight: 600, margin: '0 0 8px' }}>
+        {cutin ? 'カットイン編集' : '新規カットイン'}
+      </h3>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>名前</label>
-          <input style={inputStyle} value={name} onChange={(e) => setName(e.target.value)} placeholder="カットイン名" />
-        </div>
+      <AdSection label="名前">
+        <AdInput value={name} onChange={(e) => setName(e.target.value)} placeholder="カットイン名" />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <AssetPicker
-            label="演出画像"
-            currentUrl={imageUrl || null}
-            onSelect={(url) => setImageUrl(url)}
-          />
-        </div>
+      <AdSection>
+        <AssetPicker
+          label="演出画像"
+          currentUrl={imageUrl || null}
+          onSelect={(url) => setImageUrl(url)}
+        />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>テキスト</label>
-          <input style={inputStyle} value={text} onChange={(e) => setText(e.target.value)} placeholder="表示テキスト" />
-        </div>
+      <AdSection label="テキスト">
+        <AdInput value={text} onChange={(e) => setText(e.target.value)} placeholder="表示テキスト" />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>アニメーション</label>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            {([
-              { key: 'slide' as const, label: 'スライド' },
-              { key: 'fade' as const, label: 'フェード' },
-              { key: 'zoom' as const, label: 'ズーム' },
-            ]).map((opt) => (
-              <button
-                key={opt.key}
-                onClick={() => setAnimation(opt.key)}
-                style={{
-                  padding: '4px 12px',
-                  background: animation === opt.key ? theme.accent : theme.bgInput,
-                  color: animation === opt.key ? theme.textOnAccent : theme.textPrimary,
-                  border: 'none',
-                  borderRadius: 0,
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                }}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
+      <AdSection label="アニメーション">
+        <AdToggleButtons
+          value={animation}
+          onChange={(v) => setAnimation(v as Cutin['animation'])}
+          options={[
+            { value: 'slide', label: 'スライド' },
+            { value: 'fade', label: 'フェード' },
+            { value: 'zoom', label: 'ズーム' },
+          ]}
+        />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>表示時間: {duration / 1000}秒</label>
-          <input
-            type="range"
-            min="1000"
-            max="10000"
-            step="500"
-            value={duration}
-            onChange={(e) => setDuration(Number(e.target.value))}
-            style={{ width: '100%' }}
-          />
-        </div>
+      <AdSection label="表示時間">
+        <AdSlider
+          min={1000}
+          max={10000}
+          step={500}
+          value={duration}
+          onChange={setDuration}
+          displayValue={`${duration / 1000}秒`}
+        />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>テキスト色</label>
-          <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)}
-            style={{ width: '48px', height: '32px', border: 'none', background: 'transparent', cursor: 'pointer' }} />
-        </div>
+      <AdSection label="テキスト色">
+        <AdColorPicker value={textColor} onChange={setTextColor} />
+      </AdSection>
 
-        <div style={sectionStyle}>
-          <label style={labelStyle}>背景色</label>
-          <input style={inputStyle} value={backgroundColor} onChange={(e) => setBackgroundColor(e.target.value)}
-            placeholder="rgba(0,0,0,0.8)" />
-        </div>
+      <AdSection label="背景色">
+        <AdInput
+          value={backgroundColor}
+          onChange={setBackgroundColor}
+          placeholder="rgba(0,0,0,0.8)"
+        />
+      </AdSection>
 
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          {cutin && onDelete && (
-            <button onClick={() => { onDelete(); onClose(); }} style={{
-              padding: '8px 16px', background: 'transparent', color: theme.danger,
-              border: `1px solid ${theme.danger}`, borderRadius: 0, cursor: 'pointer', marginRight: 'auto',
-            }}>削除</button>
-          )}
-          <button onClick={onClose} style={{
-            padding: '8px 16px', background: theme.bgInput, color: theme.textPrimary,
-            border: 'none', borderRadius: 0, cursor: 'pointer',
-          }}>キャンセル</button>
-          <button onClick={handleSave} style={{
-            padding: '8px 16px', background: theme.accent, color: theme.textOnAccent,
-            border: 'none', borderRadius: 0, fontWeight: 600, cursor: 'pointer',
-          }}>保存</button>
-        </div>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+        {cutin && onDelete && (
+          <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }} style={{ marginRight: 'auto' }}>削除</AdButton>
+        )}
+        <AdButton variant="primary" onClick={handleSave}>保存</AdButton>
       </div>
     </div>
   );

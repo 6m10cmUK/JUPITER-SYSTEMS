@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
+import { X } from 'lucide-react';
 
 interface AssetLibraryModalProps {
   onClose: () => void;
@@ -72,12 +73,12 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
 
   const modalStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
   };
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface, border: `1px solid ${theme.border}`,
-    borderRadius: 0, padding: '24px', width: '90vw', maxWidth: '900px',
+    borderRadius: 0, padding: '12px', width: '90vw', maxWidth: '900px',
     height: '80vh', color: theme.textPrimary,
     display: 'flex', flexDirection: 'column',
   };
@@ -93,18 +94,18 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
     <div style={modalStyle} onClick={onClose}>
       <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
         {/* ヘッダー */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '1rem' }}>アセットライブラリ</h3>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', color: theme.textSecondary, cursor: 'pointer', fontSize: '1.2rem' }}
+            style={{ background: 'none', border: 'none', color: theme.textSecondary, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
         {/* 検索バー + アップロードボタン */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
           <input
             style={{ ...inputStyle, flex: 1 }}
             value={search}
@@ -142,8 +143,8 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
           onDrop={handleDrop}
           style={{
             border: `2px dashed ${dragging ? theme.accent : theme.borderInput}`,
-            borderRadius: 0, padding: '12px', textAlign: 'center',
-            marginBottom: '16px', fontSize: '0.8rem', color: theme.textSecondary,
+            borderRadius: 0, padding: '8px', textAlign: 'center',
+            marginBottom: '8px', fontSize: '12px', color: theme.textSecondary,
             background: dragging ? 'rgba(137,180,250,0.1)' : 'transparent',
             transition: 'all 0.2s',
           }}
@@ -162,7 +163,7 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
               {search ? '該当するアセットがありません' : 'アセットがありません'}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
               {filtered.map((asset) => (
                 <div
                   key={asset.id}
@@ -176,7 +177,7 @@ export function AssetLibraryModal({ onClose }: AssetLibraryModalProps) {
                     alt={asset.filename}
                     style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
                   />
-                  <div style={{ padding: '8px' }}>
+                  <div style={{ padding: '4px' }}>
                     {/* ファイル名 */}
                     <div style={{
                       fontSize: '0.75rem', color: theme.textPrimary,

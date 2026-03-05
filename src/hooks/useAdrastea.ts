@@ -80,12 +80,17 @@ export function useAdrastea(roomId: string) {
     }
   }, [roomId]);
 
-  const addPiece = useCallback(async (label: string, color: string) => {
+  const addPiece = useCallback(async (label: string, color: string, centerX?: number, centerY?: number) => {
     try {
+      // 指定された中心座標の近くにランダム配置（±50px）
+      const baseX = centerX ?? 2500;
+      const baseY = centerY ?? 2500;
+      const offsetX = Math.floor(Math.random() * 100) - 50;
+      const offsetY = Math.floor(Math.random() * 100) - 50;
       await addDoc(collection(db, 'rooms', roomId, 'pieces'), {
         room_id: roomId,
-        x: Math.floor(Math.random() * 400) + 100,
-        y: Math.floor(Math.random() * 400) + 100,
+        x: baseX + offsetX,
+        y: baseY + offsetY,
         width: 60,
         height: 60,
         image_url: null,

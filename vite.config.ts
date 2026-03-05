@@ -12,6 +12,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: ['pdfjs-dist'],
-    exclude: ['bcdice'],
+    exclude: ['bcdice', '@jsquash/webp'],
   },
 })

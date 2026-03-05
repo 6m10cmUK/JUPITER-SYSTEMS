@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Character, PieceStatus } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
+import { AdInput, AdTextArea, AdButton, AdColorPicker } from './ui';
 
 interface CharacterEditorProps {
   character?: Character | null;
@@ -59,65 +60,31 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
       tags,
       memo,
     });
-    onClose();
-  };
-
-  const modalStyle: React.CSSProperties = {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 200,
   };
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
-    border: `1px solid ${theme.border}`,
-    borderRadius: 0,
-    padding: '24px',
-    width: '440px',
-    maxHeight: '80vh',
+    padding: '8px',
+    height: '100%',
     overflowY: 'auto',
     color: theme.textPrimary,
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: '100%',
-    padding: '8px 10px',
-    background: theme.bgInput,
-    border: `1px solid ${theme.borderInput}`,
-    borderRadius: 0,
-    color: theme.textPrimary,
-    fontSize: '0.85rem',
-    outline: 'none',
     boxSizing: 'border-box',
   };
 
-  const labelStyle: React.CSSProperties = {
-    fontSize: '0.8rem',
-    color: theme.textSecondary,
-    marginBottom: '4px',
-    display: 'block',
-  };
-
   const sectionStyle: React.CSSProperties = {
-    marginBottom: '14px',
+    marginBottom: '8px',
   };
 
   return (
-    <div style={modalStyle} onClick={onClose}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ margin: '0 0 16px', fontSize: '1rem' }}>
+    <div style={panelStyle}>
+        <h3 style={{ margin: '0 0 8px', fontSize: '12px', fontWeight: 600 }}>
           {character ? 'キャラクター編集' : '新規キャラクター'}
         </h3>
 
         {/* 名前 */}
         <div style={sectionStyle}>
-          <label style={labelStyle}>名前</label>
-          <input
-            style={inputStyle}
+          <AdInput
+            label="名前"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="キャラクター名"
@@ -135,47 +102,41 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
 
         {/* 色 */}
         <div style={sectionStyle}>
-          <label style={labelStyle}>テーマカラー</label>
-          <input
-            type="color"
+          <AdColorPicker
+            label="テーマカラー"
             value={color}
-            onChange={(e) => setColor(e.target.value)}
-            style={{ width: '48px', height: '32px', border: 'none', background: 'transparent', cursor: 'pointer' }}
+            onChange={setColor}
           />
         </div>
 
         {/* ステータス */}
         <div style={sectionStyle}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <label style={{ ...labelStyle, marginBottom: 0 }}>ステータス</label>
-            <button onClick={addStatus} style={{
-              padding: '4px 10px', background: theme.accent, color: theme.textOnAccent,
-              border: 'none', borderRadius: 0, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',
-            }}>+ 追加</button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <label style={{ fontSize: '12px', color: theme.textSecondary }}>ステータス</label>
+            <AdButton variant="primary" onClick={addStatus}>+ 追加</AdButton>
           </div>
           {statuses.map((s, i) => (
-            <div key={i} style={{ display: 'flex', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-              <input style={{ ...inputStyle, width: '60px', flex: 'none' }} value={s.label}
-                onChange={(e) => updateStatus(i, 'label', e.target.value)} placeholder="HP" />
-              <input type="number" style={{ ...inputStyle, width: '60px', flex: 'none' }} value={s.value}
-                onChange={(e) => updateStatus(i, 'value', Number(e.target.value))} />
-              <span style={{ color: theme.textMuted }}>/</span>
-              <input type="number" style={{ ...inputStyle, width: '60px', flex: 'none' }} value={s.max}
-                onChange={(e) => updateStatus(i, 'max', Number(e.target.value))} />
-              <input type="color" value={s.color} onChange={(e) => updateStatus(i, 'color', e.target.value)}
-                style={{ width: '32px', height: '28px', border: 'none', background: 'transparent', cursor: 'pointer', flex: 'none' }} />
-              <button onClick={() => removeStatus(i)} style={{
-                padding: '4px 8px', background: 'transparent', color: theme.danger,
-                border: `1px solid ${theme.danger}`, borderRadius: 0, fontSize: '0.75rem', cursor: 'pointer', flex: 'none',
-              }}>x</button>
+            <div key={i} style={{ display: 'flex', gap: '4px', marginBottom: '4px', alignItems: 'center' }}>
+              <AdInput fullWidth={false} value={s.label}
+                onChange={(e) => updateStatus(i, 'label', e.target.value)} placeholder="HP"
+                style={{ width: '60px' }} />
+              <AdInput type="number" fullWidth={false} value={s.value}
+                onChange={(e) => updateStatus(i, 'value', Number(e.target.value))}
+                style={{ width: '60px' }} />
+              <span style={{ color: theme.textMuted, fontSize: '12px' }}>/</span>
+              <AdInput type="number" fullWidth={false} value={s.max}
+                onChange={(e) => updateStatus(i, 'max', Number(e.target.value))}
+                style={{ width: '60px' }} />
+              <AdColorPicker value={s.color} onChange={(v) => updateStatus(i, 'color', v)} />
+              <AdButton variant="danger" onClick={() => removeStatus(i)}>x</AdButton>
             </div>
           ))}
         </div>
 
         {/* タグ */}
         <div style={sectionStyle}>
-          <label style={labelStyle}>タグ</label>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '6px' }}>
+          <label style={{ fontSize: '12px', color: theme.textSecondary, display: 'block', marginBottom: '2px' }}>タグ</label>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '4px' }}>
             {tags.map((tag, i) => (
               <span
                 key={i}
@@ -187,7 +148,7 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
                   background: theme.bgInput,
                   borderRadius: 0,
                   color: theme.textPrimary,
-                  fontSize: '0.75rem',
+                  fontSize: '11px',
                 }}
               >
                 {tag}
@@ -197,7 +158,7 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
                     background: 'transparent',
                     border: 'none',
                     color: theme.danger,
-                    fontSize: '0.7rem',
+                    fontSize: '10px',
                     cursor: 'pointer',
                     padding: '0 2px',
                   }}
@@ -207,26 +168,21 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
               </span>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <input
-              style={{ ...inputStyle, flex: 1 }}
+          <div style={{ display: 'flex', gap: '4px' }}>
+            <AdInput
               value={tagInput}
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTag()}
               placeholder="タグを追加"
             />
-            <button onClick={addTag} style={{
-              padding: '6px 12px', background: theme.bgInput, color: theme.textPrimary,
-              border: `1px solid ${theme.borderInput}`, borderRadius: 0, fontSize: '0.8rem', cursor: 'pointer',
-            }}>追加</button>
+            <AdButton onClick={addTag}>追加</AdButton>
           </div>
         </div>
 
         {/* メモ */}
         <div style={sectionStyle}>
-          <label style={labelStyle}>メモ</label>
-          <textarea
-            style={{ ...inputStyle, minHeight: '60px', resize: 'vertical' }}
+          <AdTextArea
+            label="メモ"
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="キャラクターメモ"
@@ -234,17 +190,9 @@ export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }:
         </div>
 
         {/* ボタン */}
-        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', background: theme.bgInput, color: theme.textPrimary,
-            border: 'none', borderRadius: 0, cursor: 'pointer',
-          }}>キャンセル</button>
-          <button onClick={handleSave} style={{
-            padding: '8px 16px', background: theme.accent, color: theme.textOnAccent,
-            border: 'none', borderRadius: 0, fontWeight: 600, cursor: 'pointer',
-          }}>保存</button>
+        <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+          <AdButton variant="primary" onClick={handleSave}>保存</AdButton>
         </div>
-      </div>
     </div>
   );
 }
