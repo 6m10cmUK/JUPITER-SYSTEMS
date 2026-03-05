@@ -185,7 +185,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const { scenes, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
   const { characters, addCharacter, updateCharacter, removeCharacter } = useCharacters(roomId);
   const {
-    roomObjects, sceneObjects, mergedObjects, loading: objectsLoading,
+    roomObjects, sceneObjects, mergedObjects, loading: _objectsLoading,
     addObject, updateObject, removeObject, reorderObjects,
   } = useObjects(roomId, room?.active_scene_id ?? null);
   const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText } = useScenarioTexts(roomId);
@@ -361,13 +361,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     [sendMessage, profile, user],
   );
 
-  const safeActivateScene = useCallback((sceneId: string | null) => {
+  const safeActivateScene = useCallback(async (sceneId: string | null) => {
     // デバウンスタイマーをすべてクリア
     for (const timer of debounceTimersRef.current.values()) clearTimeout(timer);
     debounceTimersRef.current.clear();
     setLocalSceneOverrides(new Map());
     setLocalObjectOverrides(new Map());
-    activateScene(sceneId);
+    await activateScene(sceneId);
   }, [activateScene]);
 
   // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア

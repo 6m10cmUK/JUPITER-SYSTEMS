@@ -180,8 +180,6 @@ function useEdgeResize(
       const rect = container.getBoundingClientRect();
       const curX = (me.clientX - rect.left) / scale;
       const curY = (me.clientY - rect.top) / scale;
-      // stage position offset
-      const stagePos = stage.position();
       const dx = curX - rs.startPointerX;
       const dy = curY - rs.startPointerY;
 
@@ -247,7 +245,7 @@ function useEdgeResize(
 
 // --- PanelObject ---
 const PanelObject = memo(function PanelObject({
-  obj, isSelected, onMove, onSelect, onEdit, onResize,
+  obj, isSelected: _isSelected, onMove, onSelect, onEdit, onResize,
 }: {
   obj: BoardObject; isSelected: boolean;
   onMove: (id: string, x: number, y: number) => void;
@@ -296,7 +294,7 @@ const PanelObject = memo(function PanelObject({
 
 // --- TextObject ---
 const TextObject = memo(function TextObject({
-  obj, isSelected, onMove, onSelect, onEdit, onResize,
+  obj, isSelected: _isSelected, onMove, onSelect, onEdit, onResize,
 }: {
   obj: BoardObject; isSelected: boolean;
   onMove: (id: string, x: number, y: number) => void;
@@ -366,7 +364,7 @@ const BackgroundObject = memo(function BackgroundObject({
 
 // --- ForegroundObject ---
 const ForegroundObject = memo(function ForegroundObject({
-  obj, onMove, onSelect, onEdit, fadeIn,
+  obj, onMove: _onMove, onSelect, onEdit, fadeIn,
 }: {
   obj: BoardObject;
   onMove: (id: string, x: number, y: number) => void;

@@ -13,7 +13,7 @@ interface CharacterEditorProps {
 
 const STATUS_COLORS = [theme.statusRed, theme.statusBlue, theme.statusGreen, theme.statusYellow];
 
-export function CharacterEditor({ character, roomId: _roomId, onSave, onClose }: CharacterEditorProps) {
+export function CharacterEditor({ character, roomId: _roomId, onSave, onClose: _onClose }: CharacterEditorProps) {
   const [name, setName] = useState(character?.name ?? '');
   const [imageUrl, setImageUrl] = useState(character?.image_url ?? '');
   const [color, setColor] = useState(character?.color ?? theme.statusBlue);

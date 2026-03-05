@@ -94,7 +94,7 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
       <AdSection label="背景色">
         <AdInput
           value={backgroundColor}
-          onChange={setBackgroundColor}
+          onChange={(e) => setBackgroundColor(e.target.value)}
           placeholder="rgba(0,0,0,0.8)"
         />
       </AdSection>

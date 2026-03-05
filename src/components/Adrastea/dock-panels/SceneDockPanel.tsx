@@ -11,9 +11,6 @@ export function SceneDockPanel() {
       : null;
 
     // 現在のシーンの次の sort_order を計算
-    const currentIdx = activeScene
-      ? ctx.scenes.findIndex(s => s.id === activeScene.id)
-      : ctx.scenes.length - 1;
     const nextSortOrder = activeScene
       ? activeScene.sort_order + 0.5
       : ctx.scenes.length;

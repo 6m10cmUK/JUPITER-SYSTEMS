@@ -9,13 +9,13 @@ const PADDING = '2px 6px';
 const GAP = '4px';
 
 // ── AdInput ──
-interface AdInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'style'> {
+interface AdInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   fullWidth?: boolean;
   inputWidth?: string;
 }
 
-export function AdInput({ label, fullWidth = true, inputWidth, ...props }: AdInputProps) {
+export function AdInput({ label, fullWidth = true, inputWidth, style, ...props }: AdInputProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
@@ -32,6 +32,7 @@ export function AdInput({ label, fullWidth = true, inputWidth, ...props }: AdInp
           outline: 'none',
           boxSizing: 'border-box',
           width: inputWidth ?? (fullWidth ? '100%' : undefined),
+          ...style,
         }}
       />
     </div>
@@ -68,12 +69,12 @@ export function AdTextArea({ label, ...props }: AdTextAreaProps) {
 }
 
 // ── AdButton ──
-interface AdButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'style'> {
+interface AdButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'default' | 'danger';
   fullWidth?: boolean;
 }
 
-export function AdButton({ variant = 'default', fullWidth, children, ...props }: AdButtonProps) {
+export function AdButton({ variant = 'default', fullWidth, children, style, ...props }: AdButtonProps) {
   const bg = variant === 'primary' ? theme.accent
     : variant === 'danger' ? 'transparent'
     : theme.bgInput;
@@ -101,6 +102,7 @@ export function AdButton({ variant = 'default', fullWidth, children, ...props }:
         justifyContent: 'center',
         gap: GAP,
         boxSizing: 'border-box',
+        ...style,
       }}
     >
       {children}
@@ -174,7 +176,7 @@ export function AdCheckbox({ label, checked, onChange }: AdCheckboxProps) {
 
 // ── AdSlider ──
 interface AdSliderProps {
-  label: string;
+  label?: string;
   value: number;
   min: number;
   max: number;
