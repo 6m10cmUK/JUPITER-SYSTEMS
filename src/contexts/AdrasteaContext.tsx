@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import type { User } from 'firebase/auth';
 import type { DockviewApi } from 'dockview-react';
+import type { BoardHandle } from '../components/Adrastea/Board';
+import { getViewportCenter } from '../components/Adrastea/Board';
 import type {
   Piece,
   Room,
@@ -25,6 +27,17 @@ import { useAuth } from './AuthContext';
 // ---------------------------------------------------------------------------
 // Context value type
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Pending edits types
+// ---------------------------------------------------------------------------
+
+export interface PendingEdit {
+  type: 'scene' | 'object';
+  id: string | null;
+  data: Record<string, unknown>;
+  scope?: BoardObjectScope;
+}
 
 export interface AdrasteaContextValue {
   // --- roomId ---
@@ -108,10 +121,6 @@ export interface AdrasteaContextValue {
 
   // --- Derived values ---
   activeScene: Scene | null;
-  boardBackgroundUrl: string | null;
-  boardForegroundUrl: string | null;
-  boardForegroundOpacity: number;
-
   // --- Auth ---
   profile: UserProfile | null;
   user: User | null;
@@ -121,9 +130,23 @@ export interface AdrasteaContextValue {
   // --- Shortcut callbacks ---
   onAddObject: (scope?: BoardObjectScope) => void;
 
+  // --- Board ref ---
+  boardRef: React.RefObject<BoardHandle | null>;
+  getBoardCenter: () => { x: number; y: number };
+
+  // --- Grid ---
+  gridVisible: boolean;
+  setGridVisible: React.Dispatch<React.SetStateAction<boolean>>;
+
   // --- Dockview API ---
   dockviewApi: DockviewApi | null;
   setDockviewApi: React.Dispatch<React.SetStateAction<DockviewApi | null>>;
+
+  // --- Auto-save edits ---
+  setPendingEdit: (key: string, edit: PendingEdit | null) => void;
+
+  // --- 排他編集リセット ---
+  clearAllEditing: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -156,7 +179,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const { scenes, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
   const { characters, addCharacter, updateCharacter, removeCharacter } = useCharacters(roomId);
   const {
-    roomObjects, sceneObjects, mergedObjects,
+    roomObjects, sceneObjects, mergedObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects,
   } = useObjects(roomId, room?.active_scene_id ?? null);
   const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText } = useScenarioTexts(roomId);
@@ -172,18 +195,119 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingObjectScope, setEditingObjectScope] = useState<BoardObjectScope>('scene');
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
 
+  // --- Board ref ---
+  const boardRef = useRef<BoardHandle | null>(null);
+  const getBoardCenter = useCallback(() => {
+    return getViewportCenter(boardRef.current?.getStage() ?? null);
+  }, []);
+
   // --- Dockview API ---
   const [dockviewApi, setDockviewApi] = useState<DockviewApi | null>(null);
 
-  // --- Derived values ---
+
+  // --- Grid visibility ---
+  const [gridVisible, setGridVisible] = useState(true);
+
+  // --- Auto-save edits (debounced) ---
+  const [localSceneOverrides, setLocalSceneOverrides] = useState<Map<string, Partial<Scene>>>(new Map());
+  const [localObjectOverrides, setLocalObjectOverrides] = useState<Map<string, Partial<BoardObject>>>(new Map());
+  const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // シーンオブジェクト(背景/前景)のimage_urlをSceneドキュメントに同期
+  const syncObjectImageToScene = useCallback(async (objData: Partial<BoardObject>, objId: string | null) => {
+    if (!room?.active_scene_id) return;
+    const objType = objData.type ?? (objId ? sceneObjects.find(o => o.id === objId)?.type : null);
+    if (!objType || (objType !== 'background' && objType !== 'foreground')) return;
+    if (!('image_url' in objData)) return;
+
+    const sceneField = objType === 'background' ? 'background_url' : 'foreground_url';
+    await updateScene(room.active_scene_id, { [sceneField]: objData.image_url ?? null } as Partial<Scene>);
+  }, [room?.active_scene_id, sceneObjects, updateScene]);
+
+  const flushEdit = useCallback(async (edit: PendingEdit) => {
+    if (edit.type === 'scene') {
+      if (edit.id) {
+        await updateScene(edit.id, edit.data as Partial<Scene>);
+      } else {
+        await addScene(edit.data as Partial<Scene>);
+      }
+    } else if (edit.type === 'object') {
+      const scope = edit.scope ?? 'scene';
+      if (edit.id) {
+        await updateObject(scope, edit.id, edit.data as Partial<BoardObject>);
+      } else {
+        await addObject(scope, edit.data as Partial<BoardObject>);
+      }
+      // シーンスコープの背景/前景はサムネイル同期
+      if (scope === 'scene') {
+        await syncObjectImageToScene(edit.data as Partial<BoardObject>, edit.id);
+      }
+    }
+  }, [updateScene, addScene, updateObject, addObject, syncObjectImageToScene]);
+
+  const setPendingEdit = useCallback((key: string, edit: PendingEdit | null) => {
+    if (!edit) {
+      // タイマークリア
+      const timer = debounceTimersRef.current.get(key);
+      if (timer) clearTimeout(timer);
+      debounceTimersRef.current.delete(key);
+      return;
+    }
+
+    // ローカルオーバーライド即反映（Board描画用）
+    if (edit.type === 'scene' && edit.id) {
+      setLocalSceneOverrides(prev => {
+        const next = new Map(prev);
+        next.set(edit.id!, edit.data as Partial<Scene>);
+        return next;
+      });
+    } else if (edit.type === 'object' && edit.id) {
+      setLocalObjectOverrides(prev => {
+        const next = new Map(prev);
+        next.set(edit.id!, edit.data as Partial<BoardObject>);
+        return next;
+      });
+    }
+
+    // デバウンス付きDB保存
+    const existing = debounceTimersRef.current.get(key);
+    if (existing) clearTimeout(existing);
+    debounceTimersRef.current.set(key, setTimeout(() => {
+      debounceTimersRef.current.delete(key);
+      flushEdit(edit);
+    }, 500));
+  }, [flushEdit]);
+
+  // --- Derived values (with local overrides) ---
+  const effectiveScenes = useMemo(() => {
+    if (localSceneOverrides.size === 0) return scenes;
+    return scenes.map(s => {
+      const override = localSceneOverrides.get(s.id);
+      return override ? { ...s, ...override } : s;
+    });
+  }, [scenes, localSceneOverrides]);
+
+  const effectiveMergedObjects = useMemo(() => {
+    if (localObjectOverrides.size === 0) return mergedObjects;
+    return mergedObjects.map(o => {
+      const override = localObjectOverrides.get(o.id);
+      return override ? { ...o, ...override } : o;
+    });
+  }, [mergedObjects, localObjectOverrides]);
+
+  const effectiveSceneObjects = useMemo(() => {
+    if (localObjectOverrides.size === 0) return sceneObjects;
+    return sceneObjects.map(o => {
+      const override = localObjectOverrides.get(o.id);
+      return override ? { ...o, ...override } : o;
+    });
+  }, [sceneObjects, localObjectOverrides]);
+
   const activeScene = useMemo(() => {
     if (!room?.active_scene_id) return null;
-    return scenes.find((s) => s.id === room.active_scene_id) ?? null;
-  }, [room?.active_scene_id, scenes]);
+    return effectiveScenes.find((s) => s.id === room.active_scene_id) ?? null;
+  }, [room?.active_scene_id, effectiveScenes]);
 
-  const boardBackgroundUrl = activeScene?.background_url ?? room?.background_url ?? null;
-  const boardForegroundUrl = activeScene?.foreground_url ?? room?.foreground_url ?? null;
-  const boardForegroundOpacity = activeScene?.foreground_opacity ?? 0.5;
 
   // --- Callbacks ---
   const handleSendMessage = useCallback(
@@ -204,6 +328,46 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     [sendMessage, profile, user],
   );
 
+  const safeActivateScene = useCallback((sceneId: string | null) => {
+    // デバウンスタイマーをすべてクリア
+    for (const timer of debounceTimersRef.current.values()) clearTimeout(timer);
+    debounceTimersRef.current.clear();
+    setLocalSceneOverrides(new Map());
+    setLocalObjectOverrides(new Map());
+    activateScene(sceneId);
+  }, [activateScene]);
+
+  // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア
+  const syncedUpdateObject = useCallback(async (scope: BoardObjectScope, id: string, data: Partial<BoardObject>) => {
+    // ローカルオーバーライドをクリア（Firestoreの値を優先させる）
+    setLocalObjectOverrides(prev => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+    // デバウンスタイマーもクリア
+    const timerKey = `object:${id}`;
+    const timer = debounceTimersRef.current.get(timerKey);
+    if (timer) {
+      clearTimeout(timer);
+      debounceTimersRef.current.delete(timerKey);
+    }
+
+    await updateObject(scope, id, data);
+    if (scope === 'scene') {
+      await syncObjectImageToScene(data, id);
+    }
+  }, [updateObject, syncObjectImageToScene]);
+
+  const clearAllEditing = useCallback(() => {
+    setEditingPieceId(null);
+    setEditingObjectId(undefined);
+    setEditingScene(undefined);
+    setEditingCharacter(undefined);
+    setEditingCutin(undefined);
+  }, []);
+
   const onAddObject = useCallback((scope: BoardObjectScope = 'scene') => {
     setEditingObjectScope(scope);
     setEditingObjectId(null);
@@ -221,14 +385,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, handleSendMessage,
 
       // useScenes
-      scenes, addScene, updateScene, removeScene, activateScene,
+      scenes: effectiveScenes, addScene, updateScene, removeScene,
+      activateScene: safeActivateScene,
 
       // useCharacters
       characters, addCharacter, updateCharacter, removeCharacter,
 
       // useObjects
-      roomObjects, sceneObjects, mergedObjects,
-      addObject, updateObject, removeObject, reorderObjects,
+      roomObjects, sceneObjects: effectiveSceneObjects, mergedObjects: effectiveMergedObjects,
+      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects,
 
       // useScenarioTexts
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
@@ -247,7 +412,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       showProfileEdit, setShowProfileEdit,
 
       // Derived
-      activeScene, boardBackgroundUrl, boardForegroundUrl, boardForegroundOpacity,
+      activeScene,
 
       // Auth
       profile, user, signOut, updateProfile,
@@ -255,26 +420,42 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // Shortcut callbacks
       onAddObject,
 
+      // Board
+      boardRef, getBoardCenter,
+      gridVisible, setGridVisible,
+
       // Dockview
       dockviewApi, setDockviewApi,
+
+
+      // Auto-save edits
+      setPendingEdit,
+
+      // 排他編集リセット
+      clearAllEditing,
     }),
     [
       roomId,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, handleSendMessage,
-      scenes, addScene, updateScene, removeScene, activateScene,
+      effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
       characters, addCharacter, updateCharacter, removeCharacter,
-      roomObjects, sceneObjects, mergedObjects,
-      addObject, updateObject, removeObject, reorderObjects,
+      roomObjects, effectiveSceneObjects, effectiveMergedObjects,
+      addObject, syncedUpdateObject, removeObject, reorderObjects,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
       cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
       editingScene, editingCharacter, editingCutin,
       editingPieceId, editingObjectId, editingObjectScope,
       showRoomSettings, showProfileEdit,
-      activeScene, boardBackgroundUrl, boardForegroundUrl, boardForegroundOpacity,
+      activeScene,
       profile, user, signOut, updateProfile,
       onAddObject,
+      boardRef, getBoardCenter,
+      gridVisible,
       dockviewApi,
+
+      setPendingEdit,
+      clearAllEditing,
     ],
   );
 

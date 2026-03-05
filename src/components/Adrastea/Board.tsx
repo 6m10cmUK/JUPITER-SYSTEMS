@@ -1,5 +1,5 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
-import { Stage, Layer, Rect, Line, Group, Text, Image as KonvaImage } from 'react-konva';
+import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
+import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
 import { theme } from '../../styles/theme';
 import { ObjectOverlay } from './ObjectOverlay';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -7,14 +7,19 @@ import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject } from '../../types/adrastea.types';
 import type { ReactNode } from 'react';
 
+export interface BoardHandle {
+  getStage: () => StageType | null;
+}
+
 interface BoardProps {
   pieces: PieceType[];
-  backgroundUrl: string | null;
   objects?: BoardObject[];
+  gridVisible?: boolean;
   onMovePiece: (id: string, x: number, y: number) => void;
   onRemovePiece: (id: string) => void;
   onEditPiece: (id: string) => void;
   onMoveObject?: (id: string, x: number, y: number) => void;
+  onSelectObject?: (id: string) => void;
   onEditObject?: (id: string) => void;
   children?: ReactNode;
 }
@@ -24,34 +29,30 @@ export const GRID_SIZE = 50;
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
 
-function GridLines() {
-  const lines: React.JSX.Element[] = [];
+const GridLines = memo(function GridLines() {
+  return (
+    <Shape
+      listening={false}
+      perfectDrawEnabled={false}
+      sceneFunc={(context) => {
+        context.beginPath();
+        context.strokeStyle = 'rgba(255,255,255,0.05)';
+        context.lineWidth = 1;
+        for (let x = GRID_SIZE; x < LOGICAL_SIZE; x += GRID_SIZE) {
+          context.moveTo(x, 0);
+          context.lineTo(x, LOGICAL_SIZE);
+        }
+        for (let y = GRID_SIZE; y < LOGICAL_SIZE; y += GRID_SIZE) {
+          context.moveTo(0, y);
+          context.lineTo(LOGICAL_SIZE, y);
+        }
+        context.stroke();
+      }}
+    />
+  );
+});
 
-  for (let x = GRID_SIZE; x < LOGICAL_SIZE; x += GRID_SIZE) {
-    lines.push(
-      <Line
-        key={`v-${x}`}
-        points={[x, 0, x, LOGICAL_SIZE]}
-        stroke="rgba(255,255,255,0.05)"
-        strokeWidth={1}
-      />
-    );
-  }
-  for (let y = GRID_SIZE; y < LOGICAL_SIZE; y += GRID_SIZE) {
-    lines.push(
-      <Line
-        key={`h-${y}`}
-        points={[0, y, LOGICAL_SIZE, y]}
-        stroke="rgba(255,255,255,0.05)"
-        strokeWidth={1}
-      />
-    );
-  }
-
-  return <>{lines}</>;
-}
-
-function PieceImage({ url, width, height }: { url: string; width: number; height: number }) {
+const PieceImage = memo(function PieceImage({ url, width, height }: { url: string; width: number; height: number }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
   useEffect(() => {
@@ -60,6 +61,7 @@ function PieceImage({ url, width, height }: { url: string; width: number; height
     img.onload = () => setImage(img);
     img.onerror = () => setImage(null);
     img.src = url;
+    return () => { img.onload = null; img.onerror = null; };
   }, [url]);
 
   if (!image) return null;
@@ -74,9 +76,9 @@ function PieceImage({ url, width, height }: { url: string; width: number; height
       listening={false}
     />
   );
-}
+});
 
-function StatusBars({ piece }: { piece: PieceType }) {
+const StatusBars = memo(function StatusBars({ piece }: { piece: PieceType }) {
   if (!piece.statuses || piece.statuses.length === 0) return null;
 
   const barHeight = 6;
@@ -122,7 +124,7 @@ function StatusBars({ piece }: { piece: PieceType }) {
       })}
     </>
   );
-}
+});
 
 export interface ContextMenuState {
   visible: boolean;
@@ -135,11 +137,64 @@ function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
 
-export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onEditObject, children }: BoardProps) {
+/** ビューポート中央のグリッド座標を返す */
+export function getViewportCenter(stage: StageType | null): { x: number; y: number } {
+  if (!stage) return { x: 0, y: 0 };
+  const scale = stage.scaleX();
+  const stagePos = stage.position();
+  const width = stage.width();
+  const height = stage.height();
+  // ビューポート中心 → 論理座標 → グリッド座標
+  const cx = (width / 2 - stagePos.x) / scale;
+  const cy = (height / 2 - stagePos.y) / scale;
+  return {
+    x: Math.round(cx / GRID_SIZE),
+    y: Math.round(cy / GRID_SIZE),
+  };
+}
+
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, pieceId: null });
+
+  useImperativeHandle(ref, () => ({
+    getStage: () => stageRef.current,
+  }));
+
+  // 初期表示: 背景オブジェクトにフィットするようカメラ配置
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (initializedRef.current || stageSize.width === 0 || stageSize.height === 0) return;
+    const stage = stageRef.current;
+    if (!stage) return;
+
+    const bg = objects.find(o => o.type === 'background');
+    // 背景オブジェクトの矩形（px）。なければ論理盤面中央
+    const targetX = (bg?.x ?? 0) * GRID_SIZE;
+    const targetY = (bg?.y ?? 0) * GRID_SIZE;
+    const targetW = (bg?.width ?? 100) * GRID_SIZE;
+    const targetH = (bg?.height ?? 100) * GRID_SIZE;
+
+    // ビューポートに収まるスケール（余白10%）
+    const padding = 0.9;
+    const scaleX = (stageSize.width * padding) / targetW;
+    const scaleY = (stageSize.height * padding) / targetH;
+    const scale = Math.min(Math.max(scaleX, scaleY), MAX_SCALE);
+
+    // 背景の中心をビューポート中心に
+    const centerX = targetX + targetW / 2;
+    const centerY = targetY + targetH / 2;
+
+    stage.scale({ x: scale, y: scale });
+    stage.position({
+      x: stageSize.width / 2 - centerX * scale,
+      y: stageSize.height / 2 - centerY * scale,
+    });
+
+    initializedRef.current = true;
+  }, [stageSize, objects]);
 
   // ResizeObserverでビューポート追従
   useEffect(() => {
@@ -221,10 +276,18 @@ export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemo
     if (contextMenu.visible) closeContextMenu();
   }, [contextMenu.visible, closeContextMenu]);
 
-  // 背景オブジェクト（HTMLで描画）
-  const bgObject = objects.find(o => o.type === 'background' && o.visible);
+  // 背景オブジェクト（HTMLで描画 — ビューポート固定）
+  const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
   const bgObjectUrl = bgObject?.image_url ?? null;
+  const bgObjectColor = bgObject?.background_color ?? null;
   const bgObjectOpacity = bgObject?.opacity ?? 1;
+
+  // オブジェクトのフィルタリングをメモ化
+  const backgroundObjects = useMemo(() => objects.filter(o => o.type === 'background'), [objects]);
+  const interactiveObjects = useMemo(
+    () => objects.filter(o => o.type !== 'background').sort((a, b) => a.sort_order - b.sort_order),
+    [objects]
+  );
 
   return (
     <div
@@ -232,6 +295,34 @@ export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemo
       style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}
       onClick={closeContextMenu}
     >
+      {/* 背景オブジェクト: ビューポート固定 */}
+      {(bgObjectUrl || bgObjectColor) && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundColor: bgObjectColor ?? 'transparent',
+            opacity: bgObjectOpacity,
+            pointerEvents: 'none',
+            zIndex: 0,
+          }}
+        >
+          {bgObjectUrl && (
+            <img
+              src={bgObjectUrl}
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center center',
+                filter: 'blur(8px)',
+                transform: 'scale(1.05)',
+              }}
+            />
+          )}
+        </div>
+      )}
       <Stage
         ref={stageRef}
         width={stageSize.width}
@@ -239,24 +330,31 @@ export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemo
         draggable
         onWheel={handleWheel}
         onClick={handleStageClick}
-        style={{ backgroundColor: theme.bgBase }}
+        style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}
       >
+        {/* 背景+グリッド: hitテスト不要 */}
+        {gridVisible && (
+          <Layer hitGraphEnabled={false} listening={false}>
+            <GridLines />
+          </Layer>
+        )}
+        {/* インタラクティブ要素 */}
         <Layer>
-          {/* 背景 */}
-          <Rect
-            x={0}
-            y={0}
-            width={LOGICAL_SIZE}
-            height={LOGICAL_SIZE}
-            fill={theme.bgBase}
-            listening={false}
-          />
-          <GridLines />
-          {/* オブジェクト（パネル・テキスト、コマの下に描画されるもの） */}
-          {objects.length > 0 && onMoveObject && onEditObject && (
+          {/* 背景オブジェクトのクリック当たり判定（描画はHTML側） */}
+          {backgroundObjects.length > 0 && onEditObject && (
             <ObjectOverlay
-              objects={objects.filter(o => o.type === 'panel' || o.type === 'text')}
+              objects={backgroundObjects}
+              onMoveObject={onMoveObject ?? (() => {})}
+              onSelectObject={onSelectObject ?? (() => {})}
+              onEditObject={onEditObject}
+            />
+          )}
+          {/* オブジェクト（sort_order順で一括描画） */}
+          {interactiveObjects.length > 0 && onMoveObject && onEditObject && (
+            <ObjectOverlay
+              objects={interactiveObjects}
               onMoveObject={onMoveObject}
+              onSelectObject={onSelectObject ?? (() => {})}
               onEditObject={onEditObject}
             />
           )}
@@ -298,54 +396,8 @@ export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemo
               <StatusBars piece={piece} />
             </Group>
           ))}
-          {/* 前景オブジェクト（コマの上） */}
-          {objects.length > 0 && onMoveObject && onEditObject && (
-            <ObjectOverlay
-              objects={objects.filter(o => o.type === 'foreground')}
-              onMoveObject={onMoveObject}
-              onEditObject={onEditObject}
-            />
-          )}
         </Layer>
       </Stage>
-      {/* シーン背景: ビューポート固定、ぼかし、cover */}
-      {backgroundUrl && (
-        <img
-          src={backgroundUrl}
-          alt=""
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            filter: 'blur(8px)',
-            opacity: 1,
-            pointerEvents: 'none',
-            zIndex: 2,
-            transform: 'scale(1.05)',
-          }}
-        />
-      )}
-      {/* 背景オブジェクト: ビューポート固定、ぼかし、cover */}
-      {bgObjectUrl && (
-        <img
-          src={bgObjectUrl}
-          alt=""
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            filter: 'blur(8px)',
-            opacity: bgObjectOpacity,
-            pointerEvents: 'none',
-            zIndex: 3,
-            transform: 'scale(1.05)',
-          }}
-        />
-      )}
       {/* 右クリックメニュー（HTML DOM） */}
       {contextMenu.visible && contextMenu.pieceId && (
         <div
@@ -410,4 +462,4 @@ export function Board({ pieces, backgroundUrl, objects = [], onMovePiece, onRemo
       {children}
     </div>
   );
-}
+});

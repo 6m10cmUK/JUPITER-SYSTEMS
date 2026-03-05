@@ -20,6 +20,7 @@ const PANEL_DEFS = [
   { id: 'scenarioText', component: 'scenarioText', title: 'テキスト' },
   { id: 'cutin', component: 'cutin', title: 'カットイン' },
   { id: 'layer', component: 'layer', title: 'レイヤー' },
+  { id: 'property', component: 'property', title: 'プロパティ' },
   { id: 'chat', component: 'chat', title: 'チャット' },
   { id: 'board', component: 'board', title: 'Board' },
 ] as const;
@@ -45,8 +46,8 @@ function IconButton({ onClick, title, children, active }: {
       onClick={onClick}
       title={title}
       style={{
-        width: 32,
-        height: 32,
+        width: 24,
+        height: 24,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -102,8 +103,8 @@ export function TopToolbar({
   return (
     <div
       style={{
-        height: 40,
-        minHeight: 40,
+        height: 32,
+        minHeight: 32,
         background: theme.bgToolbar,
         borderBottom: `1px solid ${theme.border}`,
         display: 'flex',
@@ -129,13 +130,13 @@ export function TopToolbar({
         onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
         placeholder="キャラ名"
         style={{
-          width: 90,
-          padding: '3px 6px',
+          width: 80,
+          padding: '2px 4px',
           background: theme.bgInput,
           border: `1px solid ${theme.border}`,
           borderRadius: 0,
           color: theme.textPrimary,
-          fontSize: '0.8rem',
+          fontSize: '11px',
           outline: 'none',
         }}
       />
@@ -146,8 +147,8 @@ export function TopToolbar({
             onClick={() => setSelectedColor(c.value)}
             title={c.name}
             style={{
-              width: 20,
-              height: 20,
+              width: 16,
+              height: 16,
               borderRadius: '50%',
               backgroundColor: c.value,
               border: selectedColor === c.value ? '2px solid #fff' : '2px solid transparent',
@@ -160,12 +161,12 @@ export function TopToolbar({
       <button
         onClick={handleAdd}
         style={{
-          padding: '3px 10px',
+          padding: '2px 8px',
           background: selectedColor,
           color: '#fff',
           border: 'none',
           borderRadius: 0,
-          fontSize: '0.8rem',
+          fontSize: '11px',
           fontWeight: 600,
           cursor: 'pointer',
         }}
@@ -179,7 +180,7 @@ export function TopToolbar({
       {/* パネル表示メニュー */}
       <div style={{ position: 'relative' }}>
         <IconButton onClick={() => setShowPanelMenu(!showPanelMenu)} title="パネル表示" active={showPanelMenu}>
-          <Eye size={16} />
+          <Eye size={14} />
         </IconButton>
         {showPanelMenu && (
           <>
@@ -210,12 +211,12 @@ export function TopToolbar({
                     style={{
                       display: 'block',
                       width: '100%',
-                      padding: '6px 12px',
+                      padding: '4px 8px',
                       background: 'transparent',
                       color: exists ? theme.textSecondary : theme.textPrimary,
                       border: 'none',
                       textAlign: 'left',
-                      fontSize: '0.8rem',
+                      fontSize: '11px',
                       cursor: 'pointer',
                     }}
                   >
@@ -240,13 +241,13 @@ export function TopToolbar({
       {/* アセット管理 */}
       {!isGuest && (
         <IconButton onClick={() => setShowAssetLibrary(true)} title="アセット管理">
-          <Image size={16} />
+          <Image size={14} />
         </IconButton>
       )}
 
       {/* 設定 */}
       <IconButton onClick={onOpenSettings} title="設定">
-        <Settings size={16} />
+        <Settings size={14} />
       </IconButton>
 
       {/* プロフィール */}
@@ -254,8 +255,8 @@ export function TopToolbar({
         onClick={onOpenProfile}
         title="プロフィール"
         style={{
-          width: 32,
-          height: 32,
+          width: 24,
+          height: 24,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -270,12 +271,12 @@ export function TopToolbar({
           <img
             src={profile.avatar_url}
             alt=""
-            style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
             referrerPolicy="no-referrer"
           />
         ) : (
           <div style={{
-            width: 24, height: 24, borderRadius: '50%',
+            width: 20, height: 20, borderRadius: '50%',
             background: theme.accent, color: theme.bgBase,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '0.65rem', fontWeight: 700,
@@ -287,7 +288,7 @@ export function TopToolbar({
 
       {/* ログアウト */}
       <IconButton onClick={onSignOut} title="ログアウト">
-        <LogOut size={16} />
+        <LogOut size={14} />
       </IconButton>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}

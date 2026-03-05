@@ -21,7 +21,6 @@ export interface ActiveCutin {
 export interface Room {
   id: string;
   name: string;
-  background_url: string | null;
   active_scene_id: string | null;
   foreground_url: string | null;
   active_cutin: ActiveCutin | null;

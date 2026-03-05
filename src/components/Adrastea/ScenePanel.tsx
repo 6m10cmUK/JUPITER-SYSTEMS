@@ -1,6 +1,7 @@
 
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
+import { X } from 'lucide-react';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -35,14 +36,14 @@ export function ScenePanel({
       {/* ヘッダー */}
       <div
         style={{
-          padding: '12px 16px',
+          padding: '6px 8px',
           borderBottom: `1px solid ${theme.border}`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
-        <span style={{ color: theme.textPrimary, fontWeight: 600, fontSize: '0.9rem' }}>
+        <span style={{ color: theme.textPrimary, fontWeight: 600, fontSize: '12px' }}>
           シーン
         </span>
         <button
@@ -51,36 +52,18 @@ export function ScenePanel({
             background: 'transparent',
             border: 'none',
             color: theme.textSecondary,
-            fontSize: '1.2rem',
             cursor: 'pointer',
             padding: '0 4px',
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
-          x
+          <X size={16} />
         </button>
       </div>
 
       {/* シーンリスト */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-        {/* デフォルト（シーンなし） */}
-        <button
-          onClick={() => onActivateScene(null)}
-          style={{
-            width: '100%',
-            padding: '10px 12px',
-            marginBottom: '4px',
-            background: activeSceneId === null ? 'rgba(137,180,250,0.15)' : 'transparent',
-            border: activeSceneId === null ? `1px solid ${theme.accent}` : '1px solid transparent',
-            borderRadius: 0,
-            color: theme.textPrimary,
-            fontSize: '0.85rem',
-            textAlign: 'left',
-            cursor: 'pointer',
-          }}
-        >
-          デフォルト
-        </button>
-
+      <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
         {scenes.map((scene) => (
           <div
             key={scene.id}
@@ -102,15 +85,15 @@ export function ScenePanel({
             <div
               onClick={() => onActivateScene(scene.id)}
               style={{
-                height: '60px',
-                background: scene.background_url
-                  ? `url(${scene.background_url}) center/cover`
+                height: '40px',
+                background: scene.foreground_url
+                  ? `url(${scene.foreground_url}) center/cover`
                   : theme.bgInput,
                 cursor: 'pointer',
                 position: 'relative',
               }}
             >
-              {!scene.background_url && (
+              {!scene.foreground_url && (
                 <div
                   style={{
                     position: 'absolute',
@@ -130,7 +113,7 @@ export function ScenePanel({
             {/* 情報 */}
             <div
               style={{
-                padding: '6px 10px',
+                padding: '4px 6px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -140,7 +123,7 @@ export function ScenePanel({
                 onClick={() => onActivateScene(scene.id)}
                 style={{
                   color: theme.textPrimary,
-                  fontSize: '0.8rem',
+                  fontSize: '11px',
                   cursor: 'pointer',
                   flex: 1,
                   overflow: 'hidden',
@@ -167,22 +150,24 @@ export function ScenePanel({
                 >
                   編集
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveScene(scene.id);
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: theme.danger,
-                    fontSize: '0.75rem',
-                    cursor: 'pointer',
-                    padding: '2px 4px',
-                  }}
-                >
-                  削除
-                </button>
+                {scenes.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveScene(scene.id);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.danger,
+                      fontSize: '0.75rem',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                    }}
+                  >
+                    削除
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -190,18 +175,18 @@ export function ScenePanel({
       </div>
 
       {/* 追加ボタン */}
-      <div style={{ padding: '8px 12px', borderTop: `1px solid ${theme.border}` }}>
+      <div style={{ padding: '4px 8px', borderTop: `1px solid ${theme.border}` }}>
         <button
           onClick={onAddScene}
           style={{
             width: '100%',
-            padding: '8px',
+            padding: '4px 8px',
             background: theme.accent,
             color: theme.textOnAccent,
             border: 'none',
             borderRadius: 0,
             fontWeight: 600,
-            fontSize: '0.85rem',
+            fontSize: '12px',
             cursor: 'pointer',
           }}
         >

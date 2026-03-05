@@ -250,10 +250,6 @@
   cursor: pointer;
 }
 
-.adrastea-root {
-  --focus-border: #89b4fa;
-  --separator-border: #313244;
-}
 
 @media (max-width: 1024px) {
   .content-container {

@@ -15,9 +15,10 @@ import { CharacterDockPanel } from './dock-panels/CharacterDockPanel';
 import { ScenarioTextDockPanel } from './dock-panels/ScenarioTextDockPanel';
 import { CutinDockPanel } from './dock-panels/CutinDockPanel';
 import { LayerDockPanel } from './dock-panels/LayerDockPanel';
+import { PropertyDockPanel } from './dock-panels/PropertyDockPanel';
 
 const LAYOUT_STORAGE_KEY = 'adrastea-dock-layout';
-const LAYOUT_VERSION = 3;
+const LAYOUT_VERSION = 7;
 
 const components: Record<string, React.FC<IDockviewPanelProps>> = {
   board: BoardDockPanel,
@@ -27,14 +28,36 @@ const components: Record<string, React.FC<IDockviewPanelProps>> = {
   scenarioText: ScenarioTextDockPanel,
   cutin: CutinDockPanel,
   layer: LayerDockPanel,
+  property: PropertyDockPanel,
 };
 
 function applyDefaultLayout(api: DockviewApi) {
-  // 左サイドパネル群（タブ）
+  // グリッド: Board（メイン） + Chat（右サイド）
+  const boardPanel = api.addPanel({
+    id: 'board',
+    component: 'board',
+    title: 'Board',
+  });
+
+  api.addPanel({
+    id: 'chat',
+    component: 'chat',
+    title: 'チャット',
+    position: { referencePanel: boardPanel, direction: 'right' },
+  });
+
+  // Chatグループの幅設定
+  const chatPanel = api.getPanel('chat');
+  if (chatPanel?.group) {
+    api.getGroup(chatPanel.group.id)?.api.setSize({ width: 280 });
+  }
+
+  // フローティング: シーン・キャラクター・テキスト・カットイン（タブグループ）
   const scenePanel = api.addPanel({
     id: 'scene',
     component: 'scene',
     title: 'シーン',
+    floating: { width: 200, height: 300, x: 10, y: 10 },
   });
 
   api.addPanel({
@@ -58,34 +81,28 @@ function applyDefaultLayout(api: DockviewApi) {
     position: { referencePanel: scenePanel },
   });
 
+  // フローティング: レイヤー
   api.addPanel({
     id: 'layer',
     component: 'layer',
     title: 'レイヤー',
-    position: { referencePanel: scenePanel },
+    floating: { width: 200, height: 250, x: 10, y: 320 },
   });
 
-  // 中央 Board
-  const boardPanel = api.addPanel({
-    id: 'board',
-    component: 'board',
-    title: 'Board',
-    position: { referencePanel: scenePanel, direction: 'right' },
-  });
-
-  // 右 Chat
+  // フローティング: プロパティ（右側、Chatの左に配置）
+  const container = api.element;
+  const containerWidth = container?.getBoundingClientRect().width ?? 1200;
   api.addPanel({
-    id: 'chat',
-    component: 'chat',
-    title: 'チャット',
-    position: { referencePanel: boardPanel, direction: 'right' },
+    id: 'property',
+    component: 'property',
+    title: 'プロパティ',
+    floating: {
+      width: 260,
+      height: 400,
+      x: containerWidth - 280 - 260 - 10,
+      y: 10,
+    },
   });
-
-  // 左サイドのグループ幅設定
-  const sceneGroup = scenePanel.group;
-  if (sceneGroup) {
-    api.getGroup(sceneGroup.id)?.api.setSize({ width: 240 });
-  }
 }
 
 function isLayoutValid(layout: unknown): boolean {

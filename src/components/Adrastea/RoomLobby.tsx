@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { theme } from '../../styles/theme';
 
@@ -17,14 +17,80 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
 
     setIsCreating(true);
     try {
-      const docRef = await addDoc(collection(db, 'rooms'), {
+      // ルーム作成
+      const roomRef = await addDoc(collection(db, 'rooms'), {
         name,
-        background_url: null,
+        active_scene_id: null,
         dice_system: 'DiceBot',
         created_at: Date.now(),
         updated_at: Date.now(),
       });
-      onRoomCreated(docRef.id);
+
+      // デフォルトシーン作成
+      const sceneRef = await addDoc(collection(db, 'rooms', roomRef.id, 'scenes'), {
+        name: 'メインシーン',
+        background_url: null,
+        foreground_url: null,
+        foreground_opacity: 0.5,
+        bgm_type: null,
+        bgm_source: null,
+        bgm_volume: 0.5,
+        bgm_loop: true,
+        sort_order: 0,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+
+      // デフォルトシーンに背景オブジェクト（濃いグレー）
+      await addDoc(collection(db, 'rooms', roomRef.id, 'scenes', sceneRef.id, 'objects'), {
+        type: 'background',
+        name: '背景',
+        x: 0,
+        y: 0,
+        width: 100,
+        height: 100,
+        visible: true,
+        opacity: 1,
+        sort_order: 0,
+        locked: true,
+        image_url: null,
+        background_color: '#333333',
+        image_fit: 'cover',
+        text_content: null,
+        font_size: 16,
+        text_color: '#ffffff',
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+
+      // デフォルトシーンに前景オブジェクト（薄いグレー）
+      await addDoc(collection(db, 'rooms', roomRef.id, 'scenes', sceneRef.id, 'objects'), {
+        type: 'foreground',
+        name: '前景',
+        x: 26,
+        y: 36,
+        width: 48,
+        height: 27,
+        visible: true,
+        opacity: 1,
+        sort_order: 100,
+        locked: false,
+        image_url: null,
+        background_color: '#666666',
+        image_fit: 'cover',
+        text_content: null,
+        font_size: 16,
+        text_color: '#ffffff',
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+
+      // デフォルトシーンをアクティブに
+      await updateDoc(doc(db, 'rooms', roomRef.id), {
+        active_scene_id: sceneRef.id,
+      });
+
+      onRoomCreated(roomRef.id);
     } catch (error) {
       console.error('ルーム作成に失敗しました:', error);
     } finally {
@@ -42,7 +108,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       <div style={{
         background: theme.bgSurface,
         borderRadius: 0,
-        padding: '40px',
+        padding: '24px',
         width: '100%',
         maxWidth: '420px',
         boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
@@ -50,7 +116,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         <h2 style={{
           color: theme.textPrimary,
           margin: '0 0 8px 0',
-          fontSize: '1.5rem',
+          fontSize: '1.2rem',
           textAlign: 'center',
         }}>
           Adrastea
@@ -81,7 +147,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
             placeholder="例: 第1回セッション"
             style={{
               width: '100%',
-              padding: '10px 12px',
+              padding: '8px 10px',
               background: theme.bgInput,
               border: `1px solid ${theme.borderInput}`,
               borderRadius: 0,
@@ -98,7 +164,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
           disabled={!roomName.trim() || isCreating}
           style={{
             width: '100%',
-            padding: '12px',
+            padding: '8px',
             background: roomName.trim() && !isCreating ? theme.accent : theme.borderInput,
             color: roomName.trim() && !isCreating ? theme.textOnAccent : theme.textMuted,
             border: 'none',

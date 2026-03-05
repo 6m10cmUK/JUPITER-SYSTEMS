@@ -7,8 +7,8 @@ export function CutinDockPanel() {
     <CutinPanel
       cutins={ctx.cutins}
       onTrigger={ctx.triggerCutin}
-      onAdd={() => ctx.setEditingCutin(null)}
-      onEdit={(cutin) => ctx.setEditingCutin(cutin)}
+      onAdd={() => { ctx.clearAllEditing(); ctx.setEditingCutin(null); }}
+      onEdit={(cutin) => { ctx.clearAllEditing(); ctx.setEditingCutin(cutin); }}
       onRemove={ctx.removeCutin}
       onClose={() => {}}
     />

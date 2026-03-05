@@ -1,39 +1,58 @@
 @import 'dockview-react/dist/styles/dockview.css';
 
-/* ── Adrastea テーマトークン (Light / クリスタ風) ── */
+/* ── Tailwindリセット打ち消し（Adrastea内のみ） ── */
+.adrastea-root button,
+.adrastea-root input,
+.adrastea-root select,
+.adrastea-root textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.adrastea-root *,
+.adrastea-root *::before,
+.adrastea-root *::after {
+  border-color: transparent;
+}
+
+/* ── Adrastea テーマトークン (Dark / クリスタ風) ── */
 .adrastea-root {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  color: var(--ad-text-primary);
   /* 背景 */
-  --ad-bg-base: #f5f5f5;
-  --ad-bg-surface: #ffffff;
-  --ad-bg-toolbar: #eaeaea;
-  --ad-bg-input: #ffffff;
-  --ad-bg-overlay: rgba(0, 0, 0, 0.4);
+  --ad-bg-base: #2d2d2d;
+  --ad-bg-surface: #3a3a3a;
+  --ad-bg-toolbar: #333333;
+  --ad-bg-input: #252525;
+  --ad-bg-overlay: rgba(0, 0, 0, 0.6);
 
   /* テキスト */
-  --ad-text-primary: #1a1a1a;
-  --ad-text-secondary: #555555;
-  --ad-text-muted: #999999;
+  --ad-text-primary: #e0e0e0;
+  --ad-text-secondary: #a0a0a0;
+  --ad-text-muted: #707070;
   --ad-text-on-accent: #ffffff;
 
   /* ボーダー */
-  --ad-border: #d0d0d0;
-  --ad-border-input: #c0c0c0;
+  --ad-border: #505050;
+  --ad-border-input: #555555;
 
   /* アクセント */
   --ad-accent: #4a90d9;
-  --ad-accent-hover: #3a7bc8;
+  --ad-accent-hover: #5aa0e9;
 
   /* セマンティック */
-  --ad-danger: #d9534f;
-  --ad-danger-hover: #c9302c;
-  --ad-success: #2d8a4e;
-  --ad-warning: #d4920b;
+  --ad-danger: #e05555;
+  --ad-danger-hover: #f06565;
+  --ad-success: #4caf50;
+  --ad-warning: #e0a020;
 
   /* ステータス */
-  --ad-status-red: #d9534f;
+  --ad-status-red: #e05555;
   --ad-status-blue: #4a90d9;
-  --ad-status-green: #2d8a4e;
-  --ad-status-yellow: #d4920b;
+  --ad-status-green: #4caf50;
+  --ad-status-yellow: #e0a020;
 }
 
 /* ── Dockview テーマ（トークン参照） ── */
@@ -65,25 +84,30 @@
 
   /* Tabs container */
   --dv-tabs-and-actions-container-background-color: var(--ad-bg-toolbar);
-  --dv-tabs-container-scrollbar-color: rgba(0, 0, 0, 0.15);
+  --dv-tabs-container-scrollbar-color: rgba(255, 255, 255, 0.1);
 
   /* Icon hover */
-  --dv-icon-hover-background-color: rgba(0, 0, 0, 0.1);
+  --dv-icon-hover-background-color: rgba(255, 255, 255, 0.1);
 
   /* Floating */
-  --dv-floating-box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+  --dv-floating-box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
 
   /* Scrollbar */
-  --dv-scrollbar-background-color: rgba(0, 0, 0, 0.15);
+  --dv-scrollbar-background-color: rgba(255, 255, 255, 0.08);
 
   /* Sharp corners */
   --dv-border-radius: 0px;
   --dv-tab-border-radius: 0px;
 }
 
-/* Tab font size & sharp style */
+/* ── タブコンパクト化 ── */
+.dockview-theme-catppuccin .dv-tabs-and-actions-container {
+  height: 28px;
+}
+
 .dockview-theme-catppuccin .dv-tab {
-  font-size: 0.8rem;
+  font-size: 11px;
+  padding: 0 8px;
   border-radius: 0;
 }
 
@@ -110,3 +134,41 @@
 .dockview-theme-catppuccin .dv-tabs-and-actions-container {
   border-radius: 0;
 }
+
+/* ── スクロールバーコンパクト化 ── */
+.dockview-theme-catppuccin ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.dockview-theme-catppuccin ::-webkit-scrollbar-thumb {
+  background: #505050;
+  border-radius: 0;
+}
+
+.dockview-theme-catppuccin ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── フローティンググループ半透明背景 ── */
+.dockview-theme-catppuccin .dv-groupview-floating {
+  background: rgba(45, 45, 45, 0.90);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(80, 80, 80, 0.6);
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.dockview-theme-catppuccin .dv-groupview-floating .dv-tabs-and-actions-container {
+  background: rgba(51, 51, 51, 0.90);
+}
+
+.dockview-theme-catppuccin .dv-groupview-floating .dv-content-container {
+  background: transparent;
+}
+
+/* フローティングパネル内のコンテンツルート: 背景透明化（パネル自体の半透明を活かす） */
+.dockview-theme-catppuccin .dv-groupview-floating .dv-react-part > div {
+  background: transparent !important;
+}
+

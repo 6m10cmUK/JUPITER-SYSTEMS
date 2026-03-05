@@ -1,13 +1,19 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType, BoardObjectScope } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
+import {
+  Image, Type, Layers, Mountain,
+  Eye, EyeOff, Lock, Unlock,
+  ChevronUp, ChevronDown, Plus,
+  SquareKanban,
+} from 'lucide-react';
 
-const TYPE_ICONS: Record<BoardObjectType, string> = {
-  panel: '🖼️',
-  text: 'T',
-  foreground: '🌄',
-  background: '🏔️',
+const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
+  panel: ({ size = 14 }) => <Image size={size} />,
+  text: ({ size = 14 }) => <Type size={size} />,
+  foreground: ({ size = 14 }) => <Layers size={size} />,
+  background: ({ size = 14 }) => <Mountain size={size} />,
 };
 
 export function LayerPanel() {
@@ -19,6 +25,8 @@ export function LayerPanel() {
     editingObjectId,
     setEditingObjectId,
     setEditingObjectScope,
+    clearAllEditing,
+    getBoardCenter,
   } = useAdrasteaContext();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -36,21 +44,85 @@ export function LayerPanel() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
-  const getScope = (id: string): BoardObjectScope => {
+  const getScope = useCallback((id: string): BoardObjectScope => {
     return roomObjects.some((o) => o.id === id) ? 'room' : 'scene';
-  };
+  }, [roomObjects]);
 
-  // 前景を先頭、背景を末尾に固定。それ以外はsort_order降順
+  // 背景を末尾に固定。それ以外はsort_order降順
   const sortedObjects = useMemo(() => {
-    const fg = mergedObjects.filter(o => o.type === 'foreground');
     const bg = mergedObjects.filter(o => o.type === 'background');
-    const rest = mergedObjects.filter(o => o.type !== 'foreground' && o.type !== 'background');
-    return [...fg, ...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
+    const rest = mergedObjects.filter(o => o.type !== 'background');
+    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
   }, [mergedObjects]);
+
+  // --- ドラッグ&ドロップ ---
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
+
+  const handleDragStart = useCallback((e: React.DragEvent, obj: BoardObject) => {
+    if (obj.type === 'background') {
+      e.preventDefault();
+      return;
+    }
+    setDragId(obj.id);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, obj: BoardObject) => {
+    e.preventDefault();
+    if (obj.type === 'background') return;
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverId(obj.id);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverId(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetObj: BoardObject) => {
+    e.preventDefault();
+    setDragOverId(null);
+    if (!dragId || dragId === targetObj.id || targetObj.type === 'background') {
+      setDragId(null);
+      return;
+    }
+
+    const dragIdx = sortedObjects.findIndex(o => o.id === dragId);
+    const targetIdx = sortedObjects.findIndex(o => o.id === targetObj.id);
+    if (dragIdx < 0 || targetIdx < 0) { setDragId(null); return; }
+
+    const dragObj = sortedObjects[dragIdx];
+    const dragScope = getScope(dragObj.id);
+    const targetScope = getScope(targetObj.id);
+    if (dragScope !== targetScope) { setDragId(null); return; }
+
+    // 並べ替え: ドラッグ元を除いて、ターゲット位置に挿入し、sort_orderを振り直す
+    const sameScopeObjects = sortedObjects.filter(o => getScope(o.id) === dragScope && o.type !== 'background');
+    const withoutDrag = sameScopeObjects.filter(o => o.id !== dragId);
+    const insertIdx = withoutDrag.findIndex(o => o.id === targetObj.id);
+    withoutDrag.splice(insertIdx, 0, dragObj);
+
+    // sort_orderを降順で振り直す（リスト上が大きい値）
+    const maxOrder = withoutDrag.length - 1;
+    withoutDrag.forEach((o, i) => {
+      const newOrder = maxOrder - i;
+      if (o.sort_order !== newOrder) {
+        updateObject(dragScope, o.id, { sort_order: newOrder });
+      }
+    });
+
+    setDragId(null);
+  }, [dragId, sortedObjects, getScope, updateObject]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragId(null);
+    setDragOverId(null);
+  }, []);
 
   const handleAdd = (scope: BoardObjectScope, type: BoardObjectType) => {
     setMenuOpen(false);
-    addObject(scope, { type, name: `新規${type}` });
+    const center = getBoardCenter();
+    addObject(scope, { type, name: `新規${type}`, x: center.x, y: center.y });
   };
 
   const handleToggleVisible = (obj: BoardObject) => {
@@ -70,9 +142,9 @@ export function LayerPanel() {
     if (idx <= 0) return;
     const target = sortedObjects[idx];
     const above = sortedObjects[idx - 1];
-    // 背景・前景は移動不可
-    if (target.type === 'background' || target.type === 'foreground') return;
-    if (above.type === 'background' || above.type === 'foreground') return;
+    // 背景は移動不可
+    if (target.type === 'background') return;
+    if (above.type === 'background') return;
     const scope = getScope(target.id);
     const aboveScope = getScope(above.id);
     // 同じスコープ内でのみ並べ替え
@@ -87,9 +159,9 @@ export function LayerPanel() {
     if (idx < 0 || idx >= sortedObjects.length - 1) return;
     const target = sortedObjects[idx];
     const below = sortedObjects[idx + 1];
-    // 背景・前景は移動不可
-    if (target.type === 'background' || target.type === 'foreground') return;
-    if (below.type === 'background' || below.type === 'foreground') return;
+    // 背景は移動不可
+    if (target.type === 'background') return;
+    if (below.type === 'background') return;
     const scope = getScope(target.id);
     const belowScope = getScope(below.id);
     if (scope !== belowScope) return;
@@ -101,7 +173,7 @@ export function LayerPanel() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '8px 12px',
+    padding: '4px 8px',
     borderBottom: `1px solid ${theme.border}`,
   };
 
@@ -109,11 +181,11 @@ export function LayerPanel() {
     display: 'flex',
     alignItems: 'center',
     gap: '6px',
-    padding: '6px 12px',
+    padding: '4px 8px',
     cursor: 'pointer',
     background: isSelected ? 'rgba(137,180,250,0.15)' : 'transparent',
     borderBottom: `1px solid ${theme.border}`,
-    fontSize: '0.8rem',
+    fontSize: '12px',
     color: theme.textPrimary,
   });
 
@@ -150,14 +222,14 @@ export function LayerPanel() {
 
   const menuGroupStyle: React.CSSProperties = {
     padding: '4px 10px',
-    fontSize: '0.7rem',
+    fontSize: '11px',
     color: theme.textMuted,
     borderBottom: `1px solid ${theme.border}`,
   };
 
   const menuItemStyle: React.CSSProperties = {
     padding: '6px 14px',
-    fontSize: '0.8rem',
+    fontSize: '12px',
     color: theme.textPrimary,
     cursor: 'pointer',
     background: 'transparent',
@@ -177,37 +249,33 @@ export function LayerPanel() {
             onClick={() => setMenuOpen(!menuOpen)}
             style={{
               ...iconBtnStyle,
-              fontSize: '1.1rem',
-              fontWeight: 700,
               color: theme.textPrimary,
+              display: 'flex',
+              alignItems: 'center',
             }}
           >
-            +
+            <Plus size={18} />
           </button>
           {menuOpen && (
             <div style={menuStyle}>
               <div style={menuGroupStyle}>シーンオブジェクト</div>
-              <button style={menuItemStyle} onClick={() => handleAdd('scene', 'panel')}
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('scene', 'panel')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >🖼️ パネル</button>
-              <button style={menuItemStyle} onClick={() => handleAdd('scene', 'text')}
+              ><Image size={14} /> パネル</button>
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('scene', 'text')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >T テキスト</button>
-              <button style={menuItemStyle} onClick={() => handleAdd('scene', 'foreground')}
-                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >🌄 前景</button>
+              ><Type size={14} /> テキスト</button>
               <div style={{ ...menuGroupStyle, borderTop: `1px solid ${theme.border}` }}>ルームオブジェクト</div>
-              <button style={menuItemStyle} onClick={() => handleAdd('room', 'panel')}
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('room', 'panel')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >🖼️ パネル</button>
-              <button style={menuItemStyle} onClick={() => handleAdd('room', 'text')}
+              ><Image size={14} /> パネル</button>
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('room', 'text')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              >T テキスト</button>
+              ><Type size={14} /> テキスト</button>
             </div>
           )}
         </div>
@@ -221,15 +289,42 @@ export function LayerPanel() {
           return (
             <div
               key={obj.id}
-              style={rowStyle(isSelected)}
+              draggable={obj.type !== 'background'}
+              onDragStart={(e) => handleDragStart(e, obj)}
+              onDragOver={(e) => handleDragOver(e, obj)}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, obj)}
+              onDragEnd={handleDragEnd}
+              style={{
+                ...rowStyle(isSelected),
+                opacity: dragId === obj.id ? 0.4 : undefined,
+                borderTop: dragOverId === obj.id ? `2px solid ${theme.accent}` : undefined,
+                cursor: obj.type !== 'background' ? 'grab' : 'default',
+              }}
               onClick={() => {
+                clearAllEditing();
                 setEditingObjectScope(scope);
                 setEditingObjectId(obj.id);
               }}
             >
-              <span style={{ flexShrink: 0, width: '20px', textAlign: 'center' }}>
-                {TYPE_ICONS[obj.type]}
+              <span style={{ flexShrink: 0, width: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
               </span>
+              {obj.image_url && (
+                <img
+                  src={obj.image_url}
+                  alt=""
+                  style={{
+                    flexShrink: 0,
+                    width: '20px',
+                    height: '20px',
+                    objectFit: 'cover',
+                    objectPosition: 'center center',
+                    borderRadius: '2px',
+                    border: `1px solid ${theme.border}`,
+                  }}
+                />
+              )}
               <span style={{
                 flex: 1,
                 overflow: 'hidden',
@@ -243,22 +338,24 @@ export function LayerPanel() {
                 {scope === 'scene' ? 'S' : 'R'}
               </span>
               <button
-                style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4 }}
+                style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
                 onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
                 title={obj.visible ? '非表示にする' : '表示する'}
               >
-                👁
+                {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
               </button>
               <button
                 style={{
                   ...iconBtnStyle,
                   opacity: obj.locked ? 1 : 0.3,
                   cursor: obj.type === 'background' ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
                 onClick={(e) => { e.stopPropagation(); handleToggleLocked(obj); }}
                 title={obj.locked ? 'ロック解除' : 'ロック'}
               >
-                🔒
+                {obj.locked ? <Lock size={12} /> : <Unlock size={12} />}
               </button>
             </div>
           );
@@ -274,25 +371,25 @@ export function LayerPanel() {
       <div style={{
         display: 'flex',
         gap: '4px',
-        padding: '6px 12px',
+        padding: '4px 8px',
         borderTop: `1px solid ${theme.border}`,
         justifyContent: 'flex-end',
       }}>
         <button
-          style={{ ...iconBtnStyle, fontSize: '0.9rem' }}
+          style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center' }}
           onClick={handleMoveUp}
           disabled={!editingObjectId}
           title="前面に移動"
         >
-          ▲
+          <ChevronUp size={16} />
         </button>
         <button
-          style={{ ...iconBtnStyle, fontSize: '0.9rem' }}
+          style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center' }}
           onClick={handleMoveDown}
           disabled={!editingObjectId}
           title="背面に移動"
         >
-          ▼
+          <ChevronDown size={16} />
         </button>
       </div>
     </div>

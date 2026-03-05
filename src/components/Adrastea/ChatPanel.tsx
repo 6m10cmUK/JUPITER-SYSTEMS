@@ -40,14 +40,14 @@ const getDiceAccentColor = (content: string): string => {
 const FallbackAvatar: React.FC<{ name: string }> = ({ name }) => (
   <div
     style={{
-      width: 32,
-      height: 32,
+      width: 24,
+      height: 24,
       borderRadius: '50%',
       background: theme.bgInput,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      fontSize: '0.75rem',
+      fontSize: '10px',
       fontWeight: 700,
       color: theme.textPrimary,
       flexShrink: 0,
@@ -64,8 +64,8 @@ const Avatar: React.FC<{ src?: string | null; name: string }> = ({ src, name }) 
         src={src}
         alt={name}
         style={{
-          width: 32,
-          height: 32,
+          width: 24,
+          height: 24,
           borderRadius: '50%',
           objectFit: 'cover',
           flexShrink: 0,
@@ -98,7 +98,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(messages.length);
 
-  // スクロール位置の判定
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
     if (!el) return;
@@ -110,7 +109,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     }
   }, []);
 
-  // 新着メッセージ時の自動スクロール or バッジ表示
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
       if (isNearBottomRef.current) {
@@ -153,8 +151,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           style={{
             textAlign: 'center',
             color: theme.textMuted,
-            fontSize: '0.75rem',
-            padding: '4px 0',
+            fontSize: '11px',
+            padding: '2px 0',
           }}
         >
           {msg.content}
@@ -170,22 +168,22 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           style={{
             display: 'flex',
             alignItems: 'flex-start',
-            gap: '8px',
-            padding: '8px 0',
+            gap: '6px',
+            padding: '4px 0',
             borderBottom: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           <Avatar src={msg.sender_avatar} name={msg.sender_name} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ color: accent, fontSize: '0.8rem', fontWeight: 600 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ color: accent, fontSize: '11px', fontWeight: 600 }}>
                 🎲 {msg.sender_name}
               </span>
-              <span style={{ color: theme.textMuted, fontSize: '0.7rem' }}>
+              <span style={{ color: theme.textMuted, fontSize: '10px' }}>
                 {formatTime(msg.created_at)}
               </span>
             </div>
-            <div style={{ color: accent, fontSize: '0.9rem', marginTop: '2px' }}>
+            <div style={{ color: accent, fontSize: '12px', marginTop: '1px' }}>
               {msg.content}
             </div>
           </div>
@@ -193,29 +191,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       );
     }
 
-    // chat
     return (
       <div
         key={msg.id}
         style={{
           display: 'flex',
           alignItems: 'flex-start',
-          gap: '8px',
-          padding: '8px 0',
+          gap: '6px',
+          padding: '4px 0',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}
       >
         <Avatar src={msg.sender_avatar} name={msg.sender_name} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ color: theme.textSecondary, fontSize: '0.8rem', fontWeight: 600 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ color: theme.textSecondary, fontSize: '11px', fontWeight: 600 }}>
               {msg.sender_name}
             </span>
-            <span style={{ color: theme.textMuted, fontSize: '0.7rem' }}>
+            <span style={{ color: theme.textMuted, fontSize: '10px' }}>
               {formatTime(msg.created_at)}
             </span>
           </div>
-          <div style={{ color: theme.textPrimary, fontSize: '0.9rem', marginTop: '2px' }}>
+          <div style={{ color: theme.textPrimary, fontSize: '12px', marginTop: '1px' }}>
             {msg.content}
           </div>
         </div>
@@ -237,18 +234,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* ヘッダー */}
       <div
         style={{
-          padding: '12px 16px',
+          padding: '6px 8px',
           borderBottom: `1px solid ${theme.border}`,
           display: 'flex',
           alignItems: 'baseline',
-          gap: '8px',
+          gap: '6px',
         }}
       >
-        <span style={{ color: theme.textPrimary, fontSize: '0.9rem', fontWeight: 600 }}>
+        <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600 }}>
           ルームチャット
         </span>
         {roomName && (
-          <span style={{ color: theme.textMuted, fontSize: '0.75rem' }}>
+          <span style={{ color: theme.textMuted, fontSize: '11px' }}>
             {roomName}
           </span>
         )}
@@ -261,7 +258,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         style={{
           flex: 1,
           overflowY: 'auto',
-          padding: '12px',
+          padding: '4px 8px',
           position: 'relative',
         }}
       >
@@ -272,13 +269,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             style={{
               display: 'block',
               width: '100%',
-              padding: '8px',
-              marginBottom: '8px',
+              padding: '4px',
+              marginBottom: '4px',
               background: theme.bgInput,
               border: 'none',
               borderRadius: 0,
               color: theme.textSecondary,
-              fontSize: '0.8rem',
+              fontSize: '11px',
               cursor: loading ? 'not-allowed' : 'pointer',
             }}
           >
@@ -304,8 +301,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               color: theme.textOnAccent,
               border: 'none',
               borderRadius: 0,
-              padding: '4px 12px',
-              fontSize: '0.75rem',
+              padding: '2px 10px',
+              fontSize: '11px',
               fontWeight: 600,
               cursor: 'pointer',
               zIndex: 1,
@@ -319,27 +316,28 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* 入力エリア */}
       <div
         style={{
-          padding: '12px',
+          padding: '6px 8px',
           borderTop: `1px solid ${theme.border}`,
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
+          gap: '4px',
         }}
       >
         {/* キャラクター選択 */}
         {characters.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <select
               value={selectedCharacterId ?? ''}
               onChange={(e) => setSelectedCharacterId(e.target.value || null)}
               style={{
                 flex: 1,
-                padding: '4px 8px',
+                padding: '2px 6px',
                 background: theme.bgInput,
                 border: `1px solid ${theme.border}`,
                 borderRadius: 0,
                 color: theme.textPrimary,
-                fontSize: '0.8rem',
+                fontSize: '12px',
+                height: '24px',
                 outline: 'none',
               }}
             >
@@ -363,7 +361,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         <div
           style={{
             display: 'flex',
-            gap: '4px',
+            gap: '2px',
             overflowX: 'auto',
           }}
         >
@@ -372,22 +370,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               key={dice.label}
               onClick={() => onSendMessage(`1d${dice.faces}`, 'dice')}
               style={{
-                padding: '2px 8px',
+                padding: '2px 6px',
                 borderRadius: 0,
                 border: 'none',
                 background: theme.bgInput,
                 color: theme.textSecondary,
-                fontSize: '0.7rem',
+                fontSize: '11px',
                 fontWeight: 600,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput;
               }}
             >
               {dice.label}
@@ -395,7 +387,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '4px' }}>
           <input
             type="text"
             value={input}
@@ -404,12 +396,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             placeholder="メッセージ（/2d6 でダイス）"
             style={{
               flex: 1,
-              padding: '8px 10px',
+              padding: '4px 6px',
               background: theme.bgInput,
               border: `1px solid ${theme.border}`,
               borderRadius: 0,
               color: theme.textPrimary,
-              fontSize: '0.85rem',
+              fontSize: '12px',
+              height: '24px',
+              boxSizing: 'border-box',
               outline: 'none',
             }}
           />
@@ -417,12 +411,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             onClick={handleSend}
             disabled={!input.trim()}
             style={{
-              padding: '8px 14px',
+              padding: '0 10px',
+              height: '24px',
               background: input.trim() ? theme.accent : theme.bgInput,
               color: input.trim() ? theme.textOnAccent : theme.textMuted,
               border: 'none',
               borderRadius: 0,
-              fontSize: '0.85rem',
+              fontSize: '11px',
               fontWeight: 600,
               cursor: input.trim() ? 'pointer' : 'not-allowed',
             }}

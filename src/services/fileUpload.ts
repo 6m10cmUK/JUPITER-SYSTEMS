@@ -1,17 +1,25 @@
 import { auth } from '../config/firebase';
+import { encode as encodeWebP } from '@jsquash/webp';
 
 const R2_WORKER_URL = import.meta.env.VITE_R2_WORKER_URL ?? '';
 
 /**
- * Canvas APIで画像をリサイズ＆JPEG圧縮
+ * Canvas APIでリサイズ → jSquash(libwebp Wasm)でWebPエンコード
  */
 export async function compressImage(
   file: File,
   maxWidth: number = 1920,
-  quality: number = 0.8
+  quality: number = 80
 ): Promise<Blob> {
+  const imageData = await resizeToImageData(file, maxWidth);
+  const webpBuffer = await encodeWebP(imageData, { quality });
+  return new Blob([webpBuffer], { type: 'image/webp' });
+}
+
+function resizeToImageData(file: File, maxWidth: number): Promise<ImageData> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
     img.onload = () => {
       let { width, height } = img;
       if (width > maxWidth) {
@@ -22,16 +30,14 @@ export async function compressImage(
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d');
-      if (!ctx) return reject(new Error('Canvas context取得失敗'));
+      if (!ctx) { URL.revokeObjectURL(objectUrl); return reject(new Error('Canvas context取得失敗')); }
       ctx.drawImage(img, 0, 0, width, height);
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error('圧縮失敗'))),
-        'image/jpeg',
-        quality
-      );
+      const imageData = ctx.getImageData(0, 0, width, height);
+      URL.revokeObjectURL(objectUrl);
+      resolve(imageData);
     };
-    img.onerror = () => reject(new Error('画像読み込み失敗'));
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('画像読み込み失敗')); };
+    img.src = objectUrl;
   });
 }
 
@@ -52,11 +58,11 @@ export async function uploadImage(
   const compressed = await compressImage(
     file,
     options?.maxWidth ?? 1920,
-    options?.quality ?? 0.8
+    options?.quality ?? 80
   );
   const token = await getIdToken();
   const form = new FormData();
-  form.append('file', compressed, path.replace(/\//g, '_') + '.jpg');
+  form.append('file', compressed, path.replace(/\//g, '_') + '.webp');
   form.append('path', path);
 
   const res = await fetch(`${R2_WORKER_URL}/upload`, {

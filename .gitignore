@@ -58,3 +58,5 @@ public/pdf.js/
 # Temporary files
 *.tmp
 *.temp.env
+
+.playwright-cli/

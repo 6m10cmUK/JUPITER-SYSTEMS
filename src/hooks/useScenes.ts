@@ -7,8 +7,10 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  getDocs,
   query,
   orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import type { Scene } from '../types/adrastea.types';
 
@@ -61,7 +63,7 @@ export function useScenes(roomId: string) {
   }, [roomId]);
 
   const addScene = useCallback(
-    async (data: Partial<Omit<Scene, 'id' | 'room_id'>>) => {
+    async (data: Partial<Omit<Scene, 'id' | 'room_id'>>, duplicateFromSceneId?: string) => {
       const docRef = await addDoc(collection(db, 'rooms', roomId, 'scenes'), {
         name: data.name ?? '新しいシーン',
         background_url: data.background_url ?? null,
@@ -75,6 +77,49 @@ export function useScenes(roomId: string) {
         created_at: Date.now(),
         updated_at: Date.now(),
       });
+
+      const objectsCol = collection(db, 'rooms', roomId, 'scenes', docRef.id, 'objects');
+      const now = Date.now();
+
+      if (duplicateFromSceneId) {
+        // 元シーンのオブジェクトを複製
+        const sourceObjects = await getDocs(
+          collection(db, 'rooms', roomId, 'scenes', duplicateFromSceneId, 'objects')
+        );
+        const batch = writeBatch(db);
+        sourceObjects.docs.forEach((d) => {
+          const objData = d.data();
+          const newRef = doc(objectsCol);
+          batch.set(newRef, {
+            ...objData,
+            created_at: now,
+            updated_at: now,
+          });
+        });
+        await batch.commit();
+      } else {
+        // デフォルト背景オブジェクト
+        await addDoc(objectsCol, {
+          type: 'background',
+          name: '背景',
+          x: 0, y: 0, width: 100, height: 100,
+          visible: true, opacity: 1, sort_order: 0, locked: true,
+          image_url: null, background_color: '#333333', image_fit: 'cover',
+          text_content: null, font_size: 16, text_color: '#ffffff',
+          created_at: now, updated_at: now,
+        });
+        // デフォルト前景オブジェクト
+        await addDoc(objectsCol, {
+          type: 'foreground',
+          name: '前景',
+          x: 26, y: 36, width: 48, height: 27,
+          visible: true, opacity: 1, sort_order: 100, locked: false,
+          image_url: null, background_color: '#666666', image_fit: 'cover',
+          text_content: null, font_size: 16, text_color: '#ffffff',
+          created_at: now, updated_at: now,
+        });
+      }
+
       return docRef.id;
     },
     [roomId, scenes.length]
@@ -93,6 +138,15 @@ export function useScenes(roomId: string) {
 
   const removeScene = useCallback(
     async (sceneId: string) => {
+      // シーン配下のオブジェクトも全削除
+      const objectsSnap = await getDocs(
+        collection(db, 'rooms', roomId, 'scenes', sceneId, 'objects')
+      );
+      if (!objectsSnap.empty) {
+        const batch = writeBatch(db);
+        objectsSnap.docs.forEach((d) => batch.delete(d.ref));
+        await batch.commit();
+      }
       await deleteDoc(doc(db, 'rooms', roomId, 'scenes', sceneId));
     },
     [roomId]
