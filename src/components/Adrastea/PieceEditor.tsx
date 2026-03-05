@@ -15,7 +15,7 @@ interface PieceEditorProps {
 
 const STATUS_COLORS = [theme.statusRed, theme.statusBlue, theme.statusGreen, theme.statusYellow];
 
-export function PieceEditor({ piece, characters = [], roomId, onSave, onClose }: PieceEditorProps) {
+export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _onClose }: PieceEditorProps) {
   const [label, setLabel] = useState(piece.label);
   const [color, setColor] = useState(piece.color);
   const [imageUrl, setImageUrl] = useState(piece.image_url ?? '');

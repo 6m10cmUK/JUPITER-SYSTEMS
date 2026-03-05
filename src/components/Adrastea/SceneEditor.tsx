@@ -12,7 +12,7 @@ interface SceneEditorProps {
   onClose: () => void;
 }
 
-export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps) {
+export function SceneEditor({ scene, roomId, onSave: _onSave, onClose: _onClose }: SceneEditorProps) {
   const ctx = useAdrasteaContext();
   const [name, setName] = useState(scene?.name ?? '');
   const [bgmType, setBgmType] = useState<Scene['bgm_type']>(scene?.bgm_type ?? null);
@@ -93,7 +93,7 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
         {bgmType === 'youtube' && (
           <AdInput
             value={bgmSource}
-            onChange={(v) => setBgmSource(extractYoutubeId(v))}
+            onChange={(e) => setBgmSource(extractYoutubeId(typeof e === 'string' ? e : e.target.value))}
             placeholder="YouTube URLまたは動画ID"
           />
         )}
@@ -101,7 +101,7 @@ export function SceneEditor({ scene, roomId, onSave, onClose }: SceneEditorProps
         {bgmType === 'url' && (
           <AdInput
             value={bgmSource}
-            onChange={setBgmSource}
+            onChange={(e) => setBgmSource(e.target.value)}
             placeholder="音声ファイルURL"
           />
         )}

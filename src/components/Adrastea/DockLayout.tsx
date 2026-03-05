@@ -56,7 +56,6 @@ const defaultJson: IJsonModel = {
       {
         type: 'tabset',
         weight: 30,
-        width: 280,
         children: [
           { type: 'tab', id: 'chat', name: 'チャット', component: 'chat' },
           { type: 'tab', id: 'scene', name: 'シーン', component: 'scene' },

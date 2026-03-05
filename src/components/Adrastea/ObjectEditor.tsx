@@ -15,7 +15,7 @@ interface ObjectEditorProps {
   onClose: () => void;
 }
 
-export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _roomId, onSave, onDelete, onClose }: ObjectEditorProps) {
+export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _roomId, onSave: _onSave, onDelete, onClose }: ObjectEditorProps) {
   const [type, setType] = useState<BoardObjectType>(object?.type ?? defaultType ?? 'panel');
   const [name, setName] = useState(object?.name ?? '');
   const [imageUrl, setImageUrl] = useState(object?.image_url ?? '');
@@ -26,8 +26,8 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const [width, setWidth] = useState(object?.width ?? 4);
   const [height, setHeight] = useState(object?.height ?? 4);
   const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'cover');
-  const [opacity, setOpacity] = useState(object?.opacity ?? 1);
-  const [visible, setVisible] = useState(object?.visible ?? true);
+  const [opacity, _setOpacity] = useState(object?.opacity ?? 1);
+  const [visible, _setVisible] = useState(object?.visible ?? true);
 
   // 外部からの変更（画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
   useEffect(() => {
