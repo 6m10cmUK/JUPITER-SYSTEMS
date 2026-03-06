@@ -156,30 +156,19 @@ const Adrastea: React.FC = () => {
   const [guestNameInput, setGuestNameInput] = useState('');
   const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
 
-  // ルームのオーナーチェック
+  // ルーム存在チェック（誰でも入室可、権限制御は後で実装）
   useEffect(() => {
-    if (!roomId || !user) {
+    if (!roomId || (!user && !isGuest)) {
       setOwnerCheck('loading');
       return;
     }
     getDoc(doc(db, 'rooms', roomId)).then((snap) => {
-      if (!snap.exists()) {
-        setOwnerCheck('denied');
-        return;
-      }
-      const ownerUid = snap.data()?.owner_uid;
-      setOwnerCheck(ownerUid === user.uid ? 'ok' : 'denied');
+      setOwnerCheck(snap.exists() ? 'ok' : 'denied');
     }).catch((err) => {
-      const code = (err as { code?: string }).code;
-      if (code === 'permission-denied' || code === 'not-found') {
-        setOwnerCheck('denied');
-      } else {
-        // ネットワークエラー等 → リトライ可能にするためloadingのまま維持せず denied で表示
-        console.error('ルーム確認に失敗:', err);
-        setOwnerCheck('denied');
-      }
+      console.error('ルーム確認に失敗:', err);
+      setOwnerCheck('denied');
     });
-  }, [roomId, user]);
+  }, [roomId, user, isGuest]);
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
