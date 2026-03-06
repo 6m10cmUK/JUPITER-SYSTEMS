@@ -58,6 +58,10 @@ export async function uploadImage(
   path: string,
   options?: { maxWidth?: number; quality?: number }
 ): Promise<string> {
+  const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
+  if (file.size > MAX_IMAGE_SIZE) {
+    throw new Error('画像ファイルサイズが上限(10MB)を超えています');
+  }
   const compressed = await compressImage(
     file,
     options?.maxWidth ?? 1920,
@@ -82,6 +86,10 @@ export async function uploadImage(
  * 音声ファイルアップロード（圧縮なし）
  */
 export async function uploadAudio(file: File, path: string): Promise<string> {
+  const MAX_AUDIO_SIZE = 50 * 1024 * 1024; // 50MB
+  if (file.size > MAX_AUDIO_SIZE) {
+    throw new Error('音声ファイルサイズが上限(50MB)を超えています');
+  }
   const token = await getIdToken();
   const form = new FormData();
   form.append('file', file);
@@ -101,6 +109,9 @@ export async function uploadAudio(file: File, path: string): Promise<string> {
  * ファイル削除
  */
 export async function deleteFile(path: string): Promise<void> {
+  if (path.includes('..') || path.startsWith('/')) {
+    throw new Error('Invalid file path');
+  }
   const token = await getIdToken();
   const res = await fetch(
     `${R2_WORKER_URL}/delete?path=${encodeURIComponent(path)}`,

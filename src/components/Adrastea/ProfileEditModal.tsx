@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { theme } from '../../styles/theme';
 import type { UserProfile } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { AdInput, AdButton, AdModal } from './ui';
@@ -13,16 +14,20 @@ export function ProfileEditModal({ profile, onSave, onClose }: ProfileEditModalP
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     if (!displayName.trim()) return;
     setSaving(true);
+    setError(null);
     try {
       await onSave({
         display_name: displayName.trim(),
         avatar_url: avatarUrl.trim() || null,
       });
       onClose();
+    } catch {
+      setError('プロフィールの保存に失敗しました');
     } finally {
       setSaving(false);
     }
@@ -47,6 +52,11 @@ export function ProfileEditModal({ profile, onSave, onClose }: ProfileEditModalP
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {error && (
+          <div style={{ padding: '6px 10px', background: theme.danger, color: theme.textOnAccent, fontSize: '0.8rem' }}>
+            {error}
+          </div>
+        )}
         <AdInput
           label="表示名"
           value={displayName}

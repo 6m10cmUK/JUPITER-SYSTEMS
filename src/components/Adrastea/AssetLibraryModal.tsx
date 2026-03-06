@@ -24,6 +24,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   const [activeTab, setActiveTab] = useState<'image' | 'audio'>(initialTab);
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [urlInput, setUrlInput] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const filtered = assets.filter((a) => {
@@ -75,6 +76,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         await deleteAsset(assetId, r2Key);
       } catch (err) {
         console.error('アセット削除失敗:', err);
+        setError('アセットの削除に失敗しました');
       } finally {
         setConfirmDeleteId(null);
       }
@@ -92,6 +94,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         await updateAssetTags(assetId, tags);
       } catch (err) {
         console.error('タグ保存失敗:', err);
+        setError('タグの保存に失敗しました');
       } finally {
         setEditingTagsId(null);
         setTagInput('');
@@ -127,7 +130,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   );
 
   const modalStyle: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+    position: 'fixed', inset: 0, background: theme.bgOverlay,
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100,
   };
 
@@ -208,7 +211,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               <span
                 key={tag}
                 style={{
-                  background: 'rgba(137,180,250,0.15)', padding: '1px 4px',
+                  background: theme.accentBgSubtle, padding: '1px 4px',
                   borderRadius: 0, fontSize: '0.6rem',
                 }}
               >
@@ -273,7 +276,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   };
 
   const subModalOverlay: React.CSSProperties = {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
+    position: 'fixed', inset: 0, background: theme.bgOverlay,
     display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200,
   };
 
@@ -411,6 +414,30 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             placeholder="ファイル名・タグで検索..."
           />
         </div>
+
+        {/* エラーバナー */}
+        {error && (
+          <div
+            style={{
+              padding: '6px 10px',
+              marginBottom: '8px',
+              background: theme.danger,
+              color: theme.textOnAccent,
+              fontSize: '0.8rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            <span>{error}</span>
+            <button
+              onClick={() => setError(null)}
+              style={{ background: 'none', border: 'none', color: theme.textOnAccent, cursor: 'pointer', display: 'flex' }}
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* hidden file input */}
         <input

@@ -24,6 +24,7 @@ export function LayerPanel() {
     addObject,
     updateObject,
     removeObject,
+    batchUpdateSort,
     editingObjectId,
     setEditingObjectId,
     selectedObjectIds,
@@ -121,15 +122,23 @@ export function LayerPanel() {
     rest.forEach((o, i) => overrideMap.set(o.id, maxOrder - i));
     setLocalOrderOverride(overrideMap);
 
-    // スコープごとにreorderObjectsを呼ぶとスコープ内相対値になってしまうので、
-    // updateObjectで各オブジェクトにグローバルなsort_orderを直接書き込む
+    // スコープごとにバッチ更新
+    const roomUpdates: { id: string; sort: number }[] = [];
+    const sceneUpdates: { id: string; sort: number }[] = [];
     rest.forEach((o, i) => {
       const newOrder = maxOrder - i;
       if (o.sort_order !== newOrder) {
-        updateObject(getScope(o.id), o.id, { sort_order: newOrder });
+        const scope = getScope(o.id);
+        if (scope === 'room') {
+          roomUpdates.push({ id: o.id, sort: newOrder });
+        } else {
+          sceneUpdates.push({ id: o.id, sort: newOrder });
+        }
       }
     });
-  }, [selectedObjectIds, sortedObjects, getScope, updateObject]);
+    if (roomUpdates.length > 0) batchUpdateSort('room', roomUpdates);
+    if (sceneUpdates.length > 0) batchUpdateSort('scene', sceneUpdates);
+  }, [selectedObjectIds, sortedObjects, getScope, batchUpdateSort]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
     const scope = getScope(obj.id);
@@ -188,6 +197,9 @@ export function LayerPanel() {
 
   const handleRemoveObject = useCallback((obj: BoardObject) => {
     if (obj.type === 'background') return;
+    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = mergedObjects.find(o => o.id === id); return o && o.type !== 'background'; }).length : 1;
+    const msg = count > 1 ? `${count}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
+    if (!window.confirm(msg)) return;
     if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
       for (const id of selectedObjectIds) {
         const o = mergedObjects.find(o => o.id === id);
@@ -220,7 +232,7 @@ export function LayerPanel() {
     border: `1px solid ${theme.border}`,
     zIndex: 100,
     minWidth: '180px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+    boxShadow: theme.shadowMd,
   };
 
   const menuGroupStyle: React.CSSProperties = {
@@ -294,7 +306,7 @@ export function LayerPanel() {
           && isSelected
           && obj.id !== activeDragId;
         const scope = getScope(obj.id);
-        const iconBgColor = scope === 'scene' ? 'rgba(137,180,250,0.2)' : 'rgba(166,227,161,0.2)';
+        const iconBgColor = scope === 'scene' ? theme.accentHighlight : 'rgba(166,227,161,0.2)';
 
         return (
           <SortableListItem

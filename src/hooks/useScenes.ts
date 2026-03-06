@@ -6,7 +6,6 @@ import {
   onSnapshot,
   addDoc,
   updateDoc,
-  deleteDoc,
   getDocs,
   query,
   orderBy,
@@ -144,27 +143,16 @@ export function useScenes(roomId: string) {
 
   const removeScene = useCallback(
     async (sceneId: string) => {
-      // シーン配下のオブジェクトも全削除
-      const objectsSnap = await getDocs(
-        collection(db, 'rooms', roomId, 'scenes', sceneId, 'objects')
-      );
-      if (!objectsSnap.empty) {
-        const batch = writeBatch(db);
-        objectsSnap.docs.forEach((d) => batch.delete(d.ref));
-        await batch.commit();
-      }
-
-      // BGMトラックも全削除
-      const bgmsSnap = await getDocs(
-        collection(db, 'rooms', roomId, 'scenes', sceneId, 'bgms')
-      );
-      if (!bgmsSnap.empty) {
-        const bgmBatch = writeBatch(db);
-        bgmsSnap.docs.forEach((d) => bgmBatch.delete(d.ref));
-        await bgmBatch.commit();
-      }
-
-      await deleteDoc(doc(db, 'rooms', roomId, 'scenes', sceneId));
+      // シーン配下のオブジェクト・BGM・シーン本体を一括削除
+      const [objectsSnap, bgmsSnap] = await Promise.all([
+        getDocs(collection(db, 'rooms', roomId, 'scenes', sceneId, 'objects')),
+        getDocs(collection(db, 'rooms', roomId, 'scenes', sceneId, 'bgms')),
+      ]);
+      const batch = writeBatch(db);
+      objectsSnap.docs.forEach((d) => batch.delete(d.ref));
+      bgmsSnap.docs.forEach((d) => batch.delete(d.ref));
+      batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
+      await batch.commit();
     },
     [roomId]
   );

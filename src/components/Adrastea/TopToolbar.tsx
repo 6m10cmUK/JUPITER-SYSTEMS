@@ -34,7 +34,7 @@ interface TopToolbarProps {
   onOpenSettings: () => void;
   onOpenProfile: () => void;
   onSignOut: () => void;
-  activeScene: Scene | null;
+  activeScene?: Scene | null;
   profile: { display_name?: string; avatar_url?: string | null } | null;
   flexModel: Model | null;
 }
@@ -73,7 +73,7 @@ export function TopToolbar({
   onOpenSettings,
   onOpenProfile,
   onSignOut,
-  activeScene,
+  activeScene: _activeScene,
   profile,
   flexModel,
 }: TopToolbarProps) {
@@ -267,7 +267,7 @@ export function TopToolbar({
           title={bgmMuted ? 'ミュート解除' : 'ミュート'}
           style={{
             background: 'transparent', border: 'none', cursor: 'pointer',
-            color: bgmMuted ? theme.error : theme.textSecondary,
+            color: bgmMuted ? theme.danger : theme.textSecondary,
             padding: '2px', display: 'flex', alignItems: 'center',
           }}
         >

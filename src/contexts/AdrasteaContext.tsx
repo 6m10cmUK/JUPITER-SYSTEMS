@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import type { User } from 'firebase/auth';
 import { type Model, type Layout } from 'flexlayout-react';
 import type { BoardHandle } from '../components/Adrastea/Board';
@@ -90,6 +90,7 @@ export interface AdrasteaContextValue {
   updateObject: (scope: BoardObjectScope, id: string, data: Partial<BoardObject>) => Promise<void>;
   removeObject: (scope: BoardObjectScope, id: string) => Promise<void>;
   reorderObjects: (scope: BoardObjectScope, orderedIds: string[]) => Promise<void>;
+  batchUpdateSort: (scope: BoardObjectScope, updates: { id: string; sort: number }[]) => Promise<void>;
 
   // --- useScenarioTexts ---
   scenarioTexts: ScenarioText[];
@@ -212,7 +213,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
   const {
     roomObjects, sceneObjects, mergedObjects, loading: objectsLoading,
-    addObject, updateObject, removeObject, reorderObjects,
+    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort,
   } = useObjects(roomId, room?.active_scene_id ?? null);
   const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
   const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
@@ -291,6 +292,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [localObjectOverrides, setLocalObjectOverrides] = useState<Map<string, Partial<BoardObject>>>(new Map());
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
+  // アンマウント時にデバウンスタイマーをクリア
+  useEffect(() => {
+    return () => {
+      for (const timer of debounceTimersRef.current.values()) clearTimeout(timer);
+      debounceTimersRef.current.clear();
+    };
+  }, []);
+
   // シーンオブジェクト(背景/前景)のimage_urlをSceneドキュメントに同期
   const syncObjectImageToScene = useCallback(async (objData: Partial<BoardObject>, objId: string | null) => {
     if (!room?.active_scene_id) return;
@@ -347,6 +356,25 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       });
     }
 
+    const clearLocalOverride = (e: PendingEdit) => {
+      if (!e.id) return;
+      if (e.type === 'scene') {
+        setLocalSceneOverrides(prev => {
+          if (!prev.has(e.id!)) return prev;
+          const next = new Map(prev);
+          next.delete(e.id!);
+          return next;
+        });
+      } else if (e.type === 'object') {
+        setLocalObjectOverrides(prev => {
+          if (!prev.has(e.id!)) return prev;
+          const next = new Map(prev);
+          next.delete(e.id!);
+          return next;
+        });
+      }
+    };
+
     // デバウンス付きDB保存
     const existing = debounceTimersRef.current.get(key);
     if (existing) clearTimeout(existing);
@@ -354,26 +382,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       debounceTimersRef.current.delete(key);
       try {
         await flushEdit(edit);
-        // flush成功後にローカルオーバーライドをクリア
-        if (edit.id) {
-          if (edit.type === 'scene') {
-            setLocalSceneOverrides(prev => {
-              if (!prev.has(edit.id!)) return prev;
-              const next = new Map(prev);
-              next.delete(edit.id!);
-              return next;
-            });
-          } else if (edit.type === 'object') {
-            setLocalObjectOverrides(prev => {
-              if (!prev.has(edit.id!)) return prev;
-              const next = new Map(prev);
-              next.delete(edit.id!);
-              return next;
-            });
-          }
-        }
+        clearLocalOverride(edit);
       } catch (err) {
         console.error('pendingEdit flush失敗:', err);
+        clearLocalOverride(edit);
       }
     }, 500));
   }, [flushEdit]);
@@ -495,7 +507,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // useObjects
       roomObjects, sceneObjects: effectiveSceneObjects, mergedObjects: effectiveMergedObjects,
-      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects,
+      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort,
 
       // useScenarioTexts
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
@@ -554,7 +566,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
       characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
       roomObjects, effectiveSceneObjects, effectiveMergedObjects,
-      addObject, syncedUpdateObject, removeObject, reorderObjects,
+      addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
       cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
       bgms, addBgm, updateBgm, removeBgm, reorderBgms,

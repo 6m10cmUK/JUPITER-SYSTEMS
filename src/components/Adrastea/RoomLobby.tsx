@@ -10,6 +10,7 @@ import { AdModal, AdInput, AdButton, AdTagInput } from './ui/AdComponents';
 import {
   DndContext,
   closestCenter,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -18,6 +19,7 @@ import {
 import {
   SortableContext,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
   arrayMove,
 } from '@dnd-kit/sortable';
@@ -469,7 +471,10 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   const [editDice, setEditDice] = useState('DiceBot');
   const [editTags, setEditTags] = useState<string[]>([]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
   // ダイスシステム id → name のマップ（O(1)参照用）
   const diceSystemNameMap = useMemo(() => new Map(diceSystems.map((s) => [s.id, s.name])), [diceSystems]);

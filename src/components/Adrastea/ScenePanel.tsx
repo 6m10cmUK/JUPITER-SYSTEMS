@@ -59,6 +59,8 @@ export function ScenePanel({
       headerActions={
         <button
           onClick={onAddScene}
+          aria-label="シーンを追加"
+          title="シーンを追加"
           style={{
             background: 'transparent',
             border: 'none',
@@ -160,8 +162,11 @@ export function ScenePanel({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (!window.confirm('このシーンを削除しますか？')) return;
                       onRemoveScene(scene.id);
                     }}
+                    aria-label="シーンを削除"
+                    title="シーンを削除"
                     style={{
                       background: 'transparent',
                       border: 'none',

@@ -41,6 +41,16 @@
   --ad-green-bg-subtle: rgba(166,227,161,0.12);
   --ad-green-border-subtle: rgba(166,227,161,0.25);
 
+  /* ボーダー（追加） */
+  --ad-border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* 背景（追加） */
+  --ad-bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* シャドウ */
+  --ad-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ad-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+
   /* ステータス */
   --ad-status-red: #e05555;
   --ad-status-blue: #4a90d9;

@@ -48,6 +48,7 @@ export function useAdrasteaChat(roomId: string) {
       const latestTs = await getLatestCachedTimestamp(roomId);
       const messagesRef = collection(db, 'rooms', roomId, 'messages');
 
+      let diffMessages: ChatMessage[] = [];
       if (latestTs > 0) {
         const diffQuery = query(
           messagesRef,
@@ -55,7 +56,7 @@ export function useAdrasteaChat(roomId: string) {
           orderBy('created_at', 'asc')
         );
         const diffSnap = await getDocs(diffQuery);
-        const diffMessages: ChatMessage[] = diffSnap.docs.map((d) => ({
+        diffMessages = diffSnap.docs.map((d) => ({
           id: d.id,
           ...d.data(),
         })) as ChatMessage[];
@@ -72,10 +73,13 @@ export function useAdrasteaChat(roomId: string) {
 
       setLoading(false);
 
-      // 3. リアルタイム監視（現在時刻以降の新着）
+      // 3. リアルタイム監視（差分取得済み or キャッシュ最新 or 現在時刻以降の新着）
+      const realtimeStartTs = diffMessages.length > 0
+        ? diffMessages[diffMessages.length - 1].created_at
+        : (latestTs > 0 ? latestTs : Date.now());
       const realtimeQuery = query(
         messagesRef,
-        where('created_at', '>', Date.now()),
+        where('created_at', '>', realtimeStartTs),
         orderBy('created_at', 'asc')
       );
 

@@ -87,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     await AuthService.signOut();
     setProfile(null);
+    setIsGuest(false);
   }, [isGuest]);
 
   const updateProfile = useCallback(async (data: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) => {

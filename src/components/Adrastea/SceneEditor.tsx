@@ -11,7 +11,7 @@ interface SceneEditorProps {
   onClose: () => void;
 }
 
-export function SceneEditor({ scene, roomId, onSave: _onSave, onClose: _onClose }: SceneEditorProps) {
+export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: _onClose }: SceneEditorProps) {
   const ctx = useAdrasteaContext();
   const [name, setName] = useState(scene?.name ?? '');
   const [bgTransition, setBgTransition] = useState(scene?.bg_transition ?? 'none');
@@ -38,7 +38,7 @@ export function SceneEditor({ scene, roomId, onSave: _onSave, onClose: _onClose 
         fg_transition_duration: fgTransitionDuration,
       },
     });
-  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration]);
+  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, ctx.setPendingEdit, scene?.id]);
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,

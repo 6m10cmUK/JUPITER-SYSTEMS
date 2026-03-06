@@ -2,6 +2,7 @@ import React from 'react';
 import {
   DndContext,
   closestCenter,
+  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
@@ -10,6 +11,7 @@ import {
 } from '@dnd-kit/core';
 import {
   SortableContext,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
@@ -44,7 +46,8 @@ export function SortableListPanel({
   children,
 }: SortableListPanelProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const hasItems = items.length > 0;
@@ -159,11 +162,11 @@ export function SortableListItem({
     fontSize: '12px',
     color: theme.textPrimary,
     borderBottom: `1px solid ${theme.border}`,
-    background: isSelected ? 'rgba(137,180,250,0.15)' : 'transparent',
+    background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : isGroupDrag ? 0.4 : 1,
-    boxShadow: isDragging ? '0 2px 8px rgba(0,0,0,0.3)' : undefined,
+    boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
   };

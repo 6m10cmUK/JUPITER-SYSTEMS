@@ -61,7 +61,7 @@ const ObjectImage = memo(function ObjectImage({
     img.onload = () => setImage(img);
     img.onerror = () => setImage(null);
     img.src = url;
-    return () => { img.onload = null; };
+    return () => { img.onload = null; img.onerror = null; };
   }, [url]);
 
   if (!image) return null;
@@ -440,7 +440,7 @@ const ForegroundObject = memo(function ForegroundObject({
       node.opacity(0);
       node.to({ opacity: obj.opacity, duration: fadeIn.duration / 1000 });
     }
-  }, []);
+  }, [fadeIn, obj.opacity]);
 
   return (
     <Group
@@ -484,6 +484,8 @@ export const ObjectOverlay = memo(function ObjectOverlay({
             return <TextObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} onResize={(obj.auto_size || obj.size_locked) ? undefined : onResizeObject} />;
           case 'foreground':
             return <ForegroundObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} fadeIn={activeScene?.fg_transition === 'fade' ? { duration: activeScene.fg_transition_duration } : undefined} />;
+          default:
+            return null;
         }
       })}
     </>

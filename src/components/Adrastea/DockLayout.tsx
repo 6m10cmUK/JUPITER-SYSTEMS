@@ -18,6 +18,7 @@ import '../../styles/flexlayout-catppuccin.css';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { panelComponents } from './dock-panels/sharedComponents';
 import { BgmEngine } from './BgmEngine';
+import { ErrorBoundary } from './ui/ErrorBoundary';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -103,7 +104,7 @@ function factory(node: TabNode) {
   if (!component) return null;
 
   const Component = panelComponents[component];
-  return Component ? <Component /> : <div>Unknown: {component}</div>;
+  return Component ? <ErrorBoundary><Component /></ErrorBoundary> : <div>Unknown: {component}</div>;
 }
 
 /* ── フローティングパネル ── */
@@ -199,7 +200,7 @@ function FloatingPanelWindow({
         flexDirection: 'column',
         background: theme.bgBase,
         border: `1px solid ${theme.border}`,
-        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+        boxShadow: theme.shadowMd,
       }}
       onMouseDown={() => onFocus(panel.id)}
     >
@@ -260,7 +261,7 @@ function FloatingPanelWindow({
       {/* コンテンツ */}
       {!panel.minimized && (
         <div style={{ flex: 1, overflow: 'auto', position: 'relative' }}>
-          {Component ? <Component /> : <div>Unknown: {panel.component}</div>}
+          {Component ? <ErrorBoundary><Component /></ErrorBoundary> : <div>Unknown: {panel.component}</div>}
         </div>
       )}
       {/* リサイズハンドル */}

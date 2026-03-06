@@ -170,7 +170,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             alignItems: 'flex-start',
             gap: '6px',
             padding: '4px 0',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
+            borderBottom: `1px solid ${theme.borderSubtle}`,
           }}
         >
           <Avatar src={msg.sender_avatar} name={msg.sender_name} />
@@ -199,7 +199,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           alignItems: 'flex-start',
           gap: '6px',
           padding: '4px 0',
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
+          borderBottom: `1px solid ${theme.borderSubtle}`,
         }}
       >
         <Avatar src={msg.sender_avatar} name={msg.sender_name} />
@@ -368,7 +368,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {DICE_BUTTONS.map((dice) => (
             <button
               key={dice.label}
-              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice')}
+              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter?.image_url)}
               style={{
                 padding: '2px 6px',
                 borderRadius: 0,
@@ -392,7 +392,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
             placeholder="メッセージ（/2d6 でダイス）"
             style={{
               flex: 1,

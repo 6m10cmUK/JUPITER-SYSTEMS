@@ -14,6 +14,7 @@ export const theme = {
   bgToolbar: 'var(--ad-bg-toolbar)',     // ツールバー背景
   bgInput: 'var(--ad-bg-input)',         // 入力フィールド背景
   bgOverlay: 'var(--ad-bg-overlay)',     // モーダルオーバーレイ背景
+  bgHover: 'var(--ad-bg-hover)',         // ホバー背景
 
   // ── テキスト ──
   textPrimary: 'var(--ad-text-primary)',     // 主テキスト
@@ -24,6 +25,7 @@ export const theme = {
   // ── ボーダー ──
   border: 'var(--ad-border)',               // 標準ボーダー
   borderInput: 'var(--ad-border-input)',     // 入力フィールドボーダー
+  borderSubtle: 'var(--ad-border-subtle)',   // 薄いセパレーター
 
   // ── アクセント ──
   accent: 'var(--ad-accent)',               // プライマリアクセント（青）
@@ -50,6 +52,10 @@ export const theme = {
   statusBlue: 'var(--ad-status-blue)',
   statusGreen: 'var(--ad-status-green)',
   statusYellow: 'var(--ad-status-yellow)',
+
+  // ── シャドウ ──
+  shadowSm: 'var(--ad-shadow-sm)',             // 小さいシャドウ
+  shadowMd: 'var(--ad-shadow-md)',             // 中シャドウ
 } as const;
 
 export type ThemeTokens = typeof theme;

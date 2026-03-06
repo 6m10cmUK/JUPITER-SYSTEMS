@@ -132,7 +132,7 @@ function BgmTrackRow({
 
           {/* Delete */}
           <button
-            style={{ ...iconBtn, color: theme.error }}
+            style={{ ...iconBtn, color: theme.danger }}
             onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
             title="削除"
           >
@@ -145,7 +145,7 @@ function BgmTrackRow({
           <button
             style={{
               ...iconBtn,
-              color: localMuted ? theme.error : theme.textSecondary,
+              color: localMuted ? theme.danger : theme.textSecondary,
             }}
             onClick={(e) => {
               e.stopPropagation();
@@ -174,7 +174,7 @@ function BgmTrackRow({
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, roomId, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
 
   // 現在のシーンに属するBGMのみ表示
   const currentSceneId = activeScene?.id ?? '';
