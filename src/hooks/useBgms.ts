@@ -37,13 +37,16 @@ const mapDoc = (d: { id: string; data: () => any }): BgmTrack => {
 
 export function useBgms(roomId: string) {
   const [bgms, setBgms] = useState<BgmTrack[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!roomId) {
       setBgms([]);
+      setLoading(false);
       return;
     }
 
+    setLoading(true);
     const q = query(
       collection(db, 'rooms', roomId, 'bgms'),
       orderBy('sort_order', 'asc')
@@ -53,9 +56,11 @@ export function useBgms(roomId: string) {
       q,
       (snapshot) => {
         setBgms(snapshot.docs.map(mapDoc));
+        setLoading(false);
       },
       (error) => {
         console.error('BGMの監視に失敗:', error);
+        setLoading(false);
       }
     );
 
@@ -123,5 +128,5 @@ export function useBgms(roomId: string) {
     [roomId]
   );
 
-  return { bgms, addBgm, updateBgm, removeBgm, reorderBgms };
+  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms };
 }

@@ -76,7 +76,7 @@ interface AdButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-export function AdButton({ variant = 'default', fullWidth, children, style, ...props }: AdButtonProps) {
+export function AdButton({ variant = 'default', fullWidth, children, style, className, ...props }: AdButtonProps) {
   const bg = variant === 'primary' ? theme.accent
     : variant === 'danger' ? 'transparent'
     : theme.bgInput;
@@ -88,6 +88,7 @@ export function AdButton({ variant = 'default', fullWidth, children, style, ...p
   return (
     <button
       {...props}
+      className={`ad-btn ${className ?? ''}`}
       style={{
         height: HEIGHT,
         padding: '0 10px',
@@ -625,6 +626,226 @@ interface AdToggleButtonsProps<T extends string | null> {
   onChange: (value: T) => void;
 }
 
+// ── AdTagInput（候補ドロップダウン付きタグ入力） ──
+interface AdTagInputProps {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  existingTags?: string[];
+}
+
+export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProps) {
+  const [input, setInput] = useState('');
+  const [highlightIndex, setHighlightIndex] = useState(0);
+  const composingRef = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [dropOpen, setDropOpen] = useState(false);
+
+  // 既に選択済みのタグを除外した候補（入力に近いもの優先、最大5件）
+  const suggestions = React.useMemo(() => {
+    const excluded = new Set(tags);
+    const available = existingTags.filter((t) => !excluded.has(t));
+    const q = input.trim().toLowerCase();
+    if (!q) return available.slice(0, 5);
+    return available.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
+  }, [existingTags, tags, input]);
+
+  // 外側クリックで閉じる
+  useEffect(() => {
+    if (!dropOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        wrapRef.current && !wrapRef.current.contains(e.target as Node) &&
+        dropRef.current && !dropRef.current.contains(e.target as Node)
+      ) {
+        setDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [dropOpen]);
+
+  useEffect(() => {
+    setHighlightIndex(0);
+  }, [input]);
+
+  useEffect(() => {
+    if (!listRef.current) return;
+    const el = listRef.current.children[highlightIndex] as HTMLElement | undefined;
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [highlightIndex]);
+
+  const addTag = (tag: string) => {
+    const t = tag.trim();
+    if (t && !tags.includes(t)) {
+      onChange([...tags, t]);
+    }
+    setInput('');
+    setDropOpen(false);
+  };
+
+  const getDropPos = () => {
+    if (!wrapRef.current) return { top: 0, left: 0, width: 0 };
+    const rect = wrapRef.current.getBoundingClientRect();
+    return { top: rect.bottom, left: rect.left, width: rect.width };
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (composingRef.current) return;
+    if (dropOpen && suggestions.length > 0) {
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setHighlightIndex((i) => Math.min(i + 1, suggestions.length - 1));
+          return;
+        case 'ArrowUp':
+          e.preventDefault();
+          setHighlightIndex((i) => Math.max(i - 1, 0));
+          return;
+        case 'Enter':
+          e.preventDefault();
+          addTag(suggestions[highlightIndex]);
+          return;
+        case 'Escape':
+          setDropOpen(false);
+          return;
+      }
+    }
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (input.trim()) addTag(input);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>タグ</label>
+      {tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '2px',
+                padding: '1px 6px',
+                fontSize: '11px',
+                background: theme.accentBgSubtle,
+                color: theme.accent,
+                border: `1px solid ${theme.accentBorderSubtle}`,
+              }}
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => onChange(tags.filter((t) => t !== tag))}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.textMuted,
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: '11px',
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div ref={wrapRef} style={{ display: 'flex', gap: '4px' }}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setDropOpen(true);
+          }}
+          onFocus={() => setDropOpen(true)}
+          onCompositionStart={() => { composingRef.current = true; }}
+          onCompositionEnd={() => { composingRef.current = false; }}
+          onKeyDown={handleKeyDown}
+          placeholder="タグを入力"
+          style={{
+            flex: 1,
+            height: HEIGHT,
+            padding: PADDING,
+            fontSize: FONT_SIZE,
+            background: theme.bgInput,
+            border: `1px solid ${theme.borderInput}`,
+            borderRadius: 0,
+            color: theme.textPrimary,
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+        <button
+          className="ad-btn"
+          type="button"
+          onClick={() => { if (input.trim()) addTag(input); }}
+          disabled={!input.trim()}
+          style={{
+            height: HEIGHT,
+            padding: '0 8px',
+            fontSize: FONT_SIZE,
+            background: input.trim() ? theme.accent : theme.bgInput,
+            color: input.trim() ? theme.textOnAccent : theme.textMuted,
+            border: 'none',
+            borderRadius: 0,
+            cursor: input.trim() ? 'pointer' : 'not-allowed',
+          }}
+        >
+          追加
+        </button>
+      </div>
+      {dropOpen && suggestions.length > 0 && createPortal(
+        <div
+          ref={dropRef}
+          className="adrastea-root"
+          style={{
+            position: 'fixed',
+            top: getDropPos().top,
+            left: getDropPos().left,
+            width: getDropPos().width,
+            zIndex: 9999,
+            background: theme.bgSurface,
+            border: `1px solid ${theme.border}`,
+            maxHeight: '150px',
+            overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div ref={listRef}>
+            {suggestions.map((tag, i) => (
+              <div
+                key={tag}
+                onClick={() => addTag(tag)}
+                onMouseEnter={() => setHighlightIndex(i)}
+                style={{
+                  padding: '4px 8px',
+                  fontSize: FONT_SIZE,
+                  cursor: 'pointer',
+                  background: i === highlightIndex ? theme.accentHighlight : 'transparent',
+                  color: theme.textPrimary,
+                }}
+              >
+                {tag}
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 export function AdToggleButtons<T extends string | null>({ label, value, options, onChange }: AdToggleButtonsProps<T>) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
@@ -632,6 +853,7 @@ export function AdToggleButtons<T extends string | null>({ label, value, options
       <div style={{ display: 'flex', gap: '2px' }}>
         {options.map((opt) => (
           <button
+            className="ad-btn"
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
             style={{

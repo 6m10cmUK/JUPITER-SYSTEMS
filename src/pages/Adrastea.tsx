@@ -1,5 +1,7 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
@@ -9,6 +11,38 @@ import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../styles/theme';
+
+/** 共通ローディング画面 */
+function LoadingScreen({ progress, statusText }: { progress: number; statusText: string }) {
+  return (
+    <div
+      className="adrastea-root"
+      style={{
+        position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        background: theme.bgBase, color: theme.textPrimary,
+      }}
+    >
+      <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '24px', letterSpacing: '0.05em' }}>
+        Adrastea
+      </div>
+      <div style={{
+        width: '240px', height: '4px', background: theme.border, borderRadius: '2px', overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${progress * 100}%`, height: '100%',
+          background: theme.accent, borderRadius: '2px',
+          transition: 'width 0.3s ease',
+        }} />
+      </div>
+      <div style={{
+        marginTop: '12px', fontSize: '0.8rem', color: theme.textSecondary,
+      }}>
+        {statusText}
+      </div>
+    </div>
+  );
+}
 
 /** Dockview + オーバーレイ */
 function AdrasteaRoom() {
@@ -20,6 +54,20 @@ function AdrasteaRoom() {
     const py = center.y * 50;
     ctx.addPiece(label, color, px, py);
   }, [ctx.getBoardCenter, ctx.addPiece]);
+
+  // ローディング画面（認証ステップ完了済み + データ読み込み中）
+  if (ctx.isLoading) {
+    // 認証分(1) + データステップ分 で全体進捗を計算
+    const totalSteps = ctx.loadingSteps.length + 1;
+    const doneSteps = 1 + ctx.loadingSteps.filter(s => s.done).length; // 認証は完了済み
+    const currentStep = ctx.loadingSteps.find(s => !s.done);
+    return (
+      <LoadingScreen
+        progress={doneSteps / totalSteps}
+        statusText={currentStep ? `${currentStep.label}を読み込み中...` : '読み込み中...'}
+      />
+    );
+  }
 
   return (
     <div
@@ -106,21 +154,40 @@ const Adrastea: React.FC = () => {
   const navigate = useNavigate();
   const { user, isGuest, loading: authLoading, signIn, signInAsGuest } = useAuth();
   const [guestNameInput, setGuestNameInput] = useState('');
+  const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
+
+  // ルームのオーナーチェック
+  useEffect(() => {
+    if (!roomId || !user) {
+      setOwnerCheck('loading');
+      return;
+    }
+    getDoc(doc(db, 'rooms', roomId)).then((snap) => {
+      if (!snap.exists()) {
+        setOwnerCheck('denied');
+        return;
+      }
+      const ownerUid = snap.data()?.owner_uid;
+      setOwnerCheck(ownerUid === user.uid ? 'ok' : 'denied');
+    }).catch((err) => {
+      const code = (err as { code?: string }).code;
+      if (code === 'permission-denied' || code === 'not-found') {
+        setOwnerCheck('denied');
+      } else {
+        // ネットワークエラー等 → リトライ可能にするためloadingのまま維持せず denied で表示
+        console.error('ルーム確認に失敗:', err);
+        setOwnerCheck('denied');
+      }
+    });
+  }, [roomId, user]);
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
   };
 
-  // 認証ローディング
+  // 認証ローディング（全体の最初のステップ）
   if (authLoading) {
-    return (
-      <div style={{
-        position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: theme.bgBase, color: theme.textPrimary, fontSize: '1rem',
-      }}>
-        読み込み中...
-      </div>
-    );
+    return <LoadingScreen progress={0} statusText="認証を確認中..." />;
   }
 
   // 未認証 → ログイン画面
@@ -213,6 +280,47 @@ const Adrastea: React.FC = () => {
   // ルーム未選択 → ロビー
   if (!roomId) {
     return <RoomLobby onRoomCreated={handleRoomCreated} />;
+  }
+
+  // オーナーチェック中
+  if (ownerCheck === 'loading') {
+    return <LoadingScreen progress={0.5} statusText="ルームを確認中..." />;
+  }
+
+  // オーナーでない → アクセス拒否
+  if (ownerCheck === 'denied') {
+    return (
+      <div
+        className="adrastea-root"
+        style={{
+          position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: theme.bgBase, color: theme.textPrimary,
+        }}
+      >
+        <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '16px' }}>
+          アクセス拒否
+        </div>
+        <div style={{ fontSize: '0.9rem', color: theme.textSecondary, marginBottom: '24px' }}>
+          このルームにアクセスする権限がありません
+        </div>
+        <button
+          onClick={() => navigate('/adrastea')}
+          style={{
+            padding: '8px 20px',
+            background: theme.accent,
+            color: theme.textOnAccent,
+            border: 'none',
+            borderRadius: 0,
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          ロビーに戻る
+        </button>
+      </div>
+    );
   }
 
   return (
