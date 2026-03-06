@@ -155,20 +155,31 @@ const Adrastea: React.FC = () => {
   const { user, isGuest, loading: authLoading, signIn, signInAsGuest } = useAuth();
   const [guestNameInput, setGuestNameInput] = useState('');
   const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
+  const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
 
-  // ルーム存在チェック（誰でも入室可、権限制御は後で実装）
+  // ルーム存在チェック & オーナーUID取得
   useEffect(() => {
     if (!roomId || (!user && !isGuest)) {
       setOwnerCheck('loading');
       return;
     }
     getDoc(doc(db, 'rooms', roomId)).then((snap) => {
-      setOwnerCheck(snap.exists() ? 'ok' : 'denied');
+      if (snap.exists()) {
+        setRoomOwnerUid(snap.data()?.owner_uid ?? null);
+        setOwnerCheck('ok');
+      } else {
+        setOwnerCheck('denied');
+      }
     }).catch((err) => {
       console.error('ルーム確認に失敗:', err);
       setOwnerCheck('denied');
     });
   }, [roomId, user, isGuest]);
+
+  // ロール判定: guest > owner > user
+  const roomRole = isGuest ? 'guest' as const
+    : (user && roomOwnerUid === user.uid) ? 'owner' as const
+    : 'user' as const;
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
@@ -313,7 +324,7 @@ const Adrastea: React.FC = () => {
   }
 
   return (
-    <AdrasteaProvider roomId={roomId}>
+    <AdrasteaProvider roomId={roomId} roomRole={roomRole}>
       <AdrasteaRoom />
     </AdrasteaProvider>
   );
