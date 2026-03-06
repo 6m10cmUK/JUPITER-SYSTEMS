@@ -7,6 +7,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   orderBy,
 } from 'firebase/firestore';
@@ -116,5 +117,20 @@ export function useCutins(roomId: string) {
     [roomId]
   );
 
-  return { cutins, loading, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin };
+  const reorderCutins = useCallback(
+    async (orderedIds: string[]) => {
+      if (!roomId) return;
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(doc(db, 'rooms', roomId, 'cutins', id), {
+          sort_order: index,
+          updated_at: Date.now(),
+        });
+      });
+      await batch.commit();
+    },
+    [roomId]
+  );
+
+  return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin };
 }

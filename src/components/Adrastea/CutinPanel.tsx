@@ -1,5 +1,9 @@
+import { useCallback } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Cutin } from '../../types/adrastea.types';
+import { SortableListPanel, SortableListItem } from './ui';
 
 interface CutinPanelProps {
   cutins: Cutin[];
@@ -7,42 +11,34 @@ interface CutinPanelProps {
   onAdd: () => void;
   onEdit: (cutin: Cutin) => void;
   onRemove: (cutinId: string) => void;
+  onReorderCutins?: (orderedIds: string[]) => void;
   onClose: () => void;
 }
 
-export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose }: CutinPanelProps) {
-  const animLabel = (anim: string) => {
-    switch (anim) {
-      case 'slide': return 'スライド';
-      case 'fade': return 'フェード';
-      case 'zoom': return 'ズーム';
-      default: return anim;
-    }
-  };
+const animLabel = (anim: string) => {
+  switch (anim) {
+    case 'slide': return 'スライド';
+    case 'fade': return 'フェード';
+    case 'zoom': return 'ズーム';
+    default: return anim;
+  }
+};
+
+export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onReorderCutins, onClose }: CutinPanelProps) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderCutins) return;
+    const oldIndex = cutins.findIndex(c => c.id === active.id);
+    const newIndex = cutins.findIndex(c => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(cutins, oldIndex, newIndex);
+    onReorderCutins(reordered.map(c => c.id));
+  }, [cutins, onReorderCutins]);
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: theme.bgSurface,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: `1px solid ${theme.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span style={{ color: theme.textPrimary, fontWeight: 600, fontSize: '0.9rem' }}>
-          カットイン
-        </span>
+    <SortableListPanel
+      title="カットイン"
+      headerActions={
         <button
           onClick={onClose}
           style={{
@@ -56,25 +52,32 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose
         >
           x
         </button>
-      </div>
-
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-        {cutins.length === 0 && (
-          <div style={{ color: theme.textMuted, fontSize: '0.8rem', textAlign: 'center', padding: '16px' }}>
-            カットインがありません
-          </div>
-        )}
-        {cutins.map((cutin) => (
-          <div
-            key={cutin.id}
-            style={{
-              marginBottom: '6px',
-              padding: '8px 10px',
-              border: `1px solid ${theme.border}`,
-              borderRadius: 0,
-              background: theme.bgToolbar,
-            }}
-          >
+      }
+      footerActions={
+        <button
+          onClick={onAdd}
+          style={{
+            width: '100%',
+            padding: '8px',
+            background: theme.accent,
+            color: theme.textOnAccent,
+            border: 'none',
+            borderRadius: 0,
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+          }}
+        >
+          + カットイン追加
+        </button>
+      }
+      items={cutins}
+      onDragEnd={handleDragEnd}
+      emptyMessage="カットインがありません"
+    >
+      {cutins.map((cutin) => (
+        <SortableListItem key={cutin.id} id={cutin.id}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               {cutin.image_url ? (
                 <img
@@ -104,7 +107,7 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose
 
             <div style={{ display: 'flex', gap: '4px' }}>
               <button
-                onClick={() => onTrigger(cutin.id)}
+                onClick={(e) => { e.stopPropagation(); onTrigger(cutin.id); }}
                 style={{
                   flex: 1,
                   padding: '4px 8px',
@@ -120,7 +123,7 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose
                 再生
               </button>
               <button
-                onClick={() => onEdit(cutin)}
+                onClick={(e) => { e.stopPropagation(); onEdit(cutin); }}
                 style={{
                   padding: '4px 8px',
                   background: theme.bgInput,
@@ -134,7 +137,7 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose
                 編集
               </button>
               <button
-                onClick={() => onRemove(cutin.id)}
+                onClick={(e) => { e.stopPropagation(); onRemove(cutin.id); }}
                 style={{
                   padding: '4px 8px',
                   background: 'transparent',
@@ -149,27 +152,8 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onClose
               </button>
             </div>
           </div>
-        ))}
-      </div>
-
-      <div style={{ padding: '8px 12px', borderTop: `1px solid ${theme.border}` }}>
-        <button
-          onClick={onAdd}
-          style={{
-            width: '100%',
-            padding: '8px',
-            background: theme.accent,
-            color: theme.textOnAccent,
-            border: 'none',
-            borderRadius: 0,
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
-        >
-          + カットイン追加
-        </button>
-      </div>
-    </div>
+        </SortableListItem>
+      ))}
+    </SortableListPanel>
   );
 }

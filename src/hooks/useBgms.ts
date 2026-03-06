@@ -22,7 +22,10 @@ const mapDoc = (d: { id: string; data: () => any }): BgmTrack => {
     bgm_source: data.bgm_source ?? null,
     bgm_volume: data.bgm_volume ?? 0.5,
     bgm_loop: data.bgm_loop ?? true,
+    scene_ids: data.scene_ids ?? [],
     is_playing: data.is_playing ?? false,
+    is_paused: data.is_paused ?? false,
+    auto_play_scene_ids: data.auto_play_scene_ids ?? [],
     fade_in: data.fade_in ?? true,
     fade_out: data.fade_out ?? true,
     fade_duration: data.fade_duration ?? 500,
@@ -32,17 +35,17 @@ const mapDoc = (d: { id: string; data: () => any }): BgmTrack => {
   };
 };
 
-export function useBgms(roomId: string, activeSceneId: string | null) {
+export function useBgms(roomId: string) {
   const [bgms, setBgms] = useState<BgmTrack[]>([]);
 
   useEffect(() => {
-    if (!roomId || !activeSceneId) {
+    if (!roomId) {
       setBgms([]);
       return;
     }
 
     const q = query(
-      collection(db, 'rooms', roomId, 'scenes', activeSceneId, 'bgms'),
+      collection(db, 'rooms', roomId, 'bgms'),
       orderBy('sort_order', 'asc')
     );
 
@@ -57,19 +60,22 @@ export function useBgms(roomId: string, activeSceneId: string | null) {
     );
 
     return () => unsubscribe();
-  }, [roomId, activeSceneId]);
+  }, [roomId]);
 
   const addBgm = useCallback(
     async (data: Partial<Omit<BgmTrack, 'id'>>) => {
-      if (!roomId || !activeSceneId) throw new Error('roomId and activeSceneId required');
-      const colRef = collection(db, 'rooms', roomId, 'scenes', activeSceneId, 'bgms');
+      if (!roomId) throw new Error('roomId required');
+      const colRef = collection(db, 'rooms', roomId, 'bgms');
       const docRef = await addDoc(colRef, {
         name: data.name ?? '新規BGM',
         bgm_type: data.bgm_type ?? null,
         bgm_source: data.bgm_source ?? null,
         bgm_volume: data.bgm_volume ?? 0.5,
         bgm_loop: data.bgm_loop ?? true,
+        scene_ids: data.scene_ids ?? [],
         is_playing: data.is_playing ?? false,
+        is_paused: data.is_paused ?? false,
+        auto_play_scene_ids: data.auto_play_scene_ids ?? [],
         fade_in: data.fade_in ?? true,
         fade_out: data.fade_out ?? true,
         fade_duration: data.fade_duration ?? 500,
@@ -79,42 +85,42 @@ export function useBgms(roomId: string, activeSceneId: string | null) {
       });
       return docRef.id;
     },
-    [roomId, activeSceneId, bgms.length]
+    [roomId, bgms.length]
   );
 
   const updateBgm = useCallback(
     async (id: string, updates: Partial<BgmTrack>) => {
-      if (!roomId || !activeSceneId) return;
+      if (!roomId) return;
       const { id: _id, created_at: _ca, ...data } = updates as any;
-      await updateDoc(doc(db, 'rooms', roomId, 'scenes', activeSceneId, 'bgms', id), {
+      await updateDoc(doc(db, 'rooms', roomId, 'bgms', id), {
         ...data,
         updated_at: Date.now(),
       });
     },
-    [roomId, activeSceneId]
+    [roomId]
   );
 
   const removeBgm = useCallback(
     async (id: string) => {
-      if (!roomId || !activeSceneId) return;
-      await deleteDoc(doc(db, 'rooms', roomId, 'scenes', activeSceneId, 'bgms', id));
+      if (!roomId) return;
+      await deleteDoc(doc(db, 'rooms', roomId, 'bgms', id));
     },
-    [roomId, activeSceneId]
+    [roomId]
   );
 
   const reorderBgms = useCallback(
     async (orderedIds: string[]) => {
-      if (!roomId || !activeSceneId) return;
+      if (!roomId) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
-        batch.update(doc(db, 'rooms', roomId, 'scenes', activeSceneId, 'bgms', id), {
+        batch.update(doc(db, 'rooms', roomId, 'bgms', id), {
           sort_order: index,
           updated_at: Date.now(),
         });
       });
       await batch.commit();
     },
-    [roomId, activeSceneId]
+    [roomId]
   );
 
   return { bgms, addBgm, updateBgm, removeBgm, reorderBgms };

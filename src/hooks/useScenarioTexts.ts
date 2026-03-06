@@ -7,6 +7,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   orderBy,
 } from 'firebase/firestore';
@@ -88,5 +89,20 @@ export function useScenarioTexts(roomId: string) {
     [roomId]
   );
 
-  return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText };
+  const reorderScenarioTexts = useCallback(
+    async (orderedIds: string[]) => {
+      if (!roomId) return;
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(doc(db, 'rooms', roomId, 'scenario_texts', id), {
+          sort_order: index,
+          updated_at: Date.now(),
+        });
+      });
+      await batch.commit();
+    },
+    [roomId]
+  );
+
+  return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts };
 }

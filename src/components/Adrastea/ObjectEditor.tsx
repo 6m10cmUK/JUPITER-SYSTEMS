@@ -3,7 +3,20 @@ import type { BoardObject, BoardObjectType, BoardObjectScope } from '../../types
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import { AdInput, AdTextArea, AdButton, AdSection, AdSlider, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
+import { AdInput, AdTextArea, AdButton, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
+
+const FONT_OPTIONS = [
+  { value: 'sans-serif', label: 'ゴシック体' },
+  { value: 'serif', label: '明朝体' },
+  { value: '"Noto Sans JP", sans-serif', label: 'Noto Sans JP' },
+  { value: '"Noto Serif JP", serif', label: 'Noto Serif JP' },
+  { value: 'monospace', label: '等幅' },
+  { value: '"M PLUS Rounded 1c", sans-serif', label: 'M PLUS Rounded' },
+  { value: '"Zen Maru Gothic", sans-serif', label: 'Zen 丸ゴシック' },
+  { value: '"Kosugi Maru", sans-serif', label: '小杉丸ゴシック' },
+  { value: 'cursive', label: '筆記体' },
+  { value: 'fantasy', label: 'ファンタジー' },
+];
 
 interface ObjectEditorProps {
   object?: BoardObject | null;
@@ -19,17 +32,36 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   const [type, setType] = useState<BoardObjectType>(object?.type ?? defaultType ?? 'panel');
   const [name, setName] = useState(object?.name ?? '');
   const [imageUrl, setImageUrl] = useState(object?.image_url ?? '');
-  const [backgroundColor, setBackgroundColor] = useState(object?.background_color ?? 'transparent');
+  const [backgroundColor, setBackgroundColor] = useState(() => {
+    const c = object?.background_color;
+    return c && c !== 'transparent' ? c : '#1e1e2e';
+  });
+  const [bgEnabled, setBgEnabled] = useState(
+    !!object?.background_color && object.background_color !== 'transparent'
+  );
   const [textContent, setTextContent] = useState(object?.text_content ?? '');
   const [fontSize, setFontSize] = useState(object?.font_size ?? 16);
+  const [fontFamily, setFontFamily] = useState(object?.font_family ?? 'sans-serif');
+  const [letterSpacing, setLetterSpacing] = useState(object?.letter_spacing ?? 0);
+  const [lineHeight, setLineHeight] = useState(object?.line_height ?? 1.2);
+  const [autoSize, setAutoSize] = useState(object?.auto_size ?? true);
+  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(object?.text_align ?? 'left');
+  const [textVerticalAlign, setTextVerticalAlign] = useState<'top' | 'middle' | 'bottom'>(object?.text_vertical_align ?? 'top');
   const [textColor, setTextColor] = useState(object?.text_color ?? '#ffffff');
   const [width, setWidth] = useState(object?.width ?? 4);
   const [height, setHeight] = useState(object?.height ?? 4);
   const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'cover');
+  const [positionLocked, setPositionLocked] = useState(object?.position_locked ?? false);
+  const [sizeLocked, setSizeLocked] = useState(object?.size_locked ?? false);
   const [opacity, _setOpacity] = useState(object?.opacity ?? 1);
   const [visible, _setVisible] = useState(object?.visible ?? true);
 
-  // 外部からの変更（画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
+  // 外部からの変更（レイヤーパネルでのリネーム、画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
+  useEffect(() => {
+    if (object && object.name !== undefined) {
+      setName(object.name);
+    }
+  }, [object?.name]);
   useEffect(() => {
     if (object && object.image_url !== undefined) {
       setImageUrl(object.image_url ?? '');
@@ -59,17 +91,27 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
     };
     if (type === 'panel') {
       data.image_url = imageUrl || null;
-      data.background_color = backgroundColor;
+      data.background_color = bgEnabled ? backgroundColor : 'transparent';
       data.width = width;
       data.height = height;
       data.image_fit = imageFit;
+      data.position_locked = positionLocked;
+      data.size_locked = sizeLocked;
     } else if (type === 'text') {
       data.text_content = textContent;
       data.font_size = fontSize;
+      data.font_family = fontFamily;
+      data.letter_spacing = letterSpacing;
+      data.line_height = lineHeight;
+      data.auto_size = autoSize;
+      data.text_align = textAlign;
+      data.text_vertical_align = textVerticalAlign;
       data.text_color = textColor;
-      data.background_color = backgroundColor;
+      data.background_color = bgEnabled ? backgroundColor : 'transparent';
       data.width = width;
       data.height = height;
+      data.position_locked = positionLocked;
+      data.size_locked = sizeLocked;
     } else if (type === 'foreground') {
       data.image_url = imageUrl || null;
       data.width = width;
@@ -86,7 +128,7 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
       data,
       scope: _scope,
     });
-  }, [type, name, imageUrl, backgroundColor, textContent, fontSize, textColor, width, height, imageFit, opacity, visible]);
+  }, [type, name, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
 
   if (object === undefined) return null;
 
@@ -171,16 +213,21 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                   <AdCheckbox
                     checked={imageFit === 'cover'}
                     onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
-                    label="トリミング（比率を維持して切り抜き）"
+                    label="トリミング"
                   />
                 </AdSection>
               )}
               <AdSection label="背景色">
-                <AdInput
-                  value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
-                  placeholder="transparent"
+                <AdCheckbox
+                  checked={bgEnabled}
+                  onChange={setBgEnabled}
+                  label="背景色を使用"
                 />
+                {bgEnabled && (
+                  <div style={{ marginTop: '6px' }}>
+                    <AdColorPicker value={backgroundColor} onChange={setBackgroundColor} enableAlpha />
+                  </div>
+                )}
               </AdSection>
               <AdSection label="サイズ">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -201,6 +248,10 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                     inputWidth="52px"
                   />
                 </div>
+              </AdSection>
+              <AdSection label="ロック">
+                <AdCheckbox checked={positionLocked} onChange={setPositionLocked} label="位置を固定" />
+                <AdCheckbox checked={sizeLocked} onChange={setSizeLocked} label="サイズを固定" />
               </AdSection>
             </>
           )}
@@ -216,45 +267,135 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                   rows={3}
                 />
               </AdSection>
+              <AdSection label="フォント">
+                <select
+                  value={fontFamily}
+                  onChange={(e) => setFontFamily(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '24px',
+                    padding: '2px 6px',
+                    fontSize: '12px',
+                    background: theme.bgInput,
+                    border: `1px solid ${theme.borderInput}`,
+                    borderRadius: 0,
+                    color: theme.textPrimary,
+                    outline: 'none',
+                    boxSizing: 'border-box',
+                    fontFamily: fontFamily,
+                  }}
+                >
+                  {FONT_OPTIONS.map(f => (
+                    <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </AdSection>
               <AdSection label="フォントサイズ">
-                <AdSlider
-                  min={8}
-                  max={72}
-                  step={1}
-                  value={fontSize}
-                  onChange={setFontSize}
-                  displayValue={`${fontSize}px`}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <AdInput
+                    type="number"
+                    value={String(fontSize)}
+                    onChange={(e) => setFontSize(Math.max(1, Number(e.target.value)))}
+                    fullWidth={false}
+                    inputWidth="64px"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>px</span>
+                </div>
+              </AdSection>
+              <AdSection label="間隔">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>文字:</span>
+                  <AdInput
+                    type="number"
+                    value={String(letterSpacing)}
+                    onChange={(e) => setLetterSpacing(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>px</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>行:</span>
+                  <AdInput
+                    type="number"
+                    value={String(lineHeight)}
+                    onChange={(e) => setLineHeight(Math.max(0.5, Number(e.target.value)))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                    step="0.1"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>倍</span>
+                </div>
+              </AdSection>
+              <AdSection label="配置">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>横:</span>
+                  <AdToggleButtons
+                    value={textAlign}
+                    onChange={(v) => setTextAlign(v as 'left' | 'center' | 'right')}
+                    options={[
+                      { value: 'left', label: '左' },
+                      { value: 'center', label: '中央' },
+                      { value: 'right', label: '右' },
+                    ]}
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>縦:</span>
+                  <AdToggleButtons
+                    value={textVerticalAlign}
+                    onChange={(v) => setTextVerticalAlign(v as 'top' | 'middle' | 'bottom')}
+                    options={[
+                      { value: 'top', label: '上' },
+                      { value: 'middle', label: '中央' },
+                      { value: 'bottom', label: '下' },
+                    ]}
+                  />
+                </div>
               </AdSection>
               <AdSection label="テキスト色">
                 <AdColorPicker value={textColor} onChange={setTextColor} />
               </AdSection>
               <AdSection label="背景色">
-                <AdInput
-                  value={backgroundColor}
-                  onChange={(e) => setBackgroundColor(e.target.value)}
-                  placeholder="transparent"
+                <AdCheckbox
+                  checked={bgEnabled}
+                  onChange={setBgEnabled}
+                  label="背景色を使用"
                 />
+                {bgEnabled && (
+                  <div style={{ marginTop: '6px' }}>
+                    <AdColorPicker value={backgroundColor} onChange={setBackgroundColor} enableAlpha />
+                  </div>
+                )}
               </AdSection>
               <AdSection label="サイズ">
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(width)}
-                    onChange={(e) => setWidth(Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(height)}
-                    onChange={(e) => setHeight(Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                </div>
+                <AdCheckbox
+                  checked={!autoSize}
+                  onChange={(v) => setAutoSize(!v)}
+                  label="サイズを指定"
+                />
+                {!autoSize && (
+                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
+                    <AdInput
+                      type="number"
+                      value={String(width)}
+                      onChange={(e) => setWidth(Number(e.target.value))}
+                      fullWidth={false}
+                      inputWidth="52px"
+                    />
+                    <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
+                    <AdInput
+                      type="number"
+                      value={String(height)}
+                      onChange={(e) => setHeight(Number(e.target.value))}
+                      fullWidth={false}
+                      inputWidth="52px"
+                    />
+                  </div>
+                )}
               </AdSection>
             </>
           )}
@@ -274,7 +415,7 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                   <AdCheckbox
                     checked={imageFit === 'cover'}
                     onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
-                    label="トリミング（比率を維持して切り抜き）"
+                    label="トリミング"
                   />
                 </AdSection>
               )}
@@ -297,6 +438,10 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
                     inputWidth="52px"
                   />
                 </div>
+              </AdSection>
+              <AdSection label="ロック">
+                <AdCheckbox checked={positionLocked} onChange={setPositionLocked} label="位置を固定" />
+                <AdCheckbox checked={sizeLocked} onChange={setSizeLocked} label="サイズを固定" />
               </AdSection>
             </>
           )}

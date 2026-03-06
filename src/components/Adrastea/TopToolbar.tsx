@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
-import { Eye, Image, Settings, LogOut } from 'lucide-react';
+import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
 import { Actions, DockLocation, type Model } from 'flexlayout-react';
@@ -81,6 +82,7 @@ export function TopToolbar({
   const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const { isGuest } = useAuth();
+  const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
 
   const handleAdd = () => {
     const trimmed = label.trim();
@@ -258,13 +260,40 @@ export function TopToolbar({
       {/* BGMプレイヤー */}
       <BgmMiniPlayer />
 
+      {/* マスターボリューム */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <button
+          onClick={() => setBgmMuted(!bgmMuted)}
+          title={bgmMuted ? 'ミュート解除' : 'ミュート'}
+          style={{
+            background: 'transparent', border: 'none', cursor: 'pointer',
+            color: bgmMuted ? theme.error : theme.textSecondary,
+            padding: '2px', display: 'flex', alignItems: 'center',
+          }}
+        >
+          {bgmMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+        </button>
+        <input
+          type="range"
+          min="0" max="1" step="0.05"
+          value={bgmMuted ? 0 : masterVolume}
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            if (bgmMuted && v > 0) setBgmMuted(false);
+            setMasterVolume(v);
+          }}
+          title={`マスターボリューム: ${Math.round(masterVolume * 100)}%`}
+          style={{ width: '60px' }}
+        />
+      </div>
+
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
       {/* アセット管理 */}
       {!isGuest && (
         <IconButton onClick={() => setShowAssetLibrary(true)} title="アセット管理">
-          <Image size={14} />
+          <FolderOpen size={14} />
         </IconButton>
       )}
 

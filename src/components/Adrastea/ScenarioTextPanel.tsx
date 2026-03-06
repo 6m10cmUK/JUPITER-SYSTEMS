@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { ScenarioText } from '../../types/adrastea.types';
+import { SortableListPanel, SortableListItem } from './ui';
 
 interface ScenarioTextPanelProps {
   texts: ScenarioText[];
   onAdd: () => void;
   onUpdate: (textId: string, updates: Partial<ScenarioText>) => void;
   onRemove: (textId: string) => void;
+  onReorderTexts?: (orderedIds: string[]) => void;
   onClose: () => void;
 }
 
-export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }: ScenarioTextPanelProps) {
+export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onReorderTexts, onClose }: ScenarioTextPanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
@@ -28,6 +32,16 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
     }
   };
 
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderTexts) return;
+    const oldIndex = texts.findIndex(t => t.id === active.id);
+    const newIndex = texts.findIndex(t => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(texts, oldIndex, newIndex);
+    onReorderTexts(reordered.map(t => t.id));
+  }, [texts, onReorderTexts]);
+
   const inputStyle = {
     width: '100%',
     padding: '6px 8px',
@@ -41,29 +55,9 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
   };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: theme.bgSurface,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      {/* ヘッダー */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderBottom: `1px solid ${theme.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span style={{ color: theme.textPrimary, fontWeight: 600, fontSize: '0.9rem' }}>
-          シナリオテキスト
-        </span>
+    <SortableListPanel
+      title="シナリオテキスト"
+      headerActions={
         <button
           onClick={onClose}
           style={{
@@ -77,26 +71,32 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
         >
           x
         </button>
-      </div>
-
-      {/* リスト */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-        {texts.length === 0 && (
-          <div style={{ color: theme.textMuted, fontSize: '0.8rem', textAlign: 'center', padding: '16px' }}>
-            テキストがありません
-          </div>
-        )}
-        {texts.map((text) => (
-          <div
-            key={text.id}
-            style={{
-              marginBottom: '8px',
-              padding: '10px 12px',
-              border: `1px solid ${theme.border}`,
-              borderRadius: 0,
-              background: theme.bgToolbar,
-            }}
-          >
+      }
+      footerActions={
+        <button
+          onClick={onAdd}
+          style={{
+            width: '100%',
+            padding: '8px',
+            background: theme.accent,
+            color: theme.textOnAccent,
+            border: 'none',
+            borderRadius: 0,
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+          }}
+        >
+          + テキスト追加
+        </button>
+      }
+      items={texts}
+      onDragEnd={handleDragEnd}
+      emptyMessage="テキストがありません"
+    >
+      {texts.map((text) => (
+        <SortableListItem key={text.id} id={text.id}>
+          <div style={{ flex: 1, minWidth: 0 }}>
             {editingId === text.id ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <input
@@ -130,7 +130,7 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
                   </span>
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                     <button
-                      onClick={() => onUpdate(text.id, { visible: !text.visible })}
+                      onClick={(e) => { e.stopPropagation(); onUpdate(text.id, { visible: !text.visible }); }}
                       style={{
                         padding: '2px 6px',
                         background: text.visible ? theme.success : theme.bgInput,
@@ -143,11 +143,11 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
                     >
                       {text.visible ? '表示中' : '非表示'}
                     </button>
-                    <button onClick={() => startEdit(text)} style={{
+                    <button onClick={(e) => { e.stopPropagation(); startEdit(text); }} style={{
                       background: 'transparent', border: 'none', color: theme.textSecondary,
                       fontSize: '0.7rem', cursor: 'pointer', padding: '2px 4px',
                     }}>編集</button>
-                    <button onClick={() => onRemove(text.id)} style={{
+                    <button onClick={(e) => { e.stopPropagation(); onRemove(text.id); }} style={{
                       background: 'transparent', border: 'none', color: theme.danger,
                       fontSize: '0.7rem', cursor: 'pointer', padding: '2px 4px',
                     }}>削除</button>
@@ -165,28 +165,8 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onClose }:
               </>
             )}
           </div>
-        ))}
-      </div>
-
-      {/* 追加ボタン */}
-      <div style={{ padding: '8px 12px', borderTop: `1px solid ${theme.border}` }}>
-        <button
-          onClick={onAdd}
-          style={{
-            width: '100%',
-            padding: '8px',
-            background: theme.accent,
-            color: theme.textOnAccent,
-            border: 'none',
-            borderRadius: 0,
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
-        >
-          + テキスト追加
-        </button>
-      </div>
-    </div>
+        </SortableListItem>
+      ))}
+    </SortableListPanel>
   );
 }

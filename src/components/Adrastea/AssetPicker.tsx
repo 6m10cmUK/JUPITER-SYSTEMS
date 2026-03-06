@@ -11,19 +11,25 @@ import { X, ImageOff } from 'lucide-react';
 interface AssetPickerModalProps {
   onSelect: (url: string) => void;
   onClose: () => void;
+  assetType?: 'image' | 'audio';
 }
 
-export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
-  const { assets, uploadAsset } = useAssets();
+export function AssetPickerModal({ onSelect, onClose, assetType = 'image' }: AssetPickerModalProps) {
+  const { assets, uploadAsset, uploadAudioAsset } = useAssets();
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [urlInput, setUrlInput] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = assets.filter(a => a.asset_type === assetType);
 
   const handleUpload = useCallback(
     async (file: File) => {
       setUploading(true);
       try {
-        const asset = await uploadAsset(file);
+        const asset = assetType === 'audio'
+          ? await uploadAudioAsset(file)
+          : await uploadAsset(file);
         if (asset) {
           onSelect(asset.url);
         }
@@ -33,7 +39,7 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
         setUploading(false);
       }
     },
-    [uploadAsset, onSelect]
+    [assetType, uploadAsset, uploadAudioAsset, onSelect]
   );
 
   const handleDrop = useCallback(
@@ -45,6 +51,16 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
     },
     [handleUpload]
   );
+
+  const handleUrlSubmit = useCallback(() => {
+    const url = urlInput.trim();
+    if (url) {
+      onSelect(url);
+      setUrlInput('');
+    }
+  }, [urlInput, onSelect]);
+
+  const isAudio = assetType === 'audio';
 
   return (
     <div
@@ -63,7 +79,9 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
         onClick={(e) => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem' }}>アセット選択</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>
+            {isAudio ? '音声を選択' : 'アセット選択'}
+          </h3>
           <button
             onClick={onClose}
             style={{
@@ -92,7 +110,7 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept={isAudio ? 'audio/*' : 'image/*'}
             style={{ display: 'none' }}
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -111,8 +129,73 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
           )}
         </div>
 
-        {/* アセットグリッド */}
+        {/* URL入力 */}
+        <div style={{ display: 'flex', gap: '4px', marginBottom: '8px' }}>
+          <input
+            value={urlInput}
+            onChange={(e) => setUrlInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleUrlSubmit(); }}
+            placeholder={isAudio ? 'URL / YouTube URL を入力' : 'URLを入力'}
+            style={{
+              flex: 1, padding: '6px 8px',
+              background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+              borderRadius: 0, color: theme.textPrimary, fontSize: '12px', outline: 'none',
+            }}
+          />
+          <button
+            onClick={handleUrlSubmit}
+            disabled={!urlInput.trim()}
+            style={{
+              padding: '6px 12px', fontSize: '12px',
+              background: theme.accent, color: theme.textOnAccent,
+              border: 'none', borderRadius: 0,
+              cursor: urlInput.trim() ? 'pointer' : 'not-allowed',
+            }}
+          >
+            追加
+          </button>
+        </div>
+
+        {/* アセット一覧 */}
         <div style={{ overflowY: 'auto', flex: 1 }}>
+          {isAudio ? (
+            /* 音声: リスト表示 */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              {filtered.length === 0 && (
+                <div style={{ textAlign: 'center', color: theme.textMuted, fontSize: '12px', padding: '16px 0' }}>
+                  ライブラリに音声がありません
+                </div>
+              )}
+              {filtered.map((asset) => (
+                <div
+                  key={asset.id}
+                  onClick={() => onSelect(asset.url)}
+                  style={{
+                    cursor: 'pointer', border: `1px solid ${theme.border}`,
+                    borderRadius: 0, padding: '8px',
+                    background: 'rgba(0,0,0,0.2)', transition: 'border-color 0.2s',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.borderColor = theme.accent; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.borderColor = theme.border; }}
+                >
+                  <div style={{
+                    fontSize: '12px', color: theme.textPrimary, marginBottom: '4px',
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {asset.title || asset.filename}
+                  </div>
+                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                  <audio
+                    controls
+                    src={asset.url}
+                    style={{ width: '100%', height: '28px' }}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            /* 画像: グリッド表示 */
             <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
               gap: '4px',
@@ -143,7 +226,7 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
                   no image
                 </div>
               </div>
-              {assets.map((asset) => (
+              {filtered.map((asset) => (
                 <div
                   key={asset.id}
                   onClick={() => onSelect(asset.url)}
@@ -173,6 +256,7 @@ export function AssetPickerModal({ onSelect, onClose }: AssetPickerModalProps) {
                 </div>
               ))}
             </div>
+          )}
         </div>
       </div>
     </div>

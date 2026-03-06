@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
 import { ChevronRight, ChevronDown, X } from 'lucide-react';
 
@@ -157,19 +159,40 @@ export function AdCheckbox({ label, checked, onChange }: AdCheckboxProps) {
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: GAP,
+        justifyContent: 'space-between',
+        gap: '8px',
         fontSize: FONT_SIZE,
         color: theme.textSecondary,
         cursor: 'pointer',
+        userSelect: 'none',
       }}
+      onClick={(e) => { e.preventDefault(); onChange(!checked); }}
     >
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        style={{ margin: 0 }}
-      />
       {label}
+      <div
+        style={{
+          position: 'relative',
+          width: 28,
+          height: 16,
+          borderRadius: 8,
+          backgroundColor: checked ? theme.accent : theme.border,
+          transition: 'background-color 0.15s',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: checked ? 14 : 2,
+            width: 12,
+            height: 12,
+            borderRadius: '50%',
+            backgroundColor: '#fff',
+            transition: 'left 0.15s',
+          }}
+        />
+      </div>
     </label>
   );
 }
@@ -253,44 +276,261 @@ interface AdColorPickerProps {
   label?: string;
   value: string;
   onChange: (value: string) => void;
+  enableAlpha?: boolean;
 }
 
-export function AdColorPicker({ label, value, onChange }: AdColorPickerProps) {
+type RgbaColor = { r: number; g: number; b: number; a: number };
+
+const PALETTE_KEY = 'adrastea-color-palette';
+
+function loadPalette(): string[] {
+  try {
+    const raw = localStorage.getItem(PALETTE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+function savePalette(colors: string[]) {
+  localStorage.setItem(PALETTE_KEY, JSON.stringify(colors.slice(0, 16)));
+}
+
+const DEFAULT_PALETTE = [
+  '#ffffff', '#c0c0c0', '#808080', '#404040', '#000000',
+  '#ff0000', '#ff8000', '#ffff00', '#80ff00', '#00ff00',
+  '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff',
+  '#ff00ff', '#ff0080',
+  '#1e1e2e', '#313244', '#45475a', '#585b70',
+  'rgba(255,255,255,0.5)', 'rgba(0,0,0,0.5)',
+];
+
+function cssToRgba(value: string): RgbaColor {
+  const rgbaMatch = value.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+  if (rgbaMatch) {
+    return {
+      r: Number(rgbaMatch[1]), g: Number(rgbaMatch[2]), b: Number(rgbaMatch[3]),
+      a: rgbaMatch[4] !== undefined ? Number(rgbaMatch[4]) : 1,
+    };
+  }
+  if (value.match(/^#[0-9a-fA-F]{6,8}$/)) {
+    const r = parseInt(value.slice(1, 3), 16);
+    const g = parseInt(value.slice(3, 5), 16);
+    const b = parseInt(value.slice(5, 7), 16);
+    const a = value.length === 9 ? parseInt(value.slice(7, 9), 16) / 255 : 1;
+    return { r, g, b, a: Math.round(a * 100) / 100 };
+  }
+  return { r: 0, g: 0, b: 0, a: 1 };
+}
+
+function rgbaToCss(c: RgbaColor): string {
+  if (c.a >= 1) return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
+  return `rgba(${c.r},${c.g},${c.b},${Math.round(c.a * 100) / 100})`;
+}
+
+function rgbaToDisplayBg(c: RgbaColor): string {
+  return `rgba(${c.r},${c.g},${c.b},${c.a})`;
+}
+
+export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPickerProps) {
+  const [open, setOpen] = useState(false);
+  const [palette, setPalette] = useState(loadPalette);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [popPos, setPopPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const rgba = cssToRgba(value);
+
+  // ポップオーバー位置計算
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const rect = btnRef.current.getBoundingClientRect();
+    const popW = 210;
+    const popH = 300;
+    let top = rect.bottom + 4;
+    let left = rect.left;
+    // 画面外にはみ出す場合は調整
+    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
+    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+    if (left < 0) left = 8;
+    setPopPos({ top, left });
+  }, [open]);
+
+  // 外側クリックで閉じる
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node) &&
+          btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setContextMenu(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  // コンテキストメニュー外クリックで閉じる
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handler = () => setContextMenu(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [contextMenu]);
+
+  const handleChange = useCallback((c: RgbaColor) => {
+    onChange(enableAlpha ? rgbaToCss(c) : rgbaToCss({ ...c, a: 1 }));
+  }, [onChange, enableAlpha]);
+
+  const handleSaveToPalette = useCallback(() => {
+    const css = rgbaToCss(rgba);
+    const next = [css, ...palette.filter(c => c !== css)].slice(0, 16);
+    setPalette(next);
+    savePalette(next);
+  }, [rgba, palette]);
+
+  const handleRemoveFromPalette = useCallback((index: number) => {
+    const next = palette.filter((_, i) => i !== index);
+    setPalette(next);
+    savePalette(next);
+    setContextMenu(null);
+  }, [palette]);
+
+  const checkerBg = `linear-gradient(45deg, #808080 25%, transparent 25%, transparent 75%, #808080 75%),
+    linear-gradient(45deg, #808080 25%, transparent 25%, transparent 75%, #808080 75%)`;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <div style={{ display: 'flex', gap: GAP, alignItems: 'center' }}>
-        <input
-          type="color"
-          value={value.startsWith('#') ? value : '#000000'}
-          onChange={(e) => onChange(e.target.value)}
+        {/* 色プレビューボタン */}
+        <button
+          ref={btnRef}
+          onClick={() => setOpen(!open)}
           style={{
-            width: '24px',
-            height: HEIGHT,
-            border: 'none',
-            background: 'transparent',
-            cursor: 'pointer',
-            padding: 0,
+            width: '24px', height: '22px', border: `1px solid ${theme.border}`,
+            background: checkerBg,
+            backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px',
+            cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
           }}
-        />
+        >
+          <div style={{ position: 'absolute', inset: 0, background: rgbaToDisplayBg(rgba) }} />
+        </button>
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{
-            flex: 1,
-            height: HEIGHT,
-            padding: PADDING,
-            fontSize: FONT_SIZE,
-            background: theme.bgInput,
-            border: `1px solid ${theme.borderInput}`,
-            borderRadius: 0,
-            color: theme.textPrimary,
-            outline: 'none',
-            boxSizing: 'border-box',
+            flex: 1, height: HEIGHT, padding: PADDING, fontSize: FONT_SIZE,
+            background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+            borderRadius: 0, color: theme.textPrimary, outline: 'none', boxSizing: 'border-box',
           }}
         />
       </div>
+
+      {/* ポップオーバー（Portal） */}
+      {open && createPortal(
+        <div
+          ref={popRef}
+          style={{
+            position: 'fixed', top: popPos.top, left: popPos.left, zIndex: 10000,
+            background: theme.bgSurface, border: `1px solid ${theme.border}`,
+            padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div className="ad-color-picker-popover">
+            <RgbaColorPicker
+              color={enableAlpha ? rgba : { ...rgba, a: 1 }}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* デフォルトパレット（削除不可） */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+            {DEFAULT_PALETTE.map((c, i) => (
+              <button
+                key={`d-${i}`}
+                onClick={() => onChange(c)}
+                title={c}
+                style={{
+                  width: '16px', height: '16px', border: `1px solid ${theme.border}`,
+                  background: checkerBg,
+                  backgroundSize: '6px 6px', backgroundPosition: '0 0, 3px 3px',
+                  cursor: 'pointer', padding: 0, position: 'relative',
+                }}
+              >
+                <div style={{ position: 'absolute', inset: 0, background: c }} />
+              </button>
+            ))}
+          </div>
+
+          {/* ユーザー保存パレット */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '10px', color: theme.textMuted }}>保存色</span>
+            <button
+              onClick={handleSaveToPalette}
+              style={{
+                background: 'transparent', border: `1px solid ${theme.border}`,
+                color: theme.textSecondary, fontSize: '10px', padding: '1px 5px',
+                cursor: 'pointer', lineHeight: 1,
+              }}
+            >
+              +
+            </button>
+          </div>
+          {palette.length > 0 ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
+              {palette.map((c, i) => (
+                <button
+                  key={`u-${i}`}
+                  onClick={() => onChange(c)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({ x: e.clientX, y: e.clientY, index: i });
+                  }}
+                  title={c}
+                  style={{
+                    width: '16px', height: '16px', border: `1px solid ${theme.border}`,
+                    background: checkerBg,
+                    backgroundSize: '6px 6px', backgroundPosition: '0 0, 3px 3px',
+                    cursor: 'pointer', padding: 0, position: 'relative',
+                  }}
+                >
+                  <div style={{ position: 'absolute', inset: 0, background: c }} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '10px', color: theme.textMuted }}>なし</div>
+          )}
+        </div>,
+        document.body,
+      )}
+
+      {/* パレット右クリックメニュー（Portal） */}
+      {contextMenu && createPortal(
+        <div
+          style={{
+            position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 10001,
+            background: theme.bgSurface, border: `1px solid ${theme.border}`,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.4)', padding: '2px 0',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => handleRemoveFromPalette(contextMenu.index)}
+            style={{
+              display: 'block', width: '100%', padding: '4px 12px',
+              background: 'transparent', border: 'none', color: theme.error,
+              fontSize: '11px', cursor: 'pointer', textAlign: 'left',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
+            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
+          >
+            パレットから削除
+          </button>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

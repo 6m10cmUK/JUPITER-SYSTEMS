@@ -161,6 +161,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  const [stageScale, setStageScale] = useState(1);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, pieceId: null });
 
   useImperativeHandle(ref, () => ({
@@ -196,6 +197,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       x: stageSize.width / 2 - centerX * scale,
       y: stageSize.height / 2 - centerY * scale,
     });
+    setStageScale(scale);
 
     initializedRef.current = true;
   }, [stageSize, objects]);
@@ -242,6 +244,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
+    setStageScale(newScale);
   }, []);
 
   const handlePieceDragEnd = useCallback(

@@ -7,6 +7,7 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  writeBatch,
   query,
   orderBy,
 } from 'firebase/firestore';
@@ -94,5 +95,20 @@ export function useCharacters(roomId: string) {
     [roomId]
   );
 
-  return { characters, loading, addCharacter, updateCharacter, removeCharacter };
+  const reorderCharacters = useCallback(
+    async (orderedIds: string[]) => {
+      if (!roomId) return;
+      const batch = writeBatch(db);
+      orderedIds.forEach((id, index) => {
+        batch.update(doc(db, 'rooms', roomId, 'characters', id), {
+          sort_order: index,
+          updated_at: Date.now(),
+        });
+      });
+      await batch.commit();
+    },
+    [roomId]
+  );
+
+  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters };
 }

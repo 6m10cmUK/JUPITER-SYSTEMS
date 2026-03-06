@@ -1,19 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType, BoardObjectScope } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
@@ -22,6 +8,7 @@ import {
   Eye, EyeOff,
   Plus, Trash2,
 } from 'lucide-react';
+import { SortableListPanel, SortableListItem } from './ui';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -30,114 +17,6 @@ const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>>
   background: ({ size = 14 }) => <Mountain size={size} />,
 };
 
-// --- Sortable行コンポーネント ---
-interface SortableRowProps {
-  obj: BoardObject;
-  isSelected: boolean;
-  isDragGroupMember: boolean;
-  scope: BoardObjectScope;
-  iconBtnStyle: React.CSSProperties;
-  onToggleVisible: (obj: BoardObject) => void;
-  onRemove: (obj: BoardObject) => void;
-  onClick: (e: React.MouseEvent, obj: BoardObject) => void;
-}
-
-function SortableRow({ obj, isSelected, isDragGroupMember, scope, iconBtnStyle, onToggleVisible, onRemove, onClick }: SortableRowProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({
-    id: obj.id,
-    disabled: obj.type === 'background',
-  });
-
-  const style: React.CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    padding: '4px 8px',
-    cursor: obj.type !== 'background' ? 'grab' : 'default',
-    background: isSelected ? 'rgba(137,180,250,0.15)' : 'transparent',
-    borderBottom: `1px solid ${theme.border}`,
-    fontSize: '12px',
-    color: theme.textPrimary,
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.8 : isDragGroupMember ? 0.4 : 1,
-    zIndex: isDragging ? 10 : undefined,
-    position: 'relative',
-    boxShadow: isDragging ? '0 2px 8px rgba(0,0,0,0.3)' : undefined,
-  };
-
-  const iconBgColor = scope === 'scene' ? 'rgba(137,180,250,0.2)' : 'rgba(166,227,161,0.2)';
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      {...listeners}
-      onClick={(e) => onClick(e, obj)}
-    >
-      <span style={{
-        flexShrink: 0, width: '20px', height: '20px',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        borderRadius: '2px',
-        background: iconBgColor,
-      }}>
-        {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
-      </span>
-      {obj.image_url && (
-        <img
-          src={obj.image_url}
-          alt=""
-          style={{
-            flexShrink: 0,
-            width: '20px',
-            height: '20px',
-            objectFit: 'cover',
-            objectPosition: 'center center',
-            borderRadius: '2px',
-            border: `1px solid ${theme.border}`,
-          }}
-        />
-      )}
-      <span style={{
-        flex: 1,
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-        opacity: obj.visible ? 1 : 0.4,
-      }}>
-        {obj.name}
-      </span>
-      <button
-        style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
-        onClick={(e) => { e.stopPropagation(); onToggleVisible(obj); }}
-        title={obj.visible ? '非表示にする' : '表示する'}
-      >
-        {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-      </button>
-      {obj.type !== 'background' && obj.type !== 'foreground' ? (
-        <button
-          style={{ ...iconBtnStyle, color: theme.danger, display: 'flex', alignItems: 'center' }}
-          onClick={(e) => { e.stopPropagation(); onRemove(obj); }}
-          title="削除"
-        >
-          <Trash2 size={12} />
-        </button>
-      ) : (
-        <span style={{ width: '20px', flexShrink: 0 }} />
-      )}
-    </div>
-  );
-}
-
-// --- メインコンポーネント ---
 export function LayerPanel() {
   const {
     mergedObjects,
@@ -145,7 +24,6 @@ export function LayerPanel() {
     addObject,
     updateObject,
     removeObject,
-    reorderObjects,
     editingObjectId,
     setEditingObjectId,
     selectedObjectIds,
@@ -158,7 +36,8 @@ export function LayerPanel() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  // ドラッグ完了後の並び順をローカルで即反映（Firestore反映待ちのガクつき防止）
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
 
   // メニュー外クリックで閉じる
@@ -198,19 +77,9 @@ export function LayerPanel() {
     return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
   }, [mergedObjects, localOrderOverride]);
 
-  const sortableIds = useMemo(() => sortedObjects.map(o => o.id), [sortedObjects]);
-
-  // dnd-kit sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
-  );
-
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const id = event.active.id as string;
     setActiveDragId(id);
-    // ドラッグ開始したアイテムが選択されてなければ単一選択にする
     if (!selectedObjectIds.includes(id)) {
       setSelectedObjectIds([id]);
       setEditingObjectScope(getScope(id));
@@ -226,7 +95,6 @@ export function LayerPanel() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    // 移動対象: 選択グループに含まれてればグループ全体、そうでなければ単体
     const dragIds = selectedObjectIds.includes(activeId) && selectedObjectIds.length > 1
       ? selectedObjectIds
       : [activeId];
@@ -238,7 +106,6 @@ export function LayerPanel() {
     const draggedItems = nonBg.filter(o => dragSet.has(o.id));
     const rest = nonBg.filter(o => !dragSet.has(o.id));
 
-    // over位置に挿入
     const overIdx = rest.findIndex(o => o.id === overId);
     if (overIdx < 0) return;
 
@@ -248,23 +115,22 @@ export function LayerPanel() {
 
     rest.splice(insertIdx, 0, ...draggedItems);
 
-    // sort_orderを振り直す + ローカルオーバーライドで即反映
-    // reorderObjectsはindex昇順でsort_orderを振る（末尾ほど大=前面）
-    // restはリスト表示順（降順）なので逆順にしてから渡す
-    const reversed = [...rest].reverse();
+    // グローバルなsort_orderを振り直す（リスト表示は降順なので末尾ほどsort_order大=前面）
     const maxOrder = rest.length - 1;
     const overrideMap = new Map<string, number>();
     rest.forEach((o, i) => overrideMap.set(o.id, maxOrder - i));
     setLocalOrderOverride(overrideMap);
 
-    // スコープごとにバッチ書き込み
-    const roomIds = reversed.filter(o => getScope(o.id) === 'room').map(o => o.id);
-    const sceneIds = reversed.filter(o => getScope(o.id) === 'scene').map(o => o.id);
-    if (roomIds.length > 0) reorderObjects('room', roomIds);
-    if (sceneIds.length > 0) reorderObjects('scene', sceneIds);
-  }, [selectedObjectIds, sortedObjects, getScope, reorderObjects]);
+    // スコープごとにreorderObjectsを呼ぶとスコープ内相対値になってしまうので、
+    // updateObjectで各オブジェクトにグローバルなsort_orderを直接書き込む
+    rest.forEach((o, i) => {
+      const newOrder = maxOrder - i;
+      if (o.sort_order !== newOrder) {
+        updateObject(getScope(o.id), o.id, { sort_order: newOrder });
+      }
+    });
+  }, [selectedObjectIds, sortedObjects, getScope, updateObject]);
 
-  // クリックハンドラ
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
     const scope = getScope(obj.id);
     if (e.shiftKey && selectedObjectIds.length > 0) {
@@ -377,16 +243,9 @@ export function LayerPanel() {
   };
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: theme.bgBase, color: theme.textPrimary }}>
-      {/* ヘッダー */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '4px 8px',
-        borderBottom: `1px solid ${theme.border}`,
-      }}>
-        <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>レイヤー</span>
+    <SortableListPanel
+      title="レイヤー"
+      headerActions={
         <div style={{ position: 'relative' }} ref={menuRef}>
           <button
             onClick={() => setMenuOpen(!menuOpen)}
@@ -422,45 +281,143 @@ export function LayerPanel() {
             </div>
           )}
         </div>
-      </div>
+      }
+      items={sortedObjects}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      emptyMessage="オブジェクトがありません"
+    >
+      {sortedObjects.map((obj) => {
+        const isSelected = selectedObjectIds.includes(obj.id);
+        const isDragGroupMember = activeDragId != null
+          && selectedObjectIds.includes(activeDragId)
+          && isSelected
+          && obj.id !== activeDragId;
+        const scope = getScope(obj.id);
+        const iconBgColor = scope === 'scene' ? 'rgba(137,180,250,0.2)' : 'rgba(166,227,161,0.2)';
 
-      {/* リスト */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-      >
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-            {sortedObjects.map((obj) => {
-              const isSelected = selectedObjectIds.includes(obj.id);
-              const isDragGroupMember = activeDragId != null
-                && selectedObjectIds.includes(activeDragId)
-                && isSelected
-                && obj.id !== activeDragId;
-              return (
-                <SortableRow
-                  key={obj.id}
-                  obj={obj}
-                  isSelected={isSelected}
-                  isDragGroupMember={isDragGroupMember}
-                  scope={getScope(obj.id)}
-                  iconBtnStyle={iconBtnStyle}
-                  onToggleVisible={handleToggleVisible}
-                  onRemove={handleRemoveObject}
-                  onClick={handleRowClick}
-                />
-              );
-            })}
-          </SortableContext>
-          {sortedObjects.length === 0 && (
-            <div style={{ padding: '16px', textAlign: 'center', color: theme.textMuted, fontSize: '0.8rem' }}>
-              オブジェクトがありません
-            </div>
-          )}
-        </div>
-      </DndContext>
-    </div>
+        return (
+          <SortableListItem
+            key={obj.id}
+            id={obj.id}
+            disabled={obj.type === 'background'}
+            isSelected={isSelected}
+            isGroupDrag={isDragGroupMember}
+            onClick={(e) => handleRowClick(e, obj)}
+          >
+            {obj.type !== 'background' && (
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  const scope = getScope(obj.id);
+                  if (isSelected) {
+                    setSelectedObjectIds(prev => prev.filter(id => id !== obj.id));
+                  } else {
+                    setSelectedObjectIds(prev => [...prev, obj.id]);
+                    setEditingObjectScope(scope);
+                    setEditingObjectId(obj.id);
+                  }
+                }}
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flexShrink: 0,
+                  width: '12px',
+                  height: '12px',
+                  margin: 0,
+                  cursor: 'pointer',
+                  accentColor: theme.accent,
+                }}
+              />
+            )}
+            <span style={{
+              flexShrink: 0, width: '20px', height: '20px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              borderRadius: '2px',
+              background: iconBgColor,
+            }}>
+              {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
+            </span>
+            {obj.image_url && (
+              <img
+                src={obj.image_url}
+                alt=""
+                style={{
+                  flexShrink: 0,
+                  width: '20px',
+                  height: '20px',
+                  objectFit: 'cover',
+                  objectPosition: 'center center',
+                  borderRadius: '2px',
+                  border: `1px solid ${theme.border}`,
+                }}
+              />
+            )}
+            {renamingId === obj.id ? (
+              <input
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={() => {
+                  if (renameValue.trim()) updateObject(getScope(obj.id), obj.id, { name: renameValue.trim() });
+                  setRenamingId(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (renameValue.trim()) updateObject(getScope(obj.id), obj.id, { name: renameValue.trim() });
+                    setRenamingId(null);
+                  }
+                  if (e.key === 'Escape') setRenamingId(null);
+                }}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, minWidth: 0,
+                  background: theme.bgInput, border: `1px solid ${theme.border}`,
+                  color: theme.textPrimary, fontSize: '12px', padding: '1px 4px',
+                  outline: 'none',
+                }}
+              />
+            ) : (
+              <span
+                style={{
+                  flex: 1,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  opacity: obj.visible ? 1 : 0.4,
+                }}
+                onDoubleClick={(e) => {
+                  if (obj.type === 'foreground' || obj.type === 'background') return;
+                  e.stopPropagation();
+                  setRenamingId(obj.id);
+                  setRenameValue(obj.name);
+                }}
+              >
+                {obj.name}
+              </span>
+            )}
+            <button
+              style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
+              onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
+              title={obj.visible ? '非表示にする' : '表示する'}
+            >
+              {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+            </button>
+            {obj.type !== 'background' && obj.type !== 'foreground' ? (
+              <button
+                style={{ ...iconBtnStyle, color: theme.danger, display: 'flex', alignItems: 'center' }}
+                onClick={(e) => { e.stopPropagation(); handleRemoveObject(obj); }}
+                title="削除"
+              >
+                <Trash2 size={12} />
+              </button>
+            ) : (
+              <span style={{ width: '20px', flexShrink: 0 }} />
+            )}
+          </SortableListItem>
+        );
+      })}
+    </SortableListPanel>
   );
 }

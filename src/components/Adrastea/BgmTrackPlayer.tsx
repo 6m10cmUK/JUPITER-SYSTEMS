@@ -5,9 +5,10 @@ import type { BgmTrack } from '../../types/adrastea.types';
 interface BgmTrackPlayerProps {
   track: BgmTrack;
   fadeState: 'none' | 'in' | 'out';
+  masterVolume: number;
 }
 
-export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
+export function BgmTrackPlayer({ track, fadeState, masterVolume }: BgmTrackPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const ytPlayerRef = useRef<any>(null);
   const fadeIntervalRef = useRef<number | null>(null);
@@ -20,12 +21,12 @@ export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
   }, []);
 
   const setVolume = useCallback((vol: number) => {
-    const clamped = Math.max(0, Math.min(1, vol));
-    if (audioRef.current) audioRef.current.volume = clamped;
+    const effective = Math.max(0, Math.min(1, vol * masterVolume));
+    if (audioRef.current) audioRef.current.volume = effective;
     if (ytPlayerRef.current) {
-      try { ytPlayerRef.current.setVolume(clamped * 100); } catch {}
+      try { ytPlayerRef.current.setVolume(effective * 100); } catch {}
     }
-  }, []);
+  }, [masterVolume]);
 
   // フェード処理
   useEffect(() => {
@@ -37,7 +38,6 @@ export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
     }
 
     const step = 0.05;
-    const intervalMs = (track.fade_duration * step) / 1;
     // フェード全体をfade_duration msで完了するためのインターバル計算
     const totalSteps = Math.ceil(1 / step);
     const stepInterval = Math.max(10, track.fade_duration / totalSteps);
@@ -73,7 +73,33 @@ export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
     if (fadeState === 'none') {
       setVolume(track.bgm_volume);
     }
-  }, [track.bgm_volume, fadeState, setVolume]);
+  }, [track.bgm_volume, masterVolume, fadeState, setVolume]);
+
+  // YouTube ready状態を追跡（refだとuseEffectが検知できないため）
+  const ytReadyRef = useRef(false);
+  const pendingPauseRef = useRef<boolean | null>(null);
+
+  // 一時停止/再開制御
+  useEffect(() => {
+    if (track.is_paused) {
+      if (audioRef.current) audioRef.current.pause();
+      if (ytPlayerRef.current && ytReadyRef.current) {
+        try { ytPlayerRef.current.pauseVideo(); } catch {}
+      } else {
+        // YTプレイヤーがまだreadyでない場合、保留
+        pendingPauseRef.current = true;
+      }
+    } else {
+      if (audioRef.current && audioRef.current.paused && audioRef.current.src) {
+        audioRef.current.play().catch(() => {});
+      }
+      if (ytPlayerRef.current && ytReadyRef.current) {
+        try { ytPlayerRef.current.playVideo(); } catch {}
+      } else {
+        pendingPauseRef.current = false;
+      }
+    }
+  }, [track.is_paused]);
 
   // クリーンアップ
   useEffect(() => {
@@ -99,14 +125,22 @@ export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
               width: '1',
               height: '1',
               playerVars: {
-                autoplay: 1,
+                autoplay: track.is_paused ? 0 : 1,
                 loop: track.bgm_loop ? 1 : 0,
                 playlist: track.bgm_loop ? videoId : undefined,
               },
             }}
             onReady={(e) => {
               ytPlayerRef.current = e.target;
-              e.target.setVolume(track.bgm_volume * 100);
+              ytReadyRef.current = true;
+              e.target.setVolume(track.bgm_volume * masterVolume * 100);
+              // onReadyより前に来たpause/play指示を反映
+              if (pendingPauseRef.current === true) {
+                try { e.target.pauseVideo(); } catch {}
+              } else if (pendingPauseRef.current === false) {
+                try { e.target.playVideo(); } catch {}
+              }
+              pendingPauseRef.current = null;
             }}
           />
         </div>
@@ -115,7 +149,7 @@ export function BgmTrackPlayer({ track, fadeState }: BgmTrackPlayerProps) {
         <audio
           ref={audioRef}
           src={track.bgm_source}
-          autoPlay
+          autoPlay={!track.is_paused}
           loop={track.bgm_loop}
           style={{ display: 'none' }}
         />

@@ -55,6 +55,7 @@ export function SceneDockPanel() {
       onActivateScene={ctx.activateScene}
       onAddScene={handleAddScene}
       onEditScene={(scene) => { ctx.clearAllEditing(); ctx.setEditingScene(scene); }}
+      onUpdateSceneName={(id, name) => ctx.updateScene(id, { name })}
       onRemoveScene={ctx.removeScene}
       onReorderScenes={handleReorderScenes}
     />

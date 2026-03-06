@@ -9,6 +9,7 @@ export function ScenarioTextDockPanel() {
       onAdd={() => ctx.addScenarioText({ title: '新規テキスト', content: '' })}
       onUpdate={ctx.updateScenarioText}
       onRemove={ctx.removeScenarioText}
+      onReorderTexts={ctx.reorderScenarioTexts}
       onClose={() => {}}
     />
   );

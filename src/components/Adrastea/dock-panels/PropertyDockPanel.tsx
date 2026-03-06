@@ -4,6 +4,7 @@ import { CharacterEditor } from '../CharacterEditor';
 import { ObjectEditor } from '../ObjectEditor';
 import { CutinEditor } from '../CutinEditor';
 import { PieceEditor } from '../PieceEditor';
+import { BgmEditor } from '../BgmEditor';
 
 export function PropertyDockPanel() {
   const ctx = useAdrasteaContext();
@@ -48,10 +49,14 @@ export function PropertyDockPanel() {
 
   // SceneEditor
   if (ctx.editingScene !== undefined && ctx.roomId) {
+    // Firestoreの最新データを参照（レイヤーパネル等でのリネームを反映するため）
+    const liveScene = ctx.editingScene
+      ? ctx.scenes.find(s => s.id === ctx.editingScene!.id) ?? ctx.editingScene
+      : null;
     return (
       <SceneEditor
-        key={ctx.editingScene?.id ?? 'new-scene'}
-        scene={ctx.editingScene}
+        key={liveScene?.id ?? 'new-scene'}
+        scene={liveScene}
         roomId={ctx.roomId}
         onSave={async (data) => {
           if (ctx.editingScene) {
@@ -102,6 +107,22 @@ export function PropertyDockPanel() {
         onClose={() => ctx.setEditingCutin(undefined)}
       />
     );
+  }
+
+  // BgmEditor
+  if (ctx.editingBgmId) {
+    const track = ctx.bgms.find((b) => b.id === ctx.editingBgmId);
+    if (track) {
+      return (
+        <BgmEditor
+          key={track.id}
+          track={track}
+          activeSceneId={ctx.activeScene?.id ?? null}
+          onUpdate={ctx.updateBgm}
+          onClose={() => ctx.setEditingBgmId(null)}
+        />
+      );
+    }
   }
 
   return null;

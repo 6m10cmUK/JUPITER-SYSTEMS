@@ -10,7 +10,7 @@ export function BgmMiniPlayer() {
 
   const handleStopAll = () => {
     bgms.filter(t => t.is_playing).forEach(t => {
-      updateBgm(t.id, { is_playing: false });
+      updateBgm(t.id, { is_playing: false, is_paused: false });
     });
   };
 

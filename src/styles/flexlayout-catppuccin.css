@@ -237,3 +237,21 @@
 .adrastea-root .flexlayout__layout ::-webkit-scrollbar-thumb:hover {
   background: rgba(160, 160, 160, 0.5);
 }
+
+/* --- Color Picker (react-colorful) --- */
+.ad-color-picker-popover .react-colorful {
+  width: 180px;
+  height: 150px;
+}
+.ad-color-picker-popover .react-colorful__saturation {
+  border-radius: 0;
+}
+.ad-color-picker-popover .react-colorful__hue,
+.ad-color-picker-popover .react-colorful__alpha {
+  height: 10px;
+  border-radius: 0;
+}
+.ad-color-picker-popover .react-colorful__pointer {
+  width: 14px;
+  height: 14px;
+}

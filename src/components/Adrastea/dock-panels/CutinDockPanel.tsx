@@ -10,6 +10,7 @@ export function CutinDockPanel() {
       onAdd={() => { ctx.clearAllEditing(); ctx.setEditingCutin(null); }}
       onEdit={(cutin) => { ctx.clearAllEditing(); ctx.setEditingCutin(cutin); }}
       onRemove={ctx.removeCutin}
+      onReorderCutins={ctx.reorderCutins}
       onClose={() => {}}
     />
   );

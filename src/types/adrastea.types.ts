@@ -7,7 +7,7 @@
  *   rooms/{roomId}/messages/{msgId}                     → ChatMessage
  *   rooms/{roomId}/scenes/{sceneId}                     → Scene
  *   rooms/{roomId}/scenes/{sceneId}/objects/{objectId}  → BoardObject (scene scope)
- *   rooms/{roomId}/scenes/{sceneId}/bgms/{bgmId}       → BgmTrack
+ *   rooms/{roomId}/bgms/{bgmId}                         → BgmTrack
  *   rooms/{roomId}/objects/{objectId}                   → BoardObject (room scope)
  *   rooms/{roomId}/characters/{charId}                  → Character
  *   rooms/{roomId}/scenario_texts/{textId}              → ScenarioText
@@ -106,6 +106,8 @@ export interface BoardObject {
   opacity: number;
   sort_order: number;
   locked: boolean;
+  position_locked: boolean;
+  size_locked: boolean;
 
   // panel用
   image_url: string | null;
@@ -115,6 +117,12 @@ export interface BoardObject {
   // text用
   text_content: string | null;
   font_size: number;
+  font_family: string;
+  letter_spacing: number;
+  line_height: number;
+  auto_size: boolean;
+  text_align: 'left' | 'center' | 'right';
+  text_vertical_align: 'top' | 'middle' | 'bottom';
   text_color: string;
 
   // メタ
@@ -155,7 +163,10 @@ export interface BgmTrack {
   bgm_source: string | null;
   bgm_volume: number;
   bgm_loop: boolean;
+  scene_ids: string[];
   is_playing: boolean;
+  is_paused: boolean;
+  auto_play_scene_ids: string[];
   fade_in: boolean;
   fade_out: boolean;
   fade_duration: number;
@@ -196,9 +207,11 @@ export interface Asset {
   url: string;
   r2_key: string;
   filename: string;
+  title: string;
   size_bytes: number;
   width: number;
   height: number;
   tags: string[];
+  asset_type: 'image' | 'audio';
   created_at: number;
 }
