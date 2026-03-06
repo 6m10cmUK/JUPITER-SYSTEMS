@@ -24,12 +24,22 @@
   /* アクセント */
   --ad-accent: #4a90d9;
   --ad-accent-hover: #5aa0e9;
+  --ad-accent-bg-subtle: rgba(137,180,250,0.15);
+  --ad-accent-border-subtle: rgba(137,180,250,0.3);
+  --ad-accent-highlight: rgba(137,180,250,0.2);
+  --ad-accent-gradient-from: rgba(137,180,250,0.08);
+  --ad-accent-gradient-to: rgba(137,180,250,0.02);
 
   /* セマンティック */
   --ad-danger: #e05555;
   --ad-danger-hover: #f06565;
   --ad-success: #4caf50;
   --ad-warning: #e0a020;
+
+  /* カラー */
+  --ad-green: #a6e3a1;
+  --ad-green-bg-subtle: rgba(166,227,161,0.12);
+  --ad-green-border-subtle: rgba(166,227,161,0.25);
 
   /* ステータス */
   --ad-status-red: #e05555;
@@ -41,6 +51,34 @@
     'Helvetica Neue', Arial, sans-serif;
   font-size: 12px;
   color: var(--ad-text-primary);
+}
+
+/* --- ボタンホバー --- */
+.adrastea-root .ad-btn {
+  transition: filter 0.12s, box-shadow 0.12s;
+}
+.adrastea-root .ad-btn:not(:disabled):hover {
+  filter: brightness(1.2);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.adrastea-root .ad-btn:not(:disabled):active {
+  filter: brightness(0.95);
+}
+.adrastea-root .ad-btn-icon {
+  transition: color 0.12s;
+}
+.adrastea-root .ad-btn-icon:not(:disabled):hover {
+  color: var(--ad-accent) !important;
+}
+.adrastea-root .ad-btn-icon.ad-btn-icon--danger:not(:disabled):hover {
+  color: var(--ad-danger-hover) !important;
+}
+.adrastea-root .ad-card-create {
+  transition: border-color 0.15s, color 0.15s;
+}
+.adrastea-root .ad-card-create:hover {
+  border-color: var(--ad-accent) !important;
+  color: var(--ad-accent) !important;
 }
 
 /* --- Tailwind リセット打ち消し --- */

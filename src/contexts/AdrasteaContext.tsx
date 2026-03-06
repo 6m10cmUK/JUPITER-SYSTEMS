@@ -169,6 +169,11 @@ export interface AdrasteaContextValue {
   nestedDockModel: Model | null;
   setNestedDockModel: React.Dispatch<React.SetStateAction<Model | null>>;
 
+  // --- Loading ---
+  isLoading: boolean;
+  loadingProgress: number;
+  loadingSteps: { label: string; done: boolean }[];
+
   // --- Auto-save edits ---
   setPendingEdit: (key: string, edit: PendingEdit | null) => void;
 
@@ -196,22 +201,37 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   // --- Data hooks ---
   const {
-    pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+    pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
   } = useAdrastea(roomId);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore,
   } = useAdrasteaChat(roomId);
 
-  const { scenes, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
-  const { characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
   const {
-    roomObjects, sceneObjects, mergedObjects, loading: _objectsLoading,
+    roomObjects, sceneObjects, mergedObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects,
   } = useObjects(roomId, room?.active_scene_id ?? null);
-  const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
-  const { cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
+
+  // --- Loading steps ---
+  const loadingSteps = useMemo(() => [
+    { label: 'ルーム', done: !adrasteaLoading },
+    { label: 'シーン', done: !scenesLoading },
+    { label: 'キャラクター', done: !charactersLoading },
+    { label: 'オブジェクト', done: !objectsLoading },
+    { label: 'チャット', done: !chatLoading },
+    { label: 'BGM', done: !bgmsLoading },
+    { label: 'カットイン', done: !cutinsLoading },
+    { label: 'シナリオテキスト', done: !scenarioTextsLoading },
+  ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
+
+  const isLoading = loadingSteps.some(s => !s.done);
+  const loadingProgress = loadingSteps.filter(s => s.done).length / loadingSteps.length;
 
   // --- Image preload ---
   const preloadUrls = useMemo(() =>
@@ -518,6 +538,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setFlexLayoutRef,
       nestedDockModel, setNestedDockModel,
 
+      // Loading
+      isLoading, loadingProgress, loadingSteps,
+
       // Auto-save edits
       setPendingEdit,
 
@@ -546,6 +569,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       gridVisible,
       flexModel, setFlexLayoutRef, nestedDockModel,
 
+      isLoading, loadingProgress, loadingSteps,
       setPendingEdit,
       clearAllEditing,
     ],

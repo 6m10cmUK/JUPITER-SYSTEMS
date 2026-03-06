@@ -28,12 +28,22 @@ export const theme = {
   // ── アクセント ──
   accent: 'var(--ad-accent)',               // プライマリアクセント（青）
   accentHover: 'var(--ad-accent-hover)',     // アクセントホバー
+  accentBgSubtle: 'var(--ad-accent-bg-subtle)',       // タグチップ背景等
+  accentBorderSubtle: 'var(--ad-accent-border-subtle)', // タグチップボーダー等
+  accentHighlight: 'var(--ad-accent-highlight)',       // ドロップダウンハイライト
+  accentGradientFrom: 'var(--ad-accent-gradient-from)', // サムネイルグラデーション開始
+  accentGradientTo: 'var(--ad-accent-gradient-to)',     // サムネイルグラデーション終了
 
   // ── セマンティック ──
   danger: 'var(--ad-danger)',               // 削除・エラー
   dangerHover: 'var(--ad-danger-hover)',     // 削除ホバー
   success: 'var(--ad-success)',             // 成功・有効
   warning: 'var(--ad-warning)',             // 警告・ハイライト
+
+  // ── カラー ──
+  green: 'var(--ad-green)',
+  greenBgSubtle: 'var(--ad-green-bg-subtle)',       // ダイスシステムタグ背景
+  greenBorderSubtle: 'var(--ad-green-border-subtle)', // ダイスシステムタグボーダー
 
   // ── ステータス ──
   statusRed: 'var(--ad-status-red)',

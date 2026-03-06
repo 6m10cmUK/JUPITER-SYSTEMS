@@ -31,37 +31,47 @@ service cloud.firestore {
       }
     }
 
-    // Adrastea: TRPG盤面共有
-    // TODO: ルームオーナー/参加者ベースの認可に移行する
-    match /rooms/{roomId} {
-      allow read, write: if true;
+    // Adrastea: TRPG盤面共有（オーナー限定）
+    function isRoomOwner(roomId) {
+      return request.auth != null
+        && get(/databases/$(database)/documents/rooms/$(roomId)).data.owner_uid == request.auth.uid;
+    }
 
+    match /rooms/{roomId} {
+      // 一覧・個別取得・更新・削除: オーナーのみ
+      allow get, list, update, delete: if request.auth != null
+        && resource.data.owner_uid == request.auth.uid;
+      // 作成: 認証済み + owner_uid が自分
+      allow create: if request.auth != null
+        && request.resource.data.owner_uid == request.auth.uid;
+
+      // サブコレクション: すべてオーナーのみ
       match /pieces/{pieceId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /messages/{messageId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /scenes/{sceneId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
         match /objects/{objectId} {
-          allow read, write: if true;
+          allow read, write: if isRoomOwner(roomId);
         }
       }
       match /bgms/{bgmId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /objects/{objectId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /characters/{characterId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /scenario_texts/{textId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
       match /cutins/{cutinId} {
-        allow read, write: if true;
+        allow read, write: if isRoomOwner(roomId);
       }
     }
   }
