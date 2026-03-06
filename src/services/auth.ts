@@ -1,8 +1,9 @@
-import { 
-  signInWithPopup, 
+import {
+  signInWithPopup,
+  signInAnonymously as firebaseSignInAnonymously,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-  type User 
+  type User
 } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 
@@ -17,6 +18,19 @@ export class AuthService {
     } catch (error) {
       console.error('ログインエラー:', error);
       throw new Error('Googleログインに失敗しました');
+    }
+  }
+
+  /**
+   * 匿名ログイン（ゲスト用）
+   */
+  static async signInAnonymously(): Promise<User> {
+    try {
+      const result = await firebaseSignInAnonymously(auth);
+      return result.user;
+    } catch (error) {
+      console.error('匿名ログインエラー:', error);
+      throw new Error('匿名ログインに失敗しました');
     }
   }
 

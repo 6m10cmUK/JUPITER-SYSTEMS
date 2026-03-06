@@ -159,7 +159,7 @@ const Adrastea: React.FC = () => {
 
   // ルーム存在チェック & オーナーUID取得
   useEffect(() => {
-    if (!roomId || (!user && !isGuest)) {
+    if (!roomId || !user) {
       setOwnerCheck('loading');
       return;
     }
@@ -174,7 +174,7 @@ const Adrastea: React.FC = () => {
       console.error('ルーム確認に失敗:', err);
       setOwnerCheck('denied');
     });
-  }, [roomId, user, isGuest]);
+  }, [roomId, user]);
 
   // ロール判定: guest > owner > user
   const roomRole = isGuest ? 'guest' as const
@@ -191,7 +191,7 @@ const Adrastea: React.FC = () => {
   }
 
   // 未認証 → ログイン画面
-  if (!user && !isGuest) {
+  if (!user) {
     return (
       <div style={{
         position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -239,7 +239,7 @@ const Adrastea: React.FC = () => {
               value={guestNameInput}
               onChange={(e) => setGuestNameInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && guestNameInput.trim()) signInAsGuest(guestNameInput.trim());
+                if (e.key === 'Enter' && guestNameInput.trim()) void signInAsGuest(guestNameInput.trim());
               }}
               placeholder="表示名を入力"
               style={{
@@ -255,7 +255,7 @@ const Adrastea: React.FC = () => {
             />
             <button
               onClick={() => {
-                if (guestNameInput.trim()) signInAsGuest(guestNameInput.trim());
+                if (guestNameInput.trim()) void signInAsGuest(guestNameInput.trim());
               }}
               style={{
                 padding: '10px 16px',
