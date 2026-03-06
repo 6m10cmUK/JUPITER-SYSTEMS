@@ -55,7 +55,7 @@ export function BgmEngine() {
         });
 
         // フェードイン設定
-        setFadeStates(prev => {
+        setFadeStates(_prev => {
           const next = new Map<string, 'none' | 'in' | 'out'>();
           // 停止済みトラックのフェード状態をクリア
           tracksToStart.forEach(t => {

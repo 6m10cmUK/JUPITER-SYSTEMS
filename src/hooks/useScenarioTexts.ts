@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../config/firebase';
 import {
   collection,
@@ -15,6 +15,8 @@ import type { ScenarioText } from '../types/adrastea.types';
 
 export function useScenarioTexts(roomId: string) {
   const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>([]);
+  const scenarioTextsRef = useRef(scenarioTexts);
+  scenarioTextsRef.current = scenarioTexts;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -62,13 +64,13 @@ export function useScenarioTexts(roomId: string) {
         title: data.title ?? '新規テキスト',
         content: data.content ?? '',
         visible: data.visible ?? false,
-        sort_order: data.sort_order ?? scenarioTexts.length,
+        sort_order: data.sort_order ?? scenarioTextsRef.current.length,
         created_at: Date.now(),
         updated_at: Date.now(),
       });
       return docRef.id;
     },
-    [roomId, scenarioTexts.length]
+    [roomId]
   );
 
   const updateScenarioText = useCallback(

@@ -79,12 +79,14 @@ async function verifyFirebaseToken(
 }
 
 function corsHeaders(origin: string, allowedOrigins: string): Record<string, string> {
+  if (!allowedOrigins) return {};
   const origins = allowedOrigins.split(',').map((o) => o.trim());
   const allowed = origins.includes(origin) || origins.includes('*');
+  if (!allowed) return {};
   return {
-    'Access-Control-Allow-Origin': allowed ? origin : '*',
+    'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
   };
 }
 
@@ -92,7 +94,7 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const origin = request.headers.get('Origin') ?? '';
-    const headers = corsHeaders(origin, env.ALLOWED_ORIGINS ?? '*');
+    const headers = corsHeaders(origin, env.ALLOWED_ORIGINS ?? '');
 
     // CORS preflight
     if (request.method === 'OPTIONS') {
@@ -102,7 +104,7 @@ export default {
     // GET /file/* — 認証不要、R2から画像を配信
     if (url.pathname.startsWith('/file/') && request.method === 'GET') {
       const key = decodeURIComponent(url.pathname.slice('/file/'.length));
-      if (!key) {
+      if (!key || key.includes('..')) {
         return new Response('Bad Request', { status: 400, headers });
       }
 
@@ -117,6 +119,7 @@ export default {
           ...headers,
           'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
           'Cache-Control': 'public, max-age=31536000, immutable',
+          'X-Content-Type-Options': 'nosniff',
         },
       });
     }
@@ -145,9 +148,27 @@ export default {
         });
       }
 
+      if (path.includes('..') || path.startsWith('/')) {
+        return new Response('Invalid path', { status: 400, headers });
+      }
+
+      if (!path.startsWith(`${user.uid}/`)) {
+        return new Response('Forbidden', { status: 403, headers });
+      }
+
+      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+      if (file.size > MAX_FILE_SIZE) {
+        return new Response('File too large', { status: 413, headers });
+      }
+
+      const ALLOWED_TYPE_PREFIXES = ['image/', 'audio/'];
+      const contentType = ALLOWED_TYPE_PREFIXES.some((p) => file.type.startsWith(p))
+        ? file.type
+        : 'application/octet-stream';
+
       const key = `${path}/${Date.now()}_${file.name}`;
       await env.R2_BUCKET.put(key, file.stream(), {
-        httpMetadata: { contentType: file.type },
+        httpMetadata: { contentType },
       });
 
       // Worker経由の公開URL
@@ -164,6 +185,14 @@ export default {
       const path = url.searchParams.get('path');
       if (!path) {
         return new Response('Bad Request: path required', { status: 400, headers });
+      }
+
+      if (path.includes('..') || path.startsWith('/')) {
+        return new Response('Invalid path', { status: 400, headers });
+      }
+
+      if (!path.startsWith(`${user.uid}/`)) {
+        return new Response('Forbidden', { status: 403, headers });
       }
 
       // 指定キーのみ削除（prefix一致ではなくexact match）

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
@@ -17,11 +17,14 @@ interface AdInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   inputWidth?: string;
 }
 
-export function AdInput({ label, fullWidth = true, inputWidth, style, ...props }: AdInputProps) {
+export function AdInput({ label, fullWidth = true, inputWidth, style, id, ...props }: AdInputProps) {
+  const autoId = useId();
+  const inputId = id || autoId;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      {label && <label htmlFor={inputId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <input
+        id={inputId}
         {...props}
         style={{
           height: HEIGHT,
@@ -47,10 +50,13 @@ interface AdTextAreaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextArea
 }
 
 export function AdTextArea({ label, ...props }: AdTextAreaProps) {
+  const autoId = useId();
+  const textareaId = props.id || autoId;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      {label && <label htmlFor={textareaId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <textarea
+        id={textareaId}
         {...props}
         style={{
           padding: PADDING,
@@ -120,10 +126,13 @@ interface AdSelectProps extends Omit<React.SelectHTMLAttributes<HTMLSelectElemen
 }
 
 export function AdSelect({ label, options, ...props }: AdSelectProps) {
+  const autoId = useId();
+  const selectId = props.id || autoId;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      {label && <label htmlFor={selectId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <select
+        id={selectId}
         {...props}
         style={{
           height: HEIGHT,
@@ -157,6 +166,8 @@ interface AdCheckboxProps {
 export function AdCheckbox({ label, checked, onChange }: AdCheckboxProps) {
   return (
     <label
+      role="checkbox"
+      aria-checked={checked}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -169,6 +180,7 @@ export function AdCheckbox({ label, checked, onChange }: AdCheckboxProps) {
       }}
       onClick={(e) => { e.preventDefault(); onChange(!checked); }}
     >
+      <input type="checkbox" checked={checked} readOnly style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }} />
       {label}
       <div
         style={{
@@ -206,15 +218,16 @@ interface AdSliderProps {
   max: number;
   step?: number;
   displayValue?: string;
+  suffix?: string;
   onChange: (value: number) => void;
 }
 
-export function AdSlider({ label, value, min, max, step = 1, displayValue, onChange }: AdSliderProps) {
+export function AdSlider({ label, value, min, max, step = 1, displayValue, suffix, onChange }: AdSliderProps) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>
-        <span style={{ fontSize: '11px', color: theme.textMuted }}>{displayValue ?? value}</span>
+        <span style={{ fontSize: '11px', color: theme.textMuted }}>{displayValue ?? value}{suffix}</span>
       </div>
       <input
         type="range"
@@ -520,7 +533,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
             onClick={() => handleRemoveFromPalette(contextMenu.index)}
             style={{
               display: 'block', width: '100%', padding: '4px 12px',
-              background: 'transparent', border: 'none', color: theme.error,
+              background: 'transparent', border: 'none', color: theme.danger,
               fontSize: '11px', cursor: 'pointer', textAlign: 'left',
               whiteSpace: 'nowrap',
             }}
@@ -547,8 +560,46 @@ interface AdModalProps {
 }
 
 export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, children, footer }: AdModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  // Escape キーで閉じる
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
+  // フォーカストラップ
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    if (focusable.length > 0) focusable[0].focus();
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const items = el.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+      if (items.length === 0) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleTab);
+    return () => document.removeEventListener('keydown', handleTab);
+  }, []);
+
   return (
     <div
+      role="dialog"
+      aria-modal="true"
       style={{
         position: 'fixed',
         inset: 0,
@@ -561,6 +612,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
       onClick={onClose}
     >
       <div
+        ref={modalRef}
         style={{
           background: theme.bgSurface,
           border: `1px solid ${theme.border}`,
@@ -585,6 +637,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
           <span style={{ fontSize: FONT_SIZE, fontWeight: 600 }}>{title}</span>
           <button
             onClick={onClose}
+            aria-label="閉じる"
             style={{
               background: 'transparent',
               border: 'none',

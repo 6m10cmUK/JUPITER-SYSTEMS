@@ -202,6 +202,21 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     [roomId, activeSceneId]
   );
 
+  const batchUpdateSort = useCallback(
+    async (scope: BoardObjectScope, updates: { id: string; sort: number }[]) => {
+      const colPath = getCollectionPath(roomId, scope, activeSceneId);
+      const batch = writeBatch(db);
+      for (const { id, sort } of updates) {
+        batch.update(doc(db, colPath, id), {
+          sort_order: sort,
+          updated_at: Date.now(),
+        });
+      }
+      await batch.commit();
+    },
+    [roomId, activeSceneId]
+  );
+
   return {
     roomObjects,
     sceneObjects,
@@ -211,5 +226,6 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     updateObject,
     removeObject,
     reorderObjects,
+    batchUpdateSort,
   };
 }
