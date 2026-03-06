@@ -38,40 +38,51 @@ service cloud.firestore {
     }
 
     match /rooms/{roomId} {
-      // 一覧・個別取得・更新・削除: オーナーのみ
-      allow get, list, update, delete: if request.auth != null
+      // 読み取り: 認証済みなら誰でも（ゲスト含む）
+      allow get, list: if request.auth != null;
+      // 更新・削除: オーナーのみ
+      allow update, delete: if request.auth != null
         && resource.data.owner_uid == request.auth.uid;
       // 作成: 認証済み + owner_uid が自分
       allow create: if request.auth != null
         && request.resource.data.owner_uid == request.auth.uid;
 
-      // サブコレクション: すべてオーナーのみ
+      // サブコレクション: read は認証済みユーザー、write はオーナーのみ
       match /pieces/{pieceId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /messages/{messageId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /scenes/{sceneId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
         match /objects/{objectId} {
-          allow read, write: if isRoomOwner(roomId);
+          allow read: if request.auth != null;
+          allow write: if isRoomOwner(roomId);
         }
       }
       match /bgms/{bgmId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /objects/{objectId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /characters/{characterId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /scenario_texts/{textId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
       match /cutins/{cutinId} {
-        allow read, write: if isRoomOwner(roomId);
+        allow read: if request.auth != null;
+        allow write: if isRoomOwner(roomId);
       }
     }
   }
