@@ -42,9 +42,12 @@ export interface PendingEdit {
   scope?: BoardObjectScope;
 }
 
+export type RoomRole = 'owner' | 'user' | 'guest';
+
 export interface AdrasteaContextValue {
   // --- roomId ---
   roomId: string;
+  roomRole: RoomRole;
 
   // --- useAdrastea ---
   pieces: Piece[];
@@ -195,9 +198,10 @@ export const AdrasteaContext = createContext<AdrasteaContextValue | null>(null);
 interface AdrasteaProviderProps {
   children: React.ReactNode;
   roomId: string;
+  roomRole: RoomRole;
 }
 
-export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId }) => {
+export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile } = useAuth();
 
   // --- Data hooks ---
@@ -491,6 +495,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const value = useMemo<AdrasteaContextValue>(
     () => ({
       roomId,
+      roomRole,
 
       // useAdrastea
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
@@ -560,7 +565,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       clearAllEditing,
     }),
     [
-      roomId,
+      roomId, roomRole,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, handleSendMessage,
       effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
