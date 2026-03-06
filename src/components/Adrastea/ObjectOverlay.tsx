@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, memo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react';
 import { Group, Rect, Text, Image as KonvaImage } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type Konva from 'konva';
@@ -129,17 +129,19 @@ function useEdgeResize(
   pxY: number,
   onMove: (id: string, x: number, y: number) => void,
   onResize?: (id: string, w: number, h: number) => void,
+  isDraggable = true,
 ) {
   const resizeRef = useRef<ResizeState | null>(null);
 
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
     if (!stage || !groupRef.current) return;
+    if (!onResize) { stage.container().style.cursor = 'default'; return; }
     const pos = groupRef.current.getRelativePointerPosition();
     if (!pos) return;
     const edge = getEdge(pos.x, pos.y, pxW, pxH);
     stage.container().style.cursor = edgeToCursor(edge);
-  }, [pxW, pxH, groupRef]);
+  }, [pxW, pxH, groupRef, onResize]);
 
   const handleMouseLeave = useCallback((e: KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
@@ -154,7 +156,7 @@ function useEdgeResize(
     if (!pos) return;
     const edge = getEdge(pos.x, pos.y, pxW, pxH);
     if (!edge || !onResize) {
-      group.draggable(true);
+      group.draggable(isDraggable);
       return;
     }
     // エッジ上 → ドラッグ無効化してリサイズ開始
@@ -196,9 +198,10 @@ function useEdgeResize(
       group.position({ x: newX, y: newY });
       group.width(newW);
       group.height(newH);
-      // 子Rectも更新
-      const rect0 = group.findOne('Rect') as Konva.Rect | undefined;
-      if (rect0) { rect0.width(newW); rect0.height(newH); }
+      // 子Rect・Text・Imageもすべてリサイズ追従
+      (group.find('Rect') as Konva.Rect[]).forEach(r => { r.width(newW); r.height(newH); });
+      (group.find('Text') as Konva.Text[]).forEach(t => { t.width(newW); t.height(newH); });
+      (group.find('Image') as Konva.Image[]).forEach(img => { img.width(newW); img.height(newH); });
       group.getLayer()?.batchDraw();
     };
 
@@ -216,19 +219,20 @@ function useEdgeResize(
       group.position({ x: finalX, y: finalY });
       group.width(finalW);
       group.height(finalH);
-      const rect0 = group.findOne('Rect') as Konva.Rect | undefined;
-      if (rect0) { rect0.width(finalW); rect0.height(finalH); }
+      (group.find('Rect') as Konva.Rect[]).forEach(r => { r.width(finalW); r.height(finalH); });
+      (group.find('Text') as Konva.Text[]).forEach(t => { t.width(finalW); t.height(finalH); });
+      (group.find('Image') as Konva.Image[]).forEach(img => { img.width(finalW); img.height(finalH); });
 
       onMove(objId, finalX / GRID_SIZE, finalY / GRID_SIZE);
       onResize(objId, Math.max(1, finalW / GRID_SIZE), Math.max(1, finalH / GRID_SIZE));
-      group.draggable(true);
+      group.draggable(isDraggable);
       const stage = group.getStage();
       if (stage) stage.draggable(true);
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
-  }, [objId, pxW, pxH, pxX, pxY, onMove, onResize, groupRef]);
+  }, [objId, pxW, pxH, pxX, pxY, onMove, onResize, groupRef, isDraggable]);
 
   const handleDragEnd = useCallback(
     (e: KonvaEventObject<DragEvent>) => {
@@ -243,9 +247,22 @@ function useEdgeResize(
   return { handleMouseMove, handleMouseLeave, handleMouseDown, handleDragEnd };
 }
 
+// --- 選択ハイライト ---
+function SelectionHighlight({ width, height, isSelected }: { width: number; height: number; isSelected: boolean }) {
+  if (!isSelected) return null;
+  return (
+    <>
+      {/* 外側: 白（暗い背景用） */}
+      <Rect width={width} height={height} fill="transparent" stroke="rgba(255,255,255,0.5)" strokeWidth={3} strokeScaleEnabled={false} listening={false} />
+      {/* 内側: 青（明るい背景用） */}
+      <Rect width={width} height={height} fill="transparent" stroke="rgba(60,140,255,0.6)" strokeWidth={1.5} strokeScaleEnabled={false} listening={false} />
+    </>
+  );
+}
+
 // --- PanelObject ---
 const PanelObject = memo(function PanelObject({
-  obj, isSelected: _isSelected, onMove, onSelect, onEdit, onResize,
+  obj, isSelected, onMove, onSelect, onEdit, onResize,
 }: {
   obj: BoardObject; isSelected: boolean;
   onMove: (id: string, x: number, y: number) => void;
@@ -260,15 +277,15 @@ const PanelObject = memo(function PanelObject({
   const groupRef = useRef<Konva.Group>(null);
 
   const { handleMouseMove, handleMouseLeave, handleMouseDown, handleDragEnd } =
-    useEdgeResize(obj.id, groupRef, pxW, pxH, pxX, pxY, onMove, onResize);
+    useEdgeResize(obj.id, groupRef, pxW, pxH, pxX, pxY, onMove, onResize, !obj.position_locked);
 
   return (
     <Group
       ref={groupRef}
       x={pxX} y={pxY} width={pxW} height={pxH}
-      draggable
+      draggable={!obj.position_locked}
       opacity={obj.opacity}
-      onMouseDown={handleMouseDown}
+      onMouseDown={(e) => { onSelect(obj.id); handleMouseDown(e); }}
       onDragEnd={handleDragEnd}
       onClick={() => onSelect(obj.id)}
       onTap={() => onSelect(obj.id)}
@@ -288,13 +305,30 @@ const PanelObject = memo(function PanelObject({
           fontSize={14} fill="rgba(255,255,255,0.4)" listening={false}
         />
       )}
+      <SelectionHighlight width={pxW} height={pxH} isSelected={isSelected} />
     </Group>
   );
 });
 
+// --- テキスト内容からピクセルサイズを計算 ---
+function measureTextSize(text: string, fontSize: number, fontFamily: string, letterSpacing: number, lineHeight: number): { w: number; h: number } {
+  const canvas = document.createElement('canvas');
+  const ctx2d = canvas.getContext('2d')!;
+  ctx2d.font = `${fontSize}px ${fontFamily}`;
+  const lines = text.split('\n');
+  let maxW = 0;
+  for (const line of lines) {
+    const m = ctx2d.measureText(line || ' ');
+    const w = m.width + line.length * letterSpacing;
+    if (w > maxW) maxW = w;
+  }
+  const lh = fontSize * lineHeight;
+  return { w: Math.ceil(maxW) + 8, h: Math.ceil(lines.length * lh) + 4 };
+}
+
 // --- TextObject ---
 const TextObject = memo(function TextObject({
-  obj, isSelected: _isSelected, onMove, onSelect, onEdit, onResize,
+  obj, isSelected, onMove, onSelect, onEdit, onResize,
 }: {
   obj: BoardObject; isSelected: boolean;
   onMove: (id: string, x: number, y: number) => void;
@@ -304,20 +338,33 @@ const TextObject = memo(function TextObject({
 }) {
   const pxX = obj.x * GRID_SIZE;
   const pxY = obj.y * GRID_SIZE;
-  const pxW = obj.width * GRID_SIZE;
-  const pxH = obj.height * GRID_SIZE;
+  const fontFamily = obj.font_family || 'sans-serif';
+  const textStr = obj.text_content || obj.name;
+
+  const objLetterSpacing = obj.letter_spacing ?? 0;
+  const objLineHeight = obj.line_height ?? 1.2;
+
+  // auto_size: テキスト内容からサイズを算出
+  const autoMeasured = useMemo(() => {
+    if (!obj.auto_size) return null;
+    return measureTextSize(textStr, obj.font_size, fontFamily, objLetterSpacing, objLineHeight);
+  }, [obj.auto_size, textStr, obj.font_size, fontFamily, objLetterSpacing, objLineHeight]);
+
+  const pxW = autoMeasured ? autoMeasured.w : obj.width * GRID_SIZE;
+  const pxH = autoMeasured ? autoMeasured.h : obj.height * GRID_SIZE;
+
   const groupRef = useRef<Konva.Group>(null);
 
   const { handleMouseMove, handleMouseLeave, handleMouseDown, handleDragEnd } =
-    useEdgeResize(obj.id, groupRef, pxW, pxH, pxX, pxY, onMove, onResize);
+    useEdgeResize(obj.id, groupRef, pxW, pxH, pxX, pxY, onMove, onResize, !obj.position_locked);
 
   return (
     <Group
       ref={groupRef}
       x={pxX} y={pxY} width={pxW} height={pxH}
-      draggable
+      draggable={!obj.position_locked}
       opacity={obj.opacity}
-      onMouseDown={handleMouseDown}
+      onMouseDown={(e) => { onSelect(obj.id); handleMouseDown(e); }}
       onDragEnd={handleDragEnd}
       onClick={() => onSelect(obj.id)}
       onTap={() => onSelect(obj.id)}
@@ -328,10 +375,18 @@ const TextObject = memo(function TextObject({
     >
       <Rect width={pxW} height={pxH} fill={obj.background_color} />
       <Text
-        text={obj.text_content || obj.name}
-        fontSize={obj.font_size} fill={obj.text_color}
-        width={pxW} height={pxH} listening={false}
+        text={textStr}
+        fontSize={obj.font_size}
+        fontFamily={fontFamily}
+        letterSpacing={objLetterSpacing}
+        lineHeight={objLineHeight}
+        fill={obj.text_color}
+        width={pxW} height={pxH}
+        align={obj.text_align || 'left'}
+        verticalAlign={obj.text_vertical_align || 'top'}
+        listening={false}
       />
+      <SelectionHighlight width={pxW} height={pxH} isSelected={isSelected} />
     </Group>
   );
 });
@@ -364,9 +419,10 @@ const BackgroundObject = memo(function BackgroundObject({
 
 // --- ForegroundObject ---
 const ForegroundObject = memo(function ForegroundObject({
-  obj, onMove: _onMove, onSelect, onEdit, fadeIn,
+  obj, isSelected, onMove: _onMove, onSelect, onEdit, fadeIn,
 }: {
   obj: BoardObject;
+  isSelected: boolean;
   onMove: (id: string, x: number, y: number) => void;
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
@@ -401,6 +457,7 @@ const ForegroundObject = memo(function ForegroundObject({
       {obj.image_url && (
         <ObjectImage url={obj.image_url} width={pxW} height={pxH} fit={obj.image_fit} />
       )}
+      <SelectionHighlight width={pxW} height={pxH} isSelected={isSelected} />
     </Group>
   );
 });
@@ -422,11 +479,11 @@ export const ObjectOverlay = memo(function ObjectOverlay({
           case 'background':
             return <BackgroundObject key={obj.id} obj={obj} onSelect={onSelectObject} onEdit={onEditObject} />;
           case 'panel':
-            return <PanelObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} onResize={onResizeObject} />;
+            return <PanelObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} onResize={obj.size_locked ? undefined : onResizeObject} />;
           case 'text':
-            return <TextObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} onResize={onResizeObject} />;
+            return <TextObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} onResize={(obj.auto_size || obj.size_locked) ? undefined : onResizeObject} />;
           case 'foreground':
-            return <ForegroundObject key={obj.id} obj={obj} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} fadeIn={activeScene?.fg_transition === 'fade' ? { duration: activeScene.fg_transition_duration } : undefined} />;
+            return <ForegroundObject key={obj.id} obj={obj} isSelected={isSelected} onMove={onMoveObject} onSelect={onSelectObject} onEdit={onEditObject} fadeIn={activeScene?.fg_transition === 'fade' ? { duration: activeScene.fg_transition_duration } : undefined} />;
         }
       })}
     </>

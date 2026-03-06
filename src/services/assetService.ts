@@ -52,6 +52,28 @@ export async function uploadAssetToR2(
   };
 }
 
+export async function uploadAudioAssetToR2(
+  file: File,
+  uid: string
+): Promise<{ url: string; r2_key: string; size_bytes: number; width: 0; height: 0 }> {
+  const r2_key = `users/${uid}/assets/${Date.now()}_${file.name}`;
+  const token = await getIdToken();
+
+  const form = new FormData();
+  form.append('file', file, r2_key.replace(/\//g, '_'));
+  form.append('path', r2_key);
+
+  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) throw new Error(`アップロード失敗: ${res.status}`);
+  const data = await res.json();
+
+  return { url: data.url, r2_key, size_bytes: file.size, width: 0, height: 0 };
+}
+
 export async function deleteAssetFromR2(r2Key: string): Promise<void> {
   const token = await getIdToken();
   const res = await fetch(

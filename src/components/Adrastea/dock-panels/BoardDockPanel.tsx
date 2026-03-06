@@ -28,8 +28,10 @@ export function BoardDockPanel() {
     ctx.setEditingObjectId(id);
   };
 
-  // ダブルクリック → 画像選択モーダル直表示
+  // ダブルクリック → 画像選択モーダル直表示（テキストオブジェクトは除外）
   const handleEditObject = (id: string) => {
+    const obj = ctx.mergedObjects.find(o => o.id === id);
+    if (obj?.type === 'text') return;
     const scope = getScope(id);
     setImagePickerTarget({ id, scope });
   };

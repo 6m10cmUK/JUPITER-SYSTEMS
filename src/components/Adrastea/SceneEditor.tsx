@@ -19,6 +19,13 @@ export function SceneEditor({ scene, roomId, onSave: _onSave, onClose: _onClose 
   const [fgTransition, setFgTransition] = useState(scene?.fg_transition ?? 'none');
   const [fgTransitionDuration, setFgTransitionDuration] = useState(scene?.fg_transition_duration ?? 500);
 
+  // 外部からの変更（シーンパネルでのリネーム等）をローカルstateに同期
+  useEffect(() => {
+    if (scene && scene.name !== undefined) {
+      setName(scene.name);
+    }
+  }, [scene?.name]);
+
   useEffect(() => {
     ctx.setPendingEdit(`scene:${scene?.id ?? 'new'}`, {
       type: 'scene',

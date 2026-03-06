@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadAssetToR2, deleteAssetFromR2 } from '../services/assetService';
+import { uploadAssetToR2, uploadAudioAssetToR2, deleteAssetFromR2 } from '../services/assetService';
 
 export function useAssets() {
   const { user, isGuest } = useAuth();
@@ -36,10 +36,15 @@ export function useAssets() {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const updated: Asset[] = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        } as Asset));
+        const updated: Asset[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            ...data,
+            asset_type: data.asset_type ?? 'image',
+            title: data.title ?? data.filename ?? '',
+          } as Asset;
+        });
         setAssets(updated);
         setLoading(false);
       },
@@ -56,15 +61,18 @@ export function useAssets() {
     async (file: File): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
       const result = await uploadAssetToR2(file, uid);
+      const title = file.name;
       const docRef = await addDoc(collection(db, 'users', uid, 'assets'), {
         uid,
         url: result.url,
         r2_key: result.r2_key,
         filename: file.name,
+        title,
         size_bytes: result.size_bytes,
         width: result.width,
         height: result.height,
         tags: [],
+        asset_type: 'image',
         created_at: Date.now(),
       });
       return {
@@ -73,10 +81,84 @@ export function useAssets() {
         url: result.url,
         r2_key: result.r2_key,
         filename: file.name,
+        title,
         size_bytes: result.size_bytes,
         width: result.width,
         height: result.height,
         tags: [],
+        asset_type: 'image' as const,
+        created_at: Date.now(),
+      };
+    },
+    [uid, isGuest]
+  );
+
+  const uploadAudioAsset = useCallback(
+    async (file: File): Promise<Asset | null> => {
+      if (!uid || isGuest) return null;
+      const result = await uploadAudioAssetToR2(file, uid);
+      const title = file.name;
+      const docRef = await addDoc(collection(db, 'users', uid, 'assets'), {
+        uid,
+        url: result.url,
+        r2_key: result.r2_key,
+        filename: file.name,
+        title,
+        size_bytes: result.size_bytes,
+        width: 0,
+        height: 0,
+        tags: [],
+        asset_type: 'audio',
+        created_at: Date.now(),
+      });
+      return {
+        id: docRef.id,
+        uid,
+        url: result.url,
+        r2_key: result.r2_key,
+        filename: file.name,
+        title,
+        size_bytes: result.size_bytes,
+        width: 0,
+        height: 0,
+        tags: [],
+        asset_type: 'audio' as const,
+        created_at: Date.now(),
+      };
+    },
+    [uid, isGuest]
+  );
+
+  const addAssetByUrl = useCallback(
+    async (url: string, assetType: 'image' | 'audio'): Promise<Asset | null> => {
+      if (!uid || isGuest) return null;
+      const filename = decodeURIComponent(url.split('/').pop() || url).replace(/[?#].*$/, '');
+      const title = filename;
+      const docRef = await addDoc(collection(db, 'users', uid, 'assets'), {
+        uid,
+        url,
+        r2_key: '',
+        filename,
+        title,
+        size_bytes: 0,
+        width: 0,
+        height: 0,
+        tags: [],
+        asset_type: assetType,
+        created_at: Date.now(),
+      });
+      return {
+        id: docRef.id,
+        uid,
+        url,
+        r2_key: '',
+        filename,
+        title,
+        size_bytes: 0,
+        width: 0,
+        height: 0,
+        tags: [],
+        asset_type: assetType,
         created_at: Date.now(),
       };
     },
@@ -104,5 +186,13 @@ export function useAssets() {
     [uid, isGuest]
   );
 
-  return { assets, loading, uploadAsset, deleteAsset, updateAssetTags };
+  const updateAssetTitle = useCallback(
+    async (assetId: string, title: string) => {
+      if (!uid || isGuest) return;
+      await updateDoc(doc(db, 'users', uid, 'assets', assetId), { title });
+    },
+    [uid, isGuest]
+  );
+
+  return { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle };
 }

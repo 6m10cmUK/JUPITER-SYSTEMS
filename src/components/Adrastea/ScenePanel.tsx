@@ -1,8 +1,11 @@
 
 import { useState, useCallback } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
 import { Plus, Trash2 } from 'lucide-react';
+import { SortableListPanel, SortableListItem } from './ui';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -10,6 +13,7 @@ interface ScenePanelProps {
   onActivateScene: (sceneId: string | null) => void;
   onAddScene: () => void;
   onEditScene: (scene: Scene) => void;
+  onUpdateSceneName: (sceneId: string, name: string) => void;
   onRemoveScene: (sceneId: string) => void;
   onReorderScenes?: (orderedIds: string[]) => void;
 }
@@ -20,84 +24,39 @@ export function ScenePanel({
   onActivateScene,
   onAddScene,
   onEditScene,
+  onUpdateSceneName,
   onRemoveScene,
   onReorderScenes,
 }: ScenePanelProps) {
-  const [dragId, setDragId] = useState<string | null>(null);
-  // dropPosition: { id: シーンID, position: 'before' | 'after' }
-  const [dropPosition, setDropPosition] = useState<{ id: string; position: 'before' | 'after' } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [nameValue, setNameValue] = useState('');
 
-  const handleDragStart = useCallback((e: React.DragEvent, sceneId: string) => {
-    setDragId(sceneId);
-    e.dataTransfer.effectAllowed = 'move';
-  }, []);
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderScenes) return;
+    const oldIndex = scenes.findIndex(s => s.id === active.id);
+    const newIndex = scenes.findIndex(s => s.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(scenes, oldIndex, newIndex);
+    onReorderScenes(reordered.map(s => s.id));
+  }, [scenes, onReorderScenes]);
 
-  const handleDragOver = useCallback((e: React.DragEvent, sceneId: string) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    if (sceneId === dragId) { setDropPosition(null); return; }
-    // カーソル位置がカード上半分なら before、下半分なら after
-    const rect = e.currentTarget.getBoundingClientRect();
-    const midY = rect.top + rect.height / 2;
-    const position = e.clientY < midY ? 'before' : 'after';
-    setDropPosition({ id: sceneId, position });
-  }, [dragId]);
+  const startEdit = (scene: Scene) => {
+    setEditingId(scene.id);
+    setNameValue(scene.name);
+  };
 
-  const handleDragLeave = useCallback(() => {
-    setDropPosition(null);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (!dragId || dragId === targetId || !onReorderScenes || !dropPosition) {
-      setDragId(null);
-      setDropPosition(null);
-      return;
+  const commitEdit = () => {
+    if (editingId && nameValue.trim()) {
+      onUpdateSceneName(editingId, nameValue.trim());
     }
-    const ids = scenes.map(s => s.id);
-    const fromIdx = ids.indexOf(dragId);
-    if (fromIdx === -1) { setDragId(null); setDropPosition(null); return; }
-    // ドラッグ元を削除
-    ids.splice(fromIdx, 1);
-    // 挿入先のインデックスを再計算（削除後のリスト基準）
-    const toIdx = ids.indexOf(dropPosition.id);
-    if (toIdx === -1) { setDragId(null); setDropPosition(null); return; }
-    const insertIdx = dropPosition.position === 'before' ? toIdx : toIdx + 1;
-    ids.splice(insertIdx, 0, dragId);
-    onReorderScenes(ids);
-    setDragId(null);
-    setDropPosition(null);
-  }, [dragId, dropPosition, scenes, onReorderScenes]);
-
-  const handleDragEnd = useCallback(() => {
-    setDragId(null);
-    setDropPosition(null);
-  }, []);
+    setEditingId(null);
+  };
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height: '100%',
-        background: theme.bgSurface,
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
-      {/* ヘッダー */}
-      <div
-        style={{
-          padding: '6px 8px',
-          borderBottom: `1px solid ${theme.border}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <span style={{ color: theme.textPrimary, fontWeight: 600, fontSize: '12px' }}>
-          シーン
-        </span>
+    <SortableListPanel
+      title="シーン"
+      headerActions={
         <button
           onClick={onAddScene}
           style={{
@@ -112,65 +71,18 @@ export function ScenePanel({
         >
           <Plus size={18} />
         </button>
-      </div>
-
-      {/* シーンリスト */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '4px' }}>
-        {scenes.map((scene) => {
-          const isDropBefore = dropPosition?.id === scene.id && dropPosition.position === 'before';
-          const isDropAfter = dropPosition?.id === scene.id && dropPosition.position === 'after';
-          return (
-          <div
-            key={scene.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, scene.id)}
-            onDragOver={(e) => handleDragOver(e, scene.id)}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, scene.id)}
-            onDragEnd={handleDragEnd}
-            style={{
-              position: 'relative',
-              marginBottom: '4px',
-              border: activeSceneId === scene.id
-                ? `1px solid ${theme.accent}`
-                : '1px solid transparent',
-              borderRadius: 0,
-              background: activeSceneId === scene.id
-                ? 'rgba(137,180,250,0.15)'
-                : 'transparent',
-              overflow: 'visible',
-              opacity: dragId === scene.id ? 0.4 : 1,
-              cursor: 'grab',
-            }}
-          >
-            {/* 挿入インジケーター: before */}
-            {isDropBefore && (
-              <div style={{
-                position: 'absolute',
-                top: '-3px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: theme.accent,
-                borderRadius: '1px',
-                zIndex: 10,
-                pointerEvents: 'none',
-              }} />
-            )}
-            {/* 挿入インジケーター: after */}
-            {isDropAfter && (
-              <div style={{
-                position: 'absolute',
-                bottom: '-3px',
-                left: 0,
-                right: 0,
-                height: '2px',
-                background: theme.accent,
-                borderRadius: '1px',
-                zIndex: 10,
-                pointerEvents: 'none',
-              }} />
-            )}
+      }
+      items={scenes}
+      onDragEnd={handleDragEnd}
+      emptyMessage="シーンがありません"
+    >
+      {scenes.map((scene) => (
+        <SortableListItem
+          key={scene.id}
+          id={scene.id}
+          isSelected={activeSceneId === scene.id}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px' }}>
             {/* サムネイル */}
             <div
               onClick={() => { onActivateScene(scene.id); onEditScene(scene); }}
@@ -203,26 +115,46 @@ export function ScenePanel({
             {/* 情報 */}
             <div
               style={{
-                padding: '4px 6px',
+                padding: '4px 0',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <span
-                onClick={() => { onActivateScene(scene.id); onEditScene(scene); }}
-                style={{
-                  color: theme.textPrimary,
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {scene.name}
-              </span>
+              {editingId === scene.id ? (
+                <input
+                  value={nameValue}
+                  onChange={(e) => setNameValue(e.target.value)}
+                  onBlur={commitEdit}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') commitEdit();
+                    if (e.key === 'Escape') setEditingId(null);
+                  }}
+                  autoFocus
+                  style={{
+                    flex: 1, minWidth: 0,
+                    background: theme.bgInput, border: `1px solid ${theme.border}`,
+                    color: theme.textPrimary, fontSize: '11px', padding: '1px 4px',
+                    outline: 'none',
+                  }}
+                />
+              ) : (
+                <span
+                  onClick={() => { onActivateScene(scene.id); onEditScene(scene); }}
+                  onDoubleClick={(e) => { e.stopPropagation(); startEdit(scene); }}
+                  style={{
+                    color: theme.textPrimary,
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    flex: 1,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {scene.name}
+                </span>
+              )}
               <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
                 {scenes.length > 1 && (
                   <button
@@ -246,10 +178,8 @@ export function ScenePanel({
               </div>
             </div>
           </div>
-          );
-        })}
-      </div>
-
-    </div>
+        </SortableListItem>
+      ))}
+    </SortableListPanel>
   );
 }

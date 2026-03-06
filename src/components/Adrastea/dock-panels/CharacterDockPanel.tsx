@@ -9,6 +9,7 @@ export function CharacterDockPanel() {
       onAddCharacter={() => { ctx.clearAllEditing(); ctx.setEditingCharacter(null); }}
       onEditCharacter={(char) => { ctx.clearAllEditing(); ctx.setEditingCharacter(char); }}
       onRemoveCharacter={ctx.removeCharacter}
+      onReorderCharacters={ctx.reorderCharacters}
       onClose={() => {}}
     />
   );

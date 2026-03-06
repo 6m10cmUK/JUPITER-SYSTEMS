@@ -47,9 +47,9 @@ service cloud.firestore {
         match /objects/{objectId} {
           allow read, write: if true;
         }
-        match /bgms/{bgmId} {
-          allow read, write: if true;
-        }
+      }
+      match /bgms/{bgmId} {
+        allow read, write: if true;
       }
       match /objects/{objectId} {
         allow read, write: if true;

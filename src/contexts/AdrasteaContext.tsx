@@ -23,6 +23,7 @@ import { useObjects } from '../hooks/useObjects';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
 import { useBgms } from '../hooks/useBgms';
+import { useImagePreloader } from '../hooks/useImagePreloader';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
 
@@ -79,6 +80,7 @@ export interface AdrasteaContextValue {
   addCharacter: ReturnType<typeof useCharacters>['addCharacter'];
   updateCharacter: ReturnType<typeof useCharacters>['updateCharacter'];
   removeCharacter: ReturnType<typeof useCharacters>['removeCharacter'];
+  reorderCharacters: ReturnType<typeof useCharacters>['reorderCharacters'];
 
   // --- useObjects ---
   roomObjects: BoardObject[];
@@ -94,12 +96,14 @@ export interface AdrasteaContextValue {
   addScenarioText: ReturnType<typeof useScenarioTexts>['addScenarioText'];
   updateScenarioText: ReturnType<typeof useScenarioTexts>['updateScenarioText'];
   removeScenarioText: ReturnType<typeof useScenarioTexts>['removeScenarioText'];
+  reorderScenarioTexts: ReturnType<typeof useScenarioTexts>['reorderScenarioTexts'];
 
   // --- useCutins ---
   cutins: Cutin[];
   addCutin: ReturnType<typeof useCutins>['addCutin'];
   updateCutin: ReturnType<typeof useCutins>['updateCutin'];
   removeCutin: ReturnType<typeof useCutins>['removeCutin'];
+  reorderCutins: ReturnType<typeof useCutins>['reorderCutins'];
   triggerCutin: ReturnType<typeof useCutins>['triggerCutin'];
   clearCutin: ReturnType<typeof useCutins>['clearCutin'];
 
@@ -110,6 +114,12 @@ export interface AdrasteaContextValue {
   removeBgm: (id: string) => Promise<void>;
   reorderBgms: (orderedIds: string[]) => Promise<void>;
 
+  // --- BGM master volume ---
+  masterVolume: number;
+  setMasterVolume: (v: number) => void;
+  bgmMuted: boolean;
+  setBgmMuted: (v: boolean) => void;
+
   // --- UI editing state ---
   editingScene: Scene | null | undefined;
   setEditingScene: React.Dispatch<React.SetStateAction<Scene | null | undefined>>;
@@ -117,6 +127,8 @@ export interface AdrasteaContextValue {
   setEditingCharacter: React.Dispatch<React.SetStateAction<Character | null | undefined>>;
   editingCutin: Cutin | null | undefined;
   setEditingCutin: React.Dispatch<React.SetStateAction<Cutin | null | undefined>>;
+  editingBgmId: string | null;
+  setEditingBgmId: React.Dispatch<React.SetStateAction<string | null>>;
   editingPieceId: string | null;
   setEditingPieceId: React.Dispatch<React.SetStateAction<string | null>>;
   editingObjectId: string | null | undefined;
@@ -192,14 +204,21 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   } = useAdrasteaChat(roomId);
 
   const { scenes, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
-  const { characters, addCharacter, updateCharacter, removeCharacter } = useCharacters(roomId);
+  const { characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
   const {
     roomObjects, sceneObjects, mergedObjects, loading: _objectsLoading,
     addObject, updateObject, removeObject, reorderObjects,
   } = useObjects(roomId, room?.active_scene_id ?? null);
-  const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText } = useScenarioTexts(roomId);
-  const { cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin } = useCutins(roomId);
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, room?.active_scene_id ?? null);
+  const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
+  const { cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
+
+  // --- Image preload ---
+  const preloadUrls = useMemo(() =>
+    scenes.flatMap(s => [s.background_url, s.foreground_url]),
+    [scenes]
+  );
+  useImagePreloader(preloadUrls);
 
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
@@ -211,6 +230,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingObjectScope, setEditingObjectScope] = useState<BoardObjectScope>('scene');
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
+  const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
 
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
@@ -228,6 +248,23 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   // --- Grid visibility ---
   const [gridVisible, setGridVisible] = useState(true);
+
+  // --- BGM master volume (localStorage) ---
+  const [masterVolume, setMasterVolumeState] = useState(() => {
+    const saved = localStorage.getItem('adrastea-master-volume');
+    return saved !== null ? Number(saved) : 0.5;
+  });
+  const [bgmMuted, setBgmMutedState] = useState(() => {
+    return localStorage.getItem('adrastea-bgm-muted') === 'true';
+  });
+  const setMasterVolume = useCallback((v: number) => {
+    setMasterVolumeState(v);
+    localStorage.setItem('adrastea-master-volume', String(v));
+  }, []);
+  const setBgmMuted = useCallback((v: boolean) => {
+    setBgmMutedState(v);
+    localStorage.setItem('adrastea-bgm-muted', String(v));
+  }, []);
 
   // --- Auto-save edits (debounced) ---
   const [localSceneOverrides, setLocalSceneOverrides] = useState<Map<string, Partial<Scene>>>(new Map());
@@ -410,6 +447,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
+    setEditingBgmId(null);
   }, []);
 
   const onAddObject = useCallback((scope: BoardObjectScope = 'scene') => {
@@ -433,25 +471,27 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       activateScene: safeActivateScene,
 
       // useCharacters
-      characters, addCharacter, updateCharacter, removeCharacter,
+      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
 
       // useObjects
       roomObjects, sceneObjects: effectiveSceneObjects, mergedObjects: effectiveMergedObjects,
       addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects,
 
       // useScenarioTexts
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
+      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
 
       // useCutins
-      cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
+      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
 
       // useBgms
       bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+      masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
 
       // UI state
       editingScene, setEditingScene,
       editingCharacter, setEditingCharacter,
       editingCutin, setEditingCutin,
+      editingBgmId, setEditingBgmId,
       editingPieceId, setEditingPieceId,
       editingObjectId, setEditingObjectId,
       selectedObjectIds, setSelectedObjectIds,
@@ -489,13 +529,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, handleSendMessage,
       effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
-      characters, addCharacter, updateCharacter, removeCharacter,
+      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
       roomObjects, effectiveSceneObjects, effectiveMergedObjects,
       addObject, syncedUpdateObject, removeObject, reorderObjects,
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
-      cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
+      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
       bgms, addBgm, updateBgm, removeBgm, reorderBgms,
-      editingScene, editingCharacter, editingCutin,
+      masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
+      editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds, editingObjectScope,
       showRoomSettings, showProfileEdit,
       activeScene,

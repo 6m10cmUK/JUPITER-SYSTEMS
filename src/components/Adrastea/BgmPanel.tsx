@@ -1,298 +1,267 @@
-import React, { useState, useCallback } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useState, useCallback, useMemo } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
-import { AdInput, AdSlider, AdCheckbox, AdToggleButtons, AdSection } from './ui';
-import { FileDropZone } from './FileDropZone';
+import { SortableListPanel, SortableListItem } from './ui';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
-  Play, Pause, Repeat, Trash2, Plus,
-  GripVertical, ChevronDown, ChevronRight, Music,
+  Play, Pause, Square, Trash2, Plus, Music,
+  Volume2, VolumeX,
 } from 'lucide-react';
+import { AssetPickerModal } from './AssetPicker';
 
 const extractVideoId = (url: string): string => {
   const match = url.match(/(?:youtu\.be\/|v=)([^&\s]+)/);
   return match ? match[1] : url;
 };
 
-const BGM_TYPE_OPTIONS = [
-  { value: null as any, label: 'なし' },
-  { value: 'youtube', label: 'YouTube' },
-  { value: 'url', label: 'URL' },
-  { value: 'upload', label: 'アップロード' },
-];
+// --- Volume Fader (OBS-style) ---
+function VolumeFader({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const pct = Math.round(value * 100);
 
-// --- SortableRow ---
-interface SortableRowProps {
-  track: BgmTrack;
-  isExpanded: boolean;
-  onToggleExpand: (id: string) => void;
-  onUpdate: (id: string, data: Partial<BgmTrack>) => void;
-  onRemove: (id: string) => void;
-  roomId: string;
-  sceneId: string | undefined;
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '16px' }}>
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: theme.bgInput,
+        border: `1px solid ${theme.border}`,
+      }} />
+      <div style={{
+        position: 'absolute', top: 1, bottom: 1, left: 1,
+        width: `${pct}%`,
+        background: theme.accent,
+        opacity: 0.7,
+        transition: 'width 0.05s',
+      }} />
+      <div style={{
+        position: 'absolute', inset: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
+        paddingRight: '4px', fontSize: '9px', color: theme.textMuted,
+        pointerEvents: 'none',
+      }}>
+        {pct}%
+      </div>
+      <input
+        type="range"
+        min="0" max="1" step="0.01"
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{
+          position: 'absolute', inset: 0,
+          width: '100%', height: '100%',
+          opacity: 0, cursor: 'pointer', margin: 0,
+        }}
+      />
+    </div>
+  );
 }
 
-function SortableRow({
-  track, isExpanded, onToggleExpand, onUpdate, onRemove, roomId, sceneId,
-}: SortableRowProps) {
-  const {
-    attributes, listeners, setNodeRef, transform, transition, isDragging,
-  } = useSortable({ id: track.id });
-  const [editingName, setEditingName] = useState(false);
-  const [nameValue, setNameValue] = useState(track.name);
+// --- BgmTrackRow ---
+interface BgmTrackRowProps {
+  track: BgmTrack;
+  isEditing: boolean;
+  onEdit: (id: string) => void;
+  onUpdate: (id: string, data: Partial<BgmTrack>) => void;
+  onRemove: (id: string) => void;
+}
 
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    borderBottom: `1px solid ${theme.border}`,
-  };
+function BgmTrackRow({
+  track, isEditing, onEdit, onUpdate, onRemove,
+}: BgmTrackRowProps) {
+  const [localMuted, setLocalMuted] = useState(false);
 
   const iconBtn: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
-    color: theme.textSecondary,
     cursor: 'pointer',
-    padding: '4px',
+    padding: '3px',
     display: 'flex',
     alignItems: 'center',
+    flexShrink: 0,
   };
 
+  const effectiveVolume = localMuted ? 0 : track.bgm_volume;
+
   return (
-    <div ref={setNodeRef} style={style}>
-      {/* メイン行 */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '4px',
-        padding: '4px 8px', fontSize: '12px', color: theme.textPrimary,
-      }}>
-        {/* ドラッグハンドル */}
-        <span {...attributes} {...listeners} style={{ cursor: 'grab', display: 'flex' }}>
-          <GripVertical size={14} color={theme.textSecondary} />
-        </span>
-
-        {/* 展開/折りたたみ */}
-        <button style={iconBtn} onClick={() => onToggleExpand(track.id)}>
-          {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </button>
-
-        {/* 再生/停止 */}
-        <button
-          style={{ ...iconBtn, color: track.is_playing ? theme.accent : theme.textSecondary }}
-          onClick={() => onUpdate(track.id, { is_playing: !track.is_playing })}
-        >
-          {track.is_playing ? <Pause size={14} /> : <Play size={14} />}
-        </button>
-
-        {/* トラック名 */}
-        {editingName ? (
-          <input
-            value={nameValue}
-            onChange={(e) => setNameValue(e.target.value)}
-            onBlur={() => {
-              onUpdate(track.id, { name: nameValue });
-              setEditingName(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                onUpdate(track.id, { name: nameValue });
-                setEditingName(false);
+    <SortableListItem id={track.id} onClick={() => onEdit(track.id)} isSelected={isEditing}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {/* Top row: controls */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '2px',
+          marginBottom: '4px', fontSize: '11px',
+        }}>
+          {/* Play/Pause */}
+          <button
+            style={{ ...iconBtn, color: track.is_playing && !track.is_paused ? theme.accent : theme.textSecondary }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!track.is_playing) {
+                onUpdate(track.id, { is_playing: true, is_paused: false });
+              } else if (track.is_paused) {
+                onUpdate(track.id, { is_paused: false });
+              } else {
+                onUpdate(track.id, { is_paused: true });
               }
             }}
-            autoFocus
-            style={{
-              flex: 1, background: theme.surfaceHover, border: `1px solid ${theme.border}`,
-              color: theme.textPrimary, fontSize: '12px', padding: '2px 4px',
-              borderRadius: '2px', outline: 'none',
-            }}
-          />
-        ) : (
-          <span
-            style={{ flex: 1, cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-            onDoubleClick={() => { setNameValue(track.name); setEditingName(true); }}
+            title={track.is_playing && !track.is_paused ? '一時停止' : '再生'}
           >
-            <Music size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
+            {track.is_playing && !track.is_paused ? <Pause size={13} /> : <Play size={13} />}
+          </button>
+
+          {/* Stop */}
+          <button
+            style={{ ...iconBtn, color: !track.is_playing ? theme.accent : theme.textSecondary }}
+            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { is_playing: false, is_paused: false }); }}
+            title="停止"
+            disabled={!track.is_playing}
+          >
+            <Square size={11} />
+          </button>
+
+          {/* Track name */}
+          <span
+            style={{
+              flex: 1, minWidth: 0,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              color: theme.textPrimary, fontSize: '11px',
+            }}
+          >
             {track.name}
           </span>
-        )}
 
-        {/* ボリュームスライダー */}
-        <input
-          type="range"
-          min="0" max="1" step="0.05"
-          value={track.bgm_volume}
-          onChange={(e) => onUpdate(track.id, { bgm_volume: Number(e.target.value) })}
-          style={{ width: '80px' }}
-        />
-
-        {/* ループ */}
-        <button
-          style={{ ...iconBtn, color: track.bgm_loop ? theme.accent : theme.textSecondary }}
-          onClick={() => onUpdate(track.id, { bgm_loop: !track.bgm_loop })}
-        >
-          <Repeat size={14} />
-        </button>
-
-        {/* 削除 */}
-        <button style={{ ...iconBtn, color: theme.error }} onClick={() => onRemove(track.id)}>
-          <Trash2 size={14} />
-        </button>
-      </div>
-
-      {/* 展開エリア */}
-      {isExpanded && (
-        <div style={{
-          padding: '8px 16px 12px', display: 'flex', flexDirection: 'column', gap: '8px',
-          background: theme.surfaceHover,
-        }}>
-          <AdSection label="BGMソース">
-            <AdToggleButtons
-              value={track.bgm_type}
-              options={BGM_TYPE_OPTIONS}
-              onChange={(val) => onUpdate(track.id, { bgm_type: val, bgm_source: null })}
-            />
-            {track.bgm_type === 'youtube' && (
-              <AdInput
-                label="YouTube URL"
-                value={track.bgm_source ?? ''}
-                onChange={(val) => onUpdate(track.id, { bgm_source: extractVideoId(val) })}
-              />
-            )}
-            {track.bgm_type === 'url' && (
-              <AdInput
-                label="音声URL"
-                value={track.bgm_source ?? ''}
-                onChange={(val) => onUpdate(track.id, { bgm_source: val })}
-              />
-            )}
-            {track.bgm_type === 'upload' && (
-              <FileDropZone
-                storagePath={`rooms/${roomId}/scenes/${sceneId}/bgms/${track.id}/audio`}
-                currentUrl={track.bgm_source ?? undefined}
-                onUploaded={(url) => onUpdate(track.id, { bgm_source: url })}
-                accept="audio/*"
-              />
-            )}
-          </AdSection>
-
-          <AdSection label="フェード設定">
-            <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-              <AdCheckbox
-                label="フェードイン"
-                checked={track.fade_in}
-                onChange={(val) => onUpdate(track.id, { fade_in: val })}
-              />
-              <AdCheckbox
-                label="フェードアウト"
-                checked={track.fade_out}
-                onChange={(val) => onUpdate(track.id, { fade_out: val })}
-              />
-            </div>
-            <AdSlider
-              label="フェード時間"
-              value={track.fade_duration}
-              min={100} max={3000} step={100}
-              onChange={(val) => onUpdate(track.id, { fade_duration: val })}
-              suffix="ms"
-            />
-          </AdSection>
+          {/* Delete */}
+          <button
+            style={{ ...iconBtn, color: theme.error }}
+            onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
+            title="削除"
+          >
+            <Trash2 size={11} />
+          </button>
         </div>
-      )}
-    </div>
+
+        {/* Fader row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            style={{
+              ...iconBtn,
+              color: localMuted ? theme.error : theme.textSecondary,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              setLocalMuted(!localMuted);
+              onUpdate(track.id, { bgm_volume: localMuted ? track.bgm_volume : 0 });
+            }}
+            title={localMuted ? 'ミュート解除' : 'ミュート'}
+          >
+            {localMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+          </button>
+
+          <div style={{ flex: 1 }}>
+            <VolumeFader
+              value={effectiveVolume}
+              onChange={(v) => {
+                if (localMuted && v > 0) setLocalMuted(false);
+                onUpdate(track.id, { bgm_volume: v });
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </SortableListItem>
   );
 }
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, roomId, activeScene } = useAdrasteaContext();
-  const [expandedTrackId, setExpandedTrackId] = useState<string | null>(null);
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, roomId, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  // 現在のシーンに属するBGMのみ表示
+  const currentSceneId = activeScene?.id ?? '';
+  const filteredBgms = useMemo(
+    () => bgms.filter(b => b.scene_ids.includes(currentSceneId)),
+    [bgms, currentSceneId]
   );
 
-  const handleToggleExpand = useCallback((id: string) => {
-    setExpandedTrackId(prev => prev === id ? null : id);
-  }, []);
+  const handleEdit = useCallback((id: string) => {
+    clearAllEditing();
+    setEditingBgmId(id);
+  }, [clearAllEditing, setEditingBgmId]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = bgms.findIndex(b => b.id === active.id);
-    const newIndex = bgms.findIndex(b => b.id === over.id);
+    const oldIndex = filteredBgms.findIndex(b => b.id === active.id);
+    const newIndex = filteredBgms.findIndex(b => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(bgms, oldIndex, newIndex);
+    const reordered = arrayMove(filteredBgms, oldIndex, newIndex);
     reorderBgms(reordered.map(b => b.id));
-  }, [bgms, reorderBgms]);
+  }, [filteredBgms, reorderBgms]);
 
-  const handleAdd = useCallback(() => {
-    addBgm({});
-  }, [addBgm]);
+  const [showAddPicker, setShowAddPicker] = useState(false);
+
+  const handleAddFromPicker = useCallback(async (url: string) => {
+    if (!activeScene) return;
+    const videoId = extractVideoId(url);
+    const isYoutube = videoId !== url;
+    if (isYoutube) {
+      let title = videoId;
+      try {
+        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+        const data = await res.json();
+        if (data.title) title = data.title;
+      } catch {
+        // タイトル取得失敗時はvideoIdのまま
+      }
+      addBgm({ name: title, bgm_type: 'youtube', bgm_source: videoId, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
+    } else {
+      const filename = decodeURIComponent(url.split('/').pop() || '新規BGM')
+        .replace(/^\d+_/, '');
+      addBgm({ name: filename, bgm_type: 'url', bgm_source: url, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
+    }
+    setShowAddPicker(false);
+  }, [addBgm, activeScene]);
 
   return (
-    <div style={{
-      height: '100%', display: 'flex', flexDirection: 'column',
-      background: theme.surface, color: theme.textPrimary,
-    }}>
-      {/* ヘッダー */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 12px', borderBottom: `1px solid ${theme.border}`,
-        fontSize: '13px', fontWeight: 600,
-      }}>
-        <span><Music size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />BGM</span>
-        <button
-          onClick={handleAdd}
-          style={{
-            background: 'transparent', border: 'none',
-            color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
-          }}
-        >
-          <Plus size={16} />
-        </button>
-      </div>
+    <>
+      <SortableListPanel
+        title="BGM"
+        titleIcon={<Music size={14} />}
+        headerActions={
+          <button
+            onClick={() => setShowAddPicker(true)}
+            style={{
+              background: 'transparent', border: 'none',
+              color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
+            }}
+            title="トラック追加"
+          >
+            <Plus size={15} />
+          </button>
+        }
+        items={filteredBgms}
+        onDragEnd={handleDragEnd}
+        emptyMessage="トラックがありません"
+      >
+        {filteredBgms.map(track => (
+          <BgmTrackRow
+            key={track.id}
+            track={track}
+            isEditing={editingBgmId === track.id}
+            onEdit={handleEdit}
+            onUpdate={updateBgm}
+            onRemove={removeBgm}
+          />
+        ))}
+      </SortableListPanel>
 
-      {/* リスト */}
-      <div style={{ flex: 1, overflow: 'auto' }}>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={bgms.map(b => b.id)} strategy={verticalListSortingStrategy}>
-            {bgms.map(track => (
-              <SortableRow
-                key={track.id}
-                track={track}
-                isExpanded={expandedTrackId === track.id}
-                onToggleExpand={handleToggleExpand}
-                onUpdate={updateBgm}
-                onRemove={removeBgm}
-                roomId={roomId}
-                sceneId={activeScene?.id}
-              />
-            ))}
-          </SortableContext>
-        </DndContext>
-        {bgms.length === 0 && (
-          <div style={{
-            padding: '24px', textAlign: 'center',
-            color: theme.textSecondary, fontSize: '12px',
-          }}>
-            BGMトラックがありません。＋ボタンで追加してください。
-          </div>
-        )}
-      </div>
-    </div>
+      {showAddPicker && (
+        <AssetPickerModal
+          assetType="audio"
+          onClose={() => setShowAddPicker(false)}
+          onSelect={handleAddFromPicker}
+        />
+      )}
+    </>
   );
 }
