@@ -41,10 +41,6 @@ export function useScenes(roomId: string) {
             background_url: data.background_url ?? null,
             foreground_url: data.foreground_url ?? null,
             foreground_opacity: data.foreground_opacity ?? 0.5,
-            bgm_type: data.bgm_type ?? null,
-            bgm_source: data.bgm_source ?? null,
-            bgm_volume: data.bgm_volume ?? 0.5,
-            bgm_loop: data.bgm_loop ?? true,
             sort_order: data.sort_order ?? 0,
             created_at: data.created_at ?? Date.now(),
             updated_at: data.updated_at ?? Date.now(),
@@ -69,10 +65,6 @@ export function useScenes(roomId: string) {
         background_url: data.background_url ?? null,
         foreground_url: data.foreground_url ?? null,
         foreground_opacity: data.foreground_opacity ?? 0.5,
-        bgm_type: data.bgm_type ?? null,
-        bgm_source: data.bgm_source ?? null,
-        bgm_volume: data.bgm_volume ?? 0.5,
-        bgm_loop: data.bgm_loop ?? true,
         sort_order: data.sort_order ?? scenes.length,
         created_at: Date.now(),
         updated_at: Date.now(),
@@ -97,6 +89,20 @@ export function useScenes(roomId: string) {
           });
         });
         await batch.commit();
+
+        // BGMトラックも複製
+        const sourceBgms = await getDocs(
+          collection(db, 'rooms', roomId, 'scenes', duplicateFromSceneId, 'bgms')
+        );
+        if (!sourceBgms.empty) {
+          const bgmBatch = writeBatch(db);
+          sourceBgms.docs.forEach((d) => {
+            const bgmData = d.data();
+            const newRef = doc(collection(db, 'rooms', roomId, 'scenes', docRef.id, 'bgms'));
+            bgmBatch.set(newRef, { ...bgmData, created_at: now, updated_at: now });
+          });
+          await bgmBatch.commit();
+        }
       } else {
         // デフォルト背景オブジェクト
         await addDoc(objectsCol, {
@@ -147,6 +153,17 @@ export function useScenes(roomId: string) {
         objectsSnap.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
       }
+
+      // BGMトラックも全削除
+      const bgmsSnap = await getDocs(
+        collection(db, 'rooms', roomId, 'scenes', sceneId, 'bgms')
+      );
+      if (!bgmsSnap.empty) {
+        const bgmBatch = writeBatch(db);
+        bgmsSnap.docs.forEach((d) => bgmBatch.delete(d.ref));
+        await bgmBatch.commit();
+      }
+
       await deleteDoc(doc(db, 'rooms', roomId, 'scenes', sceneId));
     },
     [roomId]

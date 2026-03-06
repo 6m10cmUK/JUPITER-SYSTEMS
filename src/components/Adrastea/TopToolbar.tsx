@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { Eye, Image, Settings, LogOut } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
-import { BgmPlayer } from './BgmPlayer';
+import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
 import { Actions, DockLocation, type Model } from 'flexlayout-react';
 import { theme } from '../../styles/theme';
@@ -24,6 +24,7 @@ const PANEL_DEFS = [
   { id: 'chat', component: 'chat', title: 'チャット' },
   { id: 'board', component: 'board', title: 'Board' },
   { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF' },
+  { id: 'bgm', component: 'bgm', title: 'BGM' },
   { id: 'nestedDock', component: 'nestedDock', title: 'Dock' },
 ] as const;
 
@@ -255,7 +256,7 @@ export function TopToolbar({
       <div style={{ flex: 1 }} />
 
       {/* BGMプレイヤー */}
-      <BgmPlayer scene={activeScene} />
+      <BgmMiniPlayer />
 
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />

@@ -10,6 +10,7 @@ import { LayerDockPanel } from './LayerDockPanel';
 import { PropertyDockPanel } from './PropertyDockPanel';
 import { PdfViewerDockPanel } from './PdfViewerDockPanel';
 import { NestedDockPanel } from './NestedDockPanel';
+import { BgmDockPanel } from './BgmDockPanel';
 
 export const panelComponents: Record<string, React.FC> = {
   board: BoardDockPanel,
@@ -21,5 +22,6 @@ export const panelComponents: Record<string, React.FC> = {
   layer: LayerDockPanel,
   property: PropertyDockPanel,
   pdfViewer: PdfViewerDockPanel,
+  bgm: BgmDockPanel,
   nestedDock: NestedDockPanel,
 };

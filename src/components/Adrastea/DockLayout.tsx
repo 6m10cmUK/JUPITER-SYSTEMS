@@ -17,11 +17,12 @@ import 'flexlayout-react/style/dark.css';
 import '../../styles/flexlayout-catppuccin.css';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { panelComponents } from './dock-panels/sharedComponents';
+import { BgmEngine } from './BgmEngine';
 
 /* ── レイアウト保存/復元 ── */
 
 const LAYOUT_STORAGE_KEY = 'adrastea-flex-layout';
-const LAYOUT_VERSION = 11;
+const LAYOUT_VERSION = 12;
 
 const defaultJson: IJsonModel = {
   global: {
@@ -556,6 +557,7 @@ export function DockLayout() {
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
+      <BgmEngine />
       <Layout
         model={model}
         factory={factory}
