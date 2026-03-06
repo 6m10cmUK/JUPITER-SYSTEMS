@@ -22,6 +22,8 @@ import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
+import { useBgms } from '../hooks/useBgms';
+import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
 
 // ---------------------------------------------------------------------------
@@ -100,6 +102,13 @@ export interface AdrasteaContextValue {
   removeCutin: ReturnType<typeof useCutins>['removeCutin'];
   triggerCutin: ReturnType<typeof useCutins>['triggerCutin'];
   clearCutin: ReturnType<typeof useCutins>['clearCutin'];
+
+  // --- useBgms ---
+  bgms: BgmTrack[];
+  addBgm: (data: Partial<Omit<BgmTrack, 'id'>>) => Promise<string>;
+  updateBgm: (id: string, data: Partial<BgmTrack>) => Promise<void>;
+  removeBgm: (id: string) => Promise<void>;
+  reorderBgms: (orderedIds: string[]) => Promise<void>;
 
   // --- UI editing state ---
   editingScene: Scene | null | undefined;
@@ -190,6 +199,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   } = useObjects(roomId, room?.active_scene_id ?? null);
   const { scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText } = useScenarioTexts(roomId);
   const { cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin } = useCutins(roomId);
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, room?.active_scene_id ?? null);
 
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
@@ -435,6 +445,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // useCutins
       cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
 
+      // useBgms
+      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+
       // UI state
       editingScene, setEditingScene,
       editingCharacter, setEditingCharacter,
@@ -481,6 +494,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       addObject, syncedUpdateObject, removeObject, reorderObjects,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText,
       cutins, addCutin, updateCutin, removeCutin, triggerCutin, clearCutin,
+      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
       editingScene, editingCharacter, editingCutin,
       editingPieceId, editingObjectId, selectedObjectIds, editingObjectScope,
       showRoomSettings, showProfileEdit,
