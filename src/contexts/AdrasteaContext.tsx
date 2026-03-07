@@ -92,6 +92,7 @@ export interface AdrasteaContextValue {
   removeObject: (id: string) => Promise<void>;
   reorderObjects: (orderedIds: string[]) => Promise<void>;
   batchUpdateSort: (updates: { id: string; sort: number }[]) => Promise<void>;
+  injectOptimistic: (objects: BoardObject[]) => void;
 
   // --- useScenarioTexts ---
   scenarioTexts: ScenarioText[];
@@ -220,7 +221,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const {
     allObjects, activeObjects, loading: objectsLoading,
-    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort,
+    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
   } = useObjects(roomId, effectiveSceneId);
   const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
   const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
@@ -579,7 +580,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // useObjects
       allObjects, activeObjects: effectiveActiveObjects,
-      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort,
+      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
 
       // useScenarioTexts
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
@@ -634,7 +635,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
       characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
-      addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort,
+      addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
       cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
       bgms, addBgm, updateBgm, removeBgm, reorderBgms,
