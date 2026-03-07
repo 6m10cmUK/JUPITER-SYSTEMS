@@ -49,8 +49,8 @@ export function BoardDockPanel() {
       />
       {imagePickerTarget && (
         <AssetLibraryModal
-          onSelect={(url) => {
-            ctx.updateObject(imagePickerTarget.id, { image_url: url || null });
+          onSelect={(url, assetId) => {
+            ctx.updateObject(imagePickerTarget.id, { image_url: url || null, image_asset_id: assetId ?? null });
             setImagePickerTarget(null);
           }}
           onClose={() => setImagePickerTarget(null)}

@@ -6,7 +6,7 @@ import type { Asset } from '../../types/adrastea.types';
 
 interface AssetLibraryModalProps {
   onClose: () => void;
-  onSelect?: (url: string) => void;
+  onSelect?: (url: string, assetId?: string) => void;
   initialTab?: 'image' | 'audio';
 }
 
@@ -144,10 +144,10 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   }, []);
 
   const handleAssetClick = useCallback(
-    (url: string) => {
+    (url: string, assetId?: string) => {
       previewAudioRef.current?.pause();
       if (onSelect) {
-        onSelect(url);
+        onSelect(url, assetId);
         onClose();
       }
     },
@@ -514,7 +514,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                     overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
                     cursor: onSelect ? 'pointer' : undefined,
                   }}
-                  onClick={() => handleAssetClick(asset.url)}
+                  onClick={() => handleAssetClick(asset.url, asset.id)}
                 >
                   <img
                     src={asset.url}
@@ -558,7 +558,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                       cursor: onSelect ? 'pointer' : undefined,
                       transition: 'background 0.1s',
                     }}
-                    onClick={() => handleAssetClick(asset.url)}
+                    onClick={() => handleAssetClick(asset.url, asset.id)}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   >

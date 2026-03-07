@@ -56,7 +56,19 @@ export function SceneDockPanel() {
       onAddScene={handleAddScene}
       onEditScene={(scene) => { ctx.clearAllEditing(); ctx.setEditingScene(scene); }}
       onUpdateSceneName={(id, name) => ctx.updateScene(id, { name })}
-      onRemoveScene={ctx.removeScene}
+      onRemoveScene={async (sceneId) => {
+        const activeSceneId = ctx.room?.active_scene_id ?? null;
+        if (activeSceneId === sceneId) {
+          // 削除するシーンを開いている場合、隣のシーンに切り替え
+          const sorted = [...ctx.scenes].sort((a, b) => a.sort_order - b.sort_order);
+          const idx = sorted.findIndex(s => s.id === sceneId);
+          // 1個下（次）を優先、なければ1個上（前）
+          const next = sorted[idx + 1] ?? sorted[idx - 1];
+          if (next) await ctx.activateScene(next.id);
+          else await ctx.activateScene(null);
+        }
+        await ctx.removeScene(sceneId);
+      }}
       onReorderScenes={handleReorderScenes}
     />
   );

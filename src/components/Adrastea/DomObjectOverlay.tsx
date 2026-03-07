@@ -9,8 +9,6 @@ const EDGE_THRESHOLD = 28;
 // --- Props ---
 interface DomObjectOverlayProps {
   objects: BoardObject[];
-  /** アクティブなオブジェクト ID のセット。含まれないオブジェクトは非表示だが DOM に保持 */
-  activeObjectIds?: Set<string>;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
   activeScene?: Scene | null;
@@ -314,8 +312,20 @@ function releaseBlobUrl(imageUrl: string): void {
 }
 
 export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string | null {
-  const [blobSrc, setBlobSrc] = useState<string | null>(null);
+  // キャッシュ済みなら初回レンダーから即座に Blob URL を返す（ちらつき防止）
+  // useState の lazy initializer 内でのみ acquireBlobUrl を呼ぶことで refCount リークを防ぐ
+  const initialImageUrlRef = useRef(imageUrl);
   const activeUrlRef = useRef<string | null>(null);
+
+  const [blobSrc, setBlobSrc] = useState<string | null>(() => {
+    const url = initialImageUrlRef.current;
+    if (!url) return null;
+    const existing = blobCache.get(url);
+    if (!existing) return null;
+    const blobUrl = acquireBlobUrl(url, existing.blob);
+    activeUrlRef.current = url;
+    return blobUrl;
+  });
 
   useEffect(() => {
     if (!imageUrl) {
@@ -324,11 +334,13 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
       return;
     }
 
+    // 既に同じ URL で acquire 済み（初期化 or 前回の effect）ならスキップ
+    if (activeUrlRef.current === imageUrl) return;
+
     let cancelled = false;
 
     const apply = (blob: Blob) => {
       if (cancelled) return;
-      // 前の imageUrl を release
       if (activeUrlRef.current && activeUrlRef.current !== imageUrl) {
         releaseBlobUrl(activeUrlRef.current);
       }
@@ -345,7 +357,6 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
         .then(r => r.blob())
         .then(blob => apply(blob))
         .catch(() => {
-          // フォールバック: Blob 化できなければ元 URL をそのまま使う
           if (!cancelled) setBlobSrc(imageUrl);
         });
     }
@@ -565,14 +576,97 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
   );
 });
 
+// --- 安定 key 生成 ---
+// シーン間で DOM を使い回すため、obj.id ではなく type + image_url + 座標近接性で key を割り当てる。
+// 同じ type & 同じ image_url のオブジェクト同士を優先マッチし、GIF アニメーションを継続させる。
+// 同じ image_url が複数ある場合は座標が近い順でインデックスを付与。
+interface PrevSlotInfo { x: number; y: number }
+
+function generateStableKeys(
+  objects: BoardObject[],
+  prevSlots: React.MutableRefObject<Map<string, PrevSlotInfo>>,
+): { obj: BoardObject; stableKey: string }[] {
+  // type + image_url でグループ化
+  const groups = new Map<string, BoardObject[]>();
+  for (const obj of objects) {
+    const groupKey = `${obj.type}:${obj.image_asset_id ?? obj.image_url ?? ''}`;
+    const arr = groups.get(groupKey);
+    if (arr) arr.push(obj);
+    else groups.set(groupKey, [obj]);
+  }
+
+  const result: { obj: BoardObject; stableKey: string }[] = [];
+  const slotCounters = new Map<string, number>();
+
+  for (const [groupKey, objs] of groups) {
+    // 同グループ内で座標が近いものを前回のスロットに優先マッチ
+    // 前回のスロット情報を集める
+    const prevSlotsForGroup: { slotKey: string; x: number; y: number }[] = [];
+    for (const [slotKey, info] of prevSlots.current) {
+      if (slotKey.startsWith(groupKey + ':')) {
+        prevSlotsForGroup.push({ slotKey, ...info });
+      }
+    }
+
+    if (prevSlotsForGroup.length > 0 && objs.length > 0) {
+      // 距離ベースのグリーディマッチング
+      const remaining = [...objs];
+      const usedSlots = new Set<string>();
+
+      for (const slot of prevSlotsForGroup) {
+        if (remaining.length === 0) break;
+        // 最も近いオブジェクトを見つける
+        let bestIdx = 0;
+        let bestDist = Infinity;
+        for (let i = 0; i < remaining.length; i++) {
+          const dx = remaining[i].x - slot.x;
+          const dy = remaining[i].y - slot.y;
+          const dist = dx * dx + dy * dy;
+          if (dist < bestDist) { bestDist = dist; bestIdx = i; }
+        }
+        result.push({ obj: remaining[bestIdx], stableKey: slot.slotKey });
+        usedSlots.add(slot.slotKey);
+        remaining.splice(bestIdx, 1);
+      }
+
+      // マッチしなかった残りには新しいスロットキーを付与
+      for (const obj of remaining) {
+        let idx = slotCounters.get(groupKey) ?? 0;
+        let key = `${groupKey}:${idx}`;
+        while (usedSlots.has(key)) { idx++; key = `${groupKey}:${idx}`; }
+        slotCounters.set(groupKey, idx + 1);
+        usedSlots.add(key);
+        result.push({ obj, stableKey: key });
+      }
+    } else {
+      // 前回情報なし → 単純にインデックス
+      objs.forEach((obj, i) => {
+        result.push({ obj, stableKey: `${groupKey}:${i}` });
+      });
+    }
+  }
+
+  // 次回用にスロット情報を更新
+  const newSlots = new Map<string, PrevSlotInfo>();
+  for (const { obj, stableKey } of result) {
+    newSlots.set(stableKey, { x: obj.x, y: obj.y });
+  }
+  prevSlots.current = newSlots;
+
+  // sort_order 順を維持
+  result.sort((a, b) => a.obj.sort_order - b.obj.sort_order);
+  return result;
+}
+
 // --- DomObjectOverlay 本体 ---
-// forwardRef で内側の transform 用 div の ref を公開
 export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlayProps>(
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible);
+    const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
+    const keyedObjects = generateStableKeys(visibleObjects, prevSlotsRef);
 
     return (
       <div style={{
@@ -584,7 +678,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
       }}>
         {/* Board.tsx が rAF でこの div の style.transform を直接更新する */}
         <div ref={ref} style={{ transformOrigin: '0 0' }}>
-          {visibleObjects.map((obj) => {
+          {keyedObjects.map(({ obj, stableKey }) => {
             const isSelected = selectedObjectIds.length > 0
               ? selectedObjectIds.includes(obj.id)
               : obj.id === selectedObjectId;
@@ -593,14 +687,14 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
               case 'background':
                 return (
                   <DomBackgroundObject
-                    key={obj.id} obj={obj}
+                    key={stableKey} obj={obj}
                     onSelect={onSelectObject} onEdit={onEditObject}
                   />
                 );
               case 'panel':
                 return (
                   <DomPanelObject
-                    key={obj.id} obj={obj} isSelected={isSelected}
+                    key={stableKey} obj={obj} isSelected={isSelected}
                     stageRef={stageRef}
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}
@@ -610,7 +704,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
               case 'text':
                 return (
                   <DomTextObject
-                    key={obj.id} obj={obj} isSelected={isSelected}
+                    key={stableKey} obj={obj} isSelected={isSelected}
                     stageRef={stageRef}
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}
@@ -620,7 +714,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
               case 'foreground':
                 return (
                   <DomForegroundObject
-                    key={obj.id} obj={obj} isSelected={isSelected}
+                    key={stableKey} obj={obj} isSelected={isSelected}
                     stageRef={stageRef}
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}

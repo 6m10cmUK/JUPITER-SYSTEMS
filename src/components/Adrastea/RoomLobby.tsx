@@ -535,7 +535,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         name: '背景',
         x: 0, y: 0, width: 100, height: 100,
         visible: true, opacity: 1, sort_order: 0, locked: true,
-        image_url: null, background_color: '#333333', image_fit: 'cover',
+        image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
         text_content: null, font_size: 16, text_color: '#ffffff',
         created_at: Date.now(), updated_at: Date.now(),
       });
@@ -546,7 +546,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         name: '前景',
         x: 26, y: 36, width: 48, height: 27,
         visible: true, opacity: 1, sort_order: 100, locked: false,
-        image_url: null, background_color: '#666666', image_fit: 'cover',
+        image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
         text_content: null, font_size: 16, text_color: '#ffffff',
         created_at: Date.now(), updated_at: Date.now(),
       });
