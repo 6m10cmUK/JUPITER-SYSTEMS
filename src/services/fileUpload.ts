@@ -6,14 +6,87 @@ if (!R2_WORKER_URL) {
   throw new Error('VITE_R2_WORKER_URL is not configured');
 }
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? '';
+
+/**
+ * アニメーション画像かどうかをバイナリヘッダーで判定
+ */
+async function isAnimatedImage(file: File): Promise<boolean> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // GIF89a + 複数の Graphics Control Extension (0x21 0xF9)
+  if (
+    bytes.length >= 6 &&
+    bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 &&
+    bytes[3] === 0x38 && bytes[4] === 0x39 && bytes[5] === 0x61
+  ) {
+    let count = 0;
+    for (let i = 0; i < bytes.length - 1; i++) {
+      if (bytes[i] === 0x21 && bytes[i + 1] === 0xf9) {
+        count++;
+        if (count >= 2) return true;
+      }
+    }
+  }
+
+  // WebP: RIFF ヘッダー内に ANIM チャンクが存在
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) {
+    // "ANIM" = 0x41 0x4E 0x49 0x4D
+    for (let i = 12; i < bytes.length - 3; i++) {
+      if (bytes[i] === 0x41 && bytes[i + 1] === 0x4e && bytes[i + 2] === 0x49 && bytes[i + 3] === 0x4d) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+/**
+ * アニメーション画像を backend で圧縮する
+ * backend 未設定 or 失敗時は元ファイルをそのまま返す
+ */
+async function compressAnimatedImage(
+  file: File,
+  maxWidth: number,
+  quality: number
+): Promise<Blob> {
+  if (!BACKEND_URL) return file;
+
+  try {
+    const form = new FormData();
+    form.append('file', file);
+    const url = `${BACKEND_URL}/api/compress-image?max_width=${maxWidth}&quality=${quality}`;
+    const res = await fetch(url, { method: 'POST', body: form });
+    if (!res.ok) {
+      console.warn(`アニメ画像圧縮失敗 (${res.status}), 元ファイルを使用`);
+      return file;
+    }
+    const blob = await res.blob();
+    return blob;
+  } catch (e) {
+    console.warn('アニメ画像圧縮エラー, 元ファイルを使用:', e);
+    return file;
+  }
+}
+
 /**
  * Canvas APIでリサイズ → jSquash(libwebp Wasm)でWebPエンコード
+ * アニメーション画像は backend で圧縮（フレーム保持）
  */
 export async function compressImage(
   file: File,
   maxWidth: number = 1920,
   quality: number = 80
 ): Promise<Blob> {
+  if (await isAnimatedImage(file)) {
+    return compressAnimatedImage(file, maxWidth, quality);
+  }
   const imageData = await resizeToImageData(file, maxWidth);
   const webpBuffer = await encodeWebP(imageData, { quality });
   return new Blob([webpBuffer], { type: 'image/webp' });
@@ -51,6 +124,14 @@ async function getIdToken(): Promise<string> {
 }
 
 /**
+ * 圧縮後の MIME type に応じた拡張子を返す
+ */
+function extFromMime(blob: Blob): string {
+  if (blob.type === 'image/gif') return '.gif';
+  return '.webp';
+}
+
+/**
  * 画像アップロード（自動圧縮あり）
  */
 export async function uploadImage(
@@ -67,9 +148,10 @@ export async function uploadImage(
     options?.maxWidth ?? 1920,
     options?.quality ?? 80
   );
+  const ext = extFromMime(compressed);
   const token = await getIdToken();
   const form = new FormData();
-  form.append('file', compressed, path.replace(/\//g, '_') + '.webp');
+  form.append('file', compressed, path.replace(/\//g, '_') + ext);
   form.append('path', path);
 
   const res = await fetch(`${R2_WORKER_URL}/upload`, {

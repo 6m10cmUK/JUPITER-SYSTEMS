@@ -1,9 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmTrackPlayer } from './BgmTrackPlayer';
 
 export function BgmEngine() {
-  const { bgms, updateBgm, activeScene, masterVolume, bgmMuted } = useAdrasteaContext();
+  const { bgms, updateBgm, activeScene, masterVolume, bgmMuted, handleSendMessage } = useAdrasteaContext();
+
+  // デバッグログをチャットに流す（一時的）
+  const debugLog = useCallback((msg: string) => {
+    handleSendMessage(`🔊 ${msg}`, 'system');
+  }, [handleSendMessage]);
 
   const prevSceneIdRef = useRef<string | null>(null);
   const [fadeStates, setFadeStates] = useState<Map<string, 'none' | 'in' | 'out'>>(new Map());
@@ -99,6 +104,18 @@ export function BgmEngine() {
 
   const playingTracks = bgms.filter(t => t.is_playing);
 
+  // デバッグ: 全トラックの状態をログ
+  const prevBgmSnapshotRef = useRef('');
+  useEffect(() => {
+    const snapshot = bgms.map(t =>
+      `${t.name}: type=${t.bgm_type}, source=${t.bgm_source ? '✓' : '✗'}, playing=${t.is_playing}, paused=${t.is_paused}`
+    ).join('\n');
+    if (snapshot !== prevBgmSnapshotRef.current) {
+      prevBgmSnapshotRef.current = snapshot;
+      debugLog(`--- BGM一覧 (${bgms.length}件, 再生中${playingTracks.length}件) ---\n${snapshot}`);
+    }
+  }, [bgms, playingTracks.length, debugLog]);
+
   return (
     <>
       {playingTracks.map(track => (
@@ -107,6 +124,7 @@ export function BgmEngine() {
           track={track}
           fadeState={fadeStates.get(track.id) ?? 'none'}
           masterVolume={bgmMuted ? 0 : masterVolume}
+          debugLog={debugLog}
         />
       ))}
     </>

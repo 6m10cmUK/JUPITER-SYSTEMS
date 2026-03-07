@@ -28,7 +28,8 @@ export async function uploadAssetToR2(
   const compressed = await compressImage(file);
   const { width, height } = await getImageDimensions(compressed);
 
-  const r2_key = `users/${uid}/assets/${Date.now()}_${file.name.replace(/\.[^.]+$/, '')}.webp`;
+  const ext = compressed.type === 'image/gif' ? '.gif' : '.webp';
+  const r2_key = `users/${uid}/assets/${Date.now()}_${file.name.replace(/\.[^.]+$/, '')}${ext}`;
   const token = await getIdToken();
 
   const form = new FormData();

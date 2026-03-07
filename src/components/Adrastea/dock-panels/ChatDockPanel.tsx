@@ -14,6 +14,7 @@ export function ChatDockPanel() {
       characters={ctx.characters}
       onSendMessage={ctx.handleSendMessage}
       onLoadMore={ctx.loadMore}
+      onClearMessages={ctx.clearMessages}
     />
   );
 }

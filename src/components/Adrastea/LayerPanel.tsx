@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import type { BoardObject, BoardObjectType, BoardObjectScope } from '../../types/adrastea.types';
+import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
@@ -19,8 +19,7 @@ const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>>
 
 export function LayerPanel() {
   const {
-    mergedObjects,
-    roomObjects,
+    activeObjects,
     addObject,
     updateObject,
     removeObject,
@@ -29,9 +28,9 @@ export function LayerPanel() {
     setEditingObjectId,
     selectedObjectIds,
     setSelectedObjectIds,
-    setEditingObjectScope,
     clearAllEditing,
     getBoardCenter,
+    activeScene,
   } = useAdrasteaContext();
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -53,40 +52,35 @@ export function LayerPanel() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, [menuOpen]);
 
-  const getScope = useCallback((id: string): BoardObjectScope => {
-    return roomObjects.some((o) => o.id === id) ? 'room' : 'scene';
-  }, [roomObjects]);
-
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
-  const mergedObjectsRef = useRef(mergedObjects);
+  const activeObjectsRef = useRef(activeObjects);
   useEffect(() => {
-    if (mergedObjects !== mergedObjectsRef.current) {
-      mergedObjectsRef.current = mergedObjects;
+    if (activeObjects !== activeObjectsRef.current) {
+      activeObjectsRef.current = activeObjects;
       setLocalOrderOverride(null);
     }
-  }, [mergedObjects]);
+  }, [activeObjects]);
 
   // 背景を末尾に固定。それ以外はsort_order降順
   const sortedObjects = useMemo(() => {
-    const bg = mergedObjects.filter(o => o.type === 'background');
-    const rest = mergedObjects.filter(o => o.type !== 'background').map(o => {
+    const bg = activeObjects.filter(o => o.type === 'background');
+    const rest = activeObjects.filter(o => o.type !== 'background').map(o => {
       if (localOrderOverride?.has(o.id)) {
         return { ...o, sort_order: localOrderOverride.get(o.id)! };
       }
       return o;
     });
     return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
-  }, [mergedObjects, localOrderOverride]);
+  }, [activeObjects, localOrderOverride]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const id = event.active.id as string;
     setActiveDragId(id);
     if (!selectedObjectIds.includes(id)) {
       setSelectedObjectIds([id]);
-      setEditingObjectScope(getScope(id));
       setEditingObjectId(id);
     }
-  }, [selectedObjectIds, setSelectedObjectIds, setEditingObjectScope, setEditingObjectId, getScope]);
+  }, [selectedObjectIds, setSelectedObjectIds, setEditingObjectId]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     setActiveDragId(null);
@@ -122,26 +116,18 @@ export function LayerPanel() {
     rest.forEach((o, i) => overrideMap.set(o.id, maxOrder - i));
     setLocalOrderOverride(overrideMap);
 
-    // スコープごとにバッチ更新
-    const roomUpdates: { id: string; sort: number }[] = [];
-    const sceneUpdates: { id: string; sort: number }[] = [];
+    // 一括バッチ更新（パスは全て rooms/{roomId}/objects）
+    const updates: { id: string; sort: number }[] = [];
     rest.forEach((o, i) => {
       const newOrder = maxOrder - i;
       if (o.sort_order !== newOrder) {
-        const scope = getScope(o.id);
-        if (scope === 'room') {
-          roomUpdates.push({ id: o.id, sort: newOrder });
-        } else {
-          sceneUpdates.push({ id: o.id, sort: newOrder });
-        }
+        updates.push({ id: o.id, sort: newOrder });
       }
     });
-    if (roomUpdates.length > 0) batchUpdateSort('room', roomUpdates);
-    if (sceneUpdates.length > 0) batchUpdateSort('scene', sceneUpdates);
-  }, [selectedObjectIds, sortedObjects, getScope, batchUpdateSort]);
+    if (updates.length > 0) batchUpdateSort(updates);
+  }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
-    const scope = getScope(obj.id);
     if (e.shiftKey && selectedObjectIds.length > 0) {
       const lastSelected = selectedObjectIds[selectedObjectIds.length - 1];
       const anchorIdx = sortedObjects.findIndex(o => o.id === lastSelected);
@@ -151,7 +137,6 @@ export function LayerPanel() {
         const end = Math.max(anchorIdx, targetIdx);
         const rangeIds = sortedObjects.slice(start, end + 1).map(o => o.id);
         setSelectedObjectIds(rangeIds);
-        setEditingObjectScope(scope);
         setEditingObjectId(obj.id);
       }
     } else if (e.metaKey || e.ctrlKey) {
@@ -159,17 +144,15 @@ export function LayerPanel() {
         const exists = prev.includes(obj.id);
         return exists ? prev.filter(id => id !== obj.id) : [...prev, obj.id];
       });
-      setEditingObjectScope(scope);
       setEditingObjectId(obj.id);
     } else {
       clearAllEditing();
       setSelectedObjectIds([obj.id]);
-      setEditingObjectScope(scope);
       setEditingObjectId(obj.id);
     }
-  }, [getScope, selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectScope, setEditingObjectId, clearAllEditing]);
+  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, clearAllEditing]);
 
-  const handleAdd = (scope: BoardObjectScope, type: BoardObjectType) => {
+  const handleAdd = (global: boolean, type: BoardObjectType) => {
     setMenuOpen(false);
     const center = getBoardCenter();
     const nonBg = sortedObjects.filter(o => o.type !== 'background');
@@ -180,39 +163,47 @@ export function LayerPanel() {
     } else {
       sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
     }
-    addObject(scope, { type, name: `新規${type}`, x: center.x, y: center.y, sort_order: sortOrder });
+    addObject({
+      type,
+      name: `新規${type}`,
+      x: center.x,
+      y: center.y,
+      sort_order: sortOrder,
+      global,
+      scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
+    });
   };
 
   const handleToggleVisible = useCallback((obj: BoardObject) => {
     if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
       const newVisible = !obj.visible;
       for (const id of selectedObjectIds) {
-        const o = mergedObjects.find(o => o.id === id);
-        if (o) updateObject(getScope(id), id, { visible: newVisible });
+        const o = activeObjects.find(o => o.id === id);
+        if (o) updateObject(id, { visible: newVisible });
       }
     } else {
-      updateObject(getScope(obj.id), obj.id, { visible: !obj.visible });
+      updateObject(obj.id, { visible: !obj.visible });
     }
-  }, [selectedObjectIds, mergedObjects, getScope, updateObject]);
+  }, [selectedObjectIds, activeObjects, updateObject]);
 
   const handleRemoveObject = useCallback((obj: BoardObject) => {
     if (obj.type === 'background') return;
-    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = mergedObjects.find(o => o.id === id); return o && o.type !== 'background'; }).length : 1;
+    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = activeObjects.find(o => o.id === id); return o && o.type !== 'background'; }).length : 1;
     const msg = count > 1 ? `${count}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
     if (!window.confirm(msg)) return;
     if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
       for (const id of selectedObjectIds) {
-        const o = mergedObjects.find(o => o.id === id);
+        const o = activeObjects.find(o => o.id === id);
         if (o && o.type !== 'background') {
-          removeObject(getScope(id), id);
+          removeObject(id);
         }
       }
       clearAllEditing();
     } else {
-      removeObject(getScope(obj.id), obj.id);
+      removeObject(obj.id);
       if (editingObjectId === obj.id) clearAllEditing();
     }
-  }, [selectedObjectIds, mergedObjects, getScope, removeObject, editingObjectId, clearAllEditing]);
+  }, [selectedObjectIds, activeObjects, removeObject, editingObjectId, clearAllEditing]);
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'transparent',
@@ -272,21 +263,21 @@ export function LayerPanel() {
           </button>
           {menuOpen && (
             <div style={menuStyle}>
-              <div style={menuGroupStyle}>シーンオブジェクト</div>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('scene', 'panel')}
+              <div style={menuGroupStyle}>シーン固有</div>
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(false, 'panel')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               ><Image size={14} /> パネル</button>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('scene', 'text')}
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(false, 'text')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               ><Type size={14} /> テキスト</button>
-              <div style={{ ...menuGroupStyle, borderTop: `1px solid ${theme.border}` }}>ルームオブジェクト</div>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('room', 'panel')}
+              <div style={{ ...menuGroupStyle, borderTop: `1px solid ${theme.border}` }}>グローバル</div>
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(true, 'panel')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               ><Image size={14} /> パネル</button>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd('room', 'text')}
+              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(true, 'text')}
                 onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
                 onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
               ><Type size={14} /> テキスト</button>
@@ -305,8 +296,7 @@ export function LayerPanel() {
           && selectedObjectIds.includes(activeDragId)
           && isSelected
           && obj.id !== activeDragId;
-        const scope = getScope(obj.id);
-        const iconBgColor = scope === 'scene' ? theme.accentHighlight : 'rgba(166,227,161,0.2)';
+        const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
 
         return (
           <SortableListItem
@@ -323,12 +313,10 @@ export function LayerPanel() {
                 checked={isSelected}
                 onChange={(e) => {
                   e.stopPropagation();
-                  const scope = getScope(obj.id);
                   if (isSelected) {
                     setSelectedObjectIds(prev => prev.filter(id => id !== obj.id));
                   } else {
                     setSelectedObjectIds(prev => [...prev, obj.id]);
-                    setEditingObjectScope(scope);
                     setEditingObjectId(obj.id);
                   }
                 }}
@@ -371,12 +359,12 @@ export function LayerPanel() {
                 value={renameValue}
                 onChange={(e) => setRenameValue(e.target.value)}
                 onBlur={() => {
-                  if (renameValue.trim()) updateObject(getScope(obj.id), obj.id, { name: renameValue.trim() });
+                  if (renameValue.trim()) updateObject(obj.id, { name: renameValue.trim() });
                   setRenamingId(null);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    if (renameValue.trim()) updateObject(getScope(obj.id), obj.id, { name: renameValue.trim() });
+                    if (renameValue.trim()) updateObject(obj.id, { name: renameValue.trim() });
                     setRenamingId(null);
                   }
                   if (e.key === 'Escape') setRenamingId(null);

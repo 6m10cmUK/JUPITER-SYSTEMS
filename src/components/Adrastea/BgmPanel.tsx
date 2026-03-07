@@ -9,7 +9,7 @@ import {
   Play, Pause, Square, Trash2, Plus, Music,
   Volume2, VolumeX,
 } from 'lucide-react';
-import { AssetPickerModal } from './AssetPicker';
+import { AssetLibraryModal } from './AssetLibraryModal';
 
 const extractVideoId = (url: string): string => {
   const match = url.match(/(?:youtu\.be\/|v=)([^&\s]+)/);
@@ -256,8 +256,8 @@ export function BgmPanel() {
       </SortableListPanel>
 
       {showAddPicker && (
-        <AssetPickerModal
-          assetType="audio"
+        <AssetLibraryModal
+          initialTab="audio"
           onClose={() => setShowAddPicker(false)}
           onSelect={handleAddFromPicker}
         />

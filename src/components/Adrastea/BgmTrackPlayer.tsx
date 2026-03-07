@@ -6,9 +6,10 @@ interface BgmTrackPlayerProps {
   track: BgmTrack;
   fadeState: 'none' | 'in' | 'out';
   masterVolume: number;
+  debugLog?: (msg: string) => void;
 }
 
-export function BgmTrackPlayer({ track, fadeState, masterVolume }: BgmTrackPlayerProps) {
+export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: BgmTrackPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const ytPlayerRef = useRef<any>(null);
   const fadeIntervalRef = useRef<number | null>(null);
@@ -107,13 +108,22 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume }: BgmTrackPlaye
   }, [clearFadeInterval]);
 
   const extractVideoId = (source: string): string => {
-    const match = source.match(/(?:youtu\.be\/|v=)([^&\s]+)/);
-    return match ? match[1] : source;
+    const match = source.match(/(?:youtu\.be\/|v=)([^&?\s]+)/);
+    const raw = match ? match[1] : source;
+    // クエリパラメータやハッシュが残っていたら除去
+    return raw.split(/[?&#]/)[0];
   };
 
   if (!track.bgm_type || !track.bgm_source) return null;
 
   const videoId = track.bgm_type === 'youtube' ? extractVideoId(track.bgm_source) : '';
+
+  // デバッグ: マウント時にソース情報をログ
+  useEffect(() => {
+    if (track.bgm_type === 'youtube') {
+      debugLog?.(`YT mount: "${track.name}" source="${track.bgm_source}" → videoId="${videoId}"`);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -134,13 +144,26 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume }: BgmTrackPlaye
               ytPlayerRef.current = e.target;
               ytReadyRef.current = true;
               e.target.setVolume(track.bgm_volume * masterVolume * 100);
+              debugLog?.(`YT onReady: "${track.name}" (${videoId})`);
               // onReadyより前に来たpause/play指示を反映
               if (pendingPauseRef.current === true) {
                 try { e.target.pauseVideo(); } catch {}
-              } else if (pendingPauseRef.current === false) {
+                debugLog?.(`YT paused (pending): "${track.name}"`);
+              } else {
+                // autoplay がブロックされるケースがあるので明示的に playVideo()
                 try { e.target.playVideo(); } catch {}
+                debugLog?.(`YT playVideo called: "${track.name}"`);
               }
               pendingPauseRef.current = null;
+            }}
+            onStateChange={(e) => {
+              // -1:unstarted, 0:ended, 1:playing, 2:paused, 3:buffering, 5:cued
+              const stateNames: Record<number, string> = { '-1': 'unstarted', 0: 'ended', 1: 'playing', 2: 'paused', 3: 'buffering', 5: 'cued' };
+              debugLog?.(`YT state: ${stateNames[e.data] ?? e.data} - "${track.name}"`);
+            }}
+            onError={(e) => {
+              const errorNames: Record<number, string> = { 2: 'invalid param', 5: 'HTML5 error', 100: 'not found', 101: 'embed blocked', 150: 'embed blocked' };
+              debugLog?.(`YT ERROR: ${errorNames[e.data] ?? `code=${e.data}`} - "${track.name}" (${videoId})`);
             }}
           />
         </div>
@@ -152,6 +175,22 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume }: BgmTrackPlaye
           autoPlay={!track.is_paused}
           loop={track.bgm_loop}
           style={{ display: 'none' }}
+          onCanPlayThrough={() => {
+            // autoplay がブラウザにブロックされた場合、ユーザー操作時にリトライ
+            const el = audioRef.current;
+            if (!el || !el.paused || track.is_paused) return;
+            el.play().catch(() => {
+              const resume = () => {
+                if (audioRef.current && audioRef.current.paused && !track.is_paused) {
+                  audioRef.current.play().catch(() => {});
+                }
+                document.removeEventListener('click', resume);
+                document.removeEventListener('keydown', resume);
+              };
+              document.addEventListener('click', resume, { once: true });
+              document.addEventListener('keydown', resume, { once: true });
+            });
+          }}
         />
       )}
     </>

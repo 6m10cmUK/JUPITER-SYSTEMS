@@ -2,6 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import fitz  # PyMuPDF
+import pyvips
 import io
 from typing import Optional, List, Dict, Any, Tuple
 from pydantic import BaseModel, Field
@@ -1420,6 +1421,45 @@ def is_bold_block(block):
             if "bold" in span.get("font", "").lower():
                 return True
     return False
+
+
+@app.post("/api/compress-image")
+async def compress_image(
+    file: UploadFile = File(...),
+    max_width: int = Query(1920, description="最大幅"),
+    quality: int = Query(80, ge=1, le=100, description="品質 (1-100)")
+):
+    """
+    アニメーション画像（GIF/WebP）をフレーム保持したまま圧縮する
+    """
+    MAX_SIZE = 5 * 1024 * 1024  # 5MB
+
+    if file.content_type not in ("image/gif", "image/webp"):
+        raise HTTPException(status_code=400, detail="image/gif または image/webp のみ対応")
+
+    data = await file.read()
+    if len(data) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail="ファイルサイズが上限(5MB)を超えています")
+
+    try:
+        image = pyvips.Image.new_from_buffer(data, "", n=-1)
+
+        if image.width > max_width:
+            image = image.thumbnail_image(max_width)
+
+        if file.content_type == "image/gif":
+            buf = image.gifsave_buffer(Q=quality)
+            media_type = "image/gif"
+        else:
+            buf = image.webpsave_buffer(Q=quality)
+            media_type = "image/webp"
+
+        from fastapi.responses import Response
+        return Response(content=buf, media_type=media_type)
+
+    except Exception as e:
+        logger.error(f"画像圧縮エラー: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"画像圧縮エラー: {str(e)}")
 
 
 @app.post("/api/analyze-layout")

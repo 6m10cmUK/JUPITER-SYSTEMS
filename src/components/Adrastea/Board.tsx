@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
 import { theme } from '../../styles/theme';
-import { ObjectOverlay } from './ObjectOverlay';
+import { DomObjectOverlay, useAnimatedBlobSrc } from './DomObjectOverlay';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene } from '../../types/adrastea.types';
@@ -9,6 +9,8 @@ import type { ReactNode } from 'react';
 
 export interface BoardHandle {
   getStage: () => StageType | null;
+  getScale: () => number;
+  setScale: (scale: number) => void;
 }
 
 interface BoardProps {
@@ -30,8 +32,8 @@ interface BoardProps {
 
 export const LOGICAL_SIZE = 5000;
 export const GRID_SIZE = 50;
-const MIN_SCALE = 0.2;
-const MAX_SCALE = 3;
+export const MIN_SCALE = 0.1;
+export const MAX_SCALE = 10;
 
 const GridLines = memo(function GridLines() {
   return (
@@ -161,15 +163,45 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-  const [_stageScale, setStageScale] = useState(1);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, pieceId: null });
 
   useImperativeHandle(ref, () => ({
     getStage: () => stageRef.current,
+    getScale: () => stageRef.current?.scaleX() ?? 1,
+    setScale: (newScale: number) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
+      const oldScale = stage.scaleX();
+      // ビューポート中心を基準にズーム
+      const centerX = stage.width() / 2;
+      const centerY = stage.height() / 2;
+      const pointTo = {
+        x: (centerX - stage.x()) / oldScale,
+        y: (centerY - stage.y()) / oldScale,
+      };
+      stage.scale({ x: clamped, y: clamped });
+      stage.position({
+        x: centerX - pointTo.x * clamped,
+        y: centerY - pointTo.y * clamped,
+      });
+      stage.batchDraw();
+    },
   }));
 
   // 初期表示: 背景オブジェクトにフィットするようカメラ配置
+  // 背景オブジェクトが変わった時（別サイズ/別IDの背景に切り替わった時）のみリセット
   const initializedRef = useRef(false);
+  const prevBgKeyRef = useRef<string>('');
+  useEffect(() => {
+    const bg = objects.find(o => o.type === 'background');
+    const bgKey = bg ? `${bg.id}:${bg.width}:${bg.height}` : '';
+    if (prevBgKeyRef.current && bgKey !== prevBgKeyRef.current) {
+      initializedRef.current = false;
+    }
+    prevBgKeyRef.current = bgKey;
+  }, [objects]);
+
   useEffect(() => {
     if (initializedRef.current || stageSize.width === 0 || stageSize.height === 0) return;
     const stage = stageRef.current;
@@ -197,8 +229,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       x: stageSize.width / 2 - centerX * scale,
       y: stageSize.height / 2 - centerY * scale,
     });
-    setStageScale(scale);
-
     initializedRef.current = true;
   }, [stageSize, objects]);
 
@@ -244,7 +274,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       x: pointer.x - mousePointTo.x * newScale,
       y: pointer.y - mousePointTo.y * newScale,
     });
-    setStageScale(newScale);
   }, []);
 
   const handlePieceDragEnd = useCallback(
@@ -289,12 +318,27 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const bgObjectColor = bgObject?.background_color ?? null;
   const bgObjectOpacity = bgObject?.opacity ?? 1;
 
-  // オブジェクトのフィルタリングをメモ化
-  const backgroundObjects = useMemo(() => objects.filter(o => o.type === 'background'), [objects]);
-  const interactiveObjects = useMemo(
-    () => objects.filter(o => o.type !== 'background').sort((a, b) => a.sort_order - b.sort_order),
-    [objects]
-  );
+  // 背景ブラー画像 — 共有 Blob URL キャッシュ経由（シーン間で同じ画像なら GIF 再生継続）
+  const bgBlobSrc = useAnimatedBlobSrc(bgObjectUrl);
+
+  // DOM オーバーレイの ref（rAF で Stage の transform に同期）
+  const domLayerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let rafId: number;
+    const sync = () => {
+      const stage = stageRef.current;
+      const el = domLayerRef.current;
+      if (stage && el) {
+        const s = stage.scaleX();
+        const pos = stage.position();
+        el.style.transform = `translate(${pos.x}px, ${pos.y}px) scale(${s})`;
+      }
+      rafId = requestAnimationFrame(sync);
+    };
+    rafId = requestAnimationFrame(sync);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
 
   return (
     <div
@@ -317,9 +361,9 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               : undefined,
           }}
         >
-          {bgObjectUrl && (
+          {bgBlobSrc && (
             <img
-              src={bgObjectUrl}
+              src={bgBlobSrc}
               alt=""
               style={{
                 width: '100%',
@@ -350,31 +394,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         )}
         {/* インタラクティブ要素 */}
         <Layer>
-          {/* 背景オブジェクトのクリック当たり判定（描画はHTML側） */}
-          {backgroundObjects.length > 0 && onEditObject && (
-            <ObjectOverlay
-              objects={backgroundObjects}
-              selectedObjectId={selectedObjectId}
-              selectedObjectIds={selectedObjectIds}
-              onMoveObject={onMoveObject ?? (() => {})}
-              onSelectObject={onSelectObject ?? (() => {})}
-              onEditObject={onEditObject}
-              onResizeObject={onResizeObject}
-            />
-          )}
-          {/* オブジェクト（sort_order順で一括描画） */}
-          {interactiveObjects.length > 0 && onMoveObject && onEditObject && (
-            <ObjectOverlay
-              objects={interactiveObjects}
-              selectedObjectId={selectedObjectId}
-              selectedObjectIds={selectedObjectIds}
-              activeScene={activeScene}
-              onMoveObject={onMoveObject}
-              onSelectObject={onSelectObject ?? (() => {})}
-              onEditObject={onEditObject}
-              onResizeObject={onResizeObject}
-            />
-          )}
           {/* コマ */}
           {pieces.map((piece) => (
             <Group
@@ -415,6 +434,19 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
           ))}
         </Layer>
       </Stage>
+      {/* オブジェクトオーバーレイ（DOM描画、rAF で Stage に同期） */}
+      <DomObjectOverlay
+        ref={domLayerRef}
+        objects={objects}
+        selectedObjectId={selectedObjectId}
+        selectedObjectIds={selectedObjectIds}
+        activeScene={activeScene}
+        stageRef={stageRef}
+        onMoveObject={onMoveObject ?? (() => {})}
+        onSelectObject={onSelectObject ?? (() => {})}
+        onEditObject={onEditObject ?? (() => {})}
+        onResizeObject={onResizeObject}
+      />
       {/* 右クリックメニュー（HTML DOM） */}
       {contextMenu.visible && contextMenu.pieceId && (
         <div

@@ -9,6 +9,7 @@ import {
   orderBy,
   limit,
   getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 import type { ChatMessage } from '../types/adrastea.types';
 import {
@@ -188,5 +189,20 @@ export function useAdrasteaChat(roomId: string) {
     }
   }, [roomId, hasMore]);
 
-  return { messages, loading, hasMore, sendMessage, loadMore };
+  const clearMessages = useCallback(async () => {
+    const messagesRef = collection(db, 'rooms', roomId, 'messages');
+    const allQuery = query(messagesRef);
+    const snap = await getDocs(allQuery);
+    // Firestore の writeBatch は最大 500 件ずつ
+    for (let i = 0; i < snap.docs.length; i += 500) {
+      const batch = writeBatch(db);
+      snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+    setMessages([]);
+    oldestTimestampRef.current = Infinity;
+    setHasMore(false);
+  }, [roomId]);
+
+  return { messages, loading, hasMore, sendMessage, loadMore, clearMessages };
 }

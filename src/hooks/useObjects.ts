@@ -11,19 +11,7 @@ import {
   orderBy,
   writeBatch,
 } from 'firebase/firestore';
-import type { BoardObject, BoardObjectScope } from '../types/adrastea.types';
-
-const getCollectionPath = (
-  roomId: string,
-  scope: BoardObjectScope,
-  sceneId?: string | null
-) => {
-  if (scope === 'scene') {
-    if (!sceneId) throw new Error('sceneId required for scene scope');
-    return `rooms/${roomId}/scenes/${sceneId}/objects`;
-  }
-  return `rooms/${roomId}/objects`;
-};
+import type { BoardObject } from '../types/adrastea.types';
 
 const mapDoc = (d: { id: string; data: () => any }): BoardObject => {
   const data = d.data();
@@ -31,6 +19,8 @@ const mapDoc = (d: { id: string; data: () => any }): BoardObject => {
     id: d.id,
     type: data.type ?? 'panel',
     name: data.name ?? '',
+    global: data.global ?? false,
+    scene_ids: data.scene_ids ?? [],
     x: data.x ?? 50,
     y: data.y ?? 50,
     width: data.width ?? 4,
@@ -59,18 +49,16 @@ const mapDoc = (d: { id: string; data: () => any }): BoardObject => {
 };
 
 export function useObjects(roomId: string, activeSceneId: string | null) {
-  const [roomObjects, setRoomObjects] = useState<BoardObject[]>([]);
-  const [sceneObjects, setSceneObjects] = useState<BoardObject[]>([]);
-  const [roomLoading, setRoomLoading] = useState(true);
-  const [sceneLoading, setSceneLoading] = useState(true);
+  const [allObjects, setAllObjects] = useState<BoardObject[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // ルームオブジェクト監視
+  // 単一購読: rooms/{roomId}/objects
   useEffect(() => {
     if (!roomId) {
-      setRoomLoading(false);
+      setLoading(false);
       return;
     }
-    setRoomLoading(true);
+    setLoading(true);
     const q = query(
       collection(db, 'rooms', roomId, 'objects'),
       orderBy('sort_order', 'asc')
@@ -79,71 +67,43 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        setRoomObjects(snapshot.docs.map(mapDoc));
-        setRoomLoading(false);
+        setAllObjects(snapshot.docs.map(mapDoc));
+        setLoading(false);
       },
       (error) => {
-        console.error('ルームオブジェクトの監視に失敗:', error);
-        setRoomLoading(false);
+        console.error('オブジェクトの監視に失敗:', error);
+        setLoading(false);
       }
     );
 
     return () => unsubscribe();
   }, [roomId]);
 
-  // シーンオブジェクト監視
-  useEffect(() => {
-    if (!roomId || !activeSceneId) {
-      setSceneObjects([]);
-      setSceneLoading(false);
-      return;
-    }
-    setSceneLoading(true);
-    const q = query(
-      collection(db, 'rooms', roomId, 'scenes', activeSceneId, 'objects'),
-      orderBy('sort_order', 'asc')
-    );
+  // activeSceneId でフィルタ
+  const activeObjects = useMemo(() => {
+    if (!activeSceneId) return allObjects.filter(o => o.global);
+    return allObjects
+      .filter(o => o.global || o.scene_ids.includes(activeSceneId))
+      .sort((a, b) => a.sort_order - b.sort_order);
+  }, [allObjects, activeSceneId]);
 
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setSceneObjects(snapshot.docs.map(mapDoc));
-        setSceneLoading(false);
-      },
-      (error) => {
-        console.error('シーンオブジェクトの監視に失敗:', error);
-        setSceneLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [roomId, activeSceneId]);
-
-  const loading = roomLoading || sceneLoading;
-
-  const mergedObjects = useMemo(
-    () =>
-      [...roomObjects, ...sceneObjects].sort(
-        (a, b) => a.sort_order - b.sort_order
-      ),
-    [roomObjects, sceneObjects]
-  );
+  const colPath = `rooms/${roomId}/objects`;
 
   const addObject = useCallback(
-    async (scope: BoardObjectScope, data: Partial<BoardObject>) => {
-      const colPath = getCollectionPath(roomId, scope, activeSceneId);
-      const currentObjects = scope === 'scene' ? sceneObjects : roomObjects;
+    async (data: Partial<BoardObject>) => {
       const type = data.type ?? 'panel';
       const docRef = await addDoc(collection(db, colPath), {
         type,
         name: data.name ?? '新規オブジェクト',
+        global: data.global ?? false,
+        scene_ids: data.scene_ids ?? [],
         x: data.x ?? 50,
         y: data.y ?? 50,
         width: data.width ?? 4,
         height: data.height ?? 4,
         visible: data.visible ?? true,
         opacity: data.opacity ?? 1,
-        sort_order: data.sort_order ?? currentObjects.length,
+        sort_order: data.sort_order ?? allObjects.length,
         locked: data.locked ?? (type === 'background'),
         position_locked: data.position_locked ?? false,
         size_locked: data.size_locked ?? false,
@@ -164,32 +124,29 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
       });
       return docRef.id;
     },
-    [roomId, activeSceneId, roomObjects.length, sceneObjects.length]
+    [colPath, allObjects.length]
   );
 
   const updateObject = useCallback(
-    async (scope: BoardObjectScope, id: string, updates: Partial<BoardObject>) => {
-      const colPath = getCollectionPath(roomId, scope, activeSceneId);
+    async (id: string, updates: Partial<BoardObject>) => {
       const { id: _id, created_at, ...data } = updates as any;
       await updateDoc(doc(db, colPath, id), {
         ...data,
         updated_at: Date.now(),
       });
     },
-    [roomId, activeSceneId]
+    [colPath]
   );
 
   const removeObject = useCallback(
-    async (scope: BoardObjectScope, id: string) => {
-      const colPath = getCollectionPath(roomId, scope, activeSceneId);
+    async (id: string) => {
       await deleteDoc(doc(db, colPath, id));
     },
-    [roomId, activeSceneId]
+    [colPath]
   );
 
   const reorderObjects = useCallback(
-    async (scope: BoardObjectScope, orderedIds: string[]) => {
-      const colPath = getCollectionPath(roomId, scope, activeSceneId);
+    async (orderedIds: string[]) => {
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, colPath, id), {
@@ -199,12 +156,11 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
       });
       await batch.commit();
     },
-    [roomId, activeSceneId]
+    [colPath]
   );
 
   const batchUpdateSort = useCallback(
-    async (scope: BoardObjectScope, updates: { id: string; sort: number }[]) => {
-      const colPath = getCollectionPath(roomId, scope, activeSceneId);
+    async (updates: { id: string; sort: number }[]) => {
       const batch = writeBatch(db);
       for (const { id, sort } of updates) {
         batch.update(doc(db, colPath, id), {
@@ -214,13 +170,12 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
       }
       await batch.commit();
     },
-    [roomId, activeSceneId]
+    [colPath]
   );
 
   return {
-    roomObjects,
-    sceneObjects,
-    mergedObjects,
+    allObjects,
+    activeObjects,
     loading,
     addObject,
     updateObject,

@@ -6,9 +6,8 @@
  *   rooms/{roomId}/pieces/{pieceId}                     → Piece
  *   rooms/{roomId}/messages/{msgId}                     → ChatMessage
  *   rooms/{roomId}/scenes/{sceneId}                     → Scene
- *   rooms/{roomId}/scenes/{sceneId}/objects/{objectId}  → BoardObject (scene scope)
+ *   rooms/{roomId}/objects/{objectId}                   → BoardObject (global + scene_ids)
  *   rooms/{roomId}/bgms/{bgmId}                         → BgmTrack
- *   rooms/{roomId}/objects/{objectId}                   → BoardObject (room scope)
  *   rooms/{roomId}/characters/{charId}                  → Character
  *   rooms/{roomId}/scenario_texts/{textId}              → ScenarioText
  *   rooms/{roomId}/cutins/{cutinId}                     → Cutin
@@ -88,12 +87,15 @@ export interface Character {
 // --- BoardObject (統合オブジェクト) ---
 
 export type BoardObjectType = 'panel' | 'text' | 'foreground' | 'background';
-export type BoardObjectScope = 'room' | 'scene';
 
 export interface BoardObject {
   id: string;
   type: BoardObjectType;
   name: string;
+
+  // スコープ: global=true なら全シーン共通、false なら scene_ids で指定シーンのみ
+  global: boolean;
+  scene_ids: string[];
 
   // 位置・サイズ（グリッド単位: 1 = 1マス = GRID_SIZE px）
   x: number;
