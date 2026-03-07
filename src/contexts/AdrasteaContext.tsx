@@ -266,7 +266,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         global: true, scene_ids: [],
         x: 0, y: 0, width: 100, height: 100,
         visible: true, opacity: 1, sort_order: 0, locked: true,
-        image_url: null, background_color: '#333333', image_fit: 'cover',
+        image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
       });
     }
     if (!hasFg) {
@@ -275,7 +275,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         global: true, scene_ids: [],
         x: 26, y: 36, width: 48, height: 27,
         visible: true, opacity: 1, sort_order: 100, locked: false,
-        image_url: null, background_color: '#666666', image_fit: 'cover',
+        image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
       });
     }
   }, [objectsLoading, initialLoadDone, allObjects, addObject]);

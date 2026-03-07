@@ -113,6 +113,7 @@ export interface BoardObject {
 
   // panel用
   image_url: string | null;
+  image_asset_id: string | null;
   background_color: string;
   image_fit: 'contain' | 'cover' | 'stretch';
 
