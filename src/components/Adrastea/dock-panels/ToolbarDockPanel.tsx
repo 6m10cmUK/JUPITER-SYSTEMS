@@ -11,7 +11,7 @@ export function ToolbarDockPanel() {
       onSignOut={ctx.signOut}
       activeScene={ctx.activeScene}
       profile={ctx.profile}
-      flexModel={ctx.flexModel}
+      dockviewApi={ctx.dockviewApi}
     />
   );
 }

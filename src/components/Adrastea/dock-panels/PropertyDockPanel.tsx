@@ -31,17 +31,16 @@ export function PropertyDockPanel() {
     return (
       <ObjectEditor
         key={ctx.editingObjectId ?? 'new-object'}
-        object={ctx.editingObjectId ? ctx.mergedObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null}
-        scope={ctx.editingObjectScope}
+        object={ctx.editingObjectId ? ctx.activeObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null}
         roomId={ctx.roomId}
         onSave={async (data) => {
           if (ctx.editingObjectId) {
-            await ctx.updateObject(ctx.editingObjectScope, ctx.editingObjectId, data);
+            await ctx.updateObject(ctx.editingObjectId, data);
           } else {
-            await ctx.addObject(ctx.editingObjectScope, data);
+            await ctx.addObject(data);
           }
         }}
-        onDelete={ctx.editingObjectId ? () => ctx.removeObject(ctx.editingObjectScope, ctx.editingObjectId!) : undefined}
+        onDelete={ctx.editingObjectId ? () => ctx.removeObject(ctx.editingObjectId!) : undefined}
         onClose={() => ctx.setEditingObjectId(undefined)}
       />
     );

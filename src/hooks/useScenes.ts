@@ -9,6 +9,7 @@ import {
   getDocs,
   query,
   orderBy,
+  where,
   writeBatch,
 } from 'firebase/firestore';
 import type { Scene } from '../types/adrastea.types';
@@ -69,54 +70,48 @@ export function useScenes(roomId: string) {
         updated_at: Date.now(),
       });
 
-      const objectsCol = collection(db, 'rooms', roomId, 'scenes', docRef.id, 'objects');
+      const objectsCol = collection(db, 'rooms', roomId, 'objects');
       const now = Date.now();
+      const newSceneId = docRef.id;
 
       if (duplicateFromSceneId) {
-        // 元シーンのオブジェクトを複製
-        const sourceObjects = await getDocs(
-          collection(db, 'rooms', roomId, 'scenes', duplicateFromSceneId, 'objects')
+        // 元シーンに紐付くオブジェクトを検索して複製（scene_ids に元シーンID含む非グローバル）
+        const sourceSnap = await getDocs(
+          query(objectsCol, where('scene_ids', 'array-contains', duplicateFromSceneId))
         );
         const batch = writeBatch(db);
-        sourceObjects.docs.forEach((d) => {
+        sourceSnap.docs.forEach((d) => {
           const objData = d.data();
+          // グローバルオブジェクトは複製しない（既に全シーンで表示される）
+          if (objData.global) return;
           const newRef = doc(objectsCol);
           batch.set(newRef, {
             ...objData,
+            scene_ids: [newSceneId],
             created_at: now,
             updated_at: now,
           });
         });
         await batch.commit();
-
-        // BGMトラックも複製
-        const sourceBgms = await getDocs(
-          collection(db, 'rooms', roomId, 'scenes', duplicateFromSceneId, 'bgms')
-        );
-        if (!sourceBgms.empty) {
-          const bgmBatch = writeBatch(db);
-          sourceBgms.docs.forEach((d) => {
-            const bgmData = d.data();
-            const newRef = doc(collection(db, 'rooms', roomId, 'scenes', docRef.id, 'bgms'));
-            bgmBatch.set(newRef, { ...bgmData, created_at: now, updated_at: now });
-          });
-          await bgmBatch.commit();
-        }
       } else {
-        // デフォルト背景オブジェクト
+        // デフォルト背景オブジェクト（シーン固有）
         await addDoc(objectsCol, {
           type: 'background',
           name: '背景',
+          global: false,
+          scene_ids: [newSceneId],
           x: 0, y: 0, width: 100, height: 100,
           visible: true, opacity: 1, sort_order: 0, locked: true,
           image_url: null, background_color: '#333333', image_fit: 'cover',
           text_content: null, font_size: 16, text_color: '#ffffff',
           created_at: now, updated_at: now,
         });
-        // デフォルト前景オブジェクト
+        // デフォルト前景オブジェクト（シーン固有）
         await addDoc(objectsCol, {
           type: 'foreground',
           name: '前景',
+          global: false,
+          scene_ids: [newSceneId],
           x: 26, y: 36, width: 48, height: 27,
           visible: true, opacity: 1, sort_order: 100, locked: false,
           image_url: null, background_color: '#666666', image_fit: 'cover',
@@ -143,14 +138,27 @@ export function useScenes(roomId: string) {
 
   const removeScene = useCallback(
     async (sceneId: string) => {
-      // シーン配下のオブジェクト・BGM・シーン本体を一括削除
-      const [objectsSnap, bgmsSnap] = await Promise.all([
-        getDocs(collection(db, 'rooms', roomId, 'scenes', sceneId, 'objects')),
-        getDocs(collection(db, 'rooms', roomId, 'scenes', sceneId, 'bgms')),
-      ]);
+      const objectsCol = collection(db, 'rooms', roomId, 'objects');
+
+      // scene_ids にこのシーンIDを含むオブジェクトを検索
+      const snap = await getDocs(
+        query(objectsCol, where('scene_ids', 'array-contains', sceneId))
+      );
+
       const batch = writeBatch(db);
-      objectsSnap.docs.forEach((d) => batch.delete(d.ref));
-      bgmsSnap.docs.forEach((d) => batch.delete(d.ref));
+      for (const d of snap.docs) {
+        const data = d.data();
+        if (data.global) continue; // グローバルオブジェクトは影響なし
+        const newSceneIds = (data.scene_ids as string[]).filter(id => id !== sceneId);
+        if (newSceneIds.length === 0) {
+          // どのシーンにも属さなくなった → 削除
+          batch.delete(d.ref);
+        } else {
+          batch.update(d.ref, { scene_ids: newSceneIds, updated_at: Date.now() });
+        }
+      }
+
+      // シーン本体を削除
       batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
       await batch.commit();
     },

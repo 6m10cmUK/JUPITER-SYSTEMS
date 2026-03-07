@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { BoardObject, BoardObjectType, BoardObjectScope } from '../../types/adrastea.types';
+import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -20,7 +20,6 @@ const FONT_OPTIONS = [
 
 interface ObjectEditorProps {
   object?: BoardObject | null;
-  scope: BoardObjectScope;
   defaultType?: BoardObjectType;
   roomId: string;
   onSave: (data: Partial<BoardObject>) => void;
@@ -28,7 +27,7 @@ interface ObjectEditorProps {
   onClose: () => void;
 }
 
-export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _roomId, onSave: _onSave, onDelete, onClose }: ObjectEditorProps) {
+export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _onSave, onDelete, onClose }: ObjectEditorProps) {
   const [type, setType] = useState<BoardObjectType>(object?.type ?? defaultType ?? 'panel');
   const [name, setName] = useState(object?.name ?? '');
   const [imageUrl, setImageUrl] = useState(object?.image_url ?? '');
@@ -75,7 +74,7 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
   }, [object?.width, object?.height]);
 
   const ctx = useAdrasteaContext();
-  const isSceneScope = _scope === 'scene';
+  const isGlobal = object?.global ?? false;
 
   const isNew = object === null;
   const isBackground = type === 'background';
@@ -126,7 +125,6 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
       type: 'object',
       id: object?.id ?? null,
       data,
-      scope: _scope,
     });
   }, [type, name, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
 
@@ -147,9 +145,9 @@ export function ObjectEditor({ object, scope: _scope, defaultType, roomId: _room
       ? '背景'
       : isForeground
         ? '前景'
-        : isSceneScope
-          ? 'シーンオブジェクト'
-          : 'ルームオブジェクト';
+        : isGlobal
+          ? 'グローバルオブジェクト'
+          : 'シーンオブジェクト';
 
   return (
     <div style={panelStyle}>

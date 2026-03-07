@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
-import { Actions, DockLocation, type Model } from 'flexlayout-react';
+import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
 
 const PRESET_COLORS = [
@@ -26,7 +26,6 @@ const PANEL_DEFS = [
   { id: 'board', component: 'board', title: 'Board' },
   { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF' },
   { id: 'bgm', component: 'bgm', title: 'BGM' },
-  { id: 'nestedDock', component: 'nestedDock', title: 'Dock' },
 ] as const;
 
 interface TopToolbarProps {
@@ -36,7 +35,7 @@ interface TopToolbarProps {
   onSignOut: () => void;
   activeScene?: Scene | null;
   profile: { display_name?: string; avatar_url?: string | null } | null;
-  flexModel: Model | null;
+  dockviewApi: DockviewApi | null;
 }
 
 function IconButton({ onClick, title, children, active }: {
@@ -75,7 +74,7 @@ export function TopToolbar({
   onSignOut,
   activeScene: _activeScene,
   profile,
-  flexModel,
+  dockviewApi,
 }: TopToolbarProps) {
   const [label, setLabel] = useState('');
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].value);
@@ -93,36 +92,36 @@ export function TopToolbar({
 
   const togglePanel = useCallback(
     (panelId: string, component: string, title: string) => {
-      if (!flexModel) return;
-      const existing = flexModel.getNodeById(panelId);
+      if (!dockviewApi) return;
+      const existing = dockviewApi.getPanel(panelId);
       if (existing) {
-        flexModel.doAction(Actions.selectTab(panelId));
+        existing.api.setActive();
       } else {
-        // アクティブなタブセットを探す（boardタブセットは除外）。なければ最初の非boardタブセットにフォールバック
-        const boardTabsetId = flexModel.getNodeById('board')?.getParent()?.getId();
-        const activeId = flexModel.getActiveTabset()?.getId();
-        let targetId = activeId !== boardTabsetId ? activeId : undefined;
-        if (!targetId) {
-          flexModel.visitNodes((node) => {
-            if (!targetId && node.getType() === 'tabset' && node.getId() !== boardTabsetId) {
-              targetId = node.getId();
-            }
-          });
+        // board 以外のグループを探す
+        let targetGroup = dockviewApi.activeGroup;
+        if (targetGroup?.panels.some(p => p.id === 'board')) {
+          targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
         }
-        if (targetId) {
-          flexModel.doAction(
-            Actions.addNode(
-              { type: 'tab', id: panelId, name: title, component },
-              targetId,
-              DockLocation.CENTER,
-              -1,
-            ),
-          );
+        if (targetGroup) {
+          dockviewApi.addPanel({
+            id: panelId,
+            component,
+            title,
+            position: { referenceGroup: targetGroup, direction: 'within' },
+          });
+        } else {
+          // フォールバック: board の右に新グループ作成
+          dockviewApi.addPanel({
+            id: panelId,
+            component,
+            title,
+            position: { referencePanel: 'board', direction: 'right' },
+          });
         }
       }
       setShowPanelMenu(false);
     },
-    [flexModel],
+    [dockviewApi],
   );
 
   return (
@@ -228,7 +227,7 @@ export function TopToolbar({
               }}
             >
               {PANEL_DEFS.map((p) => {
-                const exists = !!flexModel?.getNodeById(p.id);
+                const exists = !!dockviewApi?.getPanel(p.id);
                 return (
                   <button
                     key={p.id}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
-import { X, Plus, Upload, Link } from 'lucide-react';
+import { X, Plus, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 
 interface AssetLibraryModalProps {
@@ -26,6 +26,25 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   const [urlInput, setUrlInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [previewingId, setPreviewingId] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handlePreviewAudio = useCallback((e: React.MouseEvent, asset: Asset) => {
+    e.stopPropagation();
+    if (previewingId === asset.id) {
+      previewAudioRef.current?.pause();
+      previewAudioRef.current = null;
+      setPreviewingId(null);
+    } else {
+      previewAudioRef.current?.pause();
+      const audio = new Audio(asset.url);
+      audio.volume = 0.5;
+      audio.onended = () => setPreviewingId(null);
+      audio.play().catch(() => {});
+      previewAudioRef.current = audio;
+      setPreviewingId(asset.id);
+    }
+  }, [previewingId]);
 
   const filtered = assets.filter((a) => {
     if (a.asset_type !== activeTab) return false;
@@ -119,8 +138,14 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
     [titleInput, updateAssetTitle]
   );
 
+  // モーダル閉じ時にプレビュー停止
+  React.useEffect(() => {
+    return () => { previewAudioRef.current?.pause(); };
+  }, []);
+
   const handleAssetClick = useCallback(
     (url: string) => {
+      previewAudioRef.current?.pause();
       if (onSelect) {
         onSelect(url);
         onClose();
@@ -399,11 +424,13 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           </button>
         </div>
 
-        {/* タブ */}
-        <div style={{ display: 'flex', borderBottom: `1px solid ${theme.border}`, marginBottom: '8px' }}>
-          <button style={tabStyle('image')} onClick={() => { setActiveTab('image'); setAddMode(null); }}>画像</button>
-          <button style={tabStyle('audio')} onClick={() => { setActiveTab('audio'); setAddMode(null); }}>音声</button>
-        </div>
+        {/* タブ（選択モード時はタブ固定） */}
+        {!onSelect && (
+          <div style={{ display: 'flex', borderBottom: `1px solid ${theme.border}`, marginBottom: '8px' }}>
+            <button style={tabStyle('image')} onClick={() => { setActiveTab('image'); setAddMode(null); }}>画像</button>
+            <button style={tabStyle('audio')} onClick={() => { setActiveTab('audio'); setAddMode(null); }}>音声</button>
+          </div>
+        )}
 
         {/* 検索バー */}
         <div style={{ marginBottom: '8px' }}>
@@ -461,14 +488,24 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           ) : activeTab === 'image' ? (
             /* 画像: グリッド表示 */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
-              {/* ＋パネル */}
-              <div
-                style={{ ...addCardStyle, aspectRatio: '1', flexDirection: 'column', gap: '4px' }}
-                onClick={() => setAddMode('pick')}
-              >
-                <Plus size={28} />
-                <span style={{ fontSize: '0.75rem' }}>追加</span>
-              </div>
+              {/* 選択モード時: no image / 管理モード時: ＋追加 */}
+              {onSelect ? (
+                <div
+                  style={{ ...addCardStyle, aspectRatio: '1', flexDirection: 'column', gap: '4px' }}
+                  onClick={() => { onSelect(''); onClose(); }}
+                >
+                  <ImageOff size={28} />
+                  <span style={{ fontSize: '0.75rem' }}>no image</span>
+                </div>
+              ) : (
+                <div
+                  style={{ ...addCardStyle, aspectRatio: '1', flexDirection: 'column', gap: '4px' }}
+                  onClick={() => setAddMode('pick')}
+                >
+                  <Plus size={28} />
+                  <span style={{ fontSize: '0.75rem' }}>追加</span>
+                </div>
+              )}
               {filtered.map((asset) => (
                 <div
                   key={asset.id}
@@ -509,61 +546,74 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                 <Plus size={20} />
                 <span style={{ fontSize: '0.8rem' }}>追加</span>
               </div>
-              {filtered.map((asset) => (
-                <div
-                  key={asset.id}
-                  style={{
-                    border: `1px solid ${theme.border}`, borderRadius: 0,
-                    background: 'rgba(0,0,0,0.2)', padding: '8px',
-                    cursor: onSelect ? 'pointer' : undefined,
-                  }}
-                  onClick={() => handleAssetClick(asset.url)}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    {editingTitleId === asset.id ? (
-                      <input
-                        value={titleInput}
-                        onChange={(e) => setTitleInput(e.target.value)}
-                        onBlur={() => handleSaveTitle(asset.id)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(asset.id); if (e.key === 'Escape') { setEditingTitleId(null); setTitleInput(''); } }}
-                        autoFocus
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          flex: 1, minWidth: 0, padding: '2px 6px', fontSize: '0.8rem',
-                          background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
-                          borderRadius: 0, color: theme.textPrimary, outline: 'none',
-                        }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          fontSize: '0.8rem', color: theme.textPrimary, flex: 1,
-                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          cursor: 'text',
-                        }}
-                        onDoubleClick={(e) => { e.stopPropagation(); setEditingTitleId(asset.id); setTitleInput(asset.title || asset.filename); }}
-                      >
-                        {asset.title || asset.filename}
+              {filtered.map((asset) => {
+                const isPreviewing = previewingId === asset.id;
+                return (
+                  <div
+                    key={asset.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '8px',
+                      padding: '6px 8px',
+                      borderBottom: `1px solid ${theme.borderSubtle}`,
+                      cursor: onSelect ? 'pointer' : undefined,
+                      transition: 'background 0.1s',
+                    }}
+                    onClick={() => handleAssetClick(asset.url)}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                  >
+                    {/* 試聴ボタン */}
+                    <button
+                      onClick={(e) => handlePreviewAudio(e, asset)}
+                      title={isPreviewing ? '停止' : '試聴'}
+                      style={{
+                        background: 'transparent', border: 'none',
+                        color: isPreviewing ? theme.accent : theme.textSecondary,
+                        cursor: 'pointer', padding: '2px',
+                        display: 'flex', alignItems: 'center', flexShrink: 0,
+                      }}
+                    >
+                      {isPreviewing ? <Square size={14} /> : <Play size={14} />}
+                    </button>
+                    {/* タイトル */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      {editingTitleId === asset.id ? (
+                        <input
+                          value={titleInput}
+                          onChange={(e) => setTitleInput(e.target.value)}
+                          onBlur={() => handleSaveTitle(asset.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(asset.id); if (e.key === 'Escape') { setEditingTitleId(null); setTitleInput(''); } }}
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            width: '100%', padding: '2px 6px', fontSize: '0.8rem',
+                            background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+                            borderRadius: 0, color: theme.textPrimary, outline: 'none',
+                          }}
+                        />
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: '0.8rem', color: theme.textPrimary,
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                          onDoubleClick={(e) => { e.stopPropagation(); setEditingTitleId(asset.id); setTitleInput(asset.title || asset.filename); }}
+                        >
+                          {asset.title || asset.filename}
+                        </div>
+                      )}
+                      {/* タグ */}
+                      <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '2px' }}>
+                        {renderTagSection(asset)}
                       </div>
-                    )}
-                  </div>
-                  {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-                  <audio
-                    controls
-                    src={asset.url}
-                    style={{ width: '100%', height: '32px' }}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                    <div style={{ flex: 1 }} onClick={(e) => e.stopPropagation()}>
-                      {renderTagSection(asset)}
                     </div>
-                    <div style={{ flexShrink: 0, width: '80px' }} onClick={(e) => e.stopPropagation()}>
+                    {/* 削除 */}
+                    <div style={{ flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
                       {renderDeleteSection(asset)}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

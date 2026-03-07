@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
+import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
 
 interface ChatPanelProps {
@@ -12,6 +13,7 @@ interface ChatPanelProps {
   characters?: Character[];
   onSendMessage: (content: string, messageType: 'chat' | 'dice' | 'system', characterName?: string, characterAvatar?: string | null) => void;
   onLoadMore: () => void;
+  onClearMessages?: () => void;
 }
 
 const DICE_BUTTONS = [
@@ -84,6 +86,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   characters = [],
   onSendMessage,
   onLoadMore,
+  onClearMessages,
 }) => {
   const [input, setInput] = useState('');
   const [hasNewMessage, setHasNewMessage] = useState(false);
@@ -241,13 +244,30 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           gap: '6px',
         }}
       >
-        <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600 }}>
+        <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600, flex: 1 }}>
           ルームチャット
         </span>
         {roomName && (
           <span style={{ color: theme.textMuted, fontSize: '11px' }}>
             {roomName}
           </span>
+        )}
+        {onClearMessages && (
+          <button
+            onClick={() => { if (window.confirm('チャットログを全件削除しますか？')) onClearMessages(); }}
+            title="チャットクリア"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: theme.textMuted,
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Trash2 size={14} />
+          </button>
         )}
       </div>
 

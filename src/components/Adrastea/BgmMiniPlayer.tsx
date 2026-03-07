@@ -1,40 +1,62 @@
+import { useState } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
-import { Music, Square } from 'lucide-react';
+import { Music } from 'lucide-react';
 
 export function BgmMiniPlayer() {
-  const { bgms, updateBgm } = useAdrasteaContext();
-  const playingCount = bgms.filter(t => t.is_playing).length;
-
-  if (playingCount === 0) return null;
-
-  const handleStopAll = () => {
-    bgms.filter(t => t.is_playing).forEach(t => {
-      updateBgm(t.id, { is_playing: false, is_paused: false });
-    });
-  };
+  const { bgms } = useAdrasteaContext();
+  const playingTracks = bgms.filter(t => t.is_playing && !t.is_paused);
+  const isPlaying = playingTracks.length > 0;
+  const [showTitles, setShowTitles] = useState(false);
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-      <Music size={14} style={{ color: theme.accent }} />
-      <span style={{ color: theme.textPrimary, fontSize: '0.75rem' }}>
-        {playingCount}再生中
-      </span>
-      <button
-        onClick={handleStopAll}
-        title="全停止"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: theme.textSecondary,
-          cursor: 'pointer',
-          padding: '2px',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        <Square size={12} />
-      </button>
+    <div
+      style={{ position: 'relative', display: 'inline-flex' }}
+      onMouseEnter={() => setShowTitles(true)}
+      onMouseLeave={() => setShowTitles(false)}
+      onClick={() => setShowTitles(prev => !prev)}
+    >
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        cursor: 'default',
+        opacity: isPlaying ? 1 : 0.35,
+        transition: 'opacity 0.15s ease',
+      }}>
+        <Music size={14} style={{ color: isPlaying ? theme.accent : theme.textSecondary }} />
+        <span style={{
+          color: isPlaying ? theme.textPrimary : theme.textSecondary,
+          fontSize: '0.75rem',
+        }}>
+          BGM
+        </span>
+      </div>
+      {showTitles && isPlaying && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          marginTop: '4px',
+          background: theme.bgInput,
+          border: `1px solid ${theme.border}`,
+          borderRadius: '4px',
+          padding: '6px 10px',
+          whiteSpace: 'nowrap',
+          zIndex: 1000,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          {playingTracks.map(t => (
+            <div key={t.id} style={{
+              color: theme.textPrimary,
+              fontSize: '0.75rem',
+              lineHeight: '1.6',
+            }}>
+              {t.name || '(無題)'}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
