@@ -313,10 +313,16 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   }, [contextMenu.visible, closeContextMenu]);
 
   // 背景オブジェクト（HTMLで描画 — ビューポート固定）
+  // フォールバック: シーン切替直後に背景オブジェクトが未到着の場合、前回の値を維持
   const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
-  const bgObjectUrl = bgObject?.image_url ?? null;
-  const bgObjectColor = bgObject?.background_color ?? null;
-  const bgObjectOpacity = bgObject?.opacity ?? 1;
+  const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number }>({ url: null, color: null, opacity: 1 });
+  const bgObjectUrl = bgObject?.image_url ?? prevBgRef.current.url;
+  const bgObjectColor = bgObject?.background_color ?? prevBgRef.current.color;
+  const bgObjectOpacity = bgObject?.opacity ?? prevBgRef.current.opacity;
+  // 背景が存在するときだけ前回値を更新
+  if (bgObject) {
+    prevBgRef.current = { url: bgObject.image_url, color: bgObject.background_color, opacity: bgObject.opacity };
+  }
 
   // 背景ブラー画像 — 共有 Blob URL キャッシュ経由（シーン間で同じ画像なら GIF 再生継続）
   const bgBlobSrc = useAnimatedBlobSrc(bgObjectUrl);
