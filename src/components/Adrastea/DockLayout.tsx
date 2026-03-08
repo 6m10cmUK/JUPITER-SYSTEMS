@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useEffect } from 'react';
+import React, { useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import {
   DockviewReact,
   DockviewDefaultTab,
@@ -162,12 +162,13 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
   );
 }
 
-/* ── DockLayout ── */
+/* ── DockviewInner（memo で Context 変更による再レンダリングを防止） ── */
 
-export function DockLayout() {
-  const { setDockviewApi, dockviewApi } = useAdrasteaContext();
-
-  // panelComponents を dockview 用コンポーネントに変換
+const DockviewInner = memo(function DockviewInner({
+  onApiReady,
+}: {
+  onApiReady: (api: DockviewApi) => void;
+}) {
   const dockviewComponents = useMemo(() => {
     const comps: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {};
     for (const [key, Comp] of Object.entries(panelComponents)) {
@@ -180,11 +181,13 @@ export function DockLayout() {
     return comps;
   }, []);
 
-  // dockview 準備完了コールバック
+  const apiRef = useRef<DockviewApi | null>(null);
+
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
       const api = event.api;
-      setDockviewApi(api);
+      apiRef.current = api;
+      onApiReady(api);
 
       // 保存済みレイアウトの復元を試みる
       const saved = loadLayout();
@@ -212,12 +215,10 @@ export function DockLayout() {
         id: 'bgm', component: 'bgm', title: 'BGM',
         position: { referencePanel: 'scene', direction: 'right' },
       });
-      // BGM の下にプロパティ
       api.addPanel({
-        id: 'property', component: 'property', title: 'プロパティ',
+        id: 'property', component: 'property', title: 'ルームオブジェクト',
         position: { referencePanel: bgmPanel.id, direction: 'below' },
       });
-      // プロパティの下にレイヤー
       api.addPanel({
         id: 'layer', component: 'layer', title: 'レイヤー',
         position: { referencePanel: 'property', direction: 'below' },
@@ -228,26 +229,41 @@ export function DockLayout() {
       bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
       api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
     },
-    [setDockviewApi],
+    [onApiReady],
   );
 
-  // レイアウト変更時に自動保存
+  // レイアウト変更時に自動保存（debounce で連続変更をまとめる）
   useEffect(() => {
-    if (!dockviewApi) return;
-    const disposable = dockviewApi.onDidLayoutChange(() => saveLayout(dockviewApi));
-    return () => disposable.dispose();
-  }, [dockviewApi]);
+    const api = apiRef.current;
+    if (!api) return;
+    let timer: ReturnType<typeof setTimeout>;
+    const disposable = api.onDidLayoutChange(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => saveLayout(api), 300);
+    });
+    return () => { clearTimeout(timer); disposable.dispose(); };
+  }, []);
+
+  return (
+    <DockviewReact
+      components={dockviewComponents}
+      tabComponents={{ boardTab: BoardTab }}
+      onReady={onReady}
+      theme={catppuccinTheme}
+      rightHeaderActionsComponent={RightHeaderActions}
+    />
+  );
+});
+
+/* ── DockLayout ── */
+
+export function DockLayout() {
+  const { setDockviewApi } = useAdrasteaContext();
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
       <BgmEngine />
-      <DockviewReact
-        components={dockviewComponents}
-        tabComponents={{ boardTab: BoardTab }}
-        onReady={onReady}
-        theme={catppuccinTheme}
-        rightHeaderActionsComponent={RightHeaderActions}
-      />
+      <DockviewInner onApiReady={setDockviewApi} />
     </div>
   );
 }

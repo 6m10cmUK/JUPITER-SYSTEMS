@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useCallback, useMemo, useRe
 import type { User } from 'firebase/auth';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
-import { getViewportCenter } from '../components/Adrastea/Board';
 import type {
   Piece,
   Room,
@@ -302,7 +301,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
   const getBoardCenter = useCallback(() => {
-    return getViewportCenter(boardRef.current?.getStage() ?? null);
+    return { x: 0, y: 0 };
   }, []);
 
   // --- Dockview ---

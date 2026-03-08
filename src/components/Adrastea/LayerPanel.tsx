@@ -9,6 +9,7 @@ import {
   Trash2, Copy,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
+import { AssetLibraryModal } from './AssetLibraryModal';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -140,7 +141,10 @@ export function LayerPanel() {
     }
   }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, clearAllEditing]);
 
-  const handleAdd = async (global: boolean, type: BoardObjectType) => {
+  // 画像選択モーダル用 state
+  const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
+
+  const handleAdd = async (global: boolean, type: BoardObjectType, imageData?: { url: string; width?: number; height?: number }) => {
     const center = getBoardCenter();
     const nonBg = sortedObjects.filter(o => o.type !== 'background');
     let sortOrder: number;
@@ -150,19 +154,48 @@ export function LayerPanel() {
     } else {
       sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
     }
+
+    // 画像の比率からグリッド単位のサイズを算出
+    let width = 4;
+    let height = 4;
+    if (imageData?.width && imageData?.height) {
+      const maxGridSize = 10; // 最大10マス
+      const aspect = imageData.width / imageData.height;
+      if (aspect >= 1) {
+        width = maxGridSize;
+        height = Math.max(1, Math.round(maxGridSize / aspect));
+      } else {
+        height = maxGridSize;
+        width = Math.max(1, Math.round(maxGridSize * aspect));
+      }
+    }
+
     const newId = await addObject({
       type,
       name: `新規${type}`,
       x: center.x,
       y: center.y,
+      width,
+      height,
       sort_order: sortOrder,
       global,
       scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
+      ...(imageData ? { image_url: imageData.url } : {}),
     });
     if (newId) {
       setSelectedObjectIds([newId]);
       setEditingObjectId(newId);
     }
+  };
+
+  const handleImageAdd = (global: boolean) => {
+    setPendingImageAdd({ global });
+  };
+
+  const handleImageSelected = (_url: string, _assetId?: string, _title?: string, w?: number, h?: number) => {
+    if (!pendingImageAdd) return;
+    handleAdd(pendingImageAdd.global, 'panel', { url: _url, width: w, height: h });
+    setPendingImageAdd(null);
   };
 
   const handleToggleVisible = useCallback((obj: BoardObject) => {
@@ -254,7 +287,7 @@ export function LayerPanel() {
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="シーン画像追加">
-            <button onClick={() => handleAdd(false, 'panel')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+            <button onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
@@ -265,7 +298,7 @@ export function LayerPanel() {
           </Tooltip>
           <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
           <Tooltip label="ルーム画像追加">
-            <button onClick={() => handleAdd(true, 'panel')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+            <button onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
@@ -453,6 +486,12 @@ export function LayerPanel() {
         danger
         onConfirm={() => { pendingRemove.action(); setPendingRemove(null); }}
         onCancel={() => setPendingRemove(null)}
+      />
+    )}
+    {pendingImageAdd && (
+      <AssetLibraryModal
+        onClose={() => setPendingImageAdd(null)}
+        onSelect={handleImageSelected}
       />
     )}
     </>
