@@ -144,29 +144,34 @@ export function useScenes(roomId: string) {
 
   const removeScene = useCallback(
     async (sceneId: string) => {
-      const objectsCol = collection(db, 'rooms', roomId, 'objects');
+      try {
+        const objectsCol = collection(db, 'rooms', roomId, 'objects');
 
-      // scene_ids にこのシーンIDを含むオブジェクトを検索
-      const snap = await getDocs(
-        query(objectsCol, where('scene_ids', 'array-contains', sceneId))
-      );
+        // scene_ids にこのシーンIDを含むオブジェクトを検索
+        const snap = await getDocs(
+          query(objectsCol, where('scene_ids', 'array-contains', sceneId))
+        );
 
-      const batch = writeBatch(db);
-      for (const d of snap.docs) {
-        const data = d.data();
-        if (data.global) continue; // グローバルオブジェクトは影響なし
-        const newSceneIds = (data.scene_ids as string[]).filter(id => id !== sceneId);
-        if (newSceneIds.length === 0) {
-          // どのシーンにも属さなくなった → 削除
-          batch.delete(d.ref);
-        } else {
-          batch.update(d.ref, { scene_ids: newSceneIds, updated_at: Date.now() });
+        const batch = writeBatch(db);
+        for (const d of snap.docs) {
+          const data = d.data();
+          if (data.global) continue; // グローバルオブジェクトは影響なし
+          const newSceneIds = (data.scene_ids as string[]).filter(id => id !== sceneId);
+          if (newSceneIds.length === 0) {
+            // どのシーンにも属さなくなった → 削除
+            batch.delete(d.ref);
+          } else {
+            batch.update(d.ref, { scene_ids: newSceneIds, updated_at: Date.now() });
+          }
         }
-      }
 
-      // シーン本体を削除
-      batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
-      await batch.commit();
+        // シーン本体を削除
+        batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
+        await batch.commit();
+      } catch (e) {
+        console.error('シーン削除エラー:', e);
+        throw e;
+      }
     },
     [roomId]
   );
