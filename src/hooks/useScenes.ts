@@ -170,6 +170,7 @@ export function useScenes(roomId: string) {
         await batch.commit();
       } catch (e) {
         console.error('シーン削除エラー:', e);
+        alert(`シーン削除エラー: ${e instanceof Error ? e.message : String(e)}`);
         throw e;
       }
     },
