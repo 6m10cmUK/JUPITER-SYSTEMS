@@ -27,7 +27,7 @@ const catppuccinTheme: DockviewTheme = {
 };
 
 const LAYOUT_STORAGE_KEY = 'adrastea-dock-layout';
-const LAYOUT_VERSION = 2;
+const LAYOUT_VERSION = 3;
 
 /* ── Board 専用タブ（閉じるボタンなし） ── */
 
@@ -196,22 +196,37 @@ export function DockLayout() {
       }
 
       // デフォルトレイアウト構築
+      // 1) まず横方向の骨格を作る: Board → 右にチャット → 左にシーン
       api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-      const chatPanel = api.addPanel({
-        id: 'chat',
-        component: 'chat',
-        title: 'チャット',
+      api.addPanel({
+        id: 'chat', component: 'chat', title: 'チャット',
         position: { referencePanel: 'board', direction: 'right' },
       });
-      api.addPanel({ id: 'scene', component: 'scene', title: 'シーン', position: { referencePanel: chatPanel.id, direction: 'within' } });
-      api.addPanel({ id: 'character', component: 'character', title: 'キャラクター', position: { referencePanel: chatPanel.id, direction: 'within' } });
-      api.addPanel({ id: 'scenarioText', component: 'scenarioText', title: 'テキスト', position: { referencePanel: chatPanel.id, direction: 'within' } });
-      api.addPanel({ id: 'cutin', component: 'cutin', title: 'カットイン', position: { referencePanel: chatPanel.id, direction: 'within' } });
-      api.addPanel({ id: 'layer', component: 'layer', title: 'レイヤー', position: { referencePanel: chatPanel.id, direction: 'within' } });
-      api.addPanel({ id: 'property', component: 'property', title: 'プロパティ', position: { referencePanel: chatPanel.id, direction: 'within' } });
+      const scenePanel = api.addPanel({
+        id: 'scene', component: 'scene', title: 'シーン',
+        position: { referencePanel: 'board', direction: 'left' },
+      });
 
-      // board の初期幅を 70% に設定
-      api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.7 });
+      // 2) シーンの右隣に BGM 列を挿入（Board との間）
+      const bgmPanel = api.addPanel({
+        id: 'bgm', component: 'bgm', title: 'BGM',
+        position: { referencePanel: 'scene', direction: 'right' },
+      });
+      // BGM の下にプロパティ
+      api.addPanel({
+        id: 'property', component: 'property', title: 'プロパティ',
+        position: { referencePanel: bgmPanel.id, direction: 'below' },
+      });
+      // プロパティの下にレイヤー
+      api.addPanel({
+        id: 'layer', component: 'layer', title: 'レイヤー',
+        position: { referencePanel: 'property', direction: 'below' },
+      });
+
+      // 3) 幅の調整
+      scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
+      bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
+      api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
     },
     [setDockviewApi],
   );
