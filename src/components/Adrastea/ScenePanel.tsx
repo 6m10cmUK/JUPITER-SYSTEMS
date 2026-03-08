@@ -4,14 +4,15 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
-import { Plus, Trash2 } from 'lucide-react';
-import { SortableListPanel, SortableListItem } from './ui';
+import { Plus, Copy, Trash2 } from 'lucide-react';
+import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
 
 interface ScenePanelProps {
   scenes: Scene[];
   activeSceneId: string | null;
   onActivateScene: (sceneId: string | null) => void;
   onAddScene: () => void;
+  onDuplicateScene?: () => void;
   onEditScene: (scene: Scene) => void;
   onUpdateSceneName: (sceneId: string, name: string) => void;
   onRemoveScene: (sceneId: string) => void;
@@ -23,6 +24,7 @@ export function ScenePanel({
   activeSceneId,
   onActivateScene,
   onAddScene,
+  onDuplicateScene,
   onEditScene,
   onUpdateSceneName,
   onRemoveScene,
@@ -30,6 +32,7 @@ export function ScenePanel({
 }: ScenePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState('');
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -54,25 +57,46 @@ export function ScenePanel({
   };
 
   return (
+    <>
     <SortableListPanel
       title="シーン"
       headerActions={
-        <button
-          onClick={onAddScene}
-          aria-label="シーンを追加"
-          title="シーンを追加"
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: theme.textPrimary,
-            cursor: 'pointer',
-            padding: '0 4px',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <Plus size={18} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          {onDuplicateScene && (
+            <button
+              onClick={onDuplicateScene}
+              aria-label="シーンを複製"
+              title="シーンを複製"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.accent,
+                cursor: 'pointer',
+                padding: '2px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Copy size={13} />
+            </button>
+          )}
+          <button
+            onClick={onAddScene}
+            aria-label="シーンを追加"
+            title="シーンを追加"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: theme.accent,
+              cursor: 'pointer',
+              padding: '2px',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <Plus size={15} />
+          </button>
+        </div>
       }
       items={scenes}
       onDragEnd={handleDragEnd}
@@ -162,8 +186,7 @@ export function ScenePanel({
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (!window.confirm('このシーンを削除しますか？')) return;
-                      onRemoveScene(scene.id);
+                      setPendingRemoveId(scene.id);
                     }}
                     aria-label="シーンを削除"
                     title="シーンを削除"
@@ -186,5 +209,16 @@ export function ScenePanel({
         </SortableListItem>
       ))}
     </SortableListPanel>
+
+    {pendingRemoveId && (
+      <ConfirmModal
+        message="このシーンを削除しますか？"
+        confirmLabel="削除"
+        danger
+        onConfirm={() => { onRemoveScene(pendingRemoveId); setPendingRemoveId(null); }}
+        onCancel={() => setPendingRemoveId(null)}
+      />
+    )}
+    </>
   );
 }

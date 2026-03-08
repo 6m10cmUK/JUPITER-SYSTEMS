@@ -16,6 +16,7 @@ import {
   getCachedMessages,
   getLatestCachedTimestamp,
   cacheMessages,
+  clearCachedMessages,
 } from '../services/adrasteaCache';
 import { rollDice } from '../services/diceRoller';
 
@@ -199,6 +200,7 @@ export function useAdrasteaChat(roomId: string) {
       snap.docs.slice(i, i + 500).forEach(d => batch.delete(d.ref));
       await batch.commit();
     }
+    await clearCachedMessages(roomId);
     setMessages([]);
     oldestTimestampRef.current = Infinity;
     setHasMore(false);

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
+import { ConfirmModal } from './ui';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -91,6 +92,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [input, setInput] = useState('');
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const selectedCharacter = selectedCharacterId
     ? characters.find((c) => c.id === selectedCharacterId) ?? null
@@ -254,7 +256,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         )}
         {onClearMessages && (
           <button
-            onClick={() => { if (window.confirm('チャットログを全件削除しますか？')) onClearMessages(); }}
+            onClick={() => setShowClearConfirm(true)}
             title="チャットクリア"
             style={{
               background: 'transparent',
@@ -446,6 +448,16 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </button>
         </div>
       </div>
+
+      {showClearConfirm && onClearMessages && (
+        <ConfirmModal
+          message="チャットログを全件削除しますか？"
+          confirmLabel="削除"
+          danger
+          onConfirm={() => { setShowClearConfirm(false); onClearMessages(); }}
+          onCancel={() => setShowClearConfirm(false)}
+        />
+      )}
     </div>
   );
 };

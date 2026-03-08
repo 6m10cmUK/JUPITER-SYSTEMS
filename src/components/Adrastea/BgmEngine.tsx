@@ -3,12 +3,11 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmTrackPlayer } from './BgmTrackPlayer';
 
 export function BgmEngine() {
-  const { bgms, updateBgm, activeScene, masterVolume, bgmMuted, handleSendMessage } = useAdrasteaContext();
+  const { bgms, updateBgm, activeScene, masterVolume, bgmMuted } = useAdrasteaContext();
 
-  // デバッグログをチャットに流す（一時的）
-  const debugLog = useCallback((msg: string) => {
-    handleSendMessage(`🔊 ${msg}`, 'system');
-  }, [handleSendMessage]);
+  const debugLog = useCallback((_msg: string) => {
+    // noop: デバッグログ無効化
+  }, []);
 
   const prevSceneIdRef = useRef<string | null>(null);
   const [fadeStates, setFadeStates] = useState<Map<string, 'none' | 'in' | 'out'>>(new Map());

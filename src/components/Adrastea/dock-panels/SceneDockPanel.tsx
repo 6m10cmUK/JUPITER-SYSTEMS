@@ -4,29 +4,7 @@ import { ScenePanel } from '../ScenePanel';
 export function SceneDockPanel() {
   const ctx = useAdrasteaContext();
 
-  const handleAddScene = async () => {
-    const activeSceneId = ctx.room?.active_scene_id ?? null;
-    const activeScene = activeSceneId
-      ? ctx.scenes.find(s => s.id === activeSceneId)
-      : null;
-
-    // 現在のシーンの次の sort_order を計算
-    const nextSortOrder = activeScene
-      ? activeScene.sort_order + 0.5
-      : ctx.scenes.length;
-
-    // 現在のシーンのレイヤーを複製して新規シーン作成
-    const newSceneId = await ctx.addScene(
-      {
-        name: `新しいシーン`,
-        background_url: activeScene?.background_url ?? null,
-        foreground_url: activeScene?.foreground_url ?? null,
-        sort_order: nextSortOrder,
-      },
-      activeSceneId ?? undefined,
-    );
-
-    // sort_order を整数に振り直す
+  const rebalanceSortOrder = (newSceneId: string, nextSortOrder: number) => {
     const sorted = [...ctx.scenes, { id: newSceneId, sort_order: nextSortOrder } as any]
       .sort((a, b) => a.sort_order - b.sort_order);
     for (let i = 0; i < sorted.length; i++) {
@@ -34,8 +12,41 @@ export function SceneDockPanel() {
         ctx.updateScene(sorted[i].id, { sort_order: i });
       }
     }
+  };
 
-    // 新しいシーンをアクティブにする
+  const getInsertSortOrder = () => {
+    const activeSceneId = ctx.room?.active_scene_id ?? null;
+    const activeScene = activeSceneId
+      ? ctx.scenes.find(s => s.id === activeSceneId)
+      : null;
+    return activeScene ? activeScene.sort_order + 0.5 : ctx.scenes.length;
+  };
+
+  const handleAddScene = async () => {
+    const nextSortOrder = getInsertSortOrder();
+    const newSceneId = await ctx.addScene({
+      name: '新しいシーン',
+      sort_order: nextSortOrder,
+    });
+    rebalanceSortOrder(newSceneId, nextSortOrder);
+    await ctx.activateScene(newSceneId);
+  };
+
+  const handleDuplicateScene = async () => {
+    const activeSceneId = ctx.room?.active_scene_id ?? null;
+    if (!activeSceneId) return;
+    const activeScene = ctx.scenes.find(s => s.id === activeSceneId);
+    const nextSortOrder = getInsertSortOrder();
+    const newSceneId = await ctx.addScene(
+      {
+        name: `${activeScene?.name ?? 'シーン'} (複製)`,
+        background_url: activeScene?.background_url ?? null,
+        foreground_url: activeScene?.foreground_url ?? null,
+        sort_order: nextSortOrder,
+      },
+      activeSceneId,
+    );
+    rebalanceSortOrder(newSceneId, nextSortOrder);
     await ctx.activateScene(newSceneId);
   };
 
@@ -54,15 +65,14 @@ export function SceneDockPanel() {
       activeSceneId={ctx.room?.active_scene_id ?? null}
       onActivateScene={ctx.activateScene}
       onAddScene={handleAddScene}
+      onDuplicateScene={handleDuplicateScene}
       onEditScene={(scene) => { ctx.clearAllEditing(); ctx.setEditingScene(scene); }}
       onUpdateSceneName={(id, name) => ctx.updateScene(id, { name })}
       onRemoveScene={async (sceneId) => {
         const activeSceneId = ctx.room?.active_scene_id ?? null;
         if (activeSceneId === sceneId) {
-          // 削除するシーンを開いている場合、隣のシーンに切り替え
           const sorted = [...ctx.scenes].sort((a, b) => a.sort_order - b.sort_order);
           const idx = sorted.findIndex(s => s.id === sceneId);
-          // 1個下（次）を優先、なければ1個上（前）
           const next = sorted[idx + 1] ?? sorted[idx - 1];
           if (next) await ctx.activateScene(next.id);
           else await ctx.activateScene(null);

@@ -53,12 +53,11 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onClose }: BgmEditor
         </button>
       </div>
 
-      {/* Name (read-only display) */}
-      <AdInput
-        label="名前"
-        value={track.name}
-        disabled
-      />
+      {/* Name (read-only) */}
+      <div>
+        <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '2px' }}>名前</div>
+        <div style={{ fontSize: '12px', color: theme.textPrimary }}>{track.name}</div>
+      </div>
 
       {/* Auto play */}
       <AdCheckbox

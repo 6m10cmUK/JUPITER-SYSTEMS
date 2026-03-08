@@ -176,10 +176,10 @@ function BgmTrackRow({
 export function BgmPanel() {
   const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
 
-  // 現在のシーンに属するBGMのみ表示
+  // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
   const filteredBgms = useMemo(
-    () => bgms.filter(b => b.scene_ids.includes(currentSceneId)),
+    () => bgms.filter(b => b.scene_ids.includes(currentSceneId) || b.is_playing),
     [bgms, currentSceneId]
   );
 
@@ -198,26 +198,50 @@ export function BgmPanel() {
     reorderBgms(reordered.map(b => b.id));
   }, [filteredBgms, reorderBgms]);
 
+  const hasPlaying = filteredBgms.some(b => b.is_playing && !b.is_paused);
+  const hasPaused = filteredBgms.some(b => b.is_playing && b.is_paused);
+  const hasAnyPlaying = filteredBgms.some(b => b.is_playing);
+
+  const handleBulkPlay = useCallback(() => {
+    filteredBgms.forEach(b => {
+      if (!b.is_playing || b.is_paused) updateBgm(b.id, { is_playing: true, is_paused: false });
+    });
+  }, [filteredBgms, updateBgm]);
+
+  const handleBulkPause = useCallback(() => {
+    filteredBgms.forEach(b => {
+      if (b.is_playing && !b.is_paused) updateBgm(b.id, { is_paused: true });
+    });
+  }, [filteredBgms, updateBgm]);
+
+  const handleBulkStop = useCallback(() => {
+    filteredBgms.forEach(b => {
+      if (b.is_playing) updateBgm(b.id, { is_playing: false, is_paused: false });
+    });
+  }, [filteredBgms, updateBgm]);
+
   const [showAddPicker, setShowAddPicker] = useState(false);
 
-  const handleAddFromPicker = useCallback(async (url: string) => {
+  const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
     const videoId = extractVideoId(url);
     const isYoutube = videoId !== url;
     if (isYoutube) {
-      let title = videoId;
-      try {
-        const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
-        const data = await res.json();
-        if (data.title) title = data.title;
-      } catch {
-        // タイトル取得失敗時はvideoIdのまま
+      let title = assetTitle || videoId;
+      if (!assetTitle) {
+        try {
+          const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
+          const data = await res.json();
+          if (data.title) title = data.title;
+        } catch {
+          // タイトル取得失敗時はvideoIdのまま
+        }
       }
       addBgm({ name: title, bgm_type: 'youtube', bgm_source: videoId, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
     } else {
-      const filename = decodeURIComponent(url.split('/').pop() || '新規BGM')
-        .replace(/^\d+_/, '');
-      addBgm({ name: filename, bgm_type: 'url', bgm_source: url, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
+      const name = assetTitle
+        || decodeURIComponent(url.split('/').pop() || '新規BGM').replace(/^\d+_/, '');
+      addBgm({ name, bgm_type: 'url', bgm_source: url, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
     }
     setShowAddPicker(false);
   }, [addBgm, activeScene]);
@@ -228,16 +252,58 @@ export function BgmPanel() {
         title="BGM"
         titleIcon={<Music size={14} />}
         headerActions={
-          <button
-            onClick={() => setShowAddPicker(true)}
-            style={{
-              background: 'transparent', border: 'none',
-              color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
-            }}
-            title="トラック追加"
-          >
-            <Plus size={15} />
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+            <button
+              onClick={handleBulkPlay}
+              disabled={filteredBgms.length === 0}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', padding: '2px',
+                color: hasPlaying ? theme.accent : theme.textSecondary,
+                opacity: filteredBgms.length === 0 ? 0.3 : 1,
+              }}
+              title="全て再生"
+            >
+              <Play size={13} />
+            </button>
+            <button
+              onClick={handleBulkPause}
+              disabled={!hasPlaying}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', padding: '2px',
+                color: hasPaused ? theme.accent : theme.textSecondary,
+                opacity: !hasPlaying ? 0.3 : 1,
+              }}
+              title="全て一時停止"
+            >
+              <Pause size={13} />
+            </button>
+            <button
+              onClick={handleBulkStop}
+              disabled={!hasAnyPlaying}
+              style={{
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', padding: '2px',
+                color: theme.textSecondary,
+                opacity: !hasAnyPlaying ? 0.3 : 1,
+              }}
+              title="全て停止"
+            >
+              <Square size={11} />
+            </button>
+            <button
+              onClick={() => setShowAddPicker(true)}
+              style={{
+                background: 'transparent', border: 'none',
+                color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                padding: '2px',
+              }}
+              title="トラック追加"
+            >
+              <Plus size={15} />
+            </button>
+          </div>
         }
         items={filteredBgms}
         onDragEnd={handleDragEnd}
