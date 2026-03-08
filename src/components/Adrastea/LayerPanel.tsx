@@ -6,9 +6,9 @@ import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
-  Plus, Trash2,
+  Trash2, Copy,
 } from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -33,25 +33,12 @@ export function LayerPanel() {
     activeScene,
   } = useAdrasteaContext();
 
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
 
-  // メニュー外クリックで閉じる
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [menuOpen]);
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
   const activeObjectsRef = useRef(activeObjects);
@@ -153,8 +140,7 @@ export function LayerPanel() {
     }
   }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, clearAllEditing]);
 
-  const handleAdd = (global: boolean, type: BoardObjectType) => {
-    setMenuOpen(false);
+  const handleAdd = async (global: boolean, type: BoardObjectType) => {
     const center = getBoardCenter();
     const nonBg = sortedObjects.filter(o => o.type !== 'background');
     let sortOrder: number;
@@ -164,7 +150,7 @@ export function LayerPanel() {
     } else {
       sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
     }
-    addObject({
+    const newId = await addObject({
       type,
       name: `新規${type}`,
       x: center.x,
@@ -173,6 +159,10 @@ export function LayerPanel() {
       global,
       scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
     });
+    if (newId) {
+      setSelectedObjectIds([newId]);
+      setEditingObjectId(newId);
+    }
   };
 
   const handleToggleVisible = useCallback((obj: BoardObject) => {
@@ -189,7 +179,7 @@ export function LayerPanel() {
 
   const handleRemoveObject = useCallback((obj: BoardObject) => {
     if (obj.type === 'background') return;
-    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = activeObjects.find(o => o.id === id); return o && o.type !== 'background'; }).length : 1;
+    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = activeObjects.find(o => o.id === id); return o && o.type !== 'background' && o.type !== 'foreground'; }).length : 1;
     const msg = count > 1 ? `${count}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
     setPendingRemove({
       msg,
@@ -197,7 +187,7 @@ export function LayerPanel() {
         if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
           for (const id of selectedObjectIds) {
             const o = activeObjects.find(o => o.id === id);
-            if (o && o.type !== 'background') {
+            if (o && o.type !== 'background' && o.type !== 'foreground') {
               removeObject(id);
             }
           }
@@ -210,6 +200,42 @@ export function LayerPanel() {
     });
   }, [selectedObjectIds, activeObjects, removeObject, editingObjectId, clearAllEditing]);
 
+  const canDuplicate = (id: string) => {
+    const o = activeObjects.find(o => o.id === id);
+    return o && o.type !== 'background' && o.type !== 'foreground';
+  };
+
+  const hasDuplicateTargets = selectedObjectIds.length > 0
+    ? selectedObjectIds.length > 0 && selectedObjectIds.every(canDuplicate)
+    : editingObjectId ? canDuplicate(editingObjectId) : false;
+
+  const hasRemoveTargets = selectedObjectIds.length > 0
+    ? selectedObjectIds.every(canDuplicate)
+    : editingObjectId ? canDuplicate(editingObjectId) : false;
+
+  const handleDuplicate = useCallback(async () => {
+    const targets = selectedObjectIds.length > 0
+      ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground')
+      : editingObjectId
+        ? activeObjects.filter(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground')
+        : [];
+    if (targets.length === 0) return;
+    const newIds: string[] = [];
+    for (const obj of targets) {
+      const { id, created_at, updated_at, ...rest } = obj;
+      const newId = await addObject({
+        ...rest,
+        name: `${obj.name} (複製)`,
+        sort_order: obj.sort_order + 1,
+      });
+      if (newId) newIds.push(newId);
+    }
+    if (newIds.length > 0) {
+      setSelectedObjectIds(newIds);
+      setEditingObjectId(newIds[newIds.length - 1]);
+    }
+  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId]);
+
   const iconBtnStyle: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
@@ -220,75 +246,72 @@ export function LayerPanel() {
     lineHeight: 1,
   };
 
-  const menuStyle: React.CSSProperties = {
-    position: 'absolute',
-    top: '100%',
-    right: 0,
-    background: theme.bgSurface,
-    border: `1px solid ${theme.border}`,
-    zIndex: 100,
-    minWidth: '180px',
-    boxShadow: theme.shadowMd,
-  };
-
-  const menuGroupStyle: React.CSSProperties = {
-    padding: '4px 10px',
-    fontSize: '11px',
-    color: theme.textMuted,
-    borderBottom: `1px solid ${theme.border}`,
-  };
-
-  const menuItemStyle: React.CSSProperties = {
-    padding: '6px 14px',
-    fontSize: '12px',
-    color: theme.textPrimary,
-    cursor: 'pointer',
-    background: 'transparent',
-    border: 'none',
-    width: '100%',
-    textAlign: 'left',
-    display: 'block',
-  };
 
   return (
     <>
     <SortableListPanel
       title="レイヤー"
       headerActions={
-        <div style={{ position: 'relative' }} ref={menuRef}>
-          <button
-            onClick={() => setMenuOpen(!menuOpen)}
-            style={{
-              ...iconBtnStyle,
-              color: theme.accent,
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Plus size={15} />
-          </button>
-          {menuOpen && (
-            <div style={menuStyle}>
-              <div style={menuGroupStyle}>シーン固有</div>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(false, 'panel')}
-                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              ><Image size={14} /> パネル</button>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(false, 'text')}
-                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              ><Type size={14} /> テキスト</button>
-              <div style={{ ...menuGroupStyle, borderTop: `1px solid ${theme.border}` }}>グローバル</div>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(true, 'panel')}
-                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              ><Image size={14} /> パネル</button>
-              <button style={{ ...menuItemStyle, display: 'flex', alignItems: 'center', gap: '6px' }} onClick={() => handleAdd(true, 'text')}
-                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgInput; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-              ><Type size={14} /> テキスト</button>
-            </div>
-          )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+          <Tooltip label="シーン画像追加">
+            <button onClick={() => handleAdd(false, 'panel')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+              <Image size={13} />
+            </button>
+          </Tooltip>
+          <Tooltip label="シーンテキスト追加">
+            <button onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+              <Type size={13} />
+            </button>
+          </Tooltip>
+          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
+          <Tooltip label="ルーム画像追加">
+            <button onClick={() => handleAdd(true, 'panel')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+              <Image size={13} />
+            </button>
+          </Tooltip>
+          <Tooltip label="ルームテキスト追加">
+            <button onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+              <Type size={13} />
+            </button>
+          </Tooltip>
+          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
+          <Tooltip label="複製">
+            <button
+              onClick={handleDuplicate}
+              disabled={!hasDuplicateTargets}
+              style={{
+                ...iconBtnStyle,
+                color: theme.accent,
+                display: 'flex',
+                alignItems: 'center',
+                opacity: hasDuplicateTargets ? 1 : 0.3,
+              }}
+            >
+              <Copy size={13} />
+            </button>
+          </Tooltip>
+          <Tooltip label="削除">
+            <button
+              onClick={() => {
+                const target = selectedObjectIds.length > 0
+                  ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground')
+                  : editingObjectId
+                    ? activeObjects.find(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground')
+                    : null;
+                if (target) handleRemoveObject(target);
+              }}
+              disabled={!hasRemoveTargets}
+              style={{
+                ...iconBtnStyle,
+                color: theme.danger,
+                display: 'flex',
+                alignItems: 'center',
+                opacity: hasRemoveTargets ? 1 : 0.3,
+              }}
+            >
+              <Trash2 size={13} />
+            </button>
+          </Tooltip>
         </div>
       }
       items={sortedObjects}
@@ -314,10 +337,8 @@ export function LayerPanel() {
             onClick={(e) => handleRowClick(e, obj)}
           >
             {obj.type !== 'background' && (
-              <input
-                type="checkbox"
-                checked={isSelected}
-                onChange={(e) => {
+              <div
+                onClick={(e) => {
                   e.stopPropagation();
                   if (isSelected) {
                     setSelectedObjectIds(prev => prev.filter(id => id !== obj.id));
@@ -326,16 +347,24 @@ export function LayerPanel() {
                     setEditingObjectId(obj.id);
                   }
                 }}
-                onClick={(e) => e.stopPropagation()}
                 style={{
                   flexShrink: 0,
                   width: '12px',
                   height: '12px',
-                  margin: 0,
+                  border: `1px solid ${theme.textMuted}`,
+                  borderRadius: '2px',
+                  background: isSelected ? theme.textMuted : 'transparent',
                   cursor: 'pointer',
-                  accentColor: theme.accent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '9px',
+                  color: theme.bgBase,
+                  lineHeight: 1,
                 }}
-              />
+              >
+                {isSelected && '✓'}
+              </div>
             )}
             <span style={{
               flexShrink: 0, width: '20px', height: '20px',
@@ -403,23 +432,14 @@ export function LayerPanel() {
                 {obj.name}
               </span>
             )}
-            <button
-              style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
-              onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
-              title={obj.visible ? '非表示にする' : '表示する'}
-            >
-              {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-            </button>
-            {obj.type !== 'background' && obj.type !== 'foreground' ? (
+            {obj.type !== 'background' && (
               <button
-                style={{ ...iconBtnStyle, color: theme.danger, display: 'flex', alignItems: 'center' }}
-                onClick={(e) => { e.stopPropagation(); handleRemoveObject(obj); }}
-                title="削除"
+                style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
+                onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
+                title={obj.visible ? '非表示にする' : '表示する'}
               >
-                <Trash2 size={12} />
+                {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
               </button>
-            ) : (
-              <span style={{ width: '20px', flexShrink: 0 }} />
             )}
           </SortableListItem>
         );

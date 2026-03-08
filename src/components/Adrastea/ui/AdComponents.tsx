@@ -446,10 +446,11 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
           style={{
             position: 'fixed', top: popPos.top, left: popPos.left, zIndex: 10000,
             background: theme.bgSurface, border: `1px solid ${theme.border}`,
-            padding: '8px', display: 'flex', flexDirection: 'column', gap: '8px',
+            padding: '8px', display: 'flex', flexDirection: 'row', gap: '8px',
             boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
           }}
         >
+          {/* 左: カラーピッカー */}
           <div className="ad-color-picker-popover">
             <RgbaColorPicker
               color={enableAlpha ? rgba : { ...rgba, a: 1 }}
@@ -457,41 +458,47 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
             />
           </div>
 
-          {/* デフォルトパレット（削除不可） */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
-            {DEFAULT_PALETTE.map((c, i) => (
+          {/* 右: パレット */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* デフォルトパレット（削除不可） */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(5, 16px)', gap: '3px',
+            }}>
+              {DEFAULT_PALETTE.map((c, i) => (
+                <button
+                  key={`d-${i}`}
+                  onClick={() => onChange(c)}
+                  title={c}
+                  style={{
+                    width: '16px', height: '16px', border: `1px solid ${theme.border}`,
+                    background: checkerBg,
+                    backgroundSize: '6px 6px', backgroundPosition: '0 0, 3px 3px',
+                    cursor: 'pointer', padding: 0, position: 'relative',
+                  }}
+                >
+                  <div style={{ position: 'absolute', inset: 0, background: c }} />
+                </button>
+              ))}
+            </div>
+
+            {/* ユーザー保存パレット */}
+            <div style={{
+              borderTop: `1px solid ${theme.border}`, paddingTop: '6px',
+              display: 'grid', gridTemplateColumns: 'repeat(5, 16px)', gap: '3px',
+            }}>
+              {/* 現在色を保存するボタン */}
               <button
-                key={`d-${i}`}
-                onClick={() => onChange(c)}
-                title={c}
+                onClick={handleSaveToPalette}
+                title="現在の色を保存"
                 style={{
-                  width: '16px', height: '16px', border: `1px solid ${theme.border}`,
-                  background: checkerBg,
-                  backgroundSize: '6px 6px', backgroundPosition: '0 0, 3px 3px',
-                  cursor: 'pointer', padding: 0, position: 'relative',
+                  width: '16px', height: '16px', border: `1px dashed ${theme.border}`,
+                  background: 'transparent', cursor: 'pointer', padding: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: theme.textSecondary, fontSize: '14px', lineHeight: 1,
                 }}
               >
-                <div style={{ position: 'absolute', inset: 0, background: c }} />
+                +
               </button>
-            ))}
-          </div>
-
-          {/* ユーザー保存パレット */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '10px', color: theme.textMuted }}>保存色</span>
-            <button
-              onClick={handleSaveToPalette}
-              style={{
-                background: 'transparent', border: `1px solid ${theme.border}`,
-                color: theme.textSecondary, fontSize: '10px', padding: '1px 5px',
-                cursor: 'pointer', lineHeight: 1,
-              }}
-            >
-              +
-            </button>
-          </div>
-          {palette.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px' }}>
               {palette.map((c, i) => (
                 <button
                   key={`u-${i}`}
@@ -508,13 +515,11 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
                     cursor: 'pointer', padding: 0, position: 'relative',
                   }}
                 >
-                  <div style={{ position: 'absolute', inset: 0, background: c }} />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div style={{ fontSize: '10px', color: theme.textMuted }}>なし</div>
-          )}
+                    <div style={{ position: 'absolute', inset: 0, background: c }} />
+                  </button>
+                ))}
+              </div>
+          </div>
         </div>,
         document.body,
       )}
@@ -685,6 +690,14 @@ export function ConfirmModal({
   message, confirmLabel = '実行', cancelLabel = 'キャンセル',
   onConfirm, onCancel, danger = false,
 }: ConfirmModalProps) {
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter') { e.preventDefault(); onConfirm(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onConfirm]);
+
   return (
     <AdModal title="確認" width="360px" onClose={onCancel} footer={
       <>

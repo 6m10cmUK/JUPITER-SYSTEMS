@@ -134,6 +134,7 @@ interface SortableListItemProps {
   isSelected?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  handleExtra?: React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -143,6 +144,7 @@ export function SortableListItem({
   isSelected,
   isGroupDrag,
   onClick,
+  handleExtra,
   children,
 }: SortableListItemProps) {
   const {
@@ -178,13 +180,16 @@ export function SortableListItem({
       onClick={onClick}
     >
       {!disabled && (
-        <span
-          {...attributes}
-          {...listeners}
-          style={{ cursor: 'grab', display: 'flex', flexShrink: 0 }}
-        >
-          <GripVertical size={12} color={theme.textMuted} />
-        </span>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+          <span
+            {...attributes}
+            {...listeners}
+            style={{ cursor: 'grab', display: 'flex' }}
+          >
+            <GripVertical size={12} color={theme.textMuted} />
+          </span>
+          {handleExtra}
+        </div>
       )}
       {children}
     </div>

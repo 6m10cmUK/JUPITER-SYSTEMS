@@ -18,6 +18,7 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
   const [bgTransitionDuration, setBgTransitionDuration] = useState(scene?.bg_transition_duration ?? 500);
   const [fgTransition, setFgTransition] = useState(scene?.fg_transition ?? 'none');
   const [fgTransitionDuration, setFgTransitionDuration] = useState(scene?.fg_transition_duration ?? 500);
+  const [bgBlur, setBgBlur] = useState(scene?.bg_blur ?? true);
 
   // 外部からの変更（シーンパネルでのリネーム等）をローカルstateに同期
   useEffect(() => {
@@ -36,9 +37,10 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
         bg_transition_duration: bgTransitionDuration,
         fg_transition: fgTransition,
         fg_transition_duration: fgTransitionDuration,
+        bg_blur: bgBlur,
       },
     });
-  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, ctx.setPendingEdit, scene?.id]);
+  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, bgBlur, ctx.setPendingEdit, scene?.id]);
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
@@ -65,6 +67,15 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
       </AdSection>
 
       {/* トランジション設定 */}
+      {/* 背景ぼかし */}
+      <AdSection label="背景">
+        <AdCheckbox
+          checked={bgBlur}
+          onChange={setBgBlur}
+          label="ぼかし"
+        />
+      </AdSection>
+
       <AdSection label="背景トランジション">
         <AdCheckbox
           checked={bgTransition === 'fade'}

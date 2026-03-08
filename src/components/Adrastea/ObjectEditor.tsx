@@ -47,6 +47,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(object?.text_align ?? 'left');
   const [textVerticalAlign, setTextVerticalAlign] = useState<'top' | 'middle' | 'bottom'>(object?.text_vertical_align ?? 'top');
   const [textColor, setTextColor] = useState(object?.text_color ?? '#ffffff');
+  const [scaleX, setScaleX] = useState(object?.scale_x ?? 1);
+  const [scaleY, setScaleY] = useState(object?.scale_y ?? 1);
   const [posX, setPosX] = useState(object?.x ?? 50);
   const [posY, setPosY] = useState(object?.y ?? 50);
   const [width, setWidth] = useState(object?.width ?? 4);
@@ -68,6 +70,11 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       setImageUrl(object.image_url ?? '');
     }
   }, [object?.image_url]);
+  useEffect(() => {
+    if (object && object.font_size !== undefined) {
+      setFontSize(object.font_size);
+    }
+  }, [object?.font_size]);
   useEffect(() => {
     if (object) {
       setPosX(object.x);
@@ -119,6 +126,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       data.height = height;
       data.position_locked = positionLocked;
       data.size_locked = sizeLocked;
+      data.scale_x = scaleX;
+      data.scale_y = scaleY;
     } else if (type === 'foreground') {
       data.x = posX;
       data.y = posY;
@@ -136,7 +145,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       id: object?.id ?? null,
       data,
     });
-  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
+  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, scaleX, scaleY, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
 
   if (object === undefined) return null;
 
@@ -357,6 +366,30 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>倍</span>
                 </div>
               </AdSection>
+              <AdSection label="比率">
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>水平:</span>
+                  <AdInput
+                    type="number"
+                    value={String(scaleX)}
+                    onChange={(e) => setScaleX(Math.max(0.01, Number(e.target.value)))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                    step="0.1"
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>垂直:</span>
+                  <AdInput
+                    type="number"
+                    value={String(scaleY)}
+                    onChange={(e) => setScaleY(Math.max(0.01, Number(e.target.value)))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                    step="0.1"
+                  />
+                </div>
+              </AdSection>
               <AdSection label="配置">
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>横:</span>
@@ -384,7 +417,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 </div>
               </AdSection>
               <AdSection label="テキスト色">
-                <AdColorPicker value={textColor} onChange={setTextColor} />
+                <AdColorPicker value={textColor} onChange={setTextColor} enableAlpha />
               </AdSection>
               <AdSection label="背景色">
                 <AdCheckbox
