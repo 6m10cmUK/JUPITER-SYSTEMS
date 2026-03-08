@@ -13,14 +13,14 @@ import {
 } from 'firebase/firestore';
 import type { ScenarioText } from '../types/adrastea.types';
 
-export function useScenarioTexts(roomId: string) {
+export function useScenarioTexts(roomId: string, enabled = true) {
   const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>([]);
   const scenarioTextsRef = useRef(scenarioTexts);
   scenarioTextsRef.current = scenarioTexts;
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !enabled) {
       setLoading(false);
       return;
     }
@@ -56,7 +56,7 @@ export function useScenarioTexts(roomId: string) {
     );
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, enabled]);
 
   const addScenarioText = useCallback(
     async (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>) => {

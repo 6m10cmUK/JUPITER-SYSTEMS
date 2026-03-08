@@ -168,32 +168,8 @@ export function useScenes(roomId: string) {
         // シーン本体を削除
         batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
         await batch.commit();
-        // デバッグ: 成功ログ
-        try {
-          await addDoc(collection(db, 'rooms', roomId, 'messages'), {
-            room_id: roomId,
-            sender_name: '🔧 System',
-            sender_uid: null,
-            sender_avatar: null,
-            content: `シーン削除成功: ${sceneId} (objects: ${snap.docs.length}件処理)`,
-            message_type: 'text',
-            created_at: Date.now(),
-          });
-        } catch { /* ignore */ }
       } catch (e) {
         console.error('シーン削除エラー:', e);
-        // デバッグ: エラーをルームチャットに流す
-        try {
-          await addDoc(collection(db, 'rooms', roomId, 'messages'), {
-            room_id: roomId,
-            sender_name: '⚠ System',
-            sender_uid: null,
-            sender_avatar: null,
-            content: `シーン削除エラー: ${e instanceof Error ? e.message : String(e)}`,
-            message_type: 'text',
-            created_at: Date.now(),
-          });
-        } catch { /* ignore */ }
         throw e;
       }
     },

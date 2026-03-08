@@ -1,8 +1,15 @@
+import { useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { CutinPanel } from '../CutinPanel';
 
 export function CutinDockPanel() {
   const ctx = useAdrasteaContext();
+
+  useEffect(() => {
+    ctx.registerPanel('cutin');
+    return () => ctx.unregisterPanel('cutin');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <CutinPanel
       cutins={ctx.cutins}

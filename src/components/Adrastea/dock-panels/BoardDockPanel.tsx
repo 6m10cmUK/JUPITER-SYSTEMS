@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
@@ -25,9 +25,14 @@ export function BoardDockPanel() {
     ctx.updateObject(id, { width, height });
   }, [ctx.updateObject, ctx.activeObjects]);
 
-  // auto_size テキストの描画サイズを width/height に同期
+  // auto_size テキストの描画サイズを width/height に同期（500msデバウンス）
+  const syncTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const handleSyncObjectSize = useCallback((id: string, width: number, height: number) => {
-    ctx.updateObject(id, { width, height });
+    clearTimeout(syncTimerRef.current[id]);
+    syncTimerRef.current[id] = setTimeout(() => {
+      ctx.updateObject(id, { width, height });
+      delete syncTimerRef.current[id];
+    }, 500);
   }, [ctx.updateObject]);
 
   // シングルクリック → プロパティ表示（単一選択）
