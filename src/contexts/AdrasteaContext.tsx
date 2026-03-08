@@ -249,36 +249,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const isLoading = !initialLoadDone && loadingSteps.some(s => !s.done);
   const loadingProgress = loadingSteps.filter(s => s.done).length / loadingSteps.length;
 
-  // --- 背景/前景の自動補完 ---
-  // ルーム全体で1回だけグローバルな bg/fg オブジェクトを生成する
-  const autoEnsuredRef = useRef(false);
-  useEffect(() => {
-    if (objectsLoading || !initialLoadDone) return;
-    if (autoEnsuredRef.current) return;
-    autoEnsuredRef.current = true;
-
-    const hasBg = allObjects.some(o => o.type === 'background');
-    const hasFg = allObjects.some(o => o.type === 'foreground');
-
-    if (!hasBg) {
-      addObject({
-        type: 'background', name: '背景',
-        global: true, scene_ids: [],
-        x: 0, y: 0, width: 100, height: 100,
-        visible: true, opacity: 1, sort_order: 0, locked: true,
-        image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
-      });
-    }
-    if (!hasFg) {
-      addObject({
-        type: 'foreground', name: '前景',
-        global: true, scene_ids: [],
-        x: 26, y: 36, width: 48, height: 27,
-        visible: true, opacity: 1, sort_order: 100, locked: false,
-        image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
-      });
-    }
-  }, [objectsLoading, initialLoadDone, allObjects, addObject]);
+  // 背景/前景はシーンごとに useScenes.ts の addScene で作成される
 
   // --- Image preload ---
   const preloadUrls = useMemo(() =>
