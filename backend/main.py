@@ -1434,8 +1434,8 @@ async def compress_image(
     """
     MAX_SIZE = 5 * 1024 * 1024  # 5MB
 
-    if file.content_type not in ("image/gif", "image/webp"):
-        raise HTTPException(status_code=400, detail="image/gif または image/webp のみ対応")
+    if file.content_type not in ("image/gif", "image/webp", "image/png", "image/apng"):
+        raise HTTPException(status_code=400, detail="image/gif, image/webp, image/png(APNG) のみ対応")
 
     data = await file.read()
     if len(data) > MAX_SIZE:
@@ -1451,6 +1451,7 @@ async def compress_image(
             buf = image.gifsave_buffer(Q=quality)
             media_type = "image/gif"
         else:
+            # WebP / APNG → アニメーション WebP で出力
             buf = image.webpsave_buffer(Q=quality)
             media_type = "image/webp"
 
