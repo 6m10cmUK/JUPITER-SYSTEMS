@@ -32,8 +32,8 @@ interface BoardProps {
 
 export const LOGICAL_SIZE = 5000;
 export const GRID_SIZE = 50;
-export const MIN_SCALE = 0.1;
-export const MAX_SCALE = 10;
+export const MIN_SCALE = 0.075;
+export const MAX_SCALE = 20;
 
 const GridLines = memo(function GridLines() {
   return (
@@ -189,19 +189,8 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     },
   }));
 
-  // 初期表示: 背景オブジェクトにフィットするようカメラ配置
-  // 背景オブジェクトが変わった時（別サイズ/別IDの背景に切り替わった時）のみリセット
+  // 初期表示のみ: 背景オブジェクトにフィットするようカメラ配置
   const initializedRef = useRef(false);
-  const prevBgKeyRef = useRef<string>('');
-  useEffect(() => {
-    const bg = objects.find(o => o.type === 'background');
-    const bgKey = bg ? `${bg.id}:${bg.width}:${bg.height}` : '';
-    if (prevBgKeyRef.current && bgKey !== prevBgKeyRef.current) {
-      initializedRef.current = false;
-    }
-    prevBgKeyRef.current = bgKey;
-  }, [objects]);
-
   useEffect(() => {
     if (initializedRef.current || stageSize.width === 0 || stageSize.height === 0) return;
     const stage = stageRef.current;
@@ -307,10 +296,22 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     setContextMenu({ visible: false, x: 0, y: 0, pieceId: null });
   }, []);
 
-  // Stageクリックでメニュー閉じ
-  const handleStageClick = useCallback(() => {
+  // Stageクリック: メニュー閉じ + 背景オブジェクト選択
+  const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (contextMenu.visible) closeContextMenu();
-  }, [contextMenu.visible, closeContextMenu]);
+    // Stage 直接クリック（空白領域）→ 背景オブジェクトを選択
+    if (e.target === e.target.getStage() && onSelectObject) {
+      const bg = objects.find(o => o.type === 'background');
+      if (bg) onSelectObject(bg.id);
+    }
+  }, [contextMenu.visible, closeContextMenu, objects, onSelectObject]);
+
+  const handleStageDblClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    if (e.target === e.target.getStage() && onEditObject) {
+      const bg = objects.find(o => o.type === 'background');
+      if (bg) onEditObject(bg.id);
+    }
+  }, [objects, onEditObject]);
 
   // 背景オブジェクト（HTMLで描画 — ビューポート固定）
   // フォールバック: シーン切替直後に背景オブジェクトが未到着の場合、前回の値を維持
@@ -390,7 +391,10 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         draggable
         onWheel={handleWheel}
         onClick={handleStageClick}
-        style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}
+        onDblClick={handleStageDblClick}
+        onDragStart={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grabbing'); }}
+        onDragEnd={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grab'); }}
+        style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1, cursor: 'grab' }}
       >
         {/* 背景+グリッド: hitテスト不要 */}
         {gridVisible && (

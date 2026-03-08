@@ -100,10 +100,11 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<ResizeState | null>(null);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    e.stopPropagation();
-    onSelect(obj.id);
+  // ドラッグもリサイズもできないオブジェクトかどうか
+  const canDrag = isDraggable && !obj.position_locked;
+  const canResize = isResizable && !!onResize && !obj.size_locked;
 
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = elRef.current;
     if (!el) return;
 
@@ -116,7 +117,38 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
     // scale を考慮してエッジ判定用のローカル座標を算出
     const elW = rect.width;
     const elH = rect.height;
-    const edge = isResizable && onResize ? getEdge(localX, localY, elW, elH) : null;
+    const edge = canResize ? getEdge(localX, localY, elW, elH) : null;
+
+    if (!edge && !canDrag) {
+      // ドラッグもリサイズも不可 → Stage を直接ドラッグしてカメラ移動
+      e.stopPropagation();
+      onSelect(obj.id);
+      if (!stage) return;
+
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const origPos = stage.position();
+      document.body.style.cursor = 'grabbing';
+
+      const onPointerMove = (me: PointerEvent) => {
+        stage.position({
+          x: origPos.x + (me.clientX - startX),
+          y: origPos.y + (me.clientY - startY),
+        });
+        stage.batchDraw();
+      };
+      const onPointerUp = () => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        document.body.style.cursor = '';
+      };
+      window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointerup', onPointerUp);
+      return;
+    }
+
+    e.stopPropagation();
+    onSelect(obj.id);
 
     if (edge && onResize) {
       // リサイズ開始
@@ -222,19 +254,21 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
     }
-  }, [obj.id, obj.position_locked, pxX, pxY, pxW, pxH, isDraggable, isResizable, stageRef, onMove, onSelect, onResize]);
+  }, [obj.id, obj.position_locked, obj.size_locked, pxX, pxY, pxW, pxH, canDrag, canResize, isDraggable, isResizable, stageRef, onMove, onSelect, onResize]);
 
   // エッジホバーでカーソル変更
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (!isResizable || !onResize) return;
     const el = elRef.current;
     if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const localX = e.clientX - rect.left;
-    const localY = e.clientY - rect.top;
-    const edge = getEdge(localX, localY, rect.width, rect.height);
-    el.style.cursor = edgeToCursor(edge);
-  }, [isResizable, onResize]);
+    if (canResize) {
+      const rect = el.getBoundingClientRect();
+      const localX = e.clientX - rect.left;
+      const localY = e.clientY - rect.top;
+      const edge = getEdge(localX, localY, rect.width, rect.height);
+      // エッジ上: リサイズカーソル、中央かつドラッグ不可: grab、中央かつドラッグ可: move
+      el.style.cursor = edge ? edgeToCursor(edge) : (canDrag ? 'move' : 'grab');
+    }
+  }, [canResize, canDrag]);
 
   const handleDoubleClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -257,7 +291,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         opacity: obj.opacity,
         pointerEvents: 'auto',
         boxShadow: selectionBoxShadow,
-        cursor: isDraggable && !obj.position_locked ? 'move' : 'default',
+        cursor: canDrag ? 'move' : 'grab',
         ...extraStyle,
       }}
       onPointerDown={handlePointerDown}
@@ -282,6 +316,7 @@ interface BlobCacheEntry {
   revokeTimer: ReturnType<typeof setTimeout> | null;
 }
 const blobCache = new Map<string, BlobCacheEntry>();
+const pendingFetches = new Map<string, Promise<Blob>>();
 const REVOKE_DELAY = 200;
 
 function acquireBlobUrl(imageUrl: string, blob: Blob): string {
@@ -316,6 +351,7 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
   // useState の lazy initializer 内でのみ acquireBlobUrl を呼ぶことで refCount リークを防ぐ
   const initialImageUrlRef = useRef(imageUrl);
   const activeUrlRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
 
   const [blobSrc, setBlobSrc] = useState<string | null>(() => {
     const url = initialImageUrlRef.current;
@@ -328,6 +364,11 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
   });
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => {
     if (!imageUrl) {
       if (activeUrlRef.current) { releaseBlobUrl(activeUrlRef.current); activeUrlRef.current = null; }
       setBlobSrc(null);
@@ -337,10 +378,10 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
     // 既に同じ URL で acquire 済み（初期化 or 前回の effect）ならスキップ
     if (activeUrlRef.current === imageUrl) return;
 
-    let cancelled = false;
-
     const apply = (blob: Blob) => {
-      if (cancelled) return;
+      // マウント済み & imageUrl が変わっていないことを確認
+      if (!mountedRef.current) return;
+      if (activeUrlRef.current === imageUrl) return; // 別の経路で既に適用済み
       if (activeUrlRef.current && activeUrlRef.current !== imageUrl) {
         releaseBlobUrl(activeUrlRef.current);
       }
@@ -353,15 +394,19 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
     if (existing) {
       apply(existing.blob);
     } else {
-      fetch(imageUrl)
-        .then(r => r.blob())
+      // 同じ URL の fetch を deduplicate
+      let fetchPromise = pendingFetches.get(imageUrl);
+      if (!fetchPromise) {
+        fetchPromise = fetch(imageUrl).then(r => r.blob());
+        pendingFetches.set(imageUrl, fetchPromise);
+        fetchPromise.finally(() => pendingFetches.delete(imageUrl));
+      }
+      fetchPromise
         .then(blob => apply(blob))
         .catch(() => {
-          if (!cancelled) setBlobSrc(imageUrl);
+          if (mountedRef.current) setBlobSrc(imageUrl);
         });
     }
-
-    return () => { cancelled = true; };
   }, [imageUrl]);
 
   // コンポーネント unmount 時に release
@@ -371,7 +416,8 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
     };
   }, []);
 
-  return blobSrc;
+  // フォールバック: blob 取得に失敗/遅延しても画像は表示する
+  return blobSrc ?? (imageUrl || null);
 }
 
 // --- PanelObject (DOM版) ---
@@ -544,22 +590,14 @@ const DomForegroundObject = memo(function DomForegroundObject({
 
 // --- BackgroundObject (DOM版) ---
 const DomBackgroundObject = memo(function DomBackgroundObject({
-  obj, onSelect, onEdit,
+  obj,
 }: {
   obj: BoardObject;
-  onSelect: (id: string) => void;
-  onEdit: (id: string) => void;
 }) {
   const pxX = obj.x * GRID_SIZE;
   const pxY = obj.y * GRID_SIZE;
   const pxW = obj.width * GRID_SIZE;
   const pxH = obj.height * GRID_SIZE;
-
-  const handleClick = useCallback(() => onSelect(obj.id), [obj.id, onSelect]);
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(obj.id);
-  }, [obj.id, onEdit]);
 
   return (
     <div
@@ -567,11 +605,8 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
         position: 'absolute',
         left: pxX, top: pxY,
         width: pxW, height: pxH,
-        pointerEvents: 'auto',
-        cursor: 'default',
+        pointerEvents: 'none',
       }}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     />
   );
 });
@@ -668,14 +703,26 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
     const keyedObjects = generateStableKeys(visibleObjects, prevSlotsRef);
 
+    // wheel イベントを Konva Stage の canvas に転送（DOM オーバーレイがイベントを奪うため）
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const canvas = stage.container()?.querySelector('canvas');
+      if (!canvas) return;
+      canvas.dispatchEvent(new WheelEvent('wheel', e.nativeEvent));
+    }, [stageRef]);
+
     return (
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        overflow: 'hidden',
-        pointerEvents: 'none',
-        zIndex: 2,
-      }}>
+      <div
+        onWheelCapture={handleWheel}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          zIndex: 2,
+        }}
+      >
         {/* Board.tsx が rAF でこの div の style.transform を直接更新する */}
         <div ref={ref} style={{ transformOrigin: '0 0' }}>
           {keyedObjects.map(({ obj, stableKey }) => {
@@ -688,7 +735,6 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                 return (
                   <DomBackgroundObject
                     key={stableKey} obj={obj}
-                    onSelect={onSelectObject} onEdit={onEditObject}
                   />
                 );
               case 'panel':

@@ -47,6 +47,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(object?.text_align ?? 'left');
   const [textVerticalAlign, setTextVerticalAlign] = useState<'top' | 'middle' | 'bottom'>(object?.text_vertical_align ?? 'top');
   const [textColor, setTextColor] = useState(object?.text_color ?? '#ffffff');
+  const [posX, setPosX] = useState(object?.x ?? 50);
+  const [posY, setPosY] = useState(object?.y ?? 50);
   const [width, setWidth] = useState(object?.width ?? 4);
   const [height, setHeight] = useState(object?.height ?? 4);
   const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'cover');
@@ -68,10 +70,12 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   }, [object?.image_url]);
   useEffect(() => {
     if (object) {
+      setPosX(object.x);
+      setPosY(object.y);
       setWidth(object.width);
       setHeight(object.height);
     }
-  }, [object?.width, object?.height]);
+  }, [object?.x, object?.y, object?.width, object?.height]);
 
   const ctx = useAdrasteaContext();
   const isGlobal = object?.global ?? false;
@@ -89,6 +93,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       opacity,
     };
     if (type === 'panel') {
+      data.x = posX;
+      data.y = posY;
       data.image_url = imageUrl || null;
       data.background_color = bgEnabled ? backgroundColor : 'transparent';
       data.width = width;
@@ -97,6 +103,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       data.position_locked = positionLocked;
       data.size_locked = sizeLocked;
     } else if (type === 'text') {
+      data.x = posX;
+      data.y = posY;
       data.text_content = textContent;
       data.font_size = fontSize;
       data.font_family = fontFamily;
@@ -112,6 +120,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       data.position_locked = positionLocked;
       data.size_locked = sizeLocked;
     } else if (type === 'foreground') {
+      data.x = posX;
+      data.y = posY;
       data.image_url = imageUrl || null;
       data.width = width;
       data.height = height;
@@ -126,7 +136,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       id: object?.id ?? null,
       data,
     });
-  }, [type, name, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
+  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
 
   if (object === undefined) return null;
 
@@ -226,6 +236,26 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                     <AdColorPicker value={backgroundColor} onChange={setBackgroundColor} enableAlpha />
                   </div>
                 )}
+              </AdSection>
+              <AdSection label="位置">
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posX)}
+                    onChange={(e) => setPosX(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posY)}
+                    onChange={(e) => setPosY(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                </div>
               </AdSection>
               <AdSection label="サイズ">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
@@ -368,6 +398,26 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   </div>
                 )}
               </AdSection>
+              <AdSection label="位置">
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posX)}
+                    onChange={(e) => setPosX(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posY)}
+                    onChange={(e) => setPosY(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                </div>
+              </AdSection>
               <AdSection label="サイズ">
                 <AdCheckbox
                   checked={!autoSize}
@@ -417,6 +467,26 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   />
                 </AdSection>
               )}
+              <AdSection label="位置">
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posX)}
+                    onChange={(e) => setPosX(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
+                  <AdInput
+                    type="number"
+                    value={String(posY)}
+                    onChange={(e) => setPosY(Number(e.target.value))}
+                    fullWidth={false}
+                    inputWidth="52px"
+                  />
+                </div>
+              </AdSection>
               <AdSection label="サイズ">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>

@@ -175,6 +175,15 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     [colPath]
   );
 
+  // オプティミスティック注入: onSnapshot 到着前にローカル state にオブジェクトを追加
+  const injectOptimistic = useCallback((objects: BoardObject[]) => {
+    setAllObjects(prev => {
+      const existingIds = new Set(prev.map(o => o.id));
+      const newObjs = objects.filter(o => !existingIds.has(o.id));
+      return newObjs.length > 0 ? [...prev, ...newObjs] : prev;
+    });
+  }, []);
+
   return {
     allObjects,
     activeObjects,
@@ -184,5 +193,6 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     removeObject,
     reorderObjects,
     batchUpdateSort,
+    injectOptimistic,
   };
 }
