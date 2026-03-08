@@ -175,6 +175,10 @@ export interface AdrasteaContextValue {
 
   // --- 排他編集リセット ---
   clearAllEditing: () => void;
+
+  // --- パネル登録（遅延リスナー用） ---
+  registerPanel: (panelId: string) => void;
+  unregisterPanel: (panelId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -195,6 +199,15 @@ interface AdrasteaProviderProps {
 
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile } = useAuth();
+
+  // --- パネルのマウント状態追跡（遅延リスナー用） ---
+  const [activePanels, setActivePanels] = useState<Set<string>>(new Set());
+  const registerPanel = useCallback((panelId: string) => {
+    setActivePanels(prev => { const next = new Set(prev); next.add(panelId); return next; });
+  }, []);
+  const unregisterPanel = useCallback((panelId: string) => {
+    setActivePanels(prev => { const next = new Set(prev); next.delete(panelId); return next; });
+  }, []);
 
   // --- Data hooks ---
   const {
@@ -222,8 +235,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
   } = useObjects(roomId, effectiveSceneId);
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId);
+  const scenarioTextsEnabled = activePanels.has('scenarioText');
+  const cutinsEnabled = activePanels.has('cutin');
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled);
   const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
 
   // --- Loading steps ---
@@ -234,8 +249,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     { label: 'オブジェクト', done: !objectsLoading },
     { label: 'チャット', done: !chatLoading },
     { label: 'BGM', done: !bgmsLoading },
-    { label: 'カットイン', done: !cutinsLoading },
-    { label: 'シナリオテキスト', done: !scenarioTextsLoading },
+    { label: 'カットイン', done: !cutinsEnabled || !cutinsLoading },
+    { label: 'シナリオテキスト', done: !scenarioTextsEnabled || !scenarioTextsLoading },
   ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
 
   // 初回ロード完了後はローディング画面を二度と出さない
@@ -605,6 +620,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // 排他編集リセット
       clearAllEditing,
+
+      // パネル登録
+      registerPanel, unregisterPanel,
     }),
     [
       roomId, roomRole,
@@ -631,6 +649,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       isLoading, loadingProgress, loadingSteps,
       setPendingEdit,
       clearAllEditing,
+      registerPanel, unregisterPanel,
     ],
   );
 

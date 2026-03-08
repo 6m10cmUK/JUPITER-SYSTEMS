@@ -13,12 +13,12 @@ import {
 } from 'firebase/firestore';
 import type { Cutin } from '../types/adrastea.types';
 
-export function useCutins(roomId: string) {
+export function useCutins(roomId: string, enabled = true) {
   const [cutins, setCutins] = useState<Cutin[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !enabled) {
       setLoading(false);
       return;
     }
@@ -58,7 +58,7 @@ export function useCutins(roomId: string) {
     );
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, enabled]);
 
   const addCutin = useCallback(
     async (data: Partial<Omit<Cutin, 'id' | 'room_id'>>) => {

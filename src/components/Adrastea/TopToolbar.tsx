@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX } from 'lucide-react';
+import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
+import { DebugConsole } from './DebugConsole';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
@@ -80,6 +81,7 @@ export function TopToolbar({
   const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].value);
   const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
   const { isGuest } = useAuth();
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
 
@@ -296,6 +298,11 @@ export function TopToolbar({
         </IconButton>
       )}
 
+      {/* デバッグコンソール */}
+      <IconButton onClick={() => setShowDebug(true)} title="デバッグコンソール">
+        <Terminal size={14} />
+      </IconButton>
+
       {/* 設定 */}
       <IconButton onClick={onOpenSettings} title="設定">
         <Settings size={14} />
@@ -343,6 +350,7 @@ export function TopToolbar({
       </IconButton>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}
+      {showDebug && <DebugConsole onClose={() => setShowDebug(false)} />}
     </div>
   );
 }
