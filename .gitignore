@@ -52,6 +52,11 @@ public/pdf.js/
 .vscode/
 .idea/
 
+# Wrangler
+.wrangler/
+
 # Temporary files
 *.tmp
-*.temp
+*.temp.env
+
+.playwright-cli/

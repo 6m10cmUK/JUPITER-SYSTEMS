@@ -4,6 +4,134 @@
 
 ## 機能
 
+### 🎲 Adrastea — TRPG盤面共有ツール
+
+ブラウザ上で動作するTRPGオンラインセッション向け盤面共有ツール。
+マップ・駒・シーン・チャット・BGM・カットインなどをリアルタイムに共有できる。
+
+#### 主要機能
+
+- **盤面（Board）** — Konva.js ベースの2Dキャンバス。駒の配置・移動、グリッド表示、ズーム＆パン
+- **シーン管理** — 背景・前景画像の切り替え、複数シーンの保持
+- **キャラクター管理** — キャラクターシート、立ち絵・アイコン画像、ステータス管理
+- **チャット** — ダイスロール対応テキストチャット（BCDice連携、数百種のシステム対応）
+- **BGMプレイヤー** — プレイリスト型BGM管理、複数トラック同時再生、YouTube連携
+- **カットイン** — 全画面演出エフェクト
+- **シナリオテキスト** — 画面下部へのテキスト表示（ナレーション・台詞用）
+- **PDFビューア** — セッション中のルールブック参照
+- **レイヤー管理** — ボードオブジェクトのレイヤー制御
+- **ドックレイアウト** — flexlayout-react によるパネル自由配置、レイアウト保存/復元
+
+#### ルーム管理
+
+- カードグリッド型ルーム一覧（サムネイル表示）
+- ドラッグ＆ドロップでカード並び替え（localStorage保存）
+- ルーム作成・編集・削除
+- ダイスシステム選択（検索付きドロップダウン、BCDice全システム対応）
+- タグ管理（候補サジェスト付き入力）
+- ルーム共有（URL発行＆コピー）
+- 名前・タグ・ダイスシステムによる検索
+
+#### セキュリティ
+
+- Firestore Security Rules によるオーナー認証
+- ルームおよび全サブコレクション（シーン、ピース、チャット等）はオーナーのみアクセス可能
+
+#### アーキテクチャ
+
+```
+src/
+├── pages/
+│   └── Adrastea.tsx              # ルーティング・認証・オーナーチェック
+├── contexts/
+│   ├── AdrasteaContext.tsx        # 全グローバル状態の一元管理
+│   └── AuthContext.tsx            # Firebase認証
+├── hooks/
+│   ├── useAdrastea.ts             # ピース・ルーム基本データ
+│   ├── useAdrasteaChat.ts         # チャットメッセージ
+│   ├── useScenes.ts               # シーン管理
+│   ├── useCharacters.ts           # キャラクター管理
+│   ├── useObjects.ts              # ボードオブジェクト
+│   ├── useBgms.ts                 # BGMトラック
+│   ├── useCutins.ts               # カットイン
+│   ├── useScenarioTexts.ts        # シナリオテキスト
+│   ├── useAssets.ts               # アセット（画像）管理
+│   ├── useRooms.ts                # ルームCRUD・並び替え
+│   └── useImagePreloader.ts       # 画像プリロード最適化
+├── components/Adrastea/
+│   ├── DockLayout.tsx             # flexlayout-react メインレイアウト
+│   ├── TopToolbar.tsx             # ツールバー（パネル切替・BGMミニプレイヤー）
+│   ├── Board.tsx                  # Konva.js 盤面
+│   ├── RoomLobby.tsx              # ルーム選択・管理画面
+│   ├── ChatPanel.tsx              # チャットUI
+│   ├── ScenePanel.tsx             # シーン管理UI
+│   ├── CharacterPanel.tsx         # キャラクター管理UI
+│   ├── BgmPanel.tsx               # BGM管理UI
+│   ├── BgmEngine.tsx              # BGM再生エンジン
+│   ├── LayerPanel.tsx             # レイヤー管理
+│   ├── CutinPanel.tsx             # カットイン管理
+│   ├── ScenarioTextPanel.tsx      # シナリオテキスト管理
+│   ├── PdfViewer.tsx              # PDFビューア
+│   ├── CutinOverlay.tsx           # カットイン全画面演出
+│   ├── ObjectOverlay.tsx          # オブジェクト操作
+│   ├── ui/
+│   │   ├── AdComponents.tsx       # 共通UIコンポーネント群
+│   │   └── SortableList.tsx       # DnD対応ソート可能リスト
+│   └── dock-panels/               # flexlayout パネルラッパー
+│       ├── sharedComponents.ts    # パネル定義マップ
+│       └── *DockPanel.tsx         # 各パネルコンポーネント
+├── services/
+│   ├── diceRoller.ts              # BCDice連携・ダイスロール
+│   ├── assetService.ts            # アセットアップロード/取得
+│   ├── encryption.ts              # 暗号化処理
+│   └── adrasteaCache.ts           # クライアントキャッシュ
+└── styles/
+    ├── theme.ts                   # デザイントークン（CSS変数参照）
+    └── flexlayout-catppuccin.css  # Catppuccin ダークテーマ
+```
+
+#### 共通UIコンポーネント（AdComponents.tsx）
+
+| コンポーネント | 用途 |
+|---------------|------|
+| `AdInput` | テキスト入力 |
+| `AdTextArea` | テキストエリア |
+| `AdButton` | ボタン（primary / default / danger） |
+| `AdSelect` | セレクトボックス |
+| `AdCheckbox` | トグルスイッチ |
+| `AdSlider` | スライダー |
+| `AdSection` | 折りたたみセクション |
+| `AdColorPicker` | カラーピッカー（パレット保存機能付き） |
+| `AdModal` | モーダルダイアログ |
+| `AdToggleButtons` | ボタン群トグル |
+| `AdTagInput` | タグ入力（候補サジェスト付き） |
+
+#### テーマ・デザイン規約
+
+- Catppuccin系ダークテーマ
+- 全ての色は `theme.ts` のセマンティックトークン経由で参照（ハードコード禁止）
+- CSS変数は `.adrastea-root` スコープで定義（`flexlayout-catppuccin.css`）
+- ボタンホバーは `ad-btn`（通常）/ `ad-btn-icon`（アイコン）CSSクラスで統一
+
+#### データ構造（Firestore）
+
+```
+rooms/{roomId}
+  ├── name, dice_system, tags[], owner_uid
+  ├── active_scene_id, created_at, updated_at
+  ├── scenes/{sceneId}
+  │   ├── name, background_url, foreground_url
+  │   └── objects/{objectId}  # 背景・前景・テキスト等
+  ├── pieces/{pieceId}        # 盤面上の駒
+  ├── messages/{messageId}    # チャットメッセージ
+  ├── characters/{charId}     # キャラクターデータ
+  ├── bgms/{bgmId}            # BGMトラック
+  ├── cutins/{cutinId}        # カットイン定義
+  └── scenario_texts/{textId} # シナリオテキスト
+```
+
+---
+
 ### 🎭 キャラクターギャラリー
 - TRPGキャラクターの一覧表示
 - キャラクター詳細情報の閲覧
@@ -29,9 +157,16 @@
 ## 技術スタック
 
 ### フロントエンド
-- React + TypeScript
-- Vite
-- PDF.js（プレビュー用）
+- React 19 + TypeScript
+- Vite 7
+- flexlayout-react（ドックレイアウト）
+- Konva.js / react-konva（2Dキャンバス）
+- @dnd-kit（ドラッグ＆ドロップ）
+- BCDice（ダイスロール）
+- Firebase（認証・Firestore・Storage）
+- Supabase（アセットストレージ）
+- PDF.js（PDFプレビュー）
+- lucide-react（アイコン）
 
 ### バックエンド
 - FastAPI (Python)
@@ -44,8 +179,8 @@
 
 1. リポジトリをクローン
 ```bash
-git clone https://github.com/yourusername/TRPG-pdf2mdTOOL.git
-cd TRPG-pdf2mdTOOL
+git clone https://github.com/yourusername/JUPITER-SYSTEMS.git
+cd JUPITER-SYSTEMS
 ```
 
 2. フロントエンドのセットアップ
@@ -59,99 +194,23 @@ npm run dev
 ```bash
 cd backend
 python -m venv venv
-# Windows
-venv\Scripts\activate
-# Mac/Linux
 source venv/bin/activate
-
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
+4. Firebase設定
+- Firebase Consoleでプロジェクトを作成
+- `.env` にFirebase設定を記入
+- `firebase deploy --only firestore` でセキュリティルール＆インデックスをデプロイ
+
 ## デプロイ
 
-### バックエンド（Render.com）
-
-1. [Render.com](https://render.com)でアカウント作成
-2. Dashboard → 「New +」→「Web Service」を選択
-3. GitHubリポジトリを接続（「Connect a repository」→ TRPG-pdf2mdTOOL を選択）
-4. 以下の設定を使用：
-   - **Name**: `trpg-pdf2md-api`（任意の名前）
-   - **Region**: `Singapore`（日本から近い）
-   - **Branch**: `main`
-   - **Root Directory**: `backend`
-   - **Language**: `Python 3`
-   - **Build Command**: `pip install -r requirements.txt`（自動検出される場合あり）
-   - **Start Command**: `uvicorn main:app --host 0.0.0.0 --port $PORT`
-   - **Instance Type**: `Free`（無料プラン）
-5. 「Deploy」をクリック（デプロイに5-10分かかります）
-6. デプロイ完了後、URLが発行されます（例: `https://trpg-pdf2md-api.onrender.com`）
-
-### フロントエンド（Vercel）
-
-1. [Vercel](https://vercel.com)でアカウント作成（GitHubでサインアップ）
-2. ダッシュボードで「Add New...」→「Project」
-3. GitHubリポジトリ一覧から「TRPG-pdf2mdTOOL」を選択して「Import」
-4. プロジェクト設定：
-   - **Framework Preset**: `Vite`（自動検出される）
-   - **Root Directory**: そのまま（変更不要）
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-5. 環境変数を設定（Environment Variables）：
-   ```
-   Name: VITE_API_URL
-   Value: https://your-api.onrender.com（Render.comで発行されたURL）
-   ```
-   ※最初は仮の値（例: `https://example.com`）でも可。後で更新できます
-6. 「Deploy」をクリック
-7. デプロイ完了後、URLが発行されます（例: `https://trpg-pdf2md-tool.vercel.app`）
-
-### 代替デプロイ先
-
-#### バックエンド
-- **Railway.app**: `railway.json`設定済み
-- **Fly.io**: Dockerfileを使用してデプロイ可能
-- **Heroku**: 無料枠終了だが、有料プランで利用可能
-
-#### フロントエンド
-- **GitHub Pages**: 静的サイトとしてデプロイ
-- **Netlify**: Vercelと同様の手順
-
-## 使い方
-
-1. PDFファイルをドラッグ&ドロップまたは選択
-2. ページ範囲を指定（オプション）
-3. 「変換」ボタンをクリック
-4. Markdown形式で結果を確認
-5. 必要に応じてダウンロード
-
-## API仕様
-
-### `POST /api/extract-text`
-PDFからテキストを抽出
-
-**パラメータ:**
-- `file`: PDFファイル（必須）
-- `start_page`: 開始ページ（デフォルト: 1）
-- `end_page`: 終了ページ（デフォルト: 最終ページ）
-- `preserve_layout`: レイアウト保持（デフォルト: true）
-
-**レスポンス:**
-```json
-{
-  "total_pages": 10,
-  "extracted_pages": [...],
-  "full_text": "..."
-}
-```
+- **フロントエンド**: Vercel（Vite preset）
+- **バックエンド**: Render.com（FastAPI）
+- **データベース**: Firebase Firestore
+- **ストレージ**: Supabase Storage / Firebase Storage
 
 ## ライセンス
 
 MIT License
-
-
-1. Fork it
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request

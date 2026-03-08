@@ -1,0 +1,281 @@
+/* ==========================================================================
+   Adrastea Catppuccin Dark Theme
+   ========================================================================== */
+
+/* --- Adrastea テーマトークン --- */
+/* :root にも定義 — Portal で .adrastea-root 外に飛ぶ要素でも CSS 変数が解決できるように */
+:root,
+.adrastea-root {
+  /* 背景 */
+  --ad-bg-base: #2d2d2d;
+  --ad-bg-surface: #3a3a3a;
+  --ad-bg-toolbar: #333333;
+  --ad-bg-input: #252525;
+  --ad-bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* テキスト */
+  --ad-text-primary: #e0e0e0;
+  --ad-text-secondary: #a0a0a0;
+  --ad-text-muted: #707070;
+  --ad-text-on-accent: #ffffff;
+
+  /* ボーダー */
+  --ad-border: #505050;
+  --ad-border-input: #555555;
+  --ad-border-subtle: rgba(255, 255, 255, 0.06);
+
+  /* アクセント */
+  --ad-accent: #4a90d9;
+  --ad-accent-hover: #5aa0e9;
+  --ad-accent-bg-subtle: rgba(137,180,250,0.15);
+  --ad-accent-border-subtle: rgba(137,180,250,0.3);
+  --ad-accent-highlight: rgba(137,180,250,0.2);
+  --ad-accent-gradient-from: rgba(137,180,250,0.08);
+  --ad-accent-gradient-to: rgba(137,180,250,0.02);
+
+  /* セマンティック */
+  --ad-danger: #e05555;
+  --ad-danger-hover: #f06565;
+  --ad-success: #4caf50;
+  --ad-warning: #e0a020;
+
+  /* カラー */
+  --ad-green: #a6e3a1;
+  --ad-green-bg-subtle: rgba(166,227,161,0.12);
+  --ad-green-border-subtle: rgba(166,227,161,0.25);
+
+  /* 背景（追加） */
+  --ad-bg-hover: rgba(255, 255, 255, 0.05);
+
+  /* シャドウ */
+  --ad-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --ad-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+
+  /* ステータス */
+  --ad-status-red: #e05555;
+  --ad-status-blue: #4a90d9;
+  --ad-status-green: #4caf50;
+  --ad-status-yellow: #e0a020;
+
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  font-size: 12px;
+  color: var(--ad-text-primary);
+}
+
+/* --- ボタンホバー --- */
+.adrastea-root .ad-btn {
+  transition: filter 0.12s, box-shadow 0.12s;
+}
+.adrastea-root .ad-btn:not(:disabled):hover {
+  filter: brightness(1.2);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.adrastea-root .ad-btn:not(:disabled):active {
+  filter: brightness(0.95);
+}
+.adrastea-root .ad-btn-icon {
+  transition: color 0.12s;
+}
+.adrastea-root .ad-btn-icon:not(:disabled):hover {
+  color: var(--ad-accent) !important;
+}
+.adrastea-root .ad-btn-icon.ad-btn-icon--danger:not(:disabled):hover {
+  color: var(--ad-danger-hover) !important;
+}
+.adrastea-root .ad-card-create {
+  transition: border-color 0.15s, color 0.15s;
+}
+.adrastea-root .ad-card-create:hover {
+  border-color: var(--ad-accent) !important;
+  color: var(--ad-accent) !important;
+}
+
+/* --- Tailwind リセット打ち消し --- */
+.adrastea-root button,
+.adrastea-root input,
+.adrastea-root select,
+.adrastea-root textarea {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.adrastea-root *,
+.adrastea-root *::before,
+.adrastea-root *::after {
+  border-color: transparent;
+}
+
+/* --- スクロールバーのコンパクト化（6px幅） --- */
+.adrastea-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.adrastea-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adrastea-root ::-webkit-scrollbar-thumb {
+  background: rgba(160, 160, 160, 0.3);
+  border-radius: 0;
+}
+
+.adrastea-root ::-webkit-scrollbar-thumb:hover {
+  background: rgba(160, 160, 160, 0.5);
+}
+
+/* --- Color Picker (react-colorful) --- */
+/* Tailwind v4 preflight が react-colorful の注入スタイルを壊すので、
+   必要なスタイルを高詳細度で再宣言する */
+.ad-color-picker-popover .react-colorful {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 180px;
+  height: 150px;
+  user-select: none;
+  cursor: default;
+}
+.ad-color-picker-popover .react-colorful__saturation {
+  position: relative;
+  flex-grow: 1;
+  border-color: transparent;
+  border-bottom: 12px solid #000;
+  border-radius: 0;
+  background-image: linear-gradient(0deg, #000, transparent),
+    linear-gradient(90deg, #fff, hsla(0, 0%, 100%, 0));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+.ad-color-picker-popover .react-colorful__hue,
+.ad-color-picker-popover .react-colorful__alpha {
+  position: relative;
+  height: 10px;
+  border-radius: 0;
+}
+.ad-color-picker-popover .react-colorful__hue {
+  background: linear-gradient(
+    90deg, red 0, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, red
+  );
+}
+.ad-color-picker-popover .react-colorful__alpha,
+.ad-color-picker-popover .react-colorful__alpha-pointer {
+  background-color: #fff;
+  background-image: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill-opacity=".05"><path d="M8 0h8v8H8zM0 8h8v8H0z"/></svg>');
+}
+.ad-color-picker-popover .react-colorful__alpha-gradient {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.ad-color-picker-popover .react-colorful__interactive {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  outline: none;
+  touch-action: none;
+}
+.ad-color-picker-popover .react-colorful__pointer {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.ad-color-picker-popover .react-colorful__saturation-pointer {
+  z-index: 3;
+}
+.ad-color-picker-popover .react-colorful__hue-pointer {
+  z-index: 2;
+}
+
+/* ==========================================================================
+   dockview テーマオーバーライド
+   ========================================================================== */
+
+.dockview-theme-catppuccin {
+  /* 背景 */
+  --dv-background-color: var(--ad-bg-base);
+  --dv-group-view-background-color: var(--ad-bg-base);
+
+  /* タブバー */
+  --dv-tabs-and-actions-container-background-color: var(--ad-bg-toolbar);
+  --dv-tabs-and-actions-container-font-size: 11px;
+  --dv-tabs-container-scrollbar-color: var(--ad-border);
+
+  /* アクティブタブ */
+  --dv-activegroup-visiblepanel-tab-background-color: var(--ad-bg-surface);
+  --dv-activegroup-visiblepanel-tab-color: var(--ad-text-primary);
+  --dv-activegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-activegroup-hiddenpanel-tab-color: var(--ad-text-secondary);
+
+  /* 非アクティブグループ */
+  --dv-inactivegroup-visiblepanel-tab-background-color: var(--ad-bg-surface);
+  --dv-inactivegroup-visiblepanel-tab-color: var(--ad-text-secondary);
+  --dv-inactivegroup-hiddenpanel-tab-background-color: transparent;
+  --dv-inactivegroup-hiddenpanel-tab-color: var(--ad-text-muted);
+
+  /* セパレーター */
+  --dv-separator-border: var(--ad-border);
+
+  /* スプリッター */
+  --dv-sash-color: var(--ad-border);
+  --dv-active-sash-color: var(--ad-accent);
+
+  /* ドラッグ */
+  --dv-drag-over-background-color: rgba(137, 180, 250, 0.15);
+  --dv-drag-over-border-color: var(--ad-accent);
+
+  /* フローティング */
+  --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5);
+  --dv-tab-divider-color: transparent; /* resize-container border用 → 下で border: none に上書き */
+}
+
+/* 角丸を消す */
+.dockview-theme-catppuccin .dv-tab {
+  border-radius: 0;
+}
+
+.dockview-theme-catppuccin .dv-tabs-container {
+  height: 28px;
+  min-height: 28px;
+}
+
+.dockview-theme-catppuccin .dv-default-tab {
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+
+/* フローティング枠: 変数だけだと border-width:1px が残るので直接消す */
+.dockview-theme-catppuccin .dv-resize-container {
+  border: none;
+}
+
+/* フローティング時の半透明背景 */
+.dockview-theme-catppuccin .dv-resize-container.dv-floating-translucent {
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* パネルコンテンツ領域 */
+.dockview-theme-catppuccin .dv-content-container {
+  overflow: hidden;
+}
+

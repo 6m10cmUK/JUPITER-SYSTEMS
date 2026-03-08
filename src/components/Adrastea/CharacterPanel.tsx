@@ -1,0 +1,186 @@
+import { useCallback } from 'react';
+import { arrayMove } from '@dnd-kit/sortable';
+import type { DragEndEvent } from '@dnd-kit/core';
+import { theme } from '../../styles/theme';
+import type { Character } from '../../types/adrastea.types';
+import { SortableListPanel, SortableListItem } from './ui';
+
+interface CharacterPanelProps {
+  characters: Character[];
+  onAddCharacter: () => void;
+  onEditCharacter: (char: Character) => void;
+  onRemoveCharacter: (charId: string) => void;
+  onReorderCharacters?: (orderedIds: string[]) => void;
+  onClose: () => void;
+}
+
+export function CharacterPanel({
+  characters,
+  onAddCharacter,
+  onEditCharacter,
+  onRemoveCharacter,
+  onReorderCharacters,
+  onClose,
+}: CharacterPanelProps) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id || !onReorderCharacters) return;
+    const oldIndex = characters.findIndex(c => c.id === active.id);
+    const newIndex = characters.findIndex(c => c.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(characters, oldIndex, newIndex);
+    onReorderCharacters(reordered.map(c => c.id));
+  }, [characters, onReorderCharacters]);
+
+  return (
+    <SortableListPanel
+      title="キャラクター"
+      headerActions={
+        <button
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: theme.textSecondary,
+            fontSize: '1.2rem',
+            cursor: 'pointer',
+            padding: '0 4px',
+          }}
+        >
+          x
+        </button>
+      }
+      footerActions={
+        <button
+          onClick={onAddCharacter}
+          style={{
+            width: '100%',
+            padding: '8px',
+            background: theme.accent,
+            color: theme.textOnAccent,
+            border: 'none',
+            borderRadius: 0,
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            cursor: 'pointer',
+          }}
+        >
+          + キャラクター追加
+        </button>
+      }
+      items={characters}
+      onDragEnd={handleDragEnd}
+      emptyMessage="キャラクターがありません"
+    >
+      {characters.map((char) => (
+        <SortableListItem key={char.id} id={char.id}>
+          {/* アバター */}
+          {char.image_url ? (
+            <img
+              src={char.image_url}
+              alt={char.name}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 0,
+                objectFit: 'cover',
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 0,
+                background: char.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '1rem',
+                flexShrink: 0,
+              }}
+            >
+              {char.name.charAt(0)}
+            </div>
+          )}
+
+          {/* 情報 */}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                color: theme.textPrimary,
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {char.name}
+            </div>
+            {char.tags.length > 0 && (
+              <div style={{ display: 'flex', gap: '3px', marginTop: '2px', flexWrap: 'wrap' }}>
+                {char.tags.slice(0, 3).map((tag, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      padding: '1px 6px',
+                      background: theme.bgInput,
+                      borderRadius: 0,
+                      color: theme.textSecondary,
+                      fontSize: '0.65rem',
+                    }}
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            {char.statuses.length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', marginTop: '3px' }}>
+                {char.statuses.map((s, i) => (
+                  <span key={i} style={{ color: s.color, fontSize: '0.7rem' }}>
+                    {s.label}: {s.value}/{s.max}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 操作 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onEditCharacter(char); }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.textSecondary,
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                padding: '2px 4px',
+              }}
+            >
+              編集
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.danger,
+                fontSize: '0.7rem',
+                cursor: 'pointer',
+                padding: '2px 4px',
+              }}
+            >
+              削除
+            </button>
+          </div>
+        </SortableListItem>
+      ))}
+    </SortableListPanel>
+  );
+}
