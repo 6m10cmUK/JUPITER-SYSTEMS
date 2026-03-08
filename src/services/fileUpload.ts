@@ -44,6 +44,20 @@ async function isAnimatedImage(file: File): Promise<boolean> {
     }
   }
 
+  // APNG: PNG ヘッダー + acTL (Animation Control) チャンクが存在
+  if (
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47 &&
+    bytes[4] === 0x0d && bytes[5] === 0x0a && bytes[6] === 0x1a && bytes[7] === 0x0a
+  ) {
+    // "acTL" = 0x61 0x63 0x54 0x4C
+    for (let i = 8; i < bytes.length - 3; i++) {
+      if (bytes[i] === 0x61 && bytes[i + 1] === 0x63 && bytes[i + 2] === 0x54 && bytes[i + 3] === 0x4c) {
+        return true;
+      }
+    }
+  }
+
   return false;
 }
 
