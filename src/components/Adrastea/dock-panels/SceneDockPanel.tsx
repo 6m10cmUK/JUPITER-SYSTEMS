@@ -26,20 +26,6 @@ export function SceneDockPanel() {
       activeSceneId ?? undefined,
     );
 
-    // 楽観的注入: onSnapshot 到着前にローカル state にオブジェクトを追加
-    // 複製元がある場合は元シーンのオブジェクトを新シーンIDで注入
-    if (activeSceneId) {
-      const sourceObjects = ctx.allObjects.filter(
-        o => !o.global && o.scene_ids.includes(activeSceneId)
-      );
-      const optimistic = sourceObjects.map((o, i) => ({
-        ...o,
-        id: `__optimistic_${newSceneId}_${i}`,
-        scene_ids: [newSceneId],
-      }));
-      if (optimistic.length > 0) ctx.injectOptimistic(optimistic);
-    }
-
     // sort_order を整数に振り直す
     const sorted = [...ctx.scenes, { id: newSceneId, sort_order: nextSortOrder } as any]
       .sort((a, b) => a.sort_order - b.sort_order);
