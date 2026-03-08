@@ -40,6 +40,7 @@ export interface Scene {
   bg_transition_duration: number;
   fg_transition: 'none' | 'fade';
   fg_transition_duration: number;
+  bg_blur: boolean;
   sort_order: number;
   created_at: number;
   updated_at: number;
@@ -127,6 +128,8 @@ export interface BoardObject {
   text_align: 'left' | 'center' | 'right';
   text_vertical_align: 'top' | 'middle' | 'bottom';
   text_color: string;
+  scale_x: number;
+  scale_y: number;
 
   // メタ
   created_at: number;

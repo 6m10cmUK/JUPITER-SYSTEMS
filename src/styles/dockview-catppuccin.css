@@ -3,6 +3,8 @@
    ========================================================================== */
 
 /* --- Adrastea テーマトークン --- */
+/* :root にも定義 — Portal で .adrastea-root 外に飛ぶ要素でも CSS 変数が解決できるように */
+:root,
 .adrastea-root {
   /* 背景 */
   --ad-bg-base: #2d2d2d;
@@ -125,21 +127,81 @@
 }
 
 /* --- Color Picker (react-colorful) --- */
+/* Tailwind v4 preflight が react-colorful の注入スタイルを壊すので、
+   必要なスタイルを高詳細度で再宣言する */
 .ad-color-picker-popover .react-colorful {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
   width: 180px;
   height: 150px;
+  user-select: none;
+  cursor: default;
 }
 .ad-color-picker-popover .react-colorful__saturation {
+  position: relative;
+  flex-grow: 1;
+  border-color: transparent;
+  border-bottom: 12px solid #000;
   border-radius: 0;
+  background-image: linear-gradient(0deg, #000, transparent),
+    linear-gradient(90deg, #fff, hsla(0, 0%, 100%, 0));
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 .ad-color-picker-popover .react-colorful__hue,
 .ad-color-picker-popover .react-colorful__alpha {
+  position: relative;
   height: 10px;
   border-radius: 0;
 }
+.ad-color-picker-popover .react-colorful__hue {
+  background: linear-gradient(
+    90deg, red 0, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, red
+  );
+}
+.ad-color-picker-popover .react-colorful__alpha,
+.ad-color-picker-popover .react-colorful__alpha-pointer {
+  background-color: #fff;
+  background-image: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill-opacity=".05"><path d="M8 0h8v8H8zM0 8h8v8H0z"/></svg>');
+}
+.ad-color-picker-popover .react-colorful__alpha-gradient {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+.ad-color-picker-popover .react-colorful__interactive {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  outline: none;
+  touch-action: none;
+}
 .ad-color-picker-popover .react-colorful__pointer {
+  position: absolute;
+  z-index: 1;
+  box-sizing: border-box;
   width: 14px;
   height: 14px;
+  transform: translate(-50%, -50%);
+  background-color: #fff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.ad-color-picker-popover .react-colorful__saturation-pointer {
+  z-index: 3;
+}
+.ad-color-picker-popover .react-colorful__hue-pointer {
+  z-index: 2;
 }
 
 /* ==========================================================================
@@ -203,6 +265,13 @@
 /* フローティング枠: 変数だけだと border-width:1px が残るので直接消す */
 .dockview-theme-catppuccin .dv-resize-container {
   border: none;
+}
+
+/* フローティング時の半透明背景 */
+.dockview-theme-catppuccin .dv-resize-container.dv-floating-translucent {
+  background: rgba(30, 30, 46, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 /* パネルコンテンツ領域 */

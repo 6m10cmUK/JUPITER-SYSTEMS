@@ -11,6 +11,7 @@ export interface BoardHandle {
   getStage: () => StageType | null;
   getScale: () => number;
   setScale: (scale: number) => void;
+  fitToScreen: () => void;
 }
 
 interface BoardProps {
@@ -25,6 +26,7 @@ interface BoardProps {
   onSelectObject?: (id: string) => void;
   onEditObject?: (id: string) => void;
   onResizeObject?: (id: string, width: number, height: number) => void;
+  onSyncObjectSize?: (id: string, width: number, height: number) => void;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
   children?: ReactNode;
@@ -32,8 +34,8 @@ interface BoardProps {
 
 export const LOGICAL_SIZE = 5000;
 export const GRID_SIZE = 50;
-export const MIN_SCALE = 0.075;
-export const MAX_SCALE = 20;
+export const MIN_SCALE = 0.02;
+export const MAX_SCALE = 4;
 
 const GridLines = memo(function GridLines() {
   return (
@@ -159,11 +161,33 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, selectedObjectId, selectedObjectIds, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, selectedObjectId, selectedObjectIds, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, pieceId: null });
+
+  const fitToScreen = useCallback(() => {
+    const stage = stageRef.current;
+    if (!stage || stageSize.width === 0 || stageSize.height === 0) return;
+    const bg = objects.find(o => o.type === 'background');
+    const targetX = (bg?.x ?? 0) * GRID_SIZE;
+    const targetY = (bg?.y ?? 0) * GRID_SIZE;
+    const targetW = (bg?.width ?? 100) * GRID_SIZE;
+    const targetH = (bg?.height ?? 100) * GRID_SIZE;
+    const padding = 0.9;
+    const scaleX = (stageSize.width * padding) / targetW;
+    const scaleY = (stageSize.height * padding) / targetH;
+    const scale = Math.min(Math.min(scaleX, scaleY), MAX_SCALE);
+    const centerX = targetX + targetW / 2;
+    const centerY = targetY + targetH / 2;
+    stage.scale({ x: scale, y: scale });
+    stage.position({
+      x: stageSize.width / 2 - centerX * scale,
+      y: stageSize.height / 2 - centerY * scale,
+    });
+    stage.batchDraw();
+  }, [stageSize, objects]);
 
   useImperativeHandle(ref, () => ({
     getStage: () => stageRef.current,
@@ -173,7 +197,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       if (!stage) return;
       const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale));
       const oldScale = stage.scaleX();
-      // ビューポート中心を基準にズーム
       const centerX = stage.width() / 2;
       const centerY = stage.height() / 2;
       const pointTo = {
@@ -187,39 +210,17 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       });
       stage.batchDraw();
     },
+    fitToScreen,
   }));
 
   // 初期表示のみ: 背景オブジェクトにフィットするようカメラ配置
   const initializedRef = useRef(false);
   useEffect(() => {
     if (initializedRef.current || stageSize.width === 0 || stageSize.height === 0) return;
-    const stage = stageRef.current;
-    if (!stage) return;
-
-    const bg = objects.find(o => o.type === 'background');
-    // 背景オブジェクトの矩形（px）。なければ論理盤面中央
-    const targetX = (bg?.x ?? 0) * GRID_SIZE;
-    const targetY = (bg?.y ?? 0) * GRID_SIZE;
-    const targetW = (bg?.width ?? 100) * GRID_SIZE;
-    const targetH = (bg?.height ?? 100) * GRID_SIZE;
-
-    // ビューポートに収まるスケール（余白10%）
-    const padding = 0.9;
-    const scaleX = (stageSize.width * padding) / targetW;
-    const scaleY = (stageSize.height * padding) / targetH;
-    const scale = Math.min(Math.min(scaleX, scaleY), MAX_SCALE);
-
-    // 背景の中心をビューポート中心に
-    const centerX = targetX + targetW / 2;
-    const centerY = targetY + targetH / 2;
-
-    stage.scale({ x: scale, y: scale });
-    stage.position({
-      x: stageSize.width / 2 - centerX * scale,
-      y: stageSize.height / 2 - centerY * scale,
-    });
+    if (!stageRef.current) return;
+    fitToScreen();
     initializedRef.current = true;
-  }, [stageSize, objects]);
+  }, [stageSize, fitToScreen]);
 
   // ResizeObserverでビューポート追従
   useEffect(() => {
@@ -377,8 +378,8 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
                 height: '100%',
                 objectFit: 'cover',
                 objectPosition: 'center center',
-                filter: 'blur(8px)',
-                transform: 'scale(1.05)',
+                filter: activeScene?.bg_blur ? 'blur(8px)' : 'none',
+                transform: activeScene?.bg_blur ? 'scale(1.05)' : 'none',
               }}
             />
           )}
@@ -456,6 +457,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onSelectObject={onSelectObject ?? (() => {})}
         onEditObject={onEditObject ?? (() => {})}
         onResizeObject={onResizeObject}
+        onSyncObjectSize={onSyncObjectSize}
       />
       {/* 右クリックメニュー（HTML DOM） */}
       {contextMenu.visible && contextMenu.pieceId && (

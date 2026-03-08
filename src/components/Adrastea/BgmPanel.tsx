@@ -130,11 +130,11 @@ function BgmTrackRow({
             {track.name}
           </span>
 
-          {/* Delete */}
+          {/* Remove from scene */}
           <button
             style={{ ...iconBtn, color: theme.danger }}
             onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
-            title="削除"
+            title="このシーンから除去"
           >
             <Trash2 size={11} />
           </button>
@@ -179,7 +179,7 @@ export function BgmPanel() {
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
   const filteredBgms = useMemo(
-    () => bgms.filter(b => b.scene_ids.includes(currentSceneId) || b.is_playing),
+    () => bgms.filter(b => b.scene_ids.includes(currentSceneId)),
     [bgms, currentSceneId]
   );
 
@@ -226,6 +226,21 @@ export function BgmPanel() {
     if (!activeScene) return;
     const videoId = extractVideoId(url);
     const isYoutube = videoId !== url;
+    const source = isYoutube ? videoId : url;
+
+    // 同じソースの既存トラックがあれば scene_ids に追加するだけ
+    const existing = bgms.find(b => b.bgm_source === source);
+    if (existing) {
+      if (!existing.scene_ids.includes(activeScene.id)) {
+        updateBgm(existing.id, {
+          scene_ids: [...existing.scene_ids, activeScene.id],
+          auto_play_scene_ids: [...existing.auto_play_scene_ids, activeScene.id],
+        });
+      }
+      setShowAddPicker(false);
+      return;
+    }
+
     if (isYoutube) {
       let title = assetTitle || videoId;
       if (!assetTitle) {
@@ -244,7 +259,7 @@ export function BgmPanel() {
       addBgm({ name, bgm_type: 'url', bgm_source: url, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
     }
     setShowAddPicker(false);
-  }, [addBgm, activeScene]);
+  }, [addBgm, updateBgm, bgms, activeScene]);
 
   return (
     <>
@@ -316,7 +331,16 @@ export function BgmPanel() {
             isEditing={editingBgmId === track.id}
             onEdit={handleEdit}
             onUpdate={updateBgm}
-            onRemove={removeBgm}
+            onRemove={(id) => {
+              const track = bgms.find(b => b.id === id);
+              if (!track || !currentSceneId) return;
+              updateBgm(id, {
+                scene_ids: track.scene_ids.filter(s => s !== currentSceneId),
+                auto_play_scene_ids: track.auto_play_scene_ids.filter(s => s !== currentSceneId),
+                is_playing: false,
+                is_paused: false,
+              });
+            }}
           />
         ))}
       </SortableListPanel>

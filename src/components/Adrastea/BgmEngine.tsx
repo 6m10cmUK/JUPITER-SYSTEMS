@@ -101,6 +101,15 @@ export function BgmEngine() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScene?.id]);
 
+  // 孤立トラック（どのシーンにも属さない）を自動停止＆削除
+  useEffect(() => {
+    bgms.forEach(t => {
+      if (t.scene_ids.length === 0 && t.is_playing) {
+        updateBgm(t.id, { is_playing: false, is_paused: false });
+      }
+    });
+  }, [bgms, updateBgm]);
+
   const playingTracks = bgms.filter(t => t.is_playing);
 
   // デバッグ: 全トラックの状態をログ

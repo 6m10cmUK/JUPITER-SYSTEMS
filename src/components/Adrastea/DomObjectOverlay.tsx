@@ -19,6 +19,7 @@ interface DomObjectOverlayProps {
   onSelectObject: (id: string) => void;
   onEditObject: (id: string) => void;
   onResizeObject?: (id: string, width: number, height: number) => void;
+  onSyncObjectSize?: (id: string, width: number, height: number) => void;
 }
 
 // --- ユーティリティ ---
@@ -90,7 +91,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   onMove: (id: string, x: number, y: number) => void;
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
-  onResize?: (id: string, width: number, height: number) => void;
+  onResize?: (id: string, width: number, height: number, oldWidth?: number, oldHeight?: number) => void;
   children: React.ReactNode;
   style?: React.CSSProperties;
 }) {
@@ -207,8 +208,16 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
 
         el.style.left = `${finalX}px`;
         el.style.top = `${finalY}px`;
-        el.style.width = `${finalW}px`;
-        el.style.height = `${finalH}px`;
+
+        // auto_size (extraStyle で width/height が上書きされる) 場合はインラインスタイルをクリア
+        // → React の再レンダーで max-content/auto が適用される
+        if (extraStyle?.width || extraStyle?.height) {
+          el.style.width = '';
+          el.style.height = '';
+        } else {
+          el.style.width = `${finalW}px`;
+          el.style.height = `${finalH}px`;
+        }
 
         onMove(obj.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
         onResize(obj.id, Math.max(1, finalW / GRID_SIZE), Math.max(1, finalH / GRID_SIZE));
@@ -474,7 +483,7 @@ const DomPanelObject = memo(function DomPanelObject({
 
 // --- TextObject (DOM版) ---
 const DomTextObject = memo(function DomTextObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, onSyncSize,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -482,29 +491,47 @@ const DomTextObject = memo(function DomTextObject({
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
+  onSyncSize?: (id: string, w: number, h: number) => void;
 }) {
   const fontFamily = obj.font_family || 'sans-serif';
-  const textStr = obj.text_content || obj.name;
+  const textStr = obj.text_content || '';
   const letterSpacing = obj.letter_spacing ?? 0;
   const lineHeight = obj.line_height ?? 1.2;
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const verticalAlignMap = { top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const;
   const alignItems = verticalAlignMap[obj.text_vertical_align || 'top'];
 
   // auto_size のときはサイズをコンテンツに合わせる
   const autoSizeStyle: React.CSSProperties = obj.auto_size ? {
-    width: 'fit-content',
+    width: 'max-content',
+    height: 'auto',
     whiteSpace: 'pre-wrap',
   } : {};
+
+  // auto_size: 描画サイズを obj.width/height に同期
+  useEffect(() => {
+    if (!obj.auto_size || !onSyncSize || !contentRef.current) return;
+    const el = contentRef.current;
+    const observer = new ResizeObserver(() => {
+      const w = Math.max(1, Math.round(el.offsetWidth / GRID_SIZE));
+      const h = Math.max(1, Math.round(el.offsetHeight / GRID_SIZE));
+      if (w !== obj.width || h !== obj.height) {
+        onSyncSize(obj.id, w, h);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [obj.auto_size, obj.id, obj.width, obj.height, onSyncSize]);
 
   return (
     <DomObjectWrapper
       obj={obj} isSelected={isSelected} isDraggable={!obj.position_locked}
-      isResizable={!(obj.auto_size || obj.size_locked)} stageRef={stageRef}
+      isResizable={!obj.size_locked} stageRef={stageRef}
       onMove={onMove} onSelect={onSelect} onEdit={onEdit} onResize={onResize}
       style={autoSizeStyle}
     >
-      <div style={{
+      <div ref={contentRef} style={{
         width: '100%', height: '100%',
         backgroundColor: obj.background_color,
         display: 'flex',
@@ -519,6 +546,8 @@ const DomTextObject = memo(function DomTextObject({
         wordBreak: 'break-word',
         userSelect: 'none',
         overflow: 'hidden',
+        transform: `scale(${obj.scale_x ?? 1}, ${obj.scale_y ?? 1})`,
+        transformOrigin: 'top left',
         ...autoSizeStyle,
       }}>
         <div style={{ width: '100%' }}>{textStr}</div>
@@ -700,7 +729,7 @@ function generateStableKeys(
 export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlayProps>(
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
-    stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject,
+    stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible);
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -757,7 +786,8 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     stageRef={stageRef}
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}
-                    onResize={(obj.auto_size || obj.size_locked) ? undefined : onResizeObject}
+                    onResize={obj.size_locked ? undefined : onResizeObject}
+                    onSyncSize={onSyncObjectSize}
                   />
                 );
               case 'foreground':

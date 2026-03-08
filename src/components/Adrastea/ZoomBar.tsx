@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { MIN_SCALE, MAX_SCALE } from './Board';
 import { theme } from '../../styles/theme';
+import { Maximize } from 'lucide-react';
 
 /** 対数スライダー: スケール値 → スライダー位置 (0–1) */
 function scaleToSlider(scale: number): number {
@@ -13,7 +14,7 @@ function sliderToScale(t: number): number {
 }
 
 interface ZoomBarProps {
-  boardRef: React.RefObject<{ getScale: () => number; setScale: (s: number) => void } | null>;
+  boardRef: React.RefObject<{ getScale: () => number; setScale: (s: number) => void; fitToScreen: () => void } | null>;
 }
 
 export function ZoomBar({ boardRef }: ZoomBarProps) {
@@ -73,6 +74,17 @@ export function ZoomBar({ boardRef }: ZoomBarProps) {
         }}
       >
         {pct}%
+      </button>
+      <button
+        onClick={() => boardRef.current?.fitToScreen()}
+        title="全体表示"
+        style={{
+          background: 'transparent', border: 'none',
+          color: theme.textSecondary, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', padding: 0,
+        }}
+      >
+        <Maximize size={12} />
       </button>
     </div>
   );

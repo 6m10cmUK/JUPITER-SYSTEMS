@@ -520,6 +520,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setOptimisticSceneId(sceneId);
     setLocalSceneOverrides(new Map());
     setLocalObjectOverrides(new Map());
+    // 編集状態をクリア
+    setEditingPieceId(null);
+    setEditingObjectId(undefined);
+    setSelectedObjectIds([]);
+    setEditingScene(undefined);
+    setEditingCharacter(undefined);
+    setEditingCutin(undefined);
+    setEditingBgmId(null);
     // Firestore に非同期で書き込み（バックグラウンド）
     activateScene(sceneId);
   }, [activateScene]);

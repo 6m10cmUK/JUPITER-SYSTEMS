@@ -11,7 +11,7 @@ import {
 } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import '../../styles/dockview-catppuccin.css';
-import { PictureInPicture2 } from 'lucide-react';
+import { PictureInPicture2, Minus, Maximize2, ArrowDownToLine } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { panelComponents } from './dock-panels/sharedComponents';
@@ -68,8 +68,13 @@ const iconBtnStyle: React.CSSProperties = {
   color: theme.textSecondary, cursor: 'pointer', padding: 0,
 };
 
+// 最小化状態の管理（グループID → 元の高さ）
+const minimizedGroups = new Map<string, number>();
+const TAB_BAR_HEIGHT = 35;
+
 function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps) {
   const { boardRef } = useAdrasteaContext();
+  const [isMinimized, setIsMinimized] = React.useState(() => minimizedGroups.has(group.id));
 
   const activePanel = group.activePanel;
   if (!activePanel) return null;
@@ -77,11 +82,74 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
   const hasBoardPanel = group.panels.some((p) => p.id === 'board');
   const isFloating = group.api.location.type === 'floating';
 
+  // フローティング時に親コンテナに半透明クラスを付与
+  useEffect(() => {
+    const el = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    if (!el) return;
+    if (isFloating) {
+      el.classList.add('dv-floating-translucent');
+    } else {
+      el.classList.remove('dv-floating-translucent');
+    }
+  }, [isFloating, group.header?.element]);
+
+  const handleMinimize = useCallback(() => {
+    const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    if (!container) return;
+    minimizedGroups.set(group.id, container.offsetHeight);
+    container.style.height = `${TAB_BAR_HEIGHT}px`;
+    container.style.minHeight = `${TAB_BAR_HEIGHT}px`;
+    container.style.overflow = 'hidden';
+    setIsMinimized(true);
+  }, [group]);
+
+  const handleRestore = useCallback(() => {
+    const savedHeight = minimizedGroups.get(group.id);
+    const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    minimizedGroups.delete(group.id);
+    if (container && savedHeight) {
+      container.style.height = `${savedHeight}px`;
+      container.style.minHeight = '';
+      container.style.overflow = '';
+    }
+    setIsMinimized(false);
+  }, [group]);
+
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%', paddingRight: 4 }}>
       {/* board がアクティブなら ZoomBar */}
       {hasBoardPanel && activePanel.id === 'board' && (
         <ZoomBar boardRef={boardRef} />
+      )}
+
+      {/* フローティング時: ドックに戻す / 最小化/復元 */}
+      {isFloating && (
+        <>
+          <button title="ドックに戻す" onClick={() => {
+            // 最小化状態をリセットしてからドックに移動
+            if (minimizedGroups.has(group.id)) {
+              const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+              if (container) {
+                container.style.height = '';
+                container.style.minHeight = '';
+                container.style.overflow = '';
+              }
+              minimizedGroups.delete(group.id);
+            }
+            group.api.moveTo({});
+          }} style={iconBtnStyle}>
+            <ArrowDownToLine size={11} />
+          </button>
+          {isMinimized ? (
+            <button title="復元" onClick={handleRestore} style={iconBtnStyle}>
+              <Maximize2 size={11} />
+            </button>
+          ) : (
+            <button title="最小化" onClick={handleMinimize} style={iconBtnStyle}>
+              <Minus size={11} />
+            </button>
+          )}
+        </>
       )}
 
       {/* フロート（既にフロート中なら非表示） */}

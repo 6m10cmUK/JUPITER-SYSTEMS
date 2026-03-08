@@ -13,3 +13,4 @@ export {
 } from './AdComponents';
 
 export { SortableListPanel, SortableListItem } from './SortableList';
+export { Tooltip } from './Tooltip';

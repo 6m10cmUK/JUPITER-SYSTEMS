@@ -12,6 +12,21 @@ export function BoardDockPanel() {
   }, [ctx.updateObject]);
 
   const handleResizeObject = useCallback((id: string, width: number, height: number) => {
+    const obj = ctx.activeObjects.find(o => o.id === id);
+    if (obj?.type === 'text' && obj.auto_size && obj.width > 0 && obj.height > 0) {
+      // auto_size テキスト: 横・縦の変化が大きい方の比率でフォントサイズを算出
+      const ratioW = width / obj.width;
+      const ratioH = height / obj.height;
+      const ratio = Math.abs(ratioW - 1) > Math.abs(ratioH - 1) ? ratioW : ratioH;
+      const newFontSize = Math.max(1, Math.round(obj.font_size * ratio));
+      ctx.updateObject(id, { font_size: newFontSize });
+      return;
+    }
+    ctx.updateObject(id, { width, height });
+  }, [ctx.updateObject, ctx.activeObjects]);
+
+  // auto_size テキストの描画サイズを width/height に同期
+  const handleSyncObjectSize = useCallback((id: string, width: number, height: number) => {
     ctx.updateObject(id, { width, height });
   }, [ctx.updateObject]);
 
@@ -44,6 +59,7 @@ export function BoardDockPanel() {
         onSelectObject={handleSelectObject}
         onEditObject={handleEditObject}
         onResizeObject={handleResizeObject}
+        onSyncObjectSize={handleSyncObjectSize}
         selectedObjectId={ctx.editingObjectId}
         selectedObjectIds={ctx.selectedObjectIds}
       />
