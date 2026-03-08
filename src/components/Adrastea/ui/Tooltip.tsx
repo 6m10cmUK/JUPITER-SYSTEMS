@@ -4,13 +4,13 @@ import { theme } from '../../../styles/theme';
 interface TooltipProps {
   label: string;
   delay?: number;
-  children: React.ReactElement;
+  children: React.ReactElement<any>;
 }
 
 export function Tooltip({ label, delay = 0, children }: TooltipProps) {
   const [visible, setVisible] = useState(false);
   const [pos, setPos] = useState({ x: 0, y: 0 });
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const show = useCallback((e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -28,11 +28,11 @@ export function Tooltip({ label, delay = 0, children }: TooltipProps) {
       {React.cloneElement(children, {
         onMouseEnter: (e: React.MouseEvent) => {
           show(e);
-          children.props.onMouseEnter?.(e);
+          (children.props as any).onMouseEnter?.(e);
         },
         onMouseLeave: (e: React.MouseEvent) => {
           hide();
-          children.props.onMouseLeave?.(e);
+          (children.props as any).onMouseLeave?.(e);
         },
       })}
       {visible && (

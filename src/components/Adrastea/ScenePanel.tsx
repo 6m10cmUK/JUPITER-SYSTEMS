@@ -82,19 +82,6 @@ export function ScenePanel({
     }
   }, [scenes, selectedSceneIds, onSelectedSceneIdsChange, onActivateScene]);
 
-  const handleRemoveClick = useCallback((e: React.MouseEvent, scene: Scene) => {
-    e.stopPropagation();
-    const ids = selectedSceneIds.length > 1 && selectedSceneIds.includes(scene.id)
-      ? selectedSceneIds
-      : [scene.id];
-    // 全シーン削除は防ぐ
-    if (ids.length >= scenes.length) return;
-    const msg = ids.length > 1
-      ? `${ids.length}件のシーンを削除しますか？`
-      : 'このシーンを削除しますか？';
-    setPendingRemove({ ids, msg });
-  }, [selectedSceneIds, scenes.length]);
-
   const canDuplicate = onDuplicateScenes && selectedSceneIds.length > 0;
   const canDelete = selectedSceneIds.length > 0 && selectedSceneIds.length < scenes.length;
 

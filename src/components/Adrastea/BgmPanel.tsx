@@ -174,7 +174,7 @@ function BgmTrackRow({
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';

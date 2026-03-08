@@ -1,7 +1,7 @@
 import React from 'react';
 import type { BgmTrack } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
-import { AdInput, AdSlider, AdCheckbox, AdSection } from './ui';
+import { AdSlider, AdCheckbox, AdSection } from './ui';
 import { X } from 'lucide-react';
 
 interface BgmEditorProps {

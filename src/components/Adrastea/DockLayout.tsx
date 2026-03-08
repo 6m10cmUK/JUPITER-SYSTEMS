@@ -84,17 +84,17 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
 
   // フローティング時に親コンテナに半透明クラスを付与
   useEffect(() => {
-    const el = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    const el = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
     if (!el) return;
     if (isFloating) {
       el.classList.add('dv-floating-translucent');
     } else {
       el.classList.remove('dv-floating-translucent');
     }
-  }, [isFloating, group.header?.element]);
+  }, [isFloating, (group.header as any)?.element]);
 
   const handleMinimize = useCallback(() => {
-    const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
     if (!container) return;
     minimizedGroups.set(group.id, container.offsetHeight);
     container.style.height = `${TAB_BAR_HEIGHT}px`;
@@ -105,7 +105,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
 
   const handleRestore = useCallback(() => {
     const savedHeight = minimizedGroups.get(group.id);
-    const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+    const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
     minimizedGroups.delete(group.id);
     if (container && savedHeight) {
       container.style.height = `${savedHeight}px`;
@@ -128,7 +128,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
           <button title="ドックに戻す" onClick={() => {
             // 最小化状態をリセットしてからドックに移動
             if (minimizedGroups.has(group.id)) {
-              const container = group.header?.element?.closest('.dv-resize-container') as HTMLElement | null;
+              const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
               if (container) {
                 container.style.height = '';
                 container.style.minHeight = '';
