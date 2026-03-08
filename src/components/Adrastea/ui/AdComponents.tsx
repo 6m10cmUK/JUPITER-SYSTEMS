@@ -671,6 +671,50 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
   );
 }
 
+// ── ConfirmModal ── (window.confirm の代替)
+interface ConfirmModalProps {
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  danger?: boolean;
+}
+
+export function ConfirmModal({
+  message, confirmLabel = '実行', cancelLabel = 'キャンセル',
+  onConfirm, onCancel, danger = false,
+}: ConfirmModalProps) {
+  return (
+    <AdModal title="確認" width="360px" onClose={onCancel} footer={
+      <>
+        <button
+          onClick={onCancel}
+          style={{
+            background: theme.bgInput, border: `1px solid ${theme.border}`,
+            color: theme.textPrimary, cursor: 'pointer',
+            padding: '6px 16px', fontSize: FONT_SIZE,
+          }}
+        >
+          {cancelLabel}
+        </button>
+        <button
+          onClick={onConfirm}
+          style={{
+            background: danger ? theme.danger : theme.accent,
+            border: 'none', color: '#fff', cursor: 'pointer',
+            padding: '6px 16px', fontSize: FONT_SIZE, fontWeight: 600,
+          }}
+        >
+          {confirmLabel}
+        </button>
+      </>
+    }>
+      <p style={{ fontSize: FONT_SIZE, margin: '8px 0', lineHeight: 1.5 }}>{message}</p>
+    </AdModal>
+  );
+}
+
 // ── AdToggleButtons ── (ボタン群トグル、BGMタイプ選択等に使用)
 interface AdToggleButtonsProps<T extends string | null> {
   label?: string;

@@ -4,9 +4,45 @@ import { useAssets } from '../../hooks/useAssets';
 import { X, Plus, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 
+// --- DnD オーバーレイフック ---
+function useDragDropOverlay(onDrop: (file: File) => void) {
+  const [dragging, setDragging] = useState(false);
+  const dragCounter = useRef(0);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current--;
+    if (dragCounter.current <= 0) { dragCounter.current = 0; setDragging(false); }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter.current = 0;
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) onDrop(file);
+  }, [onDrop]);
+
+  return { dragging, handleDragEnter, handleDragLeave, handleDragOver, handleDrop };
+}
+
 interface AssetLibraryModalProps {
   onClose: () => void;
-  onSelect?: (url: string, assetId?: string) => void;
+  onSelect?: (url: string, assetId?: string, title?: string) => void;
   initialTab?: 'image' | 'audio';
 }
 
@@ -76,6 +112,8 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
     [activeTab, uploadAsset, uploadAudioAsset]
   );
 
+  const dnd = useDragDropOverlay(handleUpload);
+
   const handleAddByUrl = useCallback(async () => {
     const url = urlInput.trim();
     if (!url) return;
@@ -144,10 +182,10 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   }, []);
 
   const handleAssetClick = useCallback(
-    (url: string, assetId?: string) => {
+    (url: string, assetId?: string, title?: string) => {
       previewAudioRef.current?.pause();
       if (onSelect) {
-        onSelect(url, assetId);
+        onSelect(url, assetId, title);
         onClose();
       }
     },
@@ -412,7 +450,30 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
 
   return (
     <div style={modalStyle} onClick={onClose}>
-      <div style={panelStyle} onClick={(e) => e.stopPropagation()}>
+      <div
+        style={{ ...panelStyle, position: 'relative' }}
+        onClick={(e) => e.stopPropagation()}
+        onDragEnter={dnd.handleDragEnter}
+        onDragLeave={dnd.handleDragLeave}
+        onDragOver={dnd.handleDragOver}
+        onDrop={dnd.handleDrop}
+      >
+        {/* DnD オーバーレイ */}
+        {dnd.dragging && (
+          <div style={{
+            position: 'absolute', inset: 0, zIndex: 10,
+            background: 'rgba(0,0,0,0.7)',
+            border: `3px dashed ${theme.accent}`,
+            display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center', gap: '12px',
+            pointerEvents: 'none',
+          }}>
+            <Upload size={48} color={theme.accent} />
+            <span style={{ fontSize: '1rem', fontWeight: 600, color: theme.accent }}>
+              ドロップしてアップロード
+            </span>
+          </div>
+        )}
         {/* ヘッダー */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
           <h3 style={{ margin: 0, fontSize: '1rem' }}>アセットライブラリ</h3>
@@ -514,7 +575,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                     overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
                     cursor: onSelect ? 'pointer' : undefined,
                   }}
-                  onClick={() => handleAssetClick(asset.url, asset.id)}
+                  onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename)}
                 >
                   <img
                     src={asset.url}
@@ -558,7 +619,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                       cursor: onSelect ? 'pointer' : undefined,
                       transition: 'background 0.1s',
                     }}
-                    onClick={() => handleAssetClick(asset.url, asset.id)}
+                    onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename)}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   >

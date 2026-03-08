@@ -55,6 +55,19 @@ export async function getLatestCachedTimestamp(roomId: string): Promise<number> 
   return 0;
 }
 
+/** ルームのキャッシュ済みメッセージを全削除 */
+export async function clearCachedMessages(roomId: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction(STORE_MESSAGES, 'readwrite');
+  const index = tx.store.index('by_room');
+  let cursor = await index.openCursor(IDBKeyRange.only(roomId));
+  while (cursor) {
+    await cursor.delete();
+    cursor = await cursor.continue();
+  }
+  await tx.done;
+}
+
 /** メッセージをキャッシュに保存（重複は上書き） */
 export async function cacheMessages(messages: ChatMessage[]): Promise<void> {
   if (messages.length === 0) return;

@@ -8,7 +8,7 @@ import {
   Eye, EyeOff,
   Plus, Trash2,
 } from 'lucide-react';
-import { SortableListPanel, SortableListItem } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -39,6 +39,7 @@ export function LayerPanel() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
+  const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
 
   // メニュー外クリックで閉じる
   useEffect(() => {
@@ -190,19 +191,23 @@ export function LayerPanel() {
     if (obj.type === 'background') return;
     const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = activeObjects.find(o => o.id === id); return o && o.type !== 'background'; }).length : 1;
     const msg = count > 1 ? `${count}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
-    if (!window.confirm(msg)) return;
-    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
-      for (const id of selectedObjectIds) {
-        const o = activeObjects.find(o => o.id === id);
-        if (o && o.type !== 'background') {
-          removeObject(id);
+    setPendingRemove({
+      msg,
+      action: () => {
+        if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
+          for (const id of selectedObjectIds) {
+            const o = activeObjects.find(o => o.id === id);
+            if (o && o.type !== 'background') {
+              removeObject(id);
+            }
+          }
+          clearAllEditing();
+        } else {
+          removeObject(obj.id);
+          if (editingObjectId === obj.id) clearAllEditing();
         }
-      }
-      clearAllEditing();
-    } else {
-      removeObject(obj.id);
-      if (editingObjectId === obj.id) clearAllEditing();
-    }
+      },
+    });
   }, [selectedObjectIds, activeObjects, removeObject, editingObjectId, clearAllEditing]);
 
   const iconBtnStyle: React.CSSProperties = {
@@ -246,6 +251,7 @@ export function LayerPanel() {
   };
 
   return (
+    <>
     <SortableListPanel
       title="レイヤー"
       headerActions={
@@ -254,12 +260,12 @@ export function LayerPanel() {
             onClick={() => setMenuOpen(!menuOpen)}
             style={{
               ...iconBtnStyle,
-              color: theme.textPrimary,
+              color: theme.accent,
               display: 'flex',
               alignItems: 'center',
             }}
           >
-            <Plus size={18} />
+            <Plus size={15} />
           </button>
           {menuOpen && (
             <div style={menuStyle}>
@@ -419,5 +425,16 @@ export function LayerPanel() {
         );
       })}
     </SortableListPanel>
+
+    {pendingRemove && (
+      <ConfirmModal
+        message={pendingRemove.msg}
+        confirmLabel="削除"
+        danger
+        onConfirm={() => { pendingRemove.action(); setPendingRemove(null); }}
+        onCancel={() => setPendingRemove(null)}
+      />
+    )}
+    </>
   );
 }

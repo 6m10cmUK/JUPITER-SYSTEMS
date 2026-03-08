@@ -8,6 +8,7 @@ export {
   AdSection,
   AdColorPicker,
   AdModal,
+  ConfirmModal,
   AdToggleButtons,
 } from './AdComponents';
 

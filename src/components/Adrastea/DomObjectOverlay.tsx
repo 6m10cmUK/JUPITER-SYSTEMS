@@ -4,7 +4,9 @@ import { GRID_SIZE } from './Board';
 
 // --- 定数 ---
 const MIN_SIZE_PX = 50;
-const EDGE_THRESHOLD = 28;
+const EDGE_RATIO = 0.15;        // 要素サイズの 15% をエッジ判定に使う
+const EDGE_MIN_PX = 6;          // スクリーン上の最小エッジ幅
+const EDGE_MAX_PX = 28;         // スクリーン上の最大エッジ幅
 
 // --- Props ---
 interface DomObjectOverlayProps {
@@ -27,11 +29,12 @@ function snapToGrid(val: number): number {
 interface Edge { top: boolean; bottom: boolean; left: boolean; right: boolean }
 
 function getEdge(localX: number, localY: number, w: number, h: number): Edge | null {
-  const t = EDGE_THRESHOLD;
-  const top = localY < t;
-  const bottom = localY > h - t;
-  const left = localX < t;
-  const right = localX > w - t;
+  const tx = Math.min(EDGE_MAX_PX, Math.max(EDGE_MIN_PX, w * EDGE_RATIO));
+  const ty = Math.min(EDGE_MAX_PX, Math.max(EDGE_MIN_PX, h * EDGE_RATIO));
+  const top = localY < ty;
+  const bottom = localY > h - ty;
+  const left = localX < tx;
+  const right = localX > w - tx;
   if (!top && !bottom && !left && !right) return null;
   return { top, bottom, left, right };
 }
