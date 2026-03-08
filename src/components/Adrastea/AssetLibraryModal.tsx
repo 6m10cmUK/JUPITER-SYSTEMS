@@ -42,7 +42,7 @@ function useDragDropOverlay(onDrop: (file: File) => void) {
 
 interface AssetLibraryModalProps {
   onClose: () => void;
-  onSelect?: (url: string, assetId?: string, title?: string) => void;
+  onSelect?: (url: string, assetId?: string, title?: string, width?: number, height?: number) => void;
   initialTab?: 'image' | 'audio';
 }
 
@@ -182,10 +182,10 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   }, []);
 
   const handleAssetClick = useCallback(
-    (url: string, assetId?: string, title?: string) => {
+    (url: string, assetId?: string, title?: string, width?: number, height?: number) => {
       previewAudioRef.current?.pause();
       if (onSelect) {
-        onSelect(url, assetId, title);
+        onSelect(url, assetId, title, width, height);
         onClose();
       }
     },
@@ -575,7 +575,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                     overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
                     cursor: onSelect ? 'pointer' : undefined,
                   }}
-                  onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename)}
+                  onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename, asset.width, asset.height)}
                 >
                   <img
                     src={asset.url}
@@ -619,7 +619,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                       cursor: onSelect ? 'pointer' : undefined,
                       transition: 'background 0.1s',
                     }}
-                    onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename)}
+                    onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename, asset.width, asset.height)}
                     onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   >

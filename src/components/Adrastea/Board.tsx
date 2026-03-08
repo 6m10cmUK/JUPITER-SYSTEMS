@@ -37,6 +37,8 @@ export const GRID_SIZE = 50;
 export const MIN_SCALE = 0.02;
 export const MAX_SCALE = 4;
 
+const HALF = LOGICAL_SIZE / 2;
+
 const GridLines = memo(function GridLines() {
   return (
     <Shape
@@ -46,14 +48,23 @@ const GridLines = memo(function GridLines() {
         context.beginPath();
         context.strokeStyle = 'rgba(255,255,255,0.05)';
         context.lineWidth = 1;
-        for (let x = GRID_SIZE; x < LOGICAL_SIZE; x += GRID_SIZE) {
-          context.moveTo(x, 0);
-          context.lineTo(x, LOGICAL_SIZE);
+        for (let x = -HALF; x <= HALF; x += GRID_SIZE) {
+          context.moveTo(x, -HALF);
+          context.lineTo(x, HALF);
         }
-        for (let y = GRID_SIZE; y < LOGICAL_SIZE; y += GRID_SIZE) {
-          context.moveTo(0, y);
-          context.lineTo(LOGICAL_SIZE, y);
+        for (let y = -HALF; y <= HALF; y += GRID_SIZE) {
+          context.moveTo(-HALF, y);
+          context.lineTo(HALF, y);
         }
+        context.stroke();
+        // 原点の十字線（少し目立たせる）
+        context.beginPath();
+        context.strokeStyle = 'rgba(255,255,255,0.15)';
+        context.lineWidth = 1;
+        context.moveTo(0, -HALF);
+        context.lineTo(0, HALF);
+        context.moveTo(-HALF, 0);
+        context.lineTo(HALF, 0);
         context.stroke();
       }}
     />
