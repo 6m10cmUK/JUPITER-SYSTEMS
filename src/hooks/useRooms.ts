@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, deleteDoc, updateDoc, doc, getDoc, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { apiFetch } from '../config/api';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
 
@@ -48,34 +47,28 @@ export function useRooms(uid: string | undefined) {
     if (!uid) return;
     setLoading(true);
     try {
-      const q = query(
-        collection(db, 'rooms'),
-        where('owner_uid', '==', uid),
-        orderBy('updated_at', 'desc'),
-      );
-      const snap = await getDocs(q);
-      // ルーム基本情報
-      const base = snap.docs.map((d) => ({
-        id: d.id,
-        name: d.data().name ?? '',
-        dice_system: d.data().dice_system ?? 'DiceBot',
-        tags: d.data().tags ?? [],
-        active_scene_id: d.data().active_scene_id as string | null,
-        thumbnail_url: null as string | null,
-        created_at: d.data().created_at ?? 0,
-        updated_at: d.data().updated_at ?? 0,
+      const res = await apiFetch('/api/rooms');
+      if (!res.ok) throw new Error(`Failed to fetch rooms: ${res.status}`);
+      const data: {
+        id: string;
+        name: string;
+        dice_system: string;
+        tags: string;
+        thumbnail_url: string | null;
+        created_at: string;
+        updated_at: string;
+        owner_id: string;
+      }[] = await res.json();
+
+      const list: Room[] = data.map((r) => ({
+        id: r.id,
+        name: r.name ?? '',
+        dice_system: r.dice_system ?? 'DiceBot',
+        tags: r.tags ? JSON.parse(r.tags) : [],
+        thumbnail_url: r.thumbnail_url ?? null,
+        created_at: r.created_at ? new Date(r.created_at).getTime() : 0,
+        updated_at: r.updated_at ? new Date(r.updated_at).getTime() : 0,
       }));
-      // アクティブシーンの foreground_url をサムネイルとして取得
-      await Promise.all(
-        base.map(async (room) => {
-          if (!room.active_scene_id) return;
-          try {
-            const sceneSnap = await getDoc(doc(db, 'rooms', room.id, 'scenes', room.active_scene_id));
-            room.thumbnail_url = sceneSnap.data()?.foreground_url ?? null;
-          } catch { /* ignore */ }
-        }),
-      );
-      const list: Room[] = base.map(({ active_scene_id: _, ...rest }) => rest);
       setRooms(sortByOrder(list));
     } catch (err) {
       console.error('ルーム一覧の取得に失敗:', err);
@@ -90,7 +83,7 @@ export function useRooms(uid: string | undefined) {
       snapshot = prev;
       return prev.filter((r) => r.id !== roomId);
     });
-    deleteDoc(doc(db, 'rooms', roomId)).catch((err) => {
+    apiFetch(`/api/rooms/${roomId}`, { method: 'DELETE' }).catch((err) => {
       console.error('ルーム削除の通信に失敗:', err);
       // 失敗時は元に戻す
       setRooms(snapshot);
@@ -102,7 +95,11 @@ export function useRooms(uid: string | undefined) {
     setRooms((prev) =>
       prev.map((r) => (r.id === roomId ? { ...r, ...data, updated_at: now } : r)),
     );
-    updateDoc(doc(db, 'rooms', roomId), { ...data, updated_at: now }).catch((err) =>
+    apiFetch(`/api/rooms/${roomId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...data, updated_at: now }),
+    }).catch((err) =>
       console.error('ルーム更新の通信に失敗:', err),
     );
   }, []);

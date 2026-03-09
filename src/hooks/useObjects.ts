@@ -1,101 +1,42 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { db } from '../config/firebase';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  writeBatch,
-} from 'firebase/firestore';
 import type { BoardObject } from '../types/adrastea.types';
 
-const mapDoc = (d: { id: string; data: () => any }): BoardObject => {
-  const data = d.data();
-  return {
-    id: d.id,
-    type: data.type ?? 'panel',
-    name: data.name ?? '',
-    global: data.global ?? false,
-    scene_ids: data.scene_ids ?? [],
-    x: data.x ?? 50,
-    y: data.y ?? 50,
-    width: data.width ?? 4,
-    height: data.height ?? 4,
-    visible: data.visible ?? true,
-    opacity: data.opacity ?? 1,
-    sort_order: data.sort_order ?? 0,
-    locked: data.locked ?? false,
-    position_locked: data.position_locked ?? false,
-    size_locked: data.size_locked ?? false,
-    image_url: data.image_url ?? null,
-    image_asset_id: data.image_asset_id ?? null,
-    background_color: data.background_color ?? 'transparent',
-    image_fit: data.image_fit ?? 'cover',
-    text_content: data.text_content ?? null,
-    font_size: data.font_size ?? 128,
-    font_family: data.font_family ?? 'sans-serif',
-    letter_spacing: data.letter_spacing ?? 0,
-    line_height: data.line_height ?? 1.2,
-    auto_size: data.auto_size ?? true,
-    text_align: data.text_align ?? 'left',
-    text_vertical_align: data.text_vertical_align ?? 'top',
-    text_color: data.text_color ?? '#ffffff',
-    scale_x: data.scale_x ?? 1,
-    scale_y: data.scale_y ?? 1,
-    created_at: data.created_at ?? Date.now(),
-    updated_at: data.updated_at ?? Date.now(),
-  };
-};
+const genId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
 
-export function useObjects(roomId: string, activeSceneId: string | null) {
-  const [allObjects, setAllObjects] = useState<BoardObject[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useObjects(
+  roomId: string,
+  activeSceneId: string | null,
+  initialObjects?: BoardObject[]
+) {
+  const [allObjects, setAllObjects] = useState<BoardObject[]>(initialObjects ?? []);
+  const [loading, setLoading] = useState(!initialObjects);
 
-  // 単一購読: rooms/{roomId}/objects
   useEffect(() => {
-    if (!roomId) {
+    if (initialObjects) {
+      setAllObjects(initialObjects);
       setLoading(false);
-      return;
     }
-    setLoading(true);
-    const q = query(
-      collection(db, 'rooms', roomId, 'objects'),
-      orderBy('sort_order', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setAllObjects(snapshot.docs.map(mapDoc));
-        setLoading(false);
-      },
-      (error) => {
-        console.error('オブジェクトの監視に失敗:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [roomId]);
+  }, [initialObjects]);
 
   // activeSceneId でフィルタ
   const activeObjects = useMemo(() => {
-    if (!activeSceneId) return allObjects.filter(o => o.global);
+    if (!activeSceneId) return allObjects.filter((o) => o.global);
     return allObjects
-      .filter(o => o.global || o.scene_ids.includes(activeSceneId))
+      .filter((o) => o.global || o.scene_ids.includes(activeSceneId))
       .sort((a, b) => a.sort_order - b.sort_order);
   }, [allObjects, activeSceneId]);
 
-  const colPath = `rooms/${roomId}/objects`;
-
   const addObject = useCallback(
-    async (data: Partial<BoardObject>) => {
+    (data: Partial<BoardObject>) => {
       const type = data.type ?? 'panel';
-      const docRef = await addDoc(collection(db, colPath), {
+      const now = Date.now();
+      const newId = genId();
+      const newObj: BoardObject = {
+        id: newId,
         type,
         name: data.name ?? '新規オブジェクト',
         global: data.global ?? false,
@@ -125,66 +66,81 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
         text_color: data.text_color ?? '#ffffff',
         scale_x: data.scale_x ?? 1,
         scale_y: data.scale_y ?? 1,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-      return docRef.id;
+        created_at: now,
+        updated_at: now,
+      };
+      setAllObjects((prev) => [...prev, newObj]);
+      return newId;
     },
-    [colPath, allObjects.length]
+    [allObjects.length]
   );
 
   const updateObject = useCallback(
-    async (id: string, updates: Partial<BoardObject>) => {
-      const { id: _id, created_at, ...data } = updates as any;
-      await updateDoc(doc(db, colPath, id), {
-        ...data,
-        updated_at: Date.now(),
-      });
+    (id: string, updates: Partial<BoardObject>) => {
+      setAllObjects((prev) =>
+        prev.map((o) =>
+          o.id === id ? { ...o, ...updates, updated_at: Date.now() } : o
+        )
+      );
     },
-    [colPath]
+    []
   );
 
-  const removeObject = useCallback(
-    async (id: string) => {
-      await deleteDoc(doc(db, colPath, id));
-    },
-    [colPath]
-  );
+  const removeObject = useCallback((id: string) => {
+    setAllObjects((prev) => prev.filter((o) => o.id !== id));
+  }, []);
 
-  const reorderObjects = useCallback(
-    async (orderedIds: string[]) => {
-      const batch = writeBatch(db);
-      orderedIds.forEach((id, index) => {
-        batch.update(doc(db, colPath, id), {
-          sort_order: index,
-          updated_at: Date.now(),
-        });
+  const reorderObjects = useCallback((orderedIds: string[]) => {
+    setAllObjects((prev) => {
+      const now = Date.now();
+      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+      return prev.map((o) => {
+        const newSort = orderMap.get(o.id);
+        return newSort !== undefined
+          ? { ...o, sort_order: newSort, updated_at: now }
+          : o;
       });
-      await batch.commit();
-    },
-    [colPath]
-  );
+    });
+  }, []);
 
   const batchUpdateSort = useCallback(
-    async (updates: { id: string; sort: number }[]) => {
-      const batch = writeBatch(db);
-      for (const { id, sort } of updates) {
-        batch.update(doc(db, colPath, id), {
-          sort_order: sort,
-          updated_at: Date.now(),
+    (updates: { id: string; sort: number }[]) => {
+      setAllObjects((prev) => {
+        const now = Date.now();
+        const sortMap = new Map(updates.map((u) => [u.id, u.sort]));
+        return prev.map((o) => {
+          const newSort = sortMap.get(o.id);
+          return newSort !== undefined
+            ? { ...o, sort_order: newSort, updated_at: now }
+            : o;
         });
-      }
-      await batch.commit();
+      });
     },
-    [colPath]
+    []
   );
 
-  // オプティミスティック注入: onSnapshot 到着前にローカル state にオブジェクトを追加
+  // オプティミスティック注入
   const injectOptimistic = useCallback((objects: BoardObject[]) => {
-    setAllObjects(prev => {
-      const existingIds = new Set(prev.map(o => o.id));
-      const newObjs = objects.filter(o => !existingIds.has(o.id));
+    setAllObjects((prev) => {
+      const existingIds = new Set(prev.map((o) => o.id));
+      const newObjs = objects.filter((o) => !existingIds.has(o.id));
       return newObjs.length > 0 ? [...prev, ...newObjs] : prev;
+    });
+  }, []);
+
+  /** シーン削除時にオブジェクトを整理する */
+  const removeObjectsForScene = useCallback((sceneId: string) => {
+    setAllObjects((prev) => {
+      const now = Date.now();
+      return prev
+        .map((o) => {
+          if (o.global) return o;
+          if (!o.scene_ids.includes(sceneId)) return o;
+          const newSceneIds = o.scene_ids.filter((id) => id !== sceneId);
+          if (newSceneIds.length === 0) return null; // 削除
+          return { ...o, scene_ids: newSceneIds, updated_at: now };
+        })
+        .filter((o): o is BoardObject => o !== null);
     });
   }, []);
 
@@ -198,5 +154,6 @@ export function useObjects(roomId: string, activeSceneId: string | null) {
     reorderObjects,
     batchUpdateSort,
     injectOptimistic,
+    removeObjectsForScene,
   };
 }

@@ -1,12 +1,10 @@
-import { auth } from '../config/firebase';
+import { API_BASE_URL, getAccessToken } from '../config/api';
 import { compressImage } from './fileUpload';
 
-const R2_WORKER_URL = import.meta.env.VITE_R2_WORKER_URL ?? '';
-
-async function getIdToken(): Promise<string> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('未認証');
-  return user.getIdToken();
+function getIdToken(): string {
+  const token = getAccessToken();
+  if (!token) throw new Error('未認証');
+  return token;
 }
 
 function getImageDimensions(blob: Blob): Promise<{ width: number; height: number }> {
@@ -30,13 +28,13 @@ export async function uploadAssetToR2(
 
   const ext = compressed.type === 'image/gif' ? '.gif' : '.webp';
   const r2_key = `users/${uid}/assets/${Date.now()}_${file.name.replace(/\.[^.]+$/, '')}${ext}`;
-  const token = await getIdToken();
+  const token = getIdToken();
 
   const form = new FormData();
   form.append('file', compressed, r2_key.replace(/\//g, '_'));
   form.append('path', r2_key);
 
-  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+  const res = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -58,13 +56,13 @@ export async function uploadAudioAssetToR2(
   uid: string
 ): Promise<{ url: string; r2_key: string; size_bytes: number; width: 0; height: 0 }> {
   const r2_key = `users/${uid}/assets/${Date.now()}_${file.name}`;
-  const token = await getIdToken();
+  const token = getIdToken();
 
   const form = new FormData();
   form.append('file', file, r2_key.replace(/\//g, '_'));
   form.append('path', r2_key);
 
-  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+  const res = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -76,9 +74,9 @@ export async function uploadAudioAssetToR2(
 }
 
 export async function deleteAssetFromR2(r2Key: string): Promise<void> {
-  const token = await getIdToken();
+  const token = getIdToken();
   const res = await fetch(
-    `${R2_WORKER_URL}/delete?path=${encodeURIComponent(r2Key)}`,
+    `${API_BASE_URL}/delete?path=${encodeURIComponent(r2Key)}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },

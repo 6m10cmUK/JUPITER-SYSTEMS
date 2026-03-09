@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import type { User } from 'firebase/auth';
+import type { AuthUser } from '../services/auth';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
 import type {
@@ -24,6 +24,23 @@ import { useBgms } from '../hooks/useBgms';
 import { useImagePreloader } from '../hooks/useImagePreloader';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
+import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
+
+// ---------------------------------------------------------------------------
+// Snapshot type
+// ---------------------------------------------------------------------------
+
+interface RoomSnapshot {
+  room: { active_scene_id: string | null; active_cutin: any; foreground_url: string | null };
+  scenes: Scene[];
+  objects: BoardObject[];
+  characters: Character[];
+  bgms: BgmTrack[];
+  cutins: Cutin[];
+  scenarioTexts: ScenarioText[];
+  pieces: Piece[];
+  messages: ChatMessage[];
+}
 
 // ---------------------------------------------------------------------------
 // Context value type
@@ -146,7 +163,7 @@ export interface AdrasteaContextValue {
   activeScene: Scene | null;
   // --- Auth ---
   profile: UserProfile | null;
-  user: User | null;
+  user: AuthUser | null;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) => Promise<void>;
 
@@ -200,6 +217,23 @@ interface AdrasteaProviderProps {
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile } = useAuth();
 
+  // --- スナップショット読み込み ---
+  const [snapshot, setSnapshot] = useState<RoomSnapshot | null | undefined>(undefined); // undefined=loading
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch(`/api/rooms/${roomId}/snapshot`)
+      .then(res => res.json())
+      .then(result => {
+        if (!cancelled) setSnapshot(result.data ?? null);
+      })
+      .catch(err => {
+        console.error('スナップショット読み込み失敗:', err);
+        if (!cancelled) setSnapshot(null); // 空で開始
+      });
+    return () => { cancelled = true; };
+  }, [roomId]);
+
   // --- パネルのマウント状態追跡（遅延リスナー用） ---
   const [activePanels, setActivePanels] = useState<Set<string>>(new Set());
   const registerPanel = useCallback((panelId: string) => {
@@ -209,22 +243,33 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setActivePanels(prev => { const next = new Set(prev); next.delete(panelId); return next; });
   }, []);
 
+  // --- onObjectsCreated コールバック用 Ref（循環依存を回避） ---
+  const objectsCreatedRef = useRef<((objects: BoardObject[]) => void) | null>(null);
+  const handleObjectsCreated = useCallback((objects: BoardObject[]) => {
+    objectsCreatedRef.current?.(objects);
+  }, []);
+
   // --- Data hooks ---
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-  } = useAdrastea(roomId);
+  } = useAdrastea(roomId, snapshot ? { room: snapshot.room as any, pieces: snapshot.pieces } : undefined);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
-  } = useAdrasteaChat(roomId);
+  } = useAdrasteaChat(roomId, snapshot?.messages);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
+  // onRoomUpdate コールバック（useCutins → useAdrastea）
+  const handleRoomUpdate = useCallback((updates: Record<string, unknown>) => {
+    updateRoom(updates as Partial<Room>);
+  }, [updateRoom]);
 
-  // 楽観的 activeSceneId: Firestore 反映を待たずシーン切り替えを即座に反映
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, activateScene } = useScenes(roomId, snapshot?.scenes, handleObjectsCreated);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId, snapshot?.characters);
+
+  // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
   const effectiveSceneId = optimisticSceneId ?? room?.active_scene_id ?? null;
-  // Firestore が追いついたら楽観値をクリア
+  // ローカルstateが追いついたら楽観値をクリア
   useEffect(() => {
     if (optimisticSceneId && room?.active_scene_id === optimisticSceneId) {
       setOptimisticSceneId(null);
@@ -234,15 +279,78 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const {
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
-  } = useObjects(roomId, effectiveSceneId);
+  } = useObjects(roomId, effectiveSceneId, snapshot?.objects);
+
+  // objectsCreatedRef に injectOptimistic を設定
+  useEffect(() => {
+    objectsCreatedRef.current = injectOptimistic;
+  }, [injectOptimistic]);
+
   const scenarioTextsEnabled = activePanels.has('scenarioText');
   const cutinsEnabled = activePanels.has('cutin');
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled);
-  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot?.scenarioTexts);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled, snapshot?.cutins, handleRoomUpdate);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, snapshot?.bgms);
+
+  // --- スナップショット保存 ---
+  const snapshotLoading = snapshot === undefined;
+
+  const buildSnapshot = useCallback((): RoomSnapshot => ({
+    room: {
+      active_scene_id: room?.active_scene_id ?? null,
+      active_cutin: room?.active_cutin ?? null,
+      foreground_url: room?.foreground_url ?? null,
+    },
+    scenes,
+    objects: allObjects,
+    characters,
+    bgms,
+    cutins,
+    scenarioTexts,
+    pieces,
+    messages,
+  }), [room, scenes, allObjects, characters, bgms, cutins, scenarioTexts, pieces, messages]);
+
+  // 定期保存（30秒ごと、オーナーのみ）
+  useEffect(() => {
+    if (roomRole !== 'owner') return;
+    const timer = setInterval(() => {
+      const data = buildSnapshot();
+      apiFetch(`/api/rooms/${roomId}/snapshot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      }).catch(err => console.error('スナップショット保存失敗:', err));
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [roomId, roomRole, buildSnapshot]);
+
+  // beforeunload 時の保存（オーナーのみ）
+  const buildSnapshotRef = useRef(buildSnapshot);
+  buildSnapshotRef.current = buildSnapshot;
+
+  useEffect(() => {
+    if (roomRole !== 'owner') return;
+    const handleUnload = () => {
+      const data = buildSnapshotRef.current();
+      const token = getAccessToken();
+      fetch(`${API_BASE_URL}/api/rooms/${roomId}/snapshot`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ data }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [roomId, roomRole]);
 
   // --- Loading steps ---
   const loadingSteps = useMemo(() => [
+    { label: 'スナップショット', done: !snapshotLoading },
     { label: 'ルーム', done: !adrasteaLoading },
     { label: 'シーン', done: !scenesLoading },
     { label: 'キャラクター', done: !charactersLoading },
@@ -251,7 +359,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     { label: 'BGM', done: !bgmsLoading },
     { label: 'カットイン', done: !cutinsEnabled || !cutinsLoading },
     { label: 'シナリオテキスト', done: !scenarioTextsEnabled || !scenarioTextsLoading },
-  ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
+  ], [snapshotLoading, adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
 
   // 初回ロード完了後はローディング画面を二度と出さない
   // （シーン切り替え時の objectsLoading 等で全画面ローディングが再表示されるのを防ぐ）
@@ -513,7 +621,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
-    // Firestore に非同期で書き込み（バックグラウンド）
+    // ローカルstateを更新
     activateScene(sceneId);
   }, [activateScene]);
 

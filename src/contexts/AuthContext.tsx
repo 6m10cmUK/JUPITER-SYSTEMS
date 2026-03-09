@@ -1,12 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import type { User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
 import { AuthService } from '../services/auth';
+import { apiFetch } from '../config/api';
+import type { AuthUser } from '../services/auth';
 import type { UserProfile } from '../types/adrastea.types';
 
 interface AuthContextValue {
-  user: User | null;
+  user: AuthUser | null;
   profile: UserProfile | null;
   isGuest: boolean;
   loading: boolean;
@@ -19,86 +18,67 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // pendingGuestName: 匿名ログイン時に onAuthStateChanged で使う表示名を一時保持
-  const pendingGuestNameRef = React.useRef<string | null>(null);
+  const isGuest = user?.isGuest ?? false;
 
-  const isGuest = user?.isAnonymous ?? false;
-
+  // 起動時にトークンからユーザー復元
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged(async (firebaseUser) => {
-      setUser(firebaseUser);
-
-      if (firebaseUser) {
-        if (firebaseUser.isAnonymous) {
-          // 匿名ユーザー: Firestore profile は作らず、ローカルのみ
-          const displayName = pendingGuestNameRef.current || 'ゲスト';
-          pendingGuestNameRef.current = null;
-          setProfile({
-            uid: firebaseUser.uid,
-            display_name: displayName,
-            avatar_url: null,
-            created_at: Date.now(),
-            updated_at: Date.now(),
-          });
-          setLoading(false);
-        } else {
-          // 通常ユーザー: Firestore profile を読み書き
-          const profileRef = doc(db, 'users', firebaseUser.uid);
-          try {
-            const snap = await getDoc(profileRef);
-
-            if (snap.exists()) {
-              setProfile(snap.data() as UserProfile);
-            } else {
-              const newProfile: UserProfile = {
-                uid: firebaseUser.uid,
-                display_name: firebaseUser.displayName || 'ユーザー',
-                avatar_url: firebaseUser.photoURL || null,
-                created_at: Date.now(),
-                updated_at: Date.now(),
-              };
-              await setDoc(profileRef, newProfile);
-              setProfile(newProfile);
-            }
-          } catch (err) {
-            console.error('Failed to load/create user profile:', err);
-            setProfile(null);
-          } finally {
-            setLoading(false);
-          }
-        }
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
+    const restored = AuthService.restoreUser();
+    if (restored) {
+      setUser(restored);
+      setProfile({
+        uid: restored.uid,
+        display_name: restored.displayName,
+        avatar_url: restored.avatarUrl,
+        created_at: Date.now(),
+        updated_at: Date.now(),
+      });
+    }
+    setLoading(false);
   }, []);
 
   const signIn = useCallback(async () => {
-    await AuthService.signInWithGoogle();
+    const authUser = await AuthService.signInWithGoogle();
+    setUser(authUser);
+    setProfile({
+      uid: authUser.uid,
+      display_name: authUser.displayName,
+      avatar_url: authUser.avatarUrl,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
   }, []);
 
   const signInAsGuest = useCallback(async (displayName: string) => {
-    pendingGuestNameRef.current = displayName || 'ゲスト';
-    await AuthService.signInAnonymously();
+    const authUser = await AuthService.signInAsGuest(displayName);
+    setUser(authUser);
+    setProfile({
+      uid: authUser.uid,
+      display_name: displayName || 'ゲスト',
+      avatar_url: null,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    });
   }, []);
 
   const signOut = useCallback(async () => {
-    await AuthService.signOut();
+    AuthService.signOut();
+    setUser(null);
     setProfile(null);
   }, []);
 
   const updateProfile = useCallback(async (data: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) => {
     if (!user) return;
-    const profileRef = doc(db, 'users', user.uid);
+    const res = await apiFetch('/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('プロフィール更新に失敗しました');
     const updated = { ...data, updated_at: Date.now() };
-    await setDoc(profileRef, updated, { merge: true });
     setProfile((prev) => prev ? { ...prev, ...updated } : null);
   }, [user]);
 
