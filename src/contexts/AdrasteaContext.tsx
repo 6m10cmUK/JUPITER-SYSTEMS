@@ -11,6 +11,7 @@ import type {
   BoardObject,
   ScenarioText,
   Cutin,
+  ActiveCutin,
   UserProfile,
 } from '../types/adrastea.types';
 import { useAdrastea } from '../hooks/useAdrastea';
@@ -31,7 +32,7 @@ import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
 // ---------------------------------------------------------------------------
 
 interface RoomSnapshot {
-  room: { active_scene_id: string | null; active_cutin: any; foreground_url: string | null };
+  room: { active_scene_id: string | null; active_cutin: ActiveCutin | null; foreground_url: string | null };
   scenes: Scene[];
   objects: BoardObject[];
   characters: Character[];
@@ -253,7 +254,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Data hooks ---
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-  } = useAdrastea(roomId, snapshot ? { room: snapshot.room as any, pieces: snapshot.pieces } : undefined);
+  } = useAdrastea(roomId, snapshot ? { room: snapshot.room as Room, pieces: snapshot.pieces } : undefined);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
@@ -447,6 +448,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [localSceneOverrides, setLocalSceneOverrides] = useState<Map<string, Partial<Scene>>>(new Map());
   const [localObjectOverrides, setLocalObjectOverrides] = useState<Map<string, Partial<BoardObject>>>(new Map());
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingEditsRef = useRef<Map<string, PendingEdit>>(new Map());
 
   // アンマウント時にデバウンスタイマーをクリア
   useEffect(() => {
@@ -490,6 +492,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       const timer = debounceTimersRef.current.get(key);
       if (timer) clearTimeout(timer);
       debounceTimersRef.current.delete(key);
+      pendingEditsRef.current.delete(key);
       return;
     }
 
@@ -516,7 +519,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
           setLocalSceneOverrides(prev => {
             const next = new Map(prev);
             const existing = next.get(effectiveSceneId!) ?? {};
-            next.set(effectiveSceneId!, { ...existing, [sceneField]: (edit.data as any).image_url ?? null });
+            next.set(effectiveSceneId!, { ...existing, [sceneField]: (edit.data as Partial<BoardObject>).image_url ?? null });
             return next;
           });
         }
@@ -545,8 +548,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // デバウンス付きDB保存
     const existing = debounceTimersRef.current.get(key);
     if (existing) clearTimeout(existing);
+    pendingEditsRef.current.set(key, edit);
     debounceTimersRef.current.set(key, setTimeout(async () => {
       debounceTimersRef.current.delete(key);
+      pendingEditsRef.current.delete(key);
       try {
         await flushEdit(edit);
         clearLocalOverride(edit);
@@ -631,9 +636,18 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   );
 
   const safeActivateScene = useCallback(async (sceneId: string | null) => {
-    // デバウンスタイマーをすべてクリア
+    // pending なデバウンス編集を即時 flush（データ消失防止）
     for (const timer of debounceTimersRef.current.values()) clearTimeout(timer);
     debounceTimersRef.current.clear();
+    const pendingEntries = Array.from(pendingEditsRef.current.values());
+    pendingEditsRef.current.clear();
+    for (const edit of pendingEntries) {
+      try {
+        await flushEdit(edit);
+      } catch (err) {
+        console.error('シーン切替時の pendingEdit flush 失敗:', err);
+      }
+    }
     // 楽観的にシーンを即座に切り替え（Firestore 反映を待たない）
     setOptimisticSceneId(sceneId);
     setLocalSceneOverrides(new Map());
@@ -650,7 +664,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updateRoom({ active_scene_id: sceneId } );
     // ローカルstateを更新
     activateScene(sceneId);
-  }, [activateScene, updateRoom]);
+  }, [activateScene, updateRoom, flushEdit]);
 
   // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア
   const syncedUpdateObject = useCallback(async (id: string, data: Partial<BoardObject>) => {
