@@ -38,26 +38,28 @@ export function useAdrastea(
       const baseY = centerY ?? 2500;
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
-      const newPiece: Piece = {
-        id: genId(),
-        room_id: roomId,
-        x: baseX + offsetX,
-        y: baseY + offsetY,
-        width: 60,
-        height: 60,
-        image_url: null,
-        label,
-        color,
-        z_index: pieces.length,
-        statuses: [],
-        initiative: 0,
-        memo: '',
-        character_id: null,
-        created_at: Date.now(),
-      };
-      setPieces((prev) => [...prev, newPiece]);
+      setPieces((prev) => {
+        const newPiece: Piece = {
+          id: genId(),
+          room_id: roomId,
+          x: baseX + offsetX,
+          y: baseY + offsetY,
+          width: 60,
+          height: 60,
+          image_url: null,
+          label,
+          color,
+          z_index: prev.length,
+          statuses: [],
+          initiative: 0,
+          memo: '',
+          character_id: null,
+          created_at: Date.now(),
+        };
+        return [...prev, newPiece];
+      });
     },
-    [roomId, pieces.length]
+    [roomId]
   );
 
   const removePiece = useCallback((pieceId: string) => {

@@ -25,7 +25,6 @@ type StateChangeHandler = (state: ConnectionState) => void;
  */
 export class PeerManager {
   private signaling: SignalingClient;
-  private peerId: string;
   private isHost: boolean;
   private connections = new Map<string, PeerConnection>();
   private onMessage: MessageHandler;
@@ -38,13 +37,12 @@ export class PeerManager {
 
   constructor(
     signaling: SignalingClient,
-    peerId: string,
+    _peerId: string,
     isHost: boolean,
     onMessage: MessageHandler,
     onStateChange: StateChangeHandler,
   ) {
     this.signaling = signaling;
-    this.peerId = peerId;
     this.isHost = isHost;
     this.onMessage = onMessage;
     this.onStateChange = onStateChange;

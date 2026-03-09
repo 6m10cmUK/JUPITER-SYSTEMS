@@ -11,7 +11,7 @@ export type OnRoomUpdate = (updates: Record<string, unknown>) => void;
 
 export function useCutins(
   roomId: string,
-  enabled = true,
+  _enabled = true,
   initialCutins?: Cutin[],
   /** triggerCutin / clearCutin が room を更新するためのコールバック */
   onRoomUpdate?: OnRoomUpdate

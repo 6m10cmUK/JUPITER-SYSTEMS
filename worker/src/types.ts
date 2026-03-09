@@ -2,7 +2,6 @@ export interface Env {
   R2_BUCKET: R2Bucket;
   DB: D1Database;
   RATE_LIMIT: KVNamespace;
-  SIGNALING: KVNamespace;
   ALLOWED_ORIGINS: string;
   JWT_SECRET: string;
   GOOGLE_CLIENT_ID: string;

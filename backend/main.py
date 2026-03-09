@@ -629,9 +629,9 @@ def detect_column_boundaries_from_words(words, page_width):
             column_regions.append((min_x, max_x))
     
     # デバッグ出力
-    logger.info(f"[カラム領域検出] クラスタ数: {len(column_regions)}")
+    logger.debug(f"[カラム領域検出] クラスタ数: {len(column_regions)}")
     for i, (start, end) in enumerate(column_regions):
-        logger.info(f"  カラム{i+1}: X={start:.1f}-{end:.1f} (幅={end-start:.1f})")
+        logger.debug(f"  カラム{i+1}: X={start:.1f}-{end:.1f} (幅={end-start:.1f})")
     
     return column_regions
 
@@ -655,24 +655,24 @@ def extract_with_layout(page, pre_filtered_blocks=None):
         text_blocks = pre_filtered_blocks
         # デバッグ
         if page.number + 1 == 3:
-            logger.info(f"[extract_with_layout] ページ3: フィルタリング済みブロック数={len(text_blocks)}")
+            logger.debug(f"[extract_with_layout] ページ3: フィルタリング済みブロック数={len(text_blocks)}")
     else:
         # 通常の処理: まずget_text_words()を使用してすべてのワードを取得
         words = page.get_text_words()
         
         # ページ1と3でデバッグ
         if page.number + 1 in [1, 3]:
-            logger.info(f"[get_text_words] ページ{page.number + 1}: ワード数={len(words)}")
+            logger.debug(f"[get_text_words] ページ{page.number + 1}: ワード数={len(words)}")
             # 最初の30ワードを表示
             for i, word in enumerate(words[:30]):
                 x0, y0, x1, y1, text, block_no, line_no, word_no = word
-                logger.info(f"  ワード{i}: '{text}' X={x0:.1f}-{x1:.1f}, Y={y0:.1f}, block={block_no}, line={line_no}")
+                logger.debug(f"  ワード{i}: '{text}' X={x0:.1f}-{x1:.1f}, Y={y0:.1f}, block={block_no}, line={line_no}")
             
             # 「0」や「|」などの特殊文字を探す
             for i, word in enumerate(words):
                 x0, y0, x1, y1, text, block_no, line_no, word_no = word
                 if text in ["0", "|", "1", "2", "3"] and len(text) == 1:
-                    logger.info(f"  特殊文字発見: '{text}' at X={x0:.1f}, Y={y0:.1f}")
+                    logger.debug(f"  特殊文字発見: '{text}' at X={x0:.1f}, Y={y0:.1f}")
         
         # Y座標でグループ化して行を作成（X座標の大きなギャップも考慮）
         lines_dict = {}
@@ -719,12 +719,12 @@ def extract_with_layout(page, pre_filtered_blocks=None):
     
         # ページ3でのみ行の分離結果をデバッグ
         if page.number + 1 == 3:
-            logger.info(f"[行分離後] ページ3: 行数={len(lines_dict)}")
+            logger.debug(f"[行分離後] ページ3: 行数={len(lines_dict)}")
             for line_key, words_in_line in sorted(lines_dict.items(), key=lambda item: item[0][0])[:10]:
                 line_y, line_x_range = line_key
-                logger.info(f"  行 Y={line_y:.1f}: {len(words_in_line)}ワード, X範囲={min(w['x0'] for w in words_in_line):.1f}-{max(w['x1'] for w in words_in_line):.1f}")
+                logger.debug(f"  行 Y={line_y:.1f}: {len(words_in_line)}ワード, X範囲={min(w['x0'] for w in words_in_line):.1f}-{max(w['x1'] for w in words_in_line):.1f}")
                 for w in words_in_line:
-                    logger.info(f"    '{w['text']}'")
+                    logger.debug(f"    '{w['text']}'")
         
         # 行をブロックにグループ化（各行内の単語をX座標でグループ化）
         block_id = 0
@@ -762,7 +762,7 @@ def extract_with_layout(page, pre_filtered_blocks=None):
                 
                 # ページ3でのみデバッグ
                 if page.number + 1 == 3 and line_y == 111.6:
-                    logger.info(f"    ギャップチェック: '{prev_word['text']}' ({prev_word['x1']:.1f}) -> '{curr_word['text']}' ({curr_word['x0']:.1f}), 距離={x_distance:.1f}")
+                    logger.debug(f"    ギャップチェック: '{prev_word['text']}' ({prev_word['x1']:.1f}) -> '{curr_word['text']}' ({curr_word['x0']:.1f}), 距離={x_distance:.1f}")
                 
                 if x_distance > x_gap_threshold:
                     # 新しいセグメントを開始
@@ -791,10 +791,10 @@ def extract_with_layout(page, pre_filtered_blocks=None):
     
         # ページ3でのみセグメント分割結果をデバッグ
         if page.number + 1 == 3:
-            logger.info(f"[セグメント分割後] ページ3: セグメント数={len(all_line_segments)}")
+            logger.debug(f"[セグメント分割後] ページ3: セグメント数={len(all_line_segments)}")
             for i, seg in enumerate(all_line_segments[:15]):
-                logger.info(f"  セグメント{i}: Y={seg['y']:.1f}, X範囲={seg['x_start']:.1f}-{seg['x_end']:.1f}")
-                logger.info(f"    テキスト: '{' '.join(w['text'] for w in seg['words'])}')")
+                logger.debug(f"  セグメント{i}: Y={seg['y']:.1f}, X範囲={seg['x_start']:.1f}-{seg['x_end']:.1f}")
+                logger.debug(f"    テキスト: '{' '.join(w['text'] for w in seg['words'])}')")
         
         # セグメントをブロックにグループ化
         current_block = None
@@ -929,7 +929,7 @@ def extract_with_layout(page, pre_filtered_blocks=None):
         logger.info(f"[カラム検出デバッグ] ページ3: ブロック数={len(text_blocks)}")
         for i, block in enumerate(text_blocks):  # 全ブロック
             text_preview = block['text'].replace('\n', ' ')[:50]
-            logger.info(f"  ブロック{i}: X={block['bbox'][0]:.1f}-{block['bbox'][2]:.1f}, Y={block['bbox'][1]:.1f}, テキスト='{text_preview}...'")
+            logger.debug(f"  ブロック{i}: X={block['bbox'][0]:.1f}-{block['bbox'][2]:.1f}, Y={block['bbox'][1]:.1f}, テキスト='{text_preview}...'")
     
     # カラムを検出
     columns = detect_columns_with_blocks(text_blocks, page)
@@ -937,11 +937,11 @@ def extract_with_layout(page, pre_filtered_blocks=None):
     
     # デバッグ: カラム検出結果
     if page.number + 1 == 3:
-        logger.info(f"  検出されたカラム数: {column_count}")
+        logger.debug(f"  検出されたカラム数: {column_count}")
         for i, col in enumerate(columns):
-            logger.info(f"    カラム{i}: {len(col)}ブロック")
+            logger.debug(f"    カラム{i}: {len(col)}ブロック")
             if col:
-                logger.info(f"      X範囲: {min(b['bbox'][0] for b in col):.1f} - {max(b['bbox'][2] for b in col):.1f}")
+                logger.debug(f"      X範囲: {min(b['bbox'][0] for b in col):.1f} - {max(b['bbox'][2] for b in col):.1f}")
     
     text_parts = []
     block_infos = []
@@ -1005,10 +1005,10 @@ def extract_with_layout(page, pre_filtered_blocks=None):
                     for i, col_blocks in enumerate(columns_blocks):
                         if col_blocks:
                             col_start, col_end = regions['column_regions'][i]
-                            logger.info(f"  カラム{i+1} (X={col_start:.1f}-{col_end:.1f}): {len(col_blocks)}ブロック")
+                            logger.debug(f"  カラム{i+1} (X={col_start:.1f}-{col_end:.1f}): {len(col_blocks)}ブロック")
                             for j, block in enumerate(col_blocks[:3]):
                                 text = block.get('text', '').replace('\n', ' ')[:30]
-                                logger.info(f"    {j}: '{text}...'")
+                                logger.debug(f"    {j}: '{text}...'")
                 
                 # 左から右の順序でテキストを結合
                 for col_blocks in columns_blocks:
@@ -1059,8 +1059,8 @@ def extract_with_layout(page, pre_filtered_blocks=None):
             
                 # デバッグ
                 if page.number + 1 == 3:
-                    logger.info(f"  シンプルカラム処理: 左={len(left_blocks)}ブロック, 右={len(right_blocks)}ブロック")
-                    logger.info(f"  ページ中央: X={page_center:.1f}")
+                    logger.debug(f"  シンプルカラム処理: 左={len(left_blocks)}ブロック, 右={len(right_blocks)}ブロック")
+                    logger.debug(f"  ページ中央: X={page_center:.1f}")
                     
                     # 最初の数ブロックの詳細を表示
                     logger.info("  左カラムのブロック:")
@@ -1091,7 +1091,7 @@ def extract_with_layout(page, pre_filtered_blocks=None):
     elif column_count > 1:
         # マルチカラムの場合：カラムごとに処理
         if page.number + 1 == 3:  # デバッグ
-            logger.info(f"  マルチカラム処理: {column_count}カラム")
+            logger.debug(f"  マルチカラム処理: {column_count}カラム")
         
         # 中央のヘッダーやタイトルを特定
         page_width = max(block["bbox"][2] for block in text_blocks)
@@ -1149,13 +1149,13 @@ def extract_with_layout(page, pre_filtered_blocks=None):
             col_blocks_sorted = sorted(col_blocks, key=lambda b: b["bbox"][1])
             
             if page.number + 1 == 3:  # デバッグ
-                logger.info(f"    カラム{col_idx}: {len(col_blocks_sorted)}ブロック")
+                logger.debug(f"    カラム{col_idx}: {len(col_blocks_sorted)}ブロック")
                 # 最初と最後のブロックを表示
                 if col_blocks_sorted:
                     first_text = col_blocks_sorted[0]['text'].replace('\n', ' ')[:30] if col_blocks_sorted else ""
                     last_text = col_blocks_sorted[-1]['text'].replace('\n', ' ')[:30] if col_blocks_sorted else ""
-                    logger.info(f"      最初: '{first_text}...'")
-                    logger.info(f"      最後: '{last_text}...'")
+                    logger.debug(f"      最初: '{first_text}...'")
+                    logger.debug(f"      最後: '{last_text}...'")
             
             for block in col_blocks_sorted:
                 text, info = process_block(block)
@@ -1249,7 +1249,7 @@ def detect_columns_with_blocks(blocks, page=None):
     if is_page_3:
         logger.info(f"[カラム境界検出] ページ3: 検出されたギャップ数={len(gaps)}")
         for idx, (start, end, size) in enumerate(gaps[:5]):
-            logger.info(f"  ギャップ{idx}: {start:.1f}-{end:.1f} (幅={size:.1f})")
+            logger.debug(f"  ギャップ{idx}: {start:.1f}-{end:.1f} (幅={size:.1f})")
     
     # 最も大きなギャップをカラムの境界とする
     column_boundaries = [0]  # 左端
@@ -1327,11 +1327,11 @@ def detect_columns_with_blocks(blocks, page=None):
         for idx, col in enumerate(columns):
             if col:
                 x_range = f"{min(b['bbox'][0] for b in col):.1f}-{max(b['bbox'][2] for b in col):.1f}"
-                logger.info(f"  カラム{idx}: {len(col)}ブロック, X範囲={x_range}")
+                logger.debug(f"  カラム{idx}: {len(col)}ブロック, X範囲={x_range}")
                 # 最初の3ブロックのテキストを表示
                 for i, block in enumerate(col[:3]):
                     text = block.get('text', '').replace('\n', ' ')[:40]
-                    logger.info(f"    ブロック{i}: '{text}...'")
+                    logger.debug(f"    ブロック{i}: '{text}...'")
     
     return columns
 
@@ -1401,7 +1401,7 @@ def detect_toc_layout(blocks, page):
     if page.number + 1 == 3 and toc_entries:
         logger.info(f"[TOC検出] ページ3: {len(toc_entries)}個の目次エントリを検出")
         for i, entry in enumerate(toc_entries[:5]):
-            logger.info(f"  エントリ{i}: '{entry['title']}' -> {entry['page']} (ギャップ={entry['gap']:.1f})")
+            logger.debug(f"  エントリ{i}: '{entry['title']}' -> {entry['page']} (ギャップ={entry['gap']:.1f})")
     
     # 目次エントリが3つ以上ある場合のみ目次として認識
     return toc_entries if len(toc_entries) >= 3 else []
@@ -1659,7 +1659,7 @@ def detect_header_footer(page: fitz.Page, blocks: List[Dict],
             if header_text is None:
                 header_text = block['text'].strip()
             if page.number + 1 == 3:  # ページ3のみログ
-                logger.info(f"  ヘッダー検出: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{block['text'].strip()}'")
+                logger.debug(f"  ヘッダー検出: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{block['text'].strip()}'")
     
     # フッター検出（Y座標が大きい順にソートして最下部を優先）
     footer_candidates = []
@@ -1667,7 +1667,7 @@ def detect_header_footer(page: fitz.Page, blocks: List[Dict],
         if block['bbox'][1] > footer_threshold:
             footer_candidates.append(block)
             if page.number + 1 == 3:  # ページ3のみログ
-                logger.info(f"  フッター候補: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{block['text'].strip()}'")
+                logger.debug(f"  フッター候補: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{block['text'].strip()}'")
     
     if footer_candidates:
         has_footer = True
@@ -1683,15 +1683,15 @@ def detect_header_footer(page: fitz.Page, blocks: List[Dict],
             if re.match(r'^-?\s*\d+\s*-?$', text):
                 footer_text = text
                 if page.number + 1 == 3:
-                    logger.info(f"  フッターとして選択（ページ番号）: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{text}'")
+                    logger.debug(f"  フッターとして選択（ページ番号）: Y座標 = {block['bbox'][1]:.1f}, テキスト = '{text}'")
                 break
         else:
             # ページ番号が見つからない場合は最下部のテキストを使用
             if page.number + 1 == 3:
-                logger.info(f"  フッターとして選択（最下部）: Y座標 = {footer_block['bbox'][1]:.1f}, テキスト = '{footer_text}'")
+                logger.debug(f"  フッターとして選択（最下部）: Y座標 = {footer_block['bbox'][1]:.1f}, テキスト = '{footer_text}'")
     
     if page.number + 1 == 3:
-        logger.info(f"  検出結果: ヘッダー = {has_header}, フッター = {has_footer}")
+        logger.debug(f"  検出結果: ヘッダー = {has_header}, フッター = {has_footer}")
     
     return has_header, has_footer, header_text, footer_text
 
@@ -2242,6 +2242,222 @@ def format_text(text, merge_paragraphs=True, normalize_spaces=True, fix_hyphenat
     formatted = formatted.strip()
     
     return formatted
+
+
+# ==================== WebRTC Signaling ====================
+
+from datetime import datetime, timedelta
+from typing import Any
+
+_signal_store: dict[str, dict[str, Any]] = {}
+_signal_ttl_seconds = 300
+
+def _cleanup_expired_signal_entries(room_id: str) -> None:
+    """期限切れエントリを削除、および空になったルームを削除"""
+    now = datetime.now()
+    store_key = f"{room_id}:store"
+    if store_key in _signal_store:
+        data = _signal_store[store_key]
+        for key in list(data.keys()):
+            if "expires_at" in data[key]:
+                expires_at = data[key]["expires_at"]
+                if isinstance(expires_at, str):
+                    try:
+                        expires_at = datetime.fromisoformat(expires_at)
+                    except:
+                        continue
+                if now > expires_at:
+                    del data[key]
+
+        # ルーム内のエントリが全て期限切れになった場合、ルームごと削除
+        if len(data) == 0:
+            del _signal_store[store_key]
+
+def _get_expiration_time() -> datetime:
+    """TTL付き有効期限を返す"""
+    return datetime.now() + timedelta(seconds=_signal_ttl_seconds)
+
+def _get_signal_data(room_id: str) -> dict[str, Any]:
+    """ルームのシグナリングデータを取得（なければ作成）"""
+    store_key = f"{room_id}:store"
+    _cleanup_expired_signal_entries(room_id)
+    if store_key not in _signal_store:
+        _signal_store[store_key] = {}
+    return _signal_store[store_key]
+
+@app.post("/signal/{room_id}/peers")
+async def register_peer(room_id: str, body: dict[str, Any]):
+    """POST /signal/{room_id}/peers - peer登録"""
+    peer_id = body.get("peerId")
+    is_host = body.get("isHost", False)
+
+    if not peer_id:
+        return {"error": "peerId required"}, 400
+
+    data = _get_signal_data(room_id)
+    if "peers" not in data:
+        data["peers"] = []
+
+    # 同じpeerIdを削除（更新）
+    data["peers"] = [p for p in data["peers"] if p["peerId"] != peer_id]
+    data["peers"].append({
+        "peerId": peer_id,
+        "isHost": is_host,
+        "timestamp": datetime.now().isoformat(),
+        "expires_at": _get_expiration_time().isoformat()
+    })
+
+    return {"ok": True}
+
+@app.get("/signal/{room_id}/peers")
+async def get_peers(room_id: str):
+    """GET /signal/{room_id}/peers - peer一覧取得"""
+    data = _get_signal_data(room_id)
+    peers = data.get("peers", [])
+
+    now = datetime.now()
+    active_peers = []
+    for p in peers:
+        if "expires_at" in p:
+            try:
+                expires_at = datetime.fromisoformat(p["expires_at"])
+                if now <= expires_at:
+                    active_peers.append(p)
+            except:
+                active_peers.append(p)
+        else:
+            active_peers.append(p)
+
+    return {"peers": active_peers}
+
+@app.post("/signal/{room_id}/offer")
+async def send_offer(room_id: str, body: dict[str, str]):
+    """POST /signal/{room_id}/offer - SDP offer書き込み"""
+    peer_id = body.get("peerId")
+    sdp = body.get("sdp")
+
+    if not peer_id or not sdp:
+        return {"error": "peerId and sdp required"}, 400
+
+    data = _get_signal_data(room_id)
+    data[f"offer:{peer_id}"] = {
+        "sdp": sdp,
+        "expires_at": _get_expiration_time().isoformat()
+    }
+
+    return {"ok": True}
+
+@app.get("/signal/{room_id}/offer")
+async def get_offer(room_id: str, peerId: str = None):
+    """GET /signal/{room_id}/offer?peerId=xxx - SDP offer取得"""
+    if not peerId:
+        return {"error": "peerId required"}, 400
+
+    data = _get_signal_data(room_id)
+    offer_data = data.get(f"offer:{peerId}")
+
+    if not offer_data:
+        return {"sdp": None}
+
+    # 有効期限チェック
+    now = datetime.now()
+    if "expires_at" in offer_data:
+        try:
+            expires_at = datetime.fromisoformat(offer_data["expires_at"])
+            if now > expires_at:
+                return {"sdp": None}
+        except:
+            pass
+
+    return {"sdp": offer_data.get("sdp")}
+
+@app.post("/signal/{room_id}/answer")
+async def send_answer(room_id: str, body: dict[str, str]):
+    """POST /signal/{room_id}/answer - SDP answer書き込み"""
+    peer_id = body.get("peerId")
+    sdp = body.get("sdp")
+
+    if not peer_id or not sdp:
+        return {"error": "peerId and sdp required"}, 400
+
+    data = _get_signal_data(room_id)
+    data[f"answer:{peer_id}"] = {
+        "sdp": sdp,
+        "expires_at": _get_expiration_time().isoformat()
+    }
+
+    return {"ok": True}
+
+@app.get("/signal/{room_id}/answer")
+async def get_answer(room_id: str, peerId: str = None):
+    """GET /signal/{room_id}/answer?peerId=xxx - SDP answer取得"""
+    if not peerId:
+        return {"error": "peerId required"}, 400
+
+    data = _get_signal_data(room_id)
+    answer_data = data.get(f"answer:{peerId}")
+
+    if not answer_data:
+        return {"sdp": None}
+
+    # 有効期限チェック
+    now = datetime.now()
+    if "expires_at" in answer_data:
+        try:
+            expires_at = datetime.fromisoformat(answer_data["expires_at"])
+            if now > expires_at:
+                return {"sdp": None}
+        except:
+            pass
+
+    return {"sdp": answer_data.get("sdp")}
+
+@app.post("/signal/{room_id}/ice")
+async def send_ice_candidate(room_id: str, body: dict[str, str]):
+    """POST /signal/{room_id}/ice - ICE候補追加"""
+    peer_id = body.get("peerId")
+    candidate = body.get("candidate")
+
+    if not peer_id or not candidate:
+        return {"error": "peerId and candidate required"}, 400
+
+    data = _get_signal_data(room_id)
+    key = f"ice:{peer_id}"
+
+    if key not in data:
+        data[key] = {
+            "candidates": [],
+            "expires_at": _get_expiration_time().isoformat()
+        }
+
+    data[key]["candidates"].append(candidate)
+    data[key]["expires_at"] = _get_expiration_time().isoformat()
+
+    return {"ok": True}
+
+@app.get("/signal/{room_id}/ice")
+async def get_ice_candidates(room_id: str, peerId: str = None):
+    """GET /signal/{room_id}/ice?peerId=xxx - ICE候補取得"""
+    if not peerId:
+        return {"error": "peerId required"}, 400
+
+    data = _get_signal_data(room_id)
+    ice_data = data.get(f"ice:{peerId}")
+
+    if not ice_data:
+        return {"candidates": []}
+
+    # 有効期限チェック
+    now = datetime.now()
+    if "expires_at" in ice_data:
+        try:
+            expires_at = datetime.fromisoformat(ice_data["expires_at"])
+            if now > expires_at:
+                return {"candidates": []}
+        except:
+            pass
+
+    return {"candidates": ice_data.get("candidates", [])}
 
 if __name__ == "__main__":
     import uvicorn

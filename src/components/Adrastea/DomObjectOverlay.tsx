@@ -471,7 +471,8 @@ export function preloadImageBlobs(urls: string[]): void {
       if (!blobCache.has(url) && !preloadedBlobs.has(url)) {
         preloadedBlobs.set(url, blob);
       }
-    }).catch(() => {});
+      return blob;
+    }).catch(() => new Blob());
     pendingFetches.set(url, p);
     p.finally(() => pendingFetches.delete(url));
   }

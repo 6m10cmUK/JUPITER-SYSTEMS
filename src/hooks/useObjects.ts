@@ -8,7 +8,7 @@ const genId = () =>
   ).join('');
 
 export function useObjects(
-  roomId: string,
+  _roomId: string,
   activeSceneId: string | null,
   initialObjects?: BoardObject[]
 ) {
