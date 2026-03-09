@@ -59,14 +59,15 @@ export function useAdrasteaChat(
       content: string,
       messageType: ChatMessage['message_type'] = 'chat',
       senderUid?: string,
-      senderAvatar?: string | null
+      senderAvatar?: string | null,
+      diceSystem?: string
     ) => {
       try {
         const now = Date.now();
         let finalContent = content;
 
         if (messageType === 'dice') {
-          const result = await rollDice(content);
+          const result = await rollDice(content, diceSystem || 'DiceBot');
           finalContent = result
             ? `${content} → ${result.text}`
             : `${content} → (無効なコマンド)`;
