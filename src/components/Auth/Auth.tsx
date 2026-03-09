@@ -4,7 +4,7 @@ import { ProfileEditModal } from '../Adrastea/ProfileEditModal';
 import styles from './Auth.module.css';
 
 interface AuthProps {
-  onAuthChange?: (user: import('firebase/auth').User | null) => void;
+  onAuthChange?: (user: import('../../services/auth').AuthUser | null) => void;
 }
 
 export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
@@ -50,7 +50,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
   }
 
   const displayName = profile?.display_name || user?.displayName || 'ユーザー';
-  const avatarUrl = profile?.avatar_url || user?.photoURL || null;
+  const avatarUrl = profile?.avatar_url || user?.avatarUrl || null;
 
   return (
     <div className={styles.authContainer}>
@@ -107,7 +107,7 @@ export const Auth: React.FC<AuthProps> = ({ onAuthChange }) => {
                 )}
                 <div className={styles.userDetails}>
                   <span className={styles.userName}>{displayName}</span>
-                  <span className={styles.userEmail}>{user.email}</span>
+                  <span className={styles.userEmail}>{user?.uid ?? ''}</span>
                 </div>
               </div>
               <div className={styles.menuDivider} />

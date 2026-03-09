@@ -1,12 +1,5 @@
-import { auth } from '../config/firebase';
 import { encode as encodeWebP } from '@jsquash/webp';
-
-const R2_WORKER_URL = import.meta.env.VITE_R2_WORKER_URL ?? '';
-if (!R2_WORKER_URL) {
-  throw new Error('VITE_R2_WORKER_URL is not configured');
-}
-
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL ?? '';
+import { API_BASE_URL, getAccessToken, BACKEND_URL } from '../config/api';
 
 /**
  * アニメーション画像かどうかをバイナリヘッダーで判定
@@ -131,10 +124,10 @@ function resizeToImageData(file: File, maxWidth: number): Promise<ImageData> {
   });
 }
 
-async function getIdToken(): Promise<string> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('未認証');
-  return user.getIdToken();
+function getIdToken(): string {
+  const token = getAccessToken();
+  if (!token) throw new Error('未認証');
+  return token;
 }
 
 /**
@@ -163,12 +156,12 @@ export async function uploadImage(
     options?.quality ?? 80
   );
   const ext = extFromMime(compressed);
-  const token = await getIdToken();
+  const token = getIdToken();
   const form = new FormData();
   form.append('file', compressed, path.replace(/\//g, '_') + ext);
   form.append('path', path);
 
-  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+  const res = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -186,12 +179,12 @@ export async function uploadAudio(file: File, path: string): Promise<string> {
   if (file.size > MAX_AUDIO_SIZE) {
     throw new Error('音声ファイルサイズが上限(50MB)を超えています');
   }
-  const token = await getIdToken();
+  const token = getIdToken();
   const form = new FormData();
   form.append('file', file);
   form.append('path', path);
 
-  const res = await fetch(`${R2_WORKER_URL}/upload`, {
+  const res = await fetch(`${API_BASE_URL}/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form,
@@ -208,9 +201,9 @@ export async function deleteFile(path: string): Promise<void> {
   if (path.includes('..') || path.startsWith('/')) {
     throw new Error('Invalid file path');
   }
-  const token = await getIdToken();
+  const token = getIdToken();
   const res = await fetch(
-    `${R2_WORKER_URL}/delete?path=${encodeURIComponent(path)}`,
+    `${API_BASE_URL}/delete?path=${encodeURIComponent(path)}`,
     {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },

@@ -1,110 +1,89 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { db } from '../config/firebase';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  writeBatch,
-  query,
-  orderBy,
-} from 'firebase/firestore';
 import type { ScenarioText } from '../types/adrastea.types';
 
-export function useScenarioTexts(roomId: string, enabled = true) {
-  const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>([]);
+const genId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
+
+export function useScenarioTexts(
+  roomId: string,
+  enabled = true,
+  initialScenarioTexts?: ScenarioText[]
+) {
+  const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>(
+    initialScenarioTexts ?? []
+  );
   const scenarioTextsRef = useRef(scenarioTexts);
   scenarioTextsRef.current = scenarioTexts;
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialScenarioTexts);
 
   useEffect(() => {
-    if (!roomId || !enabled) {
+    if (initialScenarioTexts) {
+      setScenarioTexts(initialScenarioTexts);
       setLoading(false);
-      return;
     }
-    setLoading(true);
-    const q = query(
-      collection(db, 'rooms', roomId, 'scenario_texts'),
-      orderBy('sort_order', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const updated: ScenarioText[] = snapshot.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            room_id: roomId,
-            title: data.title ?? '',
-            content: data.content ?? '',
-            visible: data.visible ?? false,
-            sort_order: data.sort_order ?? 0,
-            created_at: data.created_at ?? Date.now(),
-            updated_at: data.updated_at ?? Date.now(),
-          } as ScenarioText;
-        });
-        setScenarioTexts(updated);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('シナリオテキストの監視に失敗:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [roomId, enabled]);
+  }, [initialScenarioTexts]);
 
   const addScenarioText = useCallback(
-    async (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>) => {
-      const docRef = await addDoc(collection(db, 'rooms', roomId, 'scenario_texts'), {
+    (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>) => {
+      const now = Date.now();
+      const newId = genId();
+      const newText: ScenarioText = {
+        id: newId,
+        room_id: roomId,
         title: data.title ?? '新規テキスト',
         content: data.content ?? '',
         visible: data.visible ?? false,
         sort_order: data.sort_order ?? scenarioTextsRef.current.length,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-      return docRef.id;
+        created_at: now,
+        updated_at: now,
+      };
+      setScenarioTexts((prev) => [...prev, newText]);
+      return newId;
     },
     [roomId]
   );
 
   const updateScenarioText = useCallback(
-    async (textId: string, updates: Partial<ScenarioText>) => {
-      const { id, room_id, ...data } = updates as any;
-      await updateDoc(doc(db, 'rooms', roomId, 'scenario_texts', textId), {
-        ...data,
-        updated_at: Date.now(),
-      });
+    (textId: string, updates: Partial<ScenarioText>) => {
+      setScenarioTexts((prev) =>
+        prev.map((t) =>
+          t.id === textId ? { ...t, ...updates, updated_at: Date.now() } : t
+        )
+      );
     },
-    [roomId]
+    []
   );
 
-  const removeScenarioText = useCallback(
-    async (textId: string) => {
-      await deleteDoc(doc(db, 'rooms', roomId, 'scenario_texts', textId));
-    },
-    [roomId]
-  );
+  const removeScenarioText = useCallback((textId: string) => {
+    setScenarioTexts((prev) => prev.filter((t) => t.id !== textId));
+  }, []);
 
   const reorderScenarioTexts = useCallback(
-    async (orderedIds: string[]) => {
+    (orderedIds: string[]) => {
       if (!roomId) return;
-      const batch = writeBatch(db);
-      orderedIds.forEach((id, index) => {
-        batch.update(doc(db, 'rooms', roomId, 'scenario_texts', id), {
-          sort_order: index,
-          updated_at: Date.now(),
+      setScenarioTexts((prev) => {
+        const now = Date.now();
+        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+        return prev.map((t) => {
+          const newSort = orderMap.get(t.id);
+          return newSort !== undefined
+            ? { ...t, sort_order: newSort, updated_at: now }
+            : t;
         });
       });
-      await batch.commit();
     },
     [roomId]
   );
 
-  return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts };
+  return {
+    scenarioTexts,
+    loading,
+    addScenarioText,
+    updateScenarioText,
+    removeScenarioText,
+    reorderScenarioTexts,
+  };
 }

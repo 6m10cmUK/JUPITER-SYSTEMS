@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, type DragEvent } from 'react';
 import { AuthService } from '../../services/auth';
-import type { User } from 'firebase/auth';
+import type { AuthUser } from '../../services/auth';
 import styles from './PDFUploader.module.css';
 
 interface PDFUploaderProps {
@@ -14,14 +14,12 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      setUser(user);
-    });
-    return () => unsubscribe();
+    const restored = AuthService.restoreUser();
+    setUser(restored);
   }, []);
 
   const validateFile = (file: File): boolean => {
@@ -43,7 +41,7 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
 
   const handleFile = (file: File) => {
     // ログインチェック
-    const currentUser = AuthService.getCurrentUser();
+    const currentUser = AuthService.restoreUser();
     if (!currentUser) {
       setError('この機能を使用するにはログインが必要です');
       return;

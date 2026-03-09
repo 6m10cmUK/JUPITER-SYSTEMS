@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { apiFetch } from '../../config/api';
 import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
@@ -508,55 +507,19 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
     creatingRef.current = true;
     setIsCreating(true);
     try {
-      const roomRef = await addDoc(collection(db, 'rooms'), {
-        name,
-        active_scene_id: null,
-        dice_system: createDice,
-        tags: createTags,
-        owner_uid: user?.uid ?? null,
-        created_at: Date.now(),
-        updated_at: Date.now(),
+      const res = await apiFetch('/api/rooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          dice_system: createDice,
+          tags: createTags,
+        }),
       });
+      if (!res.ok) throw new Error(`ルーム作成に失敗: ${res.status}`);
+      const { id } = await res.json();
 
-      // デフォルトシーン作成
-      const sceneRef = await addDoc(collection(db, 'rooms', roomRef.id, 'scenes'), {
-        name: 'メインシーン',
-        background_url: null,
-        foreground_url: null,
-        foreground_opacity: 0.5,
-        sort_order: 0,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-
-      // デフォルトシーンに背景オブジェクト
-      await addDoc(collection(db, 'rooms', roomRef.id, 'scenes', sceneRef.id, 'objects'), {
-        type: 'background',
-        name: '背景',
-        x: 0, y: 0, width: 100, height: 100,
-        visible: true, opacity: 1, sort_order: 0, locked: true,
-        image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
-        text_content: null, font_size: 16, text_color: '#ffffff',
-        created_at: Date.now(), updated_at: Date.now(),
-      });
-
-      // デフォルトシーンに前景オブジェクト
-      await addDoc(collection(db, 'rooms', roomRef.id, 'scenes', sceneRef.id, 'objects'), {
-        type: 'foreground',
-        name: '前景',
-        x: 26, y: 36, width: 48, height: 27,
-        visible: true, opacity: 1, sort_order: 100, locked: false,
-        image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
-        text_content: null, font_size: 16, text_color: '#ffffff',
-        created_at: Date.now(), updated_at: Date.now(),
-      });
-
-      // デフォルトシーンをアクティブに
-      await updateDoc(doc(db, 'rooms', roomRef.id), {
-        active_scene_id: sceneRef.id,
-      });
-
-      onRoomCreated(roomRef.id);
+      onRoomCreated(id);
     } catch (error) {
       console.error('ルーム作成に失敗しました:', error);
     } finally {
