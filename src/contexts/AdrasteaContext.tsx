@@ -11,7 +11,6 @@ import type {
   BoardObject,
   ScenarioText,
   Cutin,
-  ActiveCutin,
   UserProfile,
 } from '../types/adrastea.types';
 import { useAdrastea } from '../hooks/useAdrastea';
@@ -28,6 +27,8 @@ import { useAuth } from './AuthContext';
 import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
 import { useP2PSync } from '../hooks/useP2PSync';
 import type { ConnectionState, CollectionName, PatchOp, RoomSnapshot as P2PRoomSnapshot } from '../services/rtc/types';
+import { RoomDataContext, UIStateContext, P2PContext } from './AdrasteaContexts';
+import type { RoomDataContextValue, UIStateContextValue, P2PContextValue } from './AdrasteaContexts';
 
 // ---------------------------------------------------------------------------
 // Empty fallbacks (stable references to avoid useEffect infinite loops)
@@ -268,15 +269,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const snapshotRoom = useMemo<Room | null>(() => {
     if (!snapshot?.room) return null;
     return {
-      id: roomId,
-      name: '',
-      dice_system: 'DiceBot',
-      created_at: Date.now(),
-      updated_at: Date.now(),
-      active_scene_id: null,
-      active_cutin: null,
-      foreground_url: null,
       ...snapshot.room,
+      id: snapshot.room.id ?? roomId,
+      name: snapshot.room.name ?? '',
+      dice_system: snapshot.room.dice_system ?? 'DiceBot',
+      created_at: snapshot.room.created_at ?? Date.now(),
+      updated_at: snapshot.room.updated_at ?? Date.now(),
+      active_scene_id: snapshot.room.active_scene_id ?? null,
+      active_cutin: snapshot.room.active_cutin ?? null,
+      foreground_url: snapshot.room.foreground_url ?? null,
     };
   }, [snapshot, roomId]);
 
@@ -921,9 +922,12 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // useObjects (P2P-aware)
       allObjects, activeObjects: effectiveActiveObjects,
-      addObject, updateObject: syncedUpdateObject,
-      removeObject: p2pRemoveObject,
-      reorderObjects, batchUpdateSort, injectOptimistic,
+      addObject: addObject as any,
+      updateObject: syncedUpdateObject as any,
+      removeObject: p2pRemoveObject as any,
+      reorderObjects: reorderObjects as any,
+      batchUpdateSort: batchUpdateSort as any,
+      injectOptimistic,
 
       // useScenarioTexts
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
@@ -932,10 +936,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
 
       // useBgms (P2P-aware)
-      bgms, addBgm,
-      updateBgm: p2pUpdateBgm,
-      removeBgm: p2pRemoveBgm,
-      reorderBgms,
+      bgms, addBgm: addBgm as any,
+      updateBgm: p2pUpdateBgm as any,
+      removeBgm: p2pRemoveBgm as any,
+      reorderBgms: reorderBgms as any,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
 
       // UI state
@@ -1010,9 +1014,71 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     ],
   );
 
+  // --- Split value objects for new contexts ---
+  const roomDataValue = useMemo<RoomDataContextValue>(() => ({
+    // Rooms/Pieces
+    pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom: p2pUpdateRoom,
+    // Chat
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+    // Scenes
+    scenes: effectiveScenes, addScene, updateScene: p2pUpdateScene, removeScene: p2pRemoveScene, reorderScenes, activateScene: safeActivateScene,
+    // Characters
+    characters, addCharacter, updateCharacter: p2pUpdateCharacter, removeCharacter: p2pRemoveCharacter, reorderCharacters,
+    // Objects
+    allObjects, activeObjects: effectiveActiveObjects, addObject: addObject as any, updateObject: syncedUpdateObject as any, removeObject: p2pRemoveObject as any, reorderObjects: reorderObjects as any, batchUpdateSort: batchUpdateSort as any, injectOptimistic,
+    // ScenarioTexts
+    scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    // Cutins
+    cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    // BGMs
+    bgms, addBgm: addBgm as any, updateBgm: p2pUpdateBgm as any, removeBgm: p2pRemoveBgm as any, reorderBgms: reorderBgms as any,
+    // Derived
+    activeScene,
+  }), [
+    pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+    effectiveScenes, addScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
+    characters, addCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
+    allObjects, effectiveActiveObjects, addObject, syncedUpdateObject, p2pRemoveObject, reorderObjects, batchUpdateSort, injectOptimistic,
+    scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    bgms, addBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
+    activeScene,
+  ]);
+
+  const uiStateValue = useMemo<UIStateContextValue>(() => ({
+    // UI editing state
+    editingScene, setEditingScene, editingCharacter, setEditingCharacter, editingCutin, setEditingCutin,
+    editingBgmId, setEditingBgmId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
+    selectedObjectIds, setSelectedObjectIds, showRoomSettings, setShowRoomSettings, showProfileEdit, setShowProfileEdit,
+    // BGM master volume
+    masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
+    // Grid
+    gridVisible, setGridVisible,
+    // Dockview
+    dockviewApi, setDockviewApi,
+    // Auto-save edits
+    setPendingEdit,
+    // 排他編集リセット
+    clearAllEditing,
+  }), [
+    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, selectedObjectIds, showRoomSettings, showProfileEdit,
+    masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing,
+  ]);
+
+  const p2pValue = useMemo<P2PContextValue>(() => ({
+    p2pConnectionState,
+  }), [p2pConnectionState]);
+
   return (
     <AdrasteaContext.Provider value={value}>
-      {children}
+      <RoomDataContext.Provider value={roomDataValue}>
+        <UIStateContext.Provider value={uiStateValue}>
+          <P2PContext.Provider value={p2pValue}>
+            {children}
+          </P2PContext.Provider>
+        </UIStateContext.Provider>
+      </RoomDataContext.Provider>
     </AdrasteaContext.Provider>
   );
 };

@@ -12,7 +12,6 @@ import { handleAuth } from './routes/auth';
 import { handleRooms } from './routes/rooms';
 import { handleAssets } from './routes/assets';
 import { handleR2 } from './routes/r2';
-import { handleSignaling } from './routes/signaling';
 import { corsHeaders } from './utils/cors';
 import { checkRateLimit } from './utils/rateLimit';
 import { verifyJwt } from './utils/jwt';
@@ -81,11 +80,6 @@ export default {
     // --- 認証エンドポイント（認証不要） ---
     if (url.pathname.startsWith('/auth/') && !url.pathname.startsWith('/auth/me')) {
       return handleAuth(request, url, env, headers);
-    }
-
-    // --- シグナリング（認証不要、ルーム参加者なら誰でも） ---
-    if (url.pathname.startsWith('/signal/')) {
-      return handleSignaling(request, url, env, headers);
     }
 
     // --- 以下は認証必須 ---

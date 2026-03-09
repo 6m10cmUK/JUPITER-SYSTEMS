@@ -9,7 +9,7 @@ const genId = () =>
 
 export function useScenarioTexts(
   roomId: string,
-  enabled = true,
+  _enabled = true,
   initialScenarioTexts?: ScenarioText[]
 ) {
   const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>(

@@ -1,15 +1,15 @@
-import { API_BASE_URL } from '../../config/api';
+import { BACKEND_URL } from '../../config/api';
 import type { SignalingPeer } from './types';
 
 /**
  * HTTP polling ベースのシグナリングクライアント
- * Cloudflare Workers KV を介して SDP / ICE / peer 情報を交換する
+ * Render FastAPI バックエンド経由で SDP / ICE / peer 情報を交換する
  */
 export class SignalingClient {
   private roomId: string;
   private peerId: string;
   private isHost: boolean;
-  private pollTimer: ReturnType<typeof setInterval> | null = null;
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private destroyed = false;
 
@@ -20,7 +20,7 @@ export class SignalingClient {
   }
 
   private url(path: string, params?: Record<string, string>): string {
-    const base = `${API_BASE_URL}/signal/${this.roomId}/${path}`;
+    const base = `${BACKEND_URL}/signal/${this.roomId}/${path}`;
     if (!params) return base;
     return `${base}?${new URLSearchParams(params)}`;
   }
@@ -97,30 +97,50 @@ export class SignalingClient {
     }
   }
 
-  // --- Polling for new peers (host mode) ---
+  // --- Polling for new peers (host mode) with exponential backoff ---
 
   startPeerPolling(
     onNewPeers: (peers: SignalingPeer[]) => void,
-    intervalMs = 2000,
+    initialIntervalMs = 2000,
   ): void {
     this.stopPeerPolling();
     const knownPeers = new Set<string>();
-    this.pollTimer = setInterval(async () => {
+    let noNewPeersCount = 0;
+    let currentIntervalMs = initialIntervalMs;
+
+    const poll = async () => {
       if (this.destroyed) return;
       try {
         const peers = await this.getPeers();
         const newPeers = peers.filter(p => !p.isHost && !knownPeers.has(p.peerId));
         for (const p of newPeers) knownPeers.add(p.peerId);
-        if (newPeers.length > 0) onNewPeers(newPeers);
+
+        if (newPeers.length > 0) {
+          // Reset backoff on new peers found
+          noNewPeersCount = 0;
+          currentIntervalMs = initialIntervalMs;
+          onNewPeers(newPeers);
+        } else {
+          // Increment no-new-peers counter and adjust interval
+          noNewPeersCount++;
+          if (noNewPeersCount >= 6) {
+            currentIntervalMs = 10000; // 10 seconds
+          } else if (noNewPeersCount >= 3) {
+            currentIntervalMs = 5000; // 5 seconds
+          }
+        }
       } catch {
         // ignore polling errors
       }
-    }, intervalMs);
+      this.pollTimer = setTimeout(poll, currentIntervalMs);
+    };
+
+    this.pollTimer = setTimeout(poll, currentIntervalMs);
   }
 
   stopPeerPolling(): void {
     if (this.pollTimer) {
-      clearInterval(this.pollTimer);
+      clearTimeout(this.pollTimer);
       this.pollTimer = null;
     }
   }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';

@@ -77,7 +77,7 @@ export function useAdrasteaChat(
           id: genId(),
           room_id: roomId,
           sender_name: senderName,
-          sender_uid: senderUid ?? null,
+          sender_uid: senderUid ?? undefined,
           sender_avatar: senderAvatar ?? null,
           content: finalContent,
           message_type: messageType === 'dice' ? 'dice' : messageType,
@@ -97,7 +97,7 @@ export function useAdrasteaChat(
     if (!hasMore) return;
 
     // IndexedDBキャッシュから古いメッセージを読み込む
-    const older = await getCachedMessages(roomId, PAGE_SIZE, oldestTimestampRef.current);
+    const older = await getCachedMessages(roomId, PAGE_SIZE);
 
     if (older.length < PAGE_SIZE) {
       setHasMore(false);
