@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
-import { uploadAssetToR2, uploadAudioAssetToR2 } from '../services/assetService';
+import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';
 import { apiFetch } from '../config/api';
 
 // モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
@@ -52,22 +52,28 @@ export function useAssets() {
       if (!uid || isGuest) return null;
       const result = await uploadAssetToR2(file, uid);
       const title = file.name;
-      const now = Date.now();
-      const res = await apiFetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: result.url,
-          r2_key: result.r2_key,
-          filename: file.name,
-          title,
-          size_bytes: result.size_bytes,
-          width: result.width,
-          height: result.height,
-          tags: [],
-          asset_type: 'image',
-        }),
-      });
+      let res: Response;
+      try {
+        res = await apiFetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: result.url,
+            r2_key: result.r2_key,
+            filename: file.name,
+            title,
+            size_bytes: result.size_bytes,
+            width: result.width,
+            height: result.height,
+            tags: [],
+            asset_type: 'image',
+          }),
+        });
+      } catch (e) {
+        // D1登録失敗 → R2ファイルを削除してロールバック
+        await deleteR2File(result.r2_key).catch(() => {});
+        throw e;
+      }
       const created: Asset = await res.json();
       setAssets((prev) => [created, ...prev]);
       return created;
@@ -80,21 +86,27 @@ export function useAssets() {
       if (!uid || isGuest) return null;
       const result = await uploadAudioAssetToR2(file, uid);
       const title = file.name;
-      const res = await apiFetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: result.url,
-          r2_key: result.r2_key,
-          filename: file.name,
-          title,
-          size_bytes: result.size_bytes,
-          width: 0,
-          height: 0,
-          tags: [],
-          asset_type: 'audio',
-        }),
-      });
+      let res: Response;
+      try {
+        res = await apiFetch('/api/assets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: result.url,
+            r2_key: result.r2_key,
+            filename: file.name,
+            title,
+            size_bytes: result.size_bytes,
+            width: 0,
+            height: 0,
+            tags: [],
+            asset_type: 'audio',
+          }),
+        });
+      } catch (e) {
+        await deleteR2File(result.r2_key).catch(() => {});
+        throw e;
+      }
       const created: Asset = await res.json();
       setAssets((prev) => [created, ...prev]);
       return created;

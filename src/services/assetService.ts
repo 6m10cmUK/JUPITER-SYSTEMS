@@ -73,7 +73,8 @@ export async function uploadAudioAssetToR2(
   return { url: data.url, r2_key, size_bytes: file.size, width: 0, height: 0 };
 }
 
-export async function deleteAssetFromR2(r2Key: string): Promise<void> {
+/** R2ファイルを直接削除（ロールバック用） */
+export async function deleteR2File(r2Key: string): Promise<void> {
   const token = getIdToken();
   const res = await fetch(
     `${API_BASE_URL}/delete?path=${encodeURIComponent(r2Key)}`,

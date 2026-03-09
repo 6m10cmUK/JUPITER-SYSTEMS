@@ -114,20 +114,26 @@ export async function handleAssets(
       return json({ error: 'Forbidden' }, headers, 403);
     }
 
-    // R2から削除
+    // D1メタデータを先に削除（参照が消えれば孤立ファイルは無害）
+    await env.DB.prepare('DELETE FROM assets WHERE id = ?').bind(assetId).run();
+
+    // R2から削除（失敗してもD1は既に削除済みなのでログのみ）
     try {
-      await env.R2_BUCKET.delete(asset.r2_key);
-    } catch {
-      // R2削除失敗してもD1からは削除する
+      if (asset.r2_key) {
+        await env.R2_BUCKET.delete(asset.r2_key);
+      }
+    } catch (e) {
+      console.error('R2削除失敗（孤立ファイル）:', asset.r2_key, e);
     }
 
     // ストレージ使用量更新
     if (asset.size_bytes > 0) {
       const { updateStorageUsage } = await import('../utils/rateLimit');
-      await updateStorageUsage(env.RATE_LIMIT, user.uid, -asset.size_bytes);
+      await updateStorageUsage(env.RATE_LIMIT, user.uid, -asset.size_bytes).catch((e: unknown) =>
+        console.error('ストレージ使用量更新失敗:', e),
+      );
     }
 
-    await env.DB.prepare('DELETE FROM assets WHERE id = ?').bind(assetId).run();
     return json({ ok: true }, headers);
   }
 

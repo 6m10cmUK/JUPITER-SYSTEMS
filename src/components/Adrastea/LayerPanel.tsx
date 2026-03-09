@@ -39,6 +39,7 @@ export function LayerPanel() {
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
+  const sortGenerationRef = useRef(0);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -49,6 +50,17 @@ export function LayerPanel() {
       setLocalOrderOverride(null);
     }
   }, [activeObjects]);
+
+  // 複数選択時に削除可能なIDリストを返す（bg/fg除外）
+  const getDeletableIds = useCallback((triggerObjId: string): string[] => {
+    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(triggerObjId)) {
+      return selectedObjectIds.filter(id => {
+        const o = activeObjects.find(o => o.id === id);
+        return o && o.type !== 'background' && o.type !== 'foreground';
+      });
+    }
+    return [triggerObjId];
+  }, [selectedObjectIds, activeObjects]);
 
   // 背景を末尾に固定。それ以外はsort_order降順
   const sortedObjects = useMemo(() => {
@@ -113,7 +125,15 @@ export function LayerPanel() {
         updates.push({ id: o.id, sort: newOrder });
       }
     });
-    if (updates.length > 0) batchUpdateSort(updates);
+    if (updates.length > 0) {
+      const gen = ++sortGenerationRef.current;
+      batchUpdateSort(updates).then(() => {
+        // 後続のドラッグが発生していなければオーバーライドをクリア
+        if (sortGenerationRef.current === gen) {
+          setLocalOrderOverride(null);
+        }
+      });
+    }
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
@@ -212,26 +232,17 @@ export function LayerPanel() {
 
   const handleRemoveObject = useCallback((obj: BoardObject) => {
     if (obj.type === 'background') return;
-    const count = selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id) ? selectedObjectIds.filter(id => { const o = activeObjects.find(o => o.id === id); return o && o.type !== 'background' && o.type !== 'foreground'; }).length : 1;
-    const msg = count > 1 ? `${count}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
+    const ids = getDeletableIds(obj.id);
+    if (ids.length === 0) return;
+    const msg = ids.length > 1 ? `${ids.length}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
     setPendingRemove({
       msg,
       action: () => {
-        if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
-          for (const id of selectedObjectIds) {
-            const o = activeObjects.find(o => o.id === id);
-            if (o && o.type !== 'background' && o.type !== 'foreground') {
-              removeObject(id);
-            }
-          }
-          clearAllEditing();
-        } else {
-          removeObject(obj.id);
-          if (editingObjectId === obj.id) clearAllEditing();
-        }
+        for (const id of ids) removeObject(id);
+        if (ids.length > 1 || editingObjectId === obj.id) clearAllEditing();
       },
     });
-  }, [selectedObjectIds, activeObjects, removeObject, editingObjectId, clearAllEditing]);
+  }, [getDeletableIds, removeObject, editingObjectId, clearAllEditing]);
 
   const canDuplicate = (id: string) => {
     const o = activeObjects.find(o => o.id === id);

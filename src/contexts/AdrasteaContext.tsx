@@ -32,7 +32,7 @@ import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
 // ---------------------------------------------------------------------------
 
 interface RoomSnapshot {
-  room: { active_scene_id: string | null; active_cutin: ActiveCutin | null; foreground_url: string | null };
+  room: Room;
   scenes: Scene[];
   objects: BoardObject[];
   characters: Character[];
@@ -252,9 +252,26 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, []);
 
   // --- Data hooks ---
+
+  // スナップショットの room に欠損フィールドがある場合（旧形式）のフォールバック
+  const snapshotRoom = useMemo<Room | null>(() => {
+    if (!snapshot?.room) return null;
+    return {
+      id: roomId,
+      name: '',
+      dice_system: 'DiceBot',
+      created_at: Date.now(),
+      updated_at: Date.now(),
+      active_scene_id: null,
+      active_cutin: null,
+      foreground_url: null,
+      ...snapshot.room,
+    };
+  }, [snapshot, roomId]);
+
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-  } = useAdrastea(roomId, snapshot ? { room: snapshot.room as Room, pieces: snapshot.pieces } : undefined);
+  } = useAdrastea(roomId, snapshot ? { room: snapshotRoom, pieces: snapshot.pieces } : undefined);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
@@ -297,27 +314,31 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- スナップショット保存 ---
   const snapshotLoading = snapshot === undefined;
 
-  const buildSnapshot = useCallback((): RoomSnapshot => ({
-    room: {
-      active_scene_id: room?.active_scene_id ?? null,
-      active_cutin: room?.active_cutin ?? null,
-      foreground_url: room?.foreground_url ?? null,
-    },
-    scenes,
-    objects: allObjects,
-    characters,
-    bgms,
-    cutins,
-    scenarioTexts,
-    pieces,
-    messages,
-  }), [room, scenes, allObjects, characters, bgms, cutins, scenarioTexts, pieces, messages]);
+  const buildSnapshot = useCallback((): RoomSnapshot | null => {
+    if (!room) return null;
+    return {
+      room: { ...room },
+      scenes,
+      objects: allObjects,
+      characters,
+      bgms,
+      cutins,
+      scenarioTexts,
+      pieces,
+      messages: messages.slice(-100),
+    };
+  }, [room, scenes, allObjects, characters, bgms, cutins, scenarioTexts, pieces, messages]);
+
+  // buildSnapshot を ref 経由で参照（useEffect の依存配列から外すため）
+  const buildSnapshotRef = useRef(buildSnapshot);
+  buildSnapshotRef.current = buildSnapshot;
 
   // 定期保存（30秒ごと、オーナーのみ）
   useEffect(() => {
     if (roomRole !== 'owner') return;
     const timer = setInterval(() => {
-      const data = buildSnapshot();
+      const data = buildSnapshotRef.current();
+      if (!data) return;
       apiFetch(`/api/rooms/${roomId}/snapshot`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -325,16 +346,21 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       }).catch(err => console.error('スナップショット保存失敗:', err));
     }, 30000);
     return () => clearInterval(timer);
-  }, [roomId, roomRole, buildSnapshot]);
-
-  // beforeunload 時の保存（オーナーのみ）
-  const buildSnapshotRef = useRef(buildSnapshot);
-  buildSnapshotRef.current = buildSnapshot;
+  }, [roomId, roomRole]);
 
   useEffect(() => {
     if (roomRole !== 'owner') return;
     const handleUnload = () => {
       const data = buildSnapshotRef.current();
+      if (!data) return;
+      const body = JSON.stringify({ data });
+      // keepalive の 64KB 制限を超える場合は messages を除外して再試行
+      const MAX_KEEPALIVE = 65536;
+      let finalBody = body;
+      if (body.length > MAX_KEEPALIVE) {
+        const slim = { ...data, messages: [] };
+        finalBody = JSON.stringify({ data: slim });
+      }
       const token = getAccessToken();
       fetch(`${API_BASE_URL}/api/rooms/${roomId}/snapshot`, {
         method: 'PUT',
@@ -342,7 +368,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
           'Content-Type': 'application/json',
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ data }),
+        body: finalBody,
         keepalive: true,
       }).catch(() => {});
     };
