@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Piece, Room } from '../types/adrastea.types';
 
 const genId = () =>
@@ -15,9 +15,11 @@ export function useAdrastea(
   const [room, setRoom] = useState<Room | null>(initialData?.room ?? null);
   const [loading, setLoading] = useState(!initialData);
 
-  // 初期データが後から届いた場合に反映
+  // 初期データが後から届いた場合に反映（一度だけ）
+  const initializedRef = useRef(false);
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !initializedRef.current) {
+      initializedRef.current = true;
       setRoom(initialData.room);
       setPieces(initialData.pieces);
       setLoading(false);

@@ -43,7 +43,7 @@ export const handleR2 = {
       return new Response('Invalid path', { status: 400, headers });
     }
 
-    if (!path.startsWith(`${user.uid}/`)) {
+    if (!path.startsWith(`users/${user.uid}/`) && !path.startsWith(`${user.uid}/`)) {
       return new Response('Forbidden', { status: 403, headers });
     }
 
@@ -104,7 +104,7 @@ export const handleR2 = {
       return new Response('Invalid path', { status: 400, headers });
     }
 
-    if (!path.startsWith(`${user.uid}/`)) {
+    if (!path.startsWith(`users/${user.uid}/`) && !path.startsWith(`${user.uid}/`)) {
       return new Response('Forbidden', { status: 403, headers });
     }
 

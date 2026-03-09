@@ -1,15 +1,27 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2 } from '../services/assetService';
 import { apiFetch } from '../config/api';
 
+// モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
+let assetCache: { uid: string; assets: Asset[] } | null = null;
+
 export function useAssets() {
   const { user, isGuest } = useAuth();
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-
   const uid = user?.uid;
+  const cached = uid && assetCache?.uid === uid ? assetCache.assets : null;
+  const [assets, setAssetsRaw] = useState<Asset[]>(cached ?? []);
+  const [loading, setLoading] = useState(!cached);
+
+  // setAssets のラッパー: state とキャッシュを同時に更新
+  const setAssets: typeof setAssetsRaw = useCallback((action) => {
+    setAssetsRaw(prev => {
+      const next = typeof action === 'function' ? action(prev) : action;
+      if (uid) assetCache = { uid, assets: next };
+      return next;
+    });
+  }, [uid]);
 
   const fetchAssets = useCallback(async () => {
     if (!uid || isGuest) {
@@ -29,9 +41,11 @@ export function useAssets() {
     }
   }, [uid, isGuest]);
 
+  // キャッシュがあればフェッチをスキップ
   useEffect(() => {
+    if (uid && assetCache && assetCache.uid === uid) return;
     fetchAssets();
-  }, [fetchAssets]);
+  }, [fetchAssets, uid]);
 
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {

@@ -21,7 +21,7 @@ import { useObjects } from '../hooks/useObjects';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
 import { useBgms } from '../hooks/useBgms';
-import { useImagePreloader } from '../hooks/useImagePreloader';
+import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
 import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
@@ -91,6 +91,7 @@ export interface AdrasteaContextValue {
   addScene: ReturnType<typeof useScenes>['addScene'];
   updateScene: ReturnType<typeof useScenes>['updateScene'];
   removeScene: ReturnType<typeof useScenes>['removeScene'];
+  reorderScenes: ReturnType<typeof useScenes>['reorderScenes'];
   activateScene: ReturnType<typeof useScenes>['activateScene'];
 
   // --- useCharacters ---
@@ -263,7 +264,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updateRoom(updates as Partial<Room>);
   }, [updateRoom]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, activateScene } = useScenes(roomId, snapshot?.scenes, handleObjectsCreated);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, snapshot?.scenes, handleObjectsCreated);
   const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId, snapshot?.characters);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
@@ -372,14 +373,35 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const isLoading = !initialLoadDone && loadingSteps.some(s => !s.done);
   const loadingProgress = loadingSteps.filter(s => s.done).length / loadingSteps.length;
 
+  // スナップショット復元後、active_scene_id が未設定ならシーンを自動アクティベート
+  useEffect(() => {
+    if (!initialLoadDone) return;
+    if (effectiveSceneId) return; // すでにアクティブなシーンがある
+    if (scenes.length > 0) {
+      setOptimisticSceneId(scenes[0].id);
+      updateRoom({ active_scene_id: scenes[0].id });
+    }
+  }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
+
   // 背景/前景はシーンごとに useScenes.ts の addScene で作成される
 
-  // --- Image preload ---
-  const preloadUrls = useMemo(() =>
-    scenes.flatMap(s => [s.background_url, s.foreground_url]),
-    [scenes]
-  );
-  useImagePreloader(preloadUrls);
+  // --- Image preload（スナップショット読み込み後に全画像を blobCache にプリロード） ---
+  const preloadDoneRef = useRef(false);
+  useEffect(() => {
+    if (preloadDoneRef.current || !initialLoadDone) return;
+    preloadDoneRef.current = true;
+    const urls: string[] = [];
+    // シーンの bg/fg URL
+    for (const s of scenes) {
+      if (s.background_url) urls.push(s.background_url);
+      if (s.foreground_url) urls.push(s.foreground_url);
+    }
+    // オブジェクトの画像
+    for (const o of allObjects) {
+      if (o.image_url) urls.push(o.image_url);
+    }
+    if (urls.length > 0) preloadImageBlobs(urls); // TODO: プリロードがアニメ継続を壊してないか確認
+  }, [initialLoadDone, scenes, allObjects]);
 
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
@@ -546,11 +568,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [effectiveSceneId, scenes, localSceneOverrides]);
 
   const effectiveScenes = useMemo(() => {
-    if (localSceneOverrides.size === 0) return scenes;
-    return scenes.map(s => {
-      const override = localSceneOverrides.get(s.id);
-      return override ? { ...s, ...override } : s;
-    });
+    let result = scenes;
+    if (localSceneOverrides.size > 0) {
+      result = result.map(s => {
+        const override = localSceneOverrides.get(s.id);
+        return override ? { ...s, ...override } : s;
+      });
+    }
+    return [...result].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   }, [scenes, localSceneOverrides]);
 
   const effectiveActiveObjects = useMemo(() => {
@@ -621,9 +646,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
+    // room.active_scene_id を更新（スナップショット保存に反映）
+    updateRoom({ active_scene_id: sceneId } );
     // ローカルstateを更新
     activateScene(sceneId);
-  }, [activateScene]);
+  }, [activateScene, updateRoom]);
 
   // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア
   const syncedUpdateObject = useCallback(async (id: string, data: Partial<BoardObject>) => {
@@ -634,6 +661,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       next.delete(id);
       return next;
     });
+    // bg/fg の image_url 変更時はシーンのローカルオーバーライドもクリア
+    if ('image_url' in data && effectiveSceneId) {
+      setLocalSceneOverrides(prev => {
+        if (!prev.has(effectiveSceneId)) return prev;
+        const next = new Map(prev);
+        next.delete(effectiveSceneId);
+        return next;
+      });
+    }
     // デバウンスタイマーもクリア
     const timerKey = `object:${id}`;
     const timer = debounceTimersRef.current.get(timerKey);
@@ -644,7 +680,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
     await updateObject(id, data);
     await syncObjectImageToScene(data, id);
-  }, [updateObject, syncObjectImageToScene]);
+  }, [updateObject, syncObjectImageToScene, effectiveSceneId]);
 
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
@@ -673,7 +709,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
 
       // useScenes
-      scenes: effectiveScenes, addScene, updateScene, removeScene,
+      scenes: effectiveScenes, addScene, updateScene, removeScene, reorderScenes,
       activateScene: safeActivateScene,
 
       // useCharacters
@@ -736,7 +772,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       roomId, roomRole,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-      effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
+      effectiveScenes, addScene, updateScene, removeScene, reorderScenes, safeActivateScene,
       characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
       addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
