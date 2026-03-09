@@ -23,7 +23,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, X, Share2, Copy } from 'lucide-react';
+import { Plus, Pencil, X, Share2, Copy, LogOut } from 'lucide-react';
 
 interface RoomLobbyProps {
   onRoomCreated: (roomId: string) => void;
@@ -445,7 +445,7 @@ function SortableRoomCard({
 
 // ── メイン ──
 const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const { rooms, loading, deleteRoom, updateRoom, reorderRooms } = useRooms(user?.uid);
   const [diceSystems, setDiceSystems] = useState<{ id: string; name: string }[]>(cachedSystems ?? []);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -609,13 +609,35 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       }}
     >
       {/* ヘッダー */}
-      <div style={{ padding: '24px 32px 0', textAlign: 'center' }}>
+      <div style={{ padding: '24px 32px 0', textAlign: 'center', position: 'relative' }}>
         <h1 style={{ margin: '0 0 4px', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>
           Adrastea
         </h1>
         <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: theme.textMuted }}>
           TRPG盤面共有ツール
         </p>
+        <button
+          className="ad-btn"
+          onClick={signOut}
+          title="ログアウト"
+          style={{
+            position: 'absolute',
+            top: '24px',
+            right: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 12px',
+            fontSize: '12px',
+            background: 'transparent',
+            border: `1px solid ${theme.border}`,
+            color: theme.textSecondary,
+            cursor: 'pointer',
+          }}
+        >
+          <LogOut size={14} />
+          ログアウト
+        </button>
       </div>
 
       {/* 検索 */}
