@@ -662,9 +662,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         messageType,
         user?.uid,
         characterAvatar !== undefined ? characterAvatar : profile?.avatar_url,
+        room?.dice_system,
       );
     },
-    [sendMessage, profile, user],
+    [sendMessage, profile, user, room?.dice_system],
   );
 
   const safeActivateScene = useCallback(async (sceneId: string | null) => {

@@ -11,7 +11,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['pdfjs-dist', 'bcdice'],
+    include: ['pdfjs-dist'],
     exclude: ['@jsquash/webp'],
     esbuildOptions: {
       loader: { '.map': 'empty' },
