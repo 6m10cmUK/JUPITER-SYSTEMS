@@ -62,6 +62,15 @@ export async function handleRooms(
 
   // GET /api/rooms/:id/snapshot — ルームデータ取得
   if (subResource === 'snapshot' && request.method === 'GET') {
+    // オーナーのみ（ゲストは許可）
+    if (!user.isGuest) {
+      const room = await env.DB.prepare('SELECT owner_id FROM rooms WHERE id = ?')
+        .bind(roomId)
+        .first<{ owner_id: string }>();
+      if (!room || room.owner_id !== user.uid) {
+        return json({ error: 'Forbidden' }, headers, 403);
+      }
+    }
     const row = await env.DB.prepare('SELECT data, updated_at FROM room_snapshots WHERE room_id = ?')
       .bind(roomId)
       .first<{ data: string; updated_at: number }>();
@@ -97,6 +106,10 @@ export async function handleRooms(
   if (!subResource && request.method === 'GET') {
     const room = await env.DB.prepare('SELECT * FROM rooms WHERE id = ?').bind(roomId).first();
     if (!room) return json({ error: 'Not found' }, headers, 404);
+    // オーナーのみ（ゲストは許可）
+    if (!user.isGuest && (room as { owner_id: string }).owner_id !== user.uid) {
+      return json({ error: 'Forbidden' }, headers, 403);
+    }
     return json(room, headers);
   }
 
