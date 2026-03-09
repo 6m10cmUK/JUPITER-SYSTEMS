@@ -33,7 +33,7 @@ export function useScenes(
       allObjects?: BoardObject[]
     ) => {
       const now = Date.now();
-      const newSceneId = genId();
+      const newSceneId = (data as { id?: string }).id ?? genId();
 
       const newScene: Scene = {
         id: newSceneId,
@@ -160,5 +160,11 @@ export function useScenes(
     []
   );
 
-  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene };
+  // P2P: expose raw setter for full sync
+  const _setAll = useCallback((items: Scene[]) => {
+    setScenes(items);
+    setLoading(false);
+  }, []);
+
+  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll };
 }

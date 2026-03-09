@@ -120,5 +120,15 @@ export function useAdrasteaChat(
     setHasMore(false);
   }, [roomId]);
 
-  return { messages, loading, hasMore, sendMessage, loadMore, clearMessages };
+  const _addMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => [...prev, msg]);
+    cacheMessages([msg]).catch(() => {});
+  }, []);
+
+  const _setAll = useCallback((msgs: ChatMessage[]) => {
+    setMessages(msgs);
+    setLoading(false);
+  }, []);
+
+  return { messages, loading, hasMore, sendMessage, loadMore, clearMessages, _addMessage, _setAll };
 }

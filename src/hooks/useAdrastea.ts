@@ -74,5 +74,15 @@ export function useAdrastea(
     setRoom((prev) => (prev ? { ...prev, ...updates, updated_at: Date.now() } : prev));
   }, []);
 
-  return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom };
+  const _setPieces = useCallback((items: Piece[]) => {
+    setPieces(items);
+    setLoading(false);
+  }, []);
+
+  const _setRoom = useCallback((r: Room | null) => {
+    setRoom(r);
+    setLoading(false);
+  }, []);
+
+  return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom, _setPieces, _setRoom };
 }
