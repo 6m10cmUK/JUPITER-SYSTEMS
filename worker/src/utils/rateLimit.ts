@@ -1,17 +1,22 @@
 const DAILY_LIMIT = 90_000; // Workers無料枠10万の90%
 
 export async function checkRateLimit(kv: KVNamespace): Promise<{ ok: boolean; count: number }> {
-  const today = new Date().toISOString().slice(0, 10);
-  const key = `usage:${today}`;
-  const count = parseInt((await kv.get(key)) ?? '0');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const key = `usage:${today}`;
+    const count = parseInt((await kv.get(key)) ?? '0');
 
-  if (count >= DAILY_LIMIT) {
-    return { ok: false, count };
+    if (count >= DAILY_LIMIT) {
+      return { ok: false, count };
+    }
+
+    // 非同期で加算（KVエラーは無視してリクエストを通す）
+    kv.put(key, String(count + 1), { expirationTtl: 86400 }).catch(() => {});
+    return { ok: true, count: count + 1 };
+  } catch {
+    // KV障害時はリクエストを通す（カウント不可だが機能継続優先）
+    return { ok: true, count: 0 };
   }
-
-  // 非同期で加算（レスポンスをブロックしない）
-  await kv.put(key, String(count + 1), { expirationTtl: 86400 });
-  return { ok: true, count: count + 1 };
 }
 
 export async function checkStorageUsage(
