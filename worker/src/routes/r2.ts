@@ -66,7 +66,8 @@ export const handleR2 = {
       ? file.type
       : 'application/octet-stream';
 
-    const key = `${path}/${Date.now()}_${file.name}`;
+    // path をそのまま R2 キーとして使用（フロントが完全なキーを生成済み）
+    const key = path;
     await env.R2_BUCKET.put(key, file.stream(), {
       httpMetadata: { contentType },
     });

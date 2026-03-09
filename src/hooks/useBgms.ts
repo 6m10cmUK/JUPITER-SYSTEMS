@@ -50,11 +50,17 @@ export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
   const updateBgm = useCallback(
     (id: string, updates: Partial<BgmTrack>) => {
       if (!roomId) return;
-      setBgms((prev) =>
-        prev.map((b) =>
+      setBgms((prev) => {
+        const updated = prev.map((b) =>
           b.id === id ? { ...b, ...updates, updated_at: Date.now() } : b
-        )
-      );
+        );
+        // scene_ids が空になったトラックは自動削除
+        const target = updated.find((b) => b.id === id);
+        if (target && target.scene_ids.length === 0) {
+          return updated.filter((b) => b.id !== id);
+        }
+        return updated;
+      });
     },
     [roomId]
   );
