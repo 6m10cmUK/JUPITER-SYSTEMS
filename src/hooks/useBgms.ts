@@ -22,7 +22,7 @@ export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
     (data: Partial<Omit<BgmTrack, 'id'>>) => {
       if (!roomId) throw new Error('roomId required');
       const now = Date.now();
-      const newId = genId();
+      const newId = (data as { id?: string }).id ?? genId();
       const newBgm: BgmTrack = {
         id: newId,
         name: data.name ?? '新規BGM',
@@ -90,5 +90,10 @@ export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
     [roomId]
   );
 
-  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms };
+  const _setAll = useCallback((items: BgmTrack[]) => {
+    setBgms(items);
+    setLoading(false);
+  }, []);
+
+  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll };
 }

@@ -29,7 +29,7 @@ export function useScenarioTexts(
   const addScenarioText = useCallback(
     (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>) => {
       const now = Date.now();
-      const newId = genId();
+      const newId = (data as { id?: string }).id ?? genId();
       const newText: ScenarioText = {
         id: newId,
         room_id: roomId,
@@ -78,6 +78,11 @@ export function useScenarioTexts(
     [roomId]
   );
 
+  const _setAll = useCallback((items: ScenarioText[]) => {
+    setScenarioTexts(items);
+    setLoading(false);
+  }, []);
+
   return {
     scenarioTexts,
     loading,
@@ -85,5 +90,6 @@ export function useScenarioTexts(
     updateScenarioText,
     removeScenarioText,
     reorderScenarioTexts,
+    _setAll,
   };
 }

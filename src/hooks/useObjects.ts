@@ -34,7 +34,7 @@ export function useObjects(
     (data: Partial<BoardObject>) => {
       const type = data.type ?? 'panel';
       const now = Date.now();
-      const newId = genId();
+      const newId = (data as { id?: string }).id ?? genId();
       const newObj: BoardObject = {
         id: newId,
         type,
@@ -144,6 +144,12 @@ export function useObjects(
     });
   }, []);
 
+  // P2P: expose raw setter for full sync
+  const _setAll = useCallback((items: BoardObject[]) => {
+    setAllObjects(items);
+    setLoading(false);
+  }, []);
+
   return {
     allObjects,
     activeObjects,
@@ -155,5 +161,6 @@ export function useObjects(
     batchUpdateSort,
     injectOptimistic,
     removeObjectsForScene,
+    _setAll,
   };
 }

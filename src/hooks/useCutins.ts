@@ -29,7 +29,7 @@ export function useCutins(
   const addCutin = useCallback(
     (data: Partial<Omit<Cutin, 'id' | 'room_id'>>) => {
       const now = Date.now();
-      const newId = genId();
+      const newId = (data as { id?: string }).id ?? genId();
       const newCutin: Cutin = {
         id: newId,
         room_id: roomId,
@@ -95,5 +95,10 @@ export function useCutins(
     [roomId]
   );
 
-  return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin };
+  const _setAll = useCallback((items: Cutin[]) => {
+    setCutins(items);
+    setLoading(false);
+  }, []);
+
+  return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll };
 }

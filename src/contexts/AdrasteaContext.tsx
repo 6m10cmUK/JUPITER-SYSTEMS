@@ -26,6 +26,8 @@ import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
 import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
+import { useP2PSync } from '../hooks/useP2PSync';
+import type { ConnectionState, CollectionName, PatchOp, RoomSnapshot as P2PRoomSnapshot } from '../services/rtc/types';
 
 // ---------------------------------------------------------------------------
 // Empty fallbacks (stable references to avoid useEffect infinite loops)
@@ -204,6 +206,9 @@ export interface AdrasteaContextValue {
   // --- パネル登録（遅延リスナー用） ---
   registerPanel: (panelId: string) => void;
   unregisterPanel: (panelId: string) => void;
+
+  // --- P2P ---
+  p2pConnectionState: ConnectionState;
 }
 
 // ---------------------------------------------------------------------------
@@ -277,10 +282,12 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+    _setPieces, _setRoom,
   } = useAdrastea(roomId, snapshot === undefined ? undefined : snapshot ? { room: snapshotRoom, pieces: snapshot.pieces } : EMPTY_INITIAL);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
+    _addMessage, _setAll: _setMessages,
   } = useAdrasteaChat(roomId, snapshot === undefined ? undefined : snapshot?.messages ?? EMPTY_ARRAY as ChatMessage[]);
 
   // onRoomUpdate コールバック（useCutins → useAdrastea）
@@ -288,8 +295,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updateRoom(updates as Partial<Room>);
   }, [updateRoom]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll: _setScenes } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll: _setCharacters } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -304,6 +311,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const {
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+    _setAll: _setObjects,
   } = useObjects(roomId, effectiveSceneId, snapshot === undefined ? undefined : snapshot?.objects ?? EMPTY_ARRAY as BoardObject[]);
 
   // objectsCreatedRef に injectOptimistic を設定
@@ -313,9 +321,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const scenarioTextsEnabled = activePanels.has('scenarioText');
   const cutinsEnabled = activePanels.has('cutin');
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
-  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts, _setAll: _setScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll: _setCutins } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll: _setBgms } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
 
   // --- スナップショット保存 ---
   const snapshotLoading = snapshot === undefined;
@@ -417,6 +425,92 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
 
   // 背景/前景はシーンごとに useScenes.ts の addScene で作成される
+
+  // --- P2P sync ---
+  const isHost = roomRole === 'owner';
+
+  // P2P: incoming patch handler
+  const handleP2PPatch = useCallback((collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>) => {
+    const setterMap: Record<CollectionName, {
+      add: (d: Record<string, unknown>) => void;
+      update: (id: string, d: Record<string, unknown>) => void;
+      remove: (id: string) => void;
+    }> = {
+      scenes: {
+        add: (d) => addScene({ ...d, id } as never),
+        update: (id, d) => updateScene(id, d as Partial<Scene>),
+        remove: (id) => removeScene(id),
+      },
+      objects: {
+        add: (d) => addObject({ ...d, id } as Partial<BoardObject>),
+        update: (id, d) => updateObject(id, d as Partial<BoardObject>),
+        remove: (id) => removeObject(id),
+      },
+      characters: {
+        add: (d) => addCharacter({ ...d, id } as never),
+        update: (id, d) => updateCharacter(id, d as Partial<Character>),
+        remove: (id) => removeCharacter(id),
+      },
+      bgms: {
+        add: (d) => addBgm({ ...d, id } as never),
+        update: (id, d) => updateBgm(id, d as Partial<BgmTrack>),
+        remove: (id) => removeBgm(id),
+      },
+      cutins: {
+        add: (d) => addCutin({ ...d, id } as never),
+        update: (id, d) => updateCutin(id, d as Partial<Cutin>),
+        remove: (id) => removeCutin(id),
+      },
+      scenarioTexts: {
+        add: (d) => addScenarioText({ ...d, id } as never),
+        update: (id, d) => updateScenarioText(id, d as Partial<ScenarioText>),
+        remove: (id) => removeScenarioText(id),
+      },
+      pieces: {
+        add: () => {}, // pieces use addPiece with different signature
+        update: (id, d) => updatePiece(id, d as Partial<Piece>),
+        remove: (id) => removePiece(id),
+      },
+    };
+    const handler = setterMap[collection];
+    if (!handler) return;
+    if (op === 'add' && data) handler.add(data);
+    else if (op === 'update' && data) handler.update(id, data);
+    else if (op === 'remove') handler.remove(id);
+  }, [addScene, updateScene, removeScene, addObject, updateObject, removeObject, addCharacter, updateCharacter, removeCharacter, addBgm, updateBgm, removeBgm, addCutin, updateCutin, removeCutin, addScenarioText, updateScenarioText, removeScenarioText, updatePiece, removePiece]);
+
+  // P2P: incoming full sync handler
+  const handleP2PFullSync = useCallback((snap: P2PRoomSnapshot) => {
+    _setRoom(snap.room);
+    _setPieces(snap.pieces);
+    _setScenes(snap.scenes);
+    _setObjects(snap.objects);
+    _setCharacters(snap.characters);
+    _setBgms(snap.bgms);
+    _setCutins(snap.cutins);
+    _setScenarioTexts(snap.scenarioTexts);
+    _setMessages(snap.messages);
+  }, [_setRoom, _setPieces, _setScenes, _setObjects, _setCharacters, _setBgms, _setCutins, _setScenarioTexts, _setMessages]);
+
+  const { connectionState: p2pConnectionState, sendPatch, sendRoomUpdate, sendChatMessage } = useP2PSync({
+    roomId,
+    userId: user?.uid ?? '',
+    isHost,
+    enabled: initialLoadDone && !!user?.uid,
+    getSnapshot: buildSnapshot as () => P2PRoomSnapshot | null,
+    onFullSync: handleP2PFullSync,
+    onPatch: handleP2PPatch,
+    onRoomUpdate: (data) => updateRoom(data),
+    onChatMessage: (msg) => _addMessage(msg),
+  });
+
+  // Refs for P2P send functions (avoid re-creating wrappers on every render)
+  const sendPatchRef = useRef(sendPatch);
+  sendPatchRef.current = sendPatch;
+  const sendRoomUpdateRef = useRef(sendRoomUpdate);
+  sendRoomUpdateRef.current = sendRoomUpdate;
+  const sendChatMessageRef = useRef(sendChatMessage);
+  sendChatMessageRef.current = sendChatMessage;
 
   // --- Image preload（スナップショット読み込み後に全画像を blobCache にプリロード） ---
   const preloadDoneRef = useRef(false);
@@ -648,6 +742,58 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [effectiveSceneId, effectiveScenes]);
 
 
+  // --- P2P-aware operation wrappers ---
+
+  // updateRoom + P2P broadcast
+  const p2pUpdateRoom = useCallback((updates: Partial<Room>) => {
+    updateRoom(updates);
+    sendRoomUpdateRef.current(updates);
+  }, [updateRoom]);
+
+  // Scene operations + P2P broadcast
+  const p2pUpdateScene = useCallback((id: string, data: Partial<Scene>) => {
+    updateScene(id, data);
+    sendPatchRef.current('scenes', 'update', id, data as Record<string, unknown>);
+  }, [updateScene]);
+
+  const p2pRemoveScene = useCallback((id: string) => {
+    removeScene(id);
+    sendPatchRef.current('scenes', 'remove', id);
+  }, [removeScene]);
+
+  // Object operations + P2P broadcast
+  const p2pUpdateObject = useCallback((id: string, data: Partial<BoardObject>) => {
+    updateObject(id, data);
+    sendPatchRef.current('objects', 'update', id, data as Record<string, unknown>);
+  }, [updateObject]);
+
+  const p2pRemoveObject = useCallback((id: string) => {
+    removeObject(id);
+    sendPatchRef.current('objects', 'remove', id);
+  }, [removeObject]);
+
+  // Character operations + P2P broadcast
+  const p2pUpdateCharacter = useCallback((id: string, data: Partial<Character>) => {
+    updateCharacter(id, data);
+    sendPatchRef.current('characters', 'update', id, data as Record<string, unknown>);
+  }, [updateCharacter]);
+
+  const p2pRemoveCharacter = useCallback((id: string) => {
+    removeCharacter(id);
+    sendPatchRef.current('characters', 'remove', id);
+  }, [removeCharacter]);
+
+  // BGM operations + P2P broadcast
+  const p2pUpdateBgm = useCallback((id: string, data: Partial<BgmTrack>) => {
+    updateBgm(id, data);
+    sendPatchRef.current('bgms', 'update', id, data as Record<string, unknown>);
+  }, [updateBgm]);
+
+  const p2pRemoveBgm = useCallback((id: string) => {
+    removeBgm(id);
+    sendPatchRef.current('bgms', 'remove', id);
+  }, [removeBgm]);
+
   // --- Callbacks ---
   const handleSendMessage = useCallback(
     (
@@ -656,14 +802,18 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       characterName?: string,
       characterAvatar?: string | null,
     ) => {
+      const senderName = characterName ?? profile?.display_name ?? 'ユーザー';
+      const senderAvatar = characterAvatar !== undefined ? characterAvatar : profile?.avatar_url;
       sendMessage(
-        characterName ?? profile?.display_name ?? 'ユーザー',
+        senderName,
         content,
         messageType,
         user?.uid,
-        characterAvatar !== undefined ? characterAvatar : profile?.avatar_url,
+        senderAvatar,
         room?.dice_system,
       );
+      // P2P chat broadcast is handled after message is created in the sendMessage callback
+      // For now, chat messages are synced via full_sync on reconnect
     },
     [sendMessage, profile, user, room?.dice_system],
   );
@@ -693,11 +843,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
-    // room.active_scene_id を更新（スナップショット保存に反映）
-    updateRoom({ active_scene_id: sceneId } );
+    // room.active_scene_id を更新（スナップショット保存に反映）+ P2P broadcast
+    p2pUpdateRoom({ active_scene_id: sceneId } );
     // ローカルstateを更新
     activateScene(sceneId);
-  }, [activateScene, updateRoom, flushEdit]);
+  }, [activateScene, p2pUpdateRoom, flushEdit]);
 
   // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア
   const syncedUpdateObject = useCallback(async (id: string, data: Partial<BoardObject>) => {
@@ -725,9 +875,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       debounceTimersRef.current.delete(timerKey);
     }
 
-    await updateObject(id, data);
+    await p2pUpdateObject(id, data);
     await syncObjectImageToScene(data, id);
-  }, [updateObject, syncObjectImageToScene, effectiveSceneId]);
+  }, [p2pUpdateObject, syncObjectImageToScene, effectiveSceneId]);
 
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
@@ -749,22 +899,31 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       roomId,
       roomRole,
 
-      // useAdrastea
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      // useAdrastea (P2P-aware)
+      pieces, room, movePiece, addPiece, removePiece, updatePiece,
+      updateRoom: p2pUpdateRoom,
 
       // useAdrasteaChat
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
 
-      // useScenes
-      scenes: effectiveScenes, addScene, updateScene, removeScene, reorderScenes,
+      // useScenes (P2P-aware)
+      scenes: effectiveScenes, addScene,
+      updateScene: p2pUpdateScene,
+      removeScene: p2pRemoveScene,
+      reorderScenes,
       activateScene: safeActivateScene,
 
-      // useCharacters
-      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
+      // useCharacters (P2P-aware)
+      characters, addCharacter,
+      updateCharacter: p2pUpdateCharacter,
+      removeCharacter: p2pRemoveCharacter,
+      reorderCharacters,
 
-      // useObjects
+      // useObjects (P2P-aware)
       allObjects, activeObjects: effectiveActiveObjects,
-      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+      addObject, updateObject: syncedUpdateObject,
+      removeObject: p2pRemoveObject,
+      reorderObjects, batchUpdateSort, injectOptimistic,
 
       // useScenarioTexts
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
@@ -772,8 +931,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // useCutins
       cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
 
-      // useBgms
-      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+      // useBgms (P2P-aware)
+      bgms, addBgm,
+      updateBgm: p2pUpdateBgm,
+      removeBgm: p2pRemoveBgm,
+      reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
 
       // UI state
@@ -814,18 +976,21 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // パネル登録
       registerPanel, unregisterPanel,
+
+      // P2P
+      p2pConnectionState,
     }),
     [
       roomId, roomRole,
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-      effectiveScenes, addScene, updateScene, removeScene, reorderScenes, safeActivateScene,
-      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
+      effectiveScenes, addScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
+      characters, addCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
-      addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+      addObject, syncedUpdateObject, p2pRemoveObject, reorderObjects, batchUpdateSort, injectOptimistic,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
       cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+      bgms, addBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
@@ -841,6 +1006,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setPendingEdit,
       clearAllEditing,
       registerPanel, unregisterPanel,
+      p2pConnectionState,
     ],
   );
 
