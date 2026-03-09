@@ -144,5 +144,21 @@ export function useScenes(
     []
   );
 
-  return { scenes, loading, addScene, updateScene, removeScene, activateScene };
+  const reorderScenes = useCallback(
+    (orderedIds: string[]) => {
+      const now = Date.now();
+      setScenes((prev) => {
+        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+        return prev.map((s) => {
+          const newSort = orderMap.get(s.id);
+          return newSort !== undefined && s.sort_order !== newSort
+            ? { ...s, sort_order: newSort, updated_at: now }
+            : s;
+        });
+      });
+    },
+    []
+  );
+
+  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene };
 }

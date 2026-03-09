@@ -1,8 +1,38 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
 import { X, Plus, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
+import { useAnimatedBlobSrc } from './DomObjectOverlay';
+
+/** blobCache 経由のサムネイル — キャッシュ済みなら即表示 */
+function CachedThumbnail({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
+  const blobSrc = useAnimatedBlobSrc(src);
+  return <img src={blobSrc ?? src} alt={alt} style={style} draggable={false} />;
+}
+
+/** IntersectionObserver で可視領域に入ったときだけ中身を描画 */
+function LazyVisible({ children, height }: { children: React.ReactNode; height?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); obs.disconnect(); } },
+      { rootMargin: '200px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} style={{ minHeight: height }}>
+      {visible ? children : null}
+    </div>
+  );
+}
 
 // --- DnD オーバーレイフック ---
 function useDragDropOverlay(onDrop: (file: File) => void) {
@@ -568,32 +598,33 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                 </div>
               )}
               {filtered.map((asset) => (
-                <div
-                  key={asset.id}
-                  style={{
-                    border: `1px solid ${theme.border}`, borderRadius: 0,
-                    overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
-                    cursor: onSelect ? 'pointer' : undefined,
-                  }}
-                  onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename, asset.width, asset.height)}
-                >
-                  <img
-                    src={asset.url}
-                    alt={asset.filename}
-                    style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
-                  />
-                  <div style={{ padding: '4px' }}>
-                    <div style={{
-                      fontSize: '0.75rem', color: theme.textPrimary,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                      marginBottom: '4px',
-                    }}>
-                      {asset.title || asset.filename}
+                <LazyVisible key={asset.id} height="200px">
+                  <div
+                    style={{
+                      border: `1px solid ${theme.border}`, borderRadius: 0,
+                      overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
+                      cursor: onSelect ? 'pointer' : undefined,
+                    }}
+                    onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename, asset.width, asset.height)}
+                  >
+                    <CachedThumbnail
+                      src={asset.url}
+                      alt={asset.filename}
+                      style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+                    />
+                    <div style={{ padding: '4px' }}>
+                      <div style={{
+                        fontSize: '0.75rem', color: theme.textPrimary,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        marginBottom: '4px',
+                      }}>
+                        {asset.title || asset.filename}
+                      </div>
+                      {renderTagSection(asset)}
+                      {renderDeleteSection(asset)}
                     </div>
-                    {renderTagSection(asset)}
-                    {renderDeleteSection(asset)}
                   </div>
-                </div>
+                </LazyVisible>
               ))}
             </div>
           ) : (

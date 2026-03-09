@@ -359,20 +359,26 @@ function releaseBlobUrl(imageUrl: string): void {
 }
 
 export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string | null {
-  // キャッシュ済みなら初回レンダーから即座に Blob URL を返す（ちらつき防止）
-  // useState の lazy initializer 内でのみ acquireBlobUrl を呼ぶことで refCount リークを防ぐ
-  const initialImageUrlRef = useRef(imageUrl);
-  const activeUrlRef = useRef<string | null>(null);
+  // blobCache/preloadedBlobs から blob を取得し、表示用に毎回新しい blob URL を生成する。
+  // 同じ blob URL を再利用するとブラウザのアニメーションデコードキャッシュにより
+  // GIF/WebP/APNG が再生されない場合があるため、コンポーネントごとに固有の blob URL を持つ。
+  const activeImageUrlRef = useRef<string | null>(null);
+  const displayBlobUrlRef = useRef<string | null>(null);
   const mountedRef = useRef(true);
 
   const [blobSrc, setBlobSrc] = useState<string | null>(() => {
-    const url = initialImageUrlRef.current;
+    const url = imageUrl ?? null;
     if (!url) return null;
     const existing = blobCache.get(url);
-    if (!existing) return null;
-    const blobUrl = acquireBlobUrl(url, existing.blob);
-    activeUrlRef.current = url;
-    return blobUrl;
+    const blob = existing?.blob ?? preloadedBlobs.get(url) ?? null;
+    if (!blob) return null;
+    // refCount を上げて blob 保管を維持
+    acquireBlobUrl(url, blob);
+    // 表示用にフレッシュな blob URL を生成
+    const freshUrl = URL.createObjectURL(blob);
+    activeImageUrlRef.current = url;
+    displayBlobUrlRef.current = freshUrl;
+    return freshUrl;
   });
 
   useEffect(() => {
@@ -382,54 +388,93 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
 
   useEffect(() => {
     if (!imageUrl) {
-      if (activeUrlRef.current) { releaseBlobUrl(activeUrlRef.current); activeUrlRef.current = null; }
+      if (activeImageUrlRef.current) {
+        releaseBlobUrl(activeImageUrlRef.current);
+        activeImageUrlRef.current = null;
+      }
+      if (displayBlobUrlRef.current) {
+        URL.revokeObjectURL(displayBlobUrlRef.current);
+        displayBlobUrlRef.current = null;
+      }
       setBlobSrc(null);
       return;
     }
 
-    // 既に同じ URL で acquire 済み（初期化 or 前回の effect）ならスキップ
-    if (activeUrlRef.current === imageUrl) return;
+    // 既に同じ URL で処理済みならスキップ
+    if (activeImageUrlRef.current === imageUrl) return;
 
     const apply = (blob: Blob) => {
-      // マウント済み & imageUrl が変わっていないことを確認
       if (!mountedRef.current) return;
-      if (activeUrlRef.current === imageUrl) return; // 別の経路で既に適用済み
-      if (activeUrlRef.current && activeUrlRef.current !== imageUrl) {
-        releaseBlobUrl(activeUrlRef.current);
-      }
-      const url = acquireBlobUrl(imageUrl, blob);
-      activeUrlRef.current = imageUrl;
-      setBlobSrc(url);
+      if (activeImageUrlRef.current === imageUrl) return;
+      // 前の URL をクリーンアップ
+      if (activeImageUrlRef.current) releaseBlobUrl(activeImageUrlRef.current);
+      if (displayBlobUrlRef.current) URL.revokeObjectURL(displayBlobUrlRef.current);
+      // blob 保管の refCount 管理
+      acquireBlobUrl(imageUrl, blob);
+      // 表示用にフレッシュな blob URL
+      const freshUrl = URL.createObjectURL(blob);
+      activeImageUrlRef.current = imageUrl;
+      displayBlobUrlRef.current = freshUrl;
+      setBlobSrc(freshUrl);
     };
 
     const existing = blobCache.get(imageUrl);
     if (existing) {
       apply(existing.blob);
     } else {
-      // 同じ URL の fetch を deduplicate
-      let fetchPromise = pendingFetches.get(imageUrl);
-      if (!fetchPromise) {
-        fetchPromise = fetch(imageUrl).then(r => r.blob());
-        pendingFetches.set(imageUrl, fetchPromise);
-        fetchPromise.finally(() => pendingFetches.delete(imageUrl));
+      const preloaded = preloadedBlobs.get(imageUrl);
+      if (preloaded) {
+        preloadedBlobs.delete(imageUrl);
+        apply(preloaded);
+      } else {
+        let fetchPromise = pendingFetches.get(imageUrl);
+        if (!fetchPromise) {
+          fetchPromise = fetch(imageUrl).then(r => r.blob());
+          pendingFetches.set(imageUrl, fetchPromise);
+          fetchPromise.finally(() => pendingFetches.delete(imageUrl));
+        }
+        fetchPromise
+          .then(blob => apply(blob))
+          .catch(() => {
+            if (mountedRef.current) setBlobSrc(imageUrl);
+          });
       }
-      fetchPromise
-        .then(blob => apply(blob))
-        .catch(() => {
-          if (mountedRef.current) setBlobSrc(imageUrl);
-        });
     }
   }, [imageUrl]);
 
-  // コンポーネント unmount 時に release
+  // unmount 時: refCount release + 表示用 blob URL revoke
   useEffect(() => {
     return () => {
-      if (activeUrlRef.current) { releaseBlobUrl(activeUrlRef.current); activeUrlRef.current = null; }
+      if (activeImageUrlRef.current) { releaseBlobUrl(activeImageUrlRef.current); activeImageUrlRef.current = null; }
+      if (displayBlobUrlRef.current) { URL.revokeObjectURL(displayBlobUrlRef.current); displayBlobUrlRef.current = null; }
     };
   }, []);
 
-  // フォールバック: blob 取得に失敗/遅延しても画像は表示する
   return blobSrc ?? (imageUrl || null);
+}
+
+/**
+ * プリロード用 Blob ストア（blob URL は作らず Blob だけ保持）。
+ * useAnimatedBlobSrc が acquire する際に新しい blob URL を生成するため、
+ * GIF/APNG/WebP アニメーションがシーン切替時に最初から再生される仕様を維持。
+ */
+const preloadedBlobs = new Map<string, Blob>();
+
+/**
+ * 画像URLリストをバックグラウンドで fetch し preloadedBlobs に保持する。
+ * blobCache（表示中の blob URL 管理）とは分離。fetch を省略するためだけに使う。
+ */
+export function preloadImageBlobs(urls: string[]): void {
+  for (const url of urls) {
+    if (!url || blobCache.has(url) || preloadedBlobs.has(url) || pendingFetches.has(url)) continue;
+    const p = fetch(url).then(r => r.blob()).then(blob => {
+      if (!blobCache.has(url) && !preloadedBlobs.has(url)) {
+        preloadedBlobs.set(url, blob);
+      }
+    }).catch(() => {});
+    pendingFetches.set(url, p);
+    p.finally(() => pendingFetches.delete(url));
+  }
 }
 
 // --- PanelObject (DOM版) ---
