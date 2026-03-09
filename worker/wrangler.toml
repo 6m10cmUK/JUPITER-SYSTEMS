@@ -18,3 +18,7 @@ database_id = "3816e6dc-5093-47da-8811-ea36ea6257c2"
 binding = "RATE_LIMIT"
 id = "96731d59658e45bf811597ed40c56f39"
 
+[[kv_namespaces]]
+binding = "SIGNALING"
+id = "6223401001564d7c858a2318df310db1"
+
