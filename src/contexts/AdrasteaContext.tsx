@@ -28,6 +28,12 @@ import { useAuth } from './AuthContext';
 import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
 
 // ---------------------------------------------------------------------------
+// Empty fallbacks (stable references to avoid useEffect infinite loops)
+// ---------------------------------------------------------------------------
+const EMPTY_ARRAY: never[] = [];
+const EMPTY_INITIAL = { room: null as unknown as Room, pieces: EMPTY_ARRAY as Piece[] };
+
+// ---------------------------------------------------------------------------
 // Snapshot type
 // ---------------------------------------------------------------------------
 
@@ -271,19 +277,19 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-  } = useAdrastea(roomId, snapshot ? { room: snapshotRoom, pieces: snapshot.pieces } : undefined);
+  } = useAdrastea(roomId, snapshot === undefined ? undefined : snapshot ? { room: snapshotRoom, pieces: snapshot.pieces } : EMPTY_INITIAL);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
-  } = useAdrasteaChat(roomId, snapshot?.messages);
+  } = useAdrasteaChat(roomId, snapshot === undefined ? undefined : snapshot?.messages ?? EMPTY_ARRAY as ChatMessage[]);
 
   // onRoomUpdate コールバック（useCutins → useAdrastea）
   const handleRoomUpdate = useCallback((updates: Record<string, unknown>) => {
     updateRoom(updates as Partial<Room>);
   }, [updateRoom]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, snapshot?.scenes, handleObjectsCreated);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId, snapshot?.characters);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -298,7 +304,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const {
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
-  } = useObjects(roomId, effectiveSceneId, snapshot?.objects);
+  } = useObjects(roomId, effectiveSceneId, snapshot === undefined ? undefined : snapshot?.objects ?? EMPTY_ARRAY as BoardObject[]);
 
   // objectsCreatedRef に injectOptimistic を設定
   useEffect(() => {
@@ -307,9 +313,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const scenarioTextsEnabled = activePanels.has('scenarioText');
   const cutinsEnabled = activePanels.has('cutin');
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot?.scenarioTexts);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled, snapshot?.cutins, handleRoomUpdate);
-  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, snapshot?.bgms);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
 
   // --- スナップショット保存 ---
   const snapshotLoading = snapshot === undefined;

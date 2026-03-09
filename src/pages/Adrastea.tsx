@@ -156,6 +156,10 @@ const Adrastea: React.FC = () => {
   const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
   const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
 
+  useEffect(() => {
+    document.title = 'Adrastea';
+  }, []);
+
   // ルーム存在チェック & オーナーUID取得
   useEffect(() => {
     if (!roomId || !user) {
