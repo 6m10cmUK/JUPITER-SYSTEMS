@@ -162,6 +162,7 @@ const cricketSecretStrategy: GameModeStrategy = {
     const marks = state.cricketMarks
     const scores = state.cricketScores
     const secretNumbers = state.secretNumbers ?? []
+    if (secretNumbers.length !== 7) return false
     const playerCount = state.players.length
 
     // 誰かが全ナンバークローズかチェック

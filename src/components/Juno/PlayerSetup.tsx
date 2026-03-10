@@ -7,6 +7,10 @@ const LAST_START_SCORE_STORAGE_KEY = 'juno-last-start-score'
 const LAST_PLAYER_COUNT_STORAGE_KEY = 'juno-last-player-count'
 const LAST_SHUFFLE_STORAGE_KEY = 'juno-last-shuffle'
 
+function safeSetItem(key: string, value: string) {
+  try { localStorage.setItem(key, value) } catch {}
+}
+
 function loadNameHistory(): string[] {
   try {
     const saved = localStorage.getItem(NAMES_STORAGE_KEY)
@@ -19,7 +23,7 @@ function loadNameHistory(): string[] {
 function saveNameHistory(names: string[]) {
   const history = loadNameHistory()
   const updated = [...new Set([...names.filter(n => n.trim()), ...history])].slice(0, 20)
-  localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify(updated))
+  safeSetItem(NAMES_STORAGE_KEY, JSON.stringify(updated))
 }
 
 function loadLastMode(): GameMode {
@@ -58,7 +62,7 @@ function loadLastPlayerCount(): number {
 function removeFromStorageHistory(nameToRemove: string) {
   const history = loadNameHistory()
   const updated = history.filter(name => name !== nameToRemove)
-  localStorage.setItem(NAMES_STORAGE_KEY, JSON.stringify(updated))
+  safeSetItem(NAMES_STORAGE_KEY, JSON.stringify(updated))
 }
 
 interface Props {
@@ -73,7 +77,9 @@ export function PlayerSetup({ dispatch }: Props) {
   const [selectedStartScore, setSelectedStartScore] = useState<301 | 501 | 701>(loadLastStartScore)
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
   const [isCricketSecret, setIsCricketSecret] = useState(loadLastMode() === 'cricket-secret')
-  const [shuffle, setShuffle] = useState(() => localStorage.getItem(LAST_SHUFFLE_STORAGE_KEY) === 'true')
+  const [shuffle, setShuffle] = useState(() => {
+    try { return localStorage.getItem(LAST_SHUFFLE_STORAGE_KEY) === 'true' } catch { return false }
+  })
 
   useEffect(() => {
     const history = loadNameHistory()
@@ -92,11 +98,11 @@ export function PlayerSetup({ dispatch }: Props) {
     let playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`)
     saveNameHistory(names.slice(0, playerCount).filter(n => n.trim()))
     const gameMode: GameMode = isCricketSecret ? 'cricket-secret' : selectedMode
-    localStorage.setItem(LAST_MODE_STORAGE_KEY, gameMode)
-    localStorage.setItem(LAST_PLAYER_COUNT_STORAGE_KEY, String(playerCount))
-    localStorage.setItem(LAST_SHUFFLE_STORAGE_KEY, String(shuffle))
+    safeSetItem(LAST_MODE_STORAGE_KEY, gameMode)
+    safeSetItem(LAST_PLAYER_COUNT_STORAGE_KEY, String(playerCount))
+    safeSetItem(LAST_SHUFFLE_STORAGE_KEY, String(shuffle))
     if (gameMode === 'zero-one') {
-      localStorage.setItem(LAST_START_SCORE_STORAGE_KEY, String(selectedStartScore))
+      safeSetItem(LAST_START_SCORE_STORAGE_KEY, String(selectedStartScore))
     }
     if (shuffle) {
       for (let i = playerNames.length - 1; i > 0; i--) {
@@ -162,7 +168,6 @@ export function PlayerSetup({ dispatch }: Props) {
       <div className="space-y-3">
         <label className="block text-sm font-semibold text-gray-400">プレイヤー名</label>
         {Array.from({ length: playerCount }, (_, i) => {
-          const usedNames = names.slice(0, playerCount).filter(n => n.trim())
           const suggestions = getSuggestions(i)
           const showDropdown = focusedIndex === i && suggestions.length > 0
 
