@@ -19,63 +19,49 @@ export interface RoomSyncCallbacks {
   onRoomUpdate?: (data: Partial<Room>) => void;
   onChatMessage?: (msg: ChatMessage) => void;
   onConnectionStateChange?: (state: ConnectionState) => void;
-  onHostElection?: (hostPeerId: string | null, isMe: boolean) => void;
-  onSaveSnapshot?: () => void;
 }
 
 /**
- * RoomSync — P2P データ同期の統合レイヤー
+ * RoomSync — フルメッシュ P2P データ同期の統合レイヤー
  *
- * ホスト側:
- *   - ゲストからの patch/message を受信 → ローカルに適用 → 全員にブロードキャスト
- *   - ゲスト接続時に full_sync 送信
- *   - ホスト変更時に host_election を通知
- *
- * ゲスト側:
- *   - ホストからの full_sync/patch/message を受信 → ローカルに適用
- *   - 操作時は patch をホストに送信
+ * 全ピアが平等に接続。各ピアが同じ操作を受信し、Last-Write-Wins で競合を解決。
+ * - 操作時: patch/room_update をブロードキャスト
+ * - 受信時: timestamp を比較して適用判定
+ * - 接続時: 全員が sync_request を送信し、全員が応答できる
  */
 export class RoomSync {
   private peerManager: PeerManager;
   private signaling: SignalingClient;
-  private isHost: boolean;
   private peerId: string;
   private getSnapshot: () => RoomSnapshot | null;
 
   // Callbacks to update React state
   private callbacks: RoomSyncCallbacks = {};
 
-  // ホスト離脱中のpatchキュー
-  private pendingPatches: Array<{
-    collection: CollectionName;
-    op: PatchOp;
-    id: string;
-    data?: Record<string, unknown>;
-  }> = [];
+  // Last-Write-Wins: 最後に適用したタイムスタンプ
+  // key: `${collection}:${id}`
+  private lastAppliedTimestamps = new Map<string, number>();
 
   constructor(
     roomId: string,
     userId: string,
-    isHost: boolean,
     getSnapshot: () => RoomSnapshot | null,
     _privateKey?: CryptoKey,
   ) {
-    this.isHost = isHost;
     this.getSnapshot = getSnapshot;
 
-    // タブごとにランダムなIDを生成（同アカウント・同デバイスの複数タブを区別するため）
-    // sessionStorage はタブ間で共有されないので各タブ固有になる
+    // タブごとにランダムなIDを生成
     let tabId = sessionStorage.getItem('adrastea_tab_id');
     if (!tabId) {
       tabId = Math.random().toString(36).slice(2, 10);
       sessionStorage.setItem('adrastea_tab_id', tabId);
     }
     this.peerId = `${userId}_${tabId}_${Date.now()}`;
-    this.signaling = new SignalingClient(roomId, this.peerId, isHost);
+
+    this.signaling = new SignalingClient(roomId, this.peerId);
     this.peerManager = new PeerManager(
       this.signaling,
       this.peerId,
-      isHost,
       this.handleMessage.bind(this),
       this.handleStateChange.bind(this),
     );
@@ -90,17 +76,7 @@ export class RoomSync {
   // --- Lifecycle ---
 
   async start(): Promise<void> {
-    // 全員が候補として起動（動的ホスト選出）
     const joinedAt = Date.now();
-
-    // ホスト選出コールバックを登録
-    this.peerManager.onHostElected = (hostPeerId, isMe) => {
-      this.isHost = isMe;
-      this.callbacks.onHostElection?.(hostPeerId, isMe);
-      this.callbacks.onConnectionStateChange?.('connected');
-    };
-
-    // CryptoManager は PeerManager 内部で管理
     await this.peerManager.startAsCandidate(joinedAt);
   }
 
@@ -110,61 +86,33 @@ export class RoomSync {
 
   // --- Outbound: send changes to peers ---
 
-  /** コレクション操作をブロードキャスト（ホスト）or ホストに送信（ゲスト） */
+  /** コレクション操作をブロードキャスト */
   async sendPatch(collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>): Promise<void> {
-    const msg: PatchMessage = { type: 'patch', collection, op, id, data };
-    if (this.isHost) {
-      // ホスト: 全ゲストに署名付きでブロードキャスト
-      await this.peerManager.broadcastWithSignature(msg);
-      // キュー中のメッセージも送信
-      while (this.pendingPatches.length > 0) {
-        const p = this.pendingPatches.shift()!;
-        const queued: PatchMessage = { type: 'patch', ...p };
-        await this.peerManager.broadcastWithSignature(queued);
-      }
-    } else if (this.peerManager.hasHostConnection()) {
-      // ホスト接続済みなら直接送信
-      this.peerManager.broadcast(msg);
-    } else {
-      // ホスト未確定 or 再選出中: キューに積む（最大50件）
-      if (this.pendingPatches.length < 50) {
-        this.pendingPatches.push({ collection, op, id, data });
-      }
-    }
+    const msg: PatchMessage = {
+      type: 'patch',
+      collection,
+      op,
+      id,
+      data,
+      timestamp: Date.now(),
+    };
+    this.peerManager.broadcast(msg);
   }
 
   /** ルーム更新をブロードキャスト */
   sendRoomUpdate(data: Partial<Room>): void {
-    const msg: RoomUpdateMessage = { type: 'room_update', data };
-    if (this.isHost) {
-      this.peerManager.broadcast(msg);
-    } else {
-      this.peerManager.broadcast(msg);
-    }
+    const msg: RoomUpdateMessage = {
+      type: 'room_update',
+      data,
+      timestamp: Date.now(),
+    };
+    this.peerManager.broadcast(msg);
   }
 
   /** チャットメッセージを送信 */
   sendChatMessage(chatMsg: ChatMessage): void {
     const msg: ChatP2PMessage = { type: 'message', data: chatMsg };
-    if (this.isHost) {
-      this.peerManager.broadcast(msg);
-    } else {
-      this.peerManager.broadcast(msg);
-    }
-  }
-
-  // --- Dynamic host management ---
-
-  setIsHost(isHost: boolean): void {
-    this.isHost = isHost;
-    if (isHost) {
-      // ホストになったら full_sync を全員に送信
-      const snapshot = this.getSnapshot();
-      if (snapshot) {
-        const msg: P2PMessage = { type: 'full_sync', data: snapshot };
-        this.peerManager.broadcastWithSignature(msg).catch(console.error);
-      }
-    }
+    this.peerManager.broadcast(msg);
   }
 
   // --- Inbound: handle messages from peers ---
@@ -175,52 +123,35 @@ export class RoomSync {
         this.callbacks.onFullSync?.(msg.data);
         break;
 
-      case 'patch':
-        // ホスト: ゲストからの patch を受信 → ローカル適用 → 他のゲストにリレー
-        if (this.isHost) {
-          this.callbacks.onPatch?.(msg.collection, msg.op, msg.id, msg.data);
-          // 送信元以外にリレー
-          for (const peerId of this.peerManager.connectedPeerIds) {
-            if (peerId !== fromPeerId) {
-              this.peerManager.sendTo(peerId, msg);
-            }
-          }
-        } else {
-          // ゲスト: ホストからの確定パッチを適用
+      case 'patch': {
+        // Last-Write-Wins: timestamp を比較して古いものは無視
+        const key = `${msg.collection}:${msg.id}`;
+        const lastTimestamp = this.lastAppliedTimestamps.get(key) ?? 0;
+        if (msg.timestamp >= lastTimestamp) {
+          this.lastAppliedTimestamps.set(key, msg.timestamp);
           this.callbacks.onPatch?.(msg.collection, msg.op, msg.id, msg.data);
         }
         break;
+      }
 
-      case 'room_update':
-        if (this.isHost) {
-          this.callbacks.onRoomUpdate?.(msg.data);
-          for (const peerId of this.peerManager.connectedPeerIds) {
-            if (peerId !== fromPeerId) {
-              this.peerManager.sendTo(peerId, msg);
-            }
-          }
-        } else {
+      case 'room_update': {
+        // Last-Write-Wins: room 全体のタイムスタンプとして管理
+        const key = 'room:active_scene_id'; // 簡略化：room update は1種として扱う
+        const lastTimestamp = this.lastAppliedTimestamps.get(key) ?? 0;
+        if (msg.timestamp >= lastTimestamp) {
+          this.lastAppliedTimestamps.set(key, msg.timestamp);
           this.callbacks.onRoomUpdate?.(msg.data);
         }
         break;
+      }
 
       case 'message':
-        if (this.isHost) {
-          this.callbacks.onChatMessage?.(msg.data);
-          // 他のゲストにリレー
-          for (const peerId of this.peerManager.connectedPeerIds) {
-            if (peerId !== fromPeerId) {
-              this.peerManager.sendTo(peerId, msg);
-            }
-          }
-        } else {
-          this.callbacks.onChatMessage?.(msg.data);
-        }
+        this.callbacks.onChatMessage?.(msg.data);
         break;
 
       case 'sync_request':
-        // ゲストがフルシンク要求 → ホストがスナップショット送信
-        if (this.isHost) {
+        // 全員が応答できる（ホスト専用ではない）
+        {
           const snapshot = this.getSnapshot();
           if (snapshot) {
             this.peerManager.sendTo(fromPeerId, { type: 'full_sync', data: snapshot });
@@ -228,28 +159,14 @@ export class RoomSync {
         }
         break;
 
-      case 'host_election':
-        // ホスト変更を通知
-        this.callbacks.onHostElection?.(msg.hostPeerId, msg.hostPeerId === this.peerId);
-        // ホスト離脱時（hostPeerId === null）にスナップショット保存を要求
-        if (msg.hostPeerId === null) {
-          this.callbacks.onSaveSnapshot?.();
-        }
-        break;
-
-      case 'host_heartbeat':
-        // ホストからのハートビート受信（将来的な使用を想定）
-        // TODO: lastHostHeartbeatAt を記録してホスト無応答検出に利用
-        break;
-
       case 'signed':
-        // 署名検証は PeerManager 側で実施済みなので、inner を処理
+        // 署名検証は PeerManager 側で実施済み
         this.handleMessage((msg as SignedMessage).inner as P2PMessage, fromPeerId);
         break;
 
       case 'cursor':
       case 'drag':
-        // TODO: カーソル/ドラッグ位置の同期（将来実装）
+        // TODO: カーソル/ドラッグ位置の同期
         break;
     }
   }
@@ -257,8 +174,8 @@ export class RoomSync {
   private handleStateChange(state: ConnectionState): void {
     this.callbacks.onConnectionStateChange?.(state);
 
-    // ゲスト: 接続確立時にフルシンクを要求
-    if (!this.isHost && state === 'connected') {
+    // 接続確立時にフルシンクを要求（全員）
+    if (state === 'connected') {
       this.peerManager.broadcast({ type: 'sync_request' });
     }
   }

@@ -54,12 +54,14 @@ export interface PatchMessage {
   op: PatchOp;
   id: string;
   data?: Record<string, unknown>;
+  timestamp: number;
 }
 
 /** Room-level update (active_scene_id, dice_system, etc.) */
 export interface RoomUpdateMessage {
   type: 'room_update';
   data: Partial<Room>;
+  timestamp: number;
 }
 
 /** Chat message */
@@ -93,20 +95,7 @@ export interface SyncRequestMessage {
   type: 'sync_request';
 }
 
-/** Host election notification */
-export interface HostElectionMessage {
-  type: 'host_election';
-  hostPeerId: string | null;
-  timestamp: number;
-}
-
-/** Host heartbeat (to prevent timeout) */
-export interface HostHeartbeatMessage {
-  type: 'host_heartbeat';
-  timestamp: number;
-}
-
-/** Signed message wrapper (for host verification) */
+/** Signed message wrapper (for signature verification) */
 export interface SignedMessage {
   type: 'signed';
   signature: string;
@@ -123,8 +112,6 @@ export type P2PMessage =
   | DragMessage
   | ChunkMessage
   | SyncRequestMessage
-  | HostElectionMessage
-  | HostHeartbeatMessage
   | SignedMessage;
 
 // ---------------------------------------------------------------------------
@@ -139,14 +126,7 @@ export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'rec
 
 export interface SignalingPeer {
   peerId: string;
-  isHost: boolean;
   timestamp: number;
   joinedAt: number;
   publicKey: string;
-  isElected?: boolean;
-}
-
-export interface HostStatus {
-  hostPeerId: string | null;
-  timestamp: number | null;
 }
