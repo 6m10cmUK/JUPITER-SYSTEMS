@@ -30,13 +30,19 @@ const PANEL_DEFS = [
 ] as const;
 
 function P2PIndicator() {
-  const { p2pConnectionState } = useAdrasteaContext();
-  const config = {
+  const { p2pConnectionState, isHost } = useAdrasteaContext();
+
+  // ホスト中のときは色を変える
+  let config = {
     connected: { icon: <Wifi size={14} />, color: theme.success, label: 'P2P接続中' },
     connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'P2P接続中...' },
     reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'P2P再接続中...' },
     disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'P2P未接続' },
   }[p2pConnectionState];
+
+  if (isHost && p2pConnectionState === 'connected') {
+    config = { icon: <Wifi size={14} />, color: theme.warning, label: 'ホスト中' };
+  }
 
   return (
     <div
