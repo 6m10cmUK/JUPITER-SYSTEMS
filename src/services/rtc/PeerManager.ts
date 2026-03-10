@@ -137,7 +137,7 @@ export class PeerManager {
     this.hostElectionManager = new HostElectionManager(
       this.signaling.getPeerId as string,
       joinedAt,
-      (hostPeerId) => this.onHostChanged(hostPeerId),
+      (hostPeerId, peers) => this.onHostChanged(hostPeerId, peers),
     );
 
     // ピアポーリングを開始（初期ピア取得 + ホスト選出に利用）
@@ -230,7 +230,7 @@ export class PeerManager {
     }
   }
 
-  private async onHostChanged(hostPeerId: string | null): Promise<void> {
+  private async onHostChanged(hostPeerId: string | null, peers: SignalingPeer[]): Promise<void> {
     const myPeerId = this.signaling.getPeerId as string;
     const isMe = hostPeerId === myPeerId;
 
@@ -242,16 +242,29 @@ export class PeerManager {
       console.log('P2P: ホスト選出（自分）');
       this.isHost = true;
       this.startHostHeartbeat();
-      // 全接続済みピアに full_sync をブロードキャスト
-      // (実装は RoomSync 層で行う)
+
+      // 全既存ピアに offer を送信（まだ接続していないピアのみ）
+      // perfect negotiation パターン: peerId の辞書順で小さい方がofferを送る
+      for (const peer of peers) {
+        if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
+          // 自分のpieerIdが相手より辞書順で小さい場合のみoffer送信
+          if (myPeerId < peer.peerId) {
+            await this.createOfferTo(peer.peerId);
+          }
+        }
+      }
     } else if (hostPeerId) {
       // 他のピアがホスト
       console.log(`P2P: ホスト選出（${hostPeerId}）`);
       this.isHost = false;
       this.stopHostHeartbeat();
+
       // 必要に応じてそのピアに接続（既に接続済みならスキップ）
       if (!this.connections.has(hostPeerId)) {
-        await this.createOfferTo(hostPeerId);
+        // perfect negotiation パターン: peerId の辞書順で小さい方がofferを送る
+        if (myPeerId < hostPeerId) {
+          await this.createOfferTo(hostPeerId);
+        }
       }
     } else {
       // ホスト離脱

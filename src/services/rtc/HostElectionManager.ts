@@ -15,13 +15,13 @@ export class HostElectionManager {
   private lastHeartbeatAt: number = Date.now();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
-  private onHostChanged: (hostPeerId: string | null) => void;
+  private onHostChanged: (hostPeerId: string | null, peers: SignalingPeer[]) => void;
   private destroyed = false;
 
   constructor(
     myPeerId: string,
     myJoinedAt: number,
-    onHostChanged: (hostPeerId: string | null) => void
+    onHostChanged: (hostPeerId: string | null, peers: SignalingPeer[]) => void
   ) {
     this.myPeerId = myPeerId;
     this.myJoinedAt = myJoinedAt;
@@ -98,7 +98,7 @@ export class HostElectionManager {
     if (nextHost !== this.currentHostPeerId) {
       this.currentHostPeerId = nextHost;
       this.lastHeartbeatAt = Date.now(); // ハートビート監視もリセット
-      this.onHostChanged(nextHost);
+      this.onHostChanged(nextHost, peers);
     }
   }
 
@@ -134,7 +134,7 @@ export class HostElectionManager {
       if (this.currentHostPeerId && !this.isElectedHost && this.isHostUnresponsive(timeout)) {
         // ホストが応答していない → 再選出
         this.currentHostPeerId = null;
-        this.onHostChanged(null);
+        this.onHostChanged(null, []);
       }
     }, checkInterval);
   }
