@@ -827,6 +827,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     sendPatchRef.current('bgms', 'remove', id);
   }, [removeBgm]);
 
+  const p2pReorderBgms = useCallback((orderedIds: string[]) => {
+    reorderBgms(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('bgms', 'update', id, { sort_order: i, updated_at: now });
+    });
+  }, [reorderBgms]);
+
   // --- Permission guard ref ---
   const roomRoleRef = useRef(roomRole);
   roomRoleRef.current = roomRole;
@@ -1078,7 +1086,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       bgms, addBgm: p2pAddBgm as any,
       updateBgm: p2pUpdateBgm as any,
       removeBgm: p2pRemoveBgm as any,
-      reorderBgms: reorderBgms as any,
+      reorderBgms: p2pReorderBgms as any,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
 
       // UI state
@@ -1133,7 +1141,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       p2pAddObject, syncedUpdateObject, p2pRemoveObject, p2pReorderObjects, p2pBatchUpdateSort, injectOptimistic,
       scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
       cutins, p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-      bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
+      bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, p2pReorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
@@ -1170,7 +1178,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Cutins
     cutins, addCutin: guardedAddCutin, updateCutin: guardedUpdateCutin, removeCutin: guardedRemoveCutin, reorderCutins, triggerCutin: guardedTriggerCutin, clearCutin,
     // BGMs
-    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: reorderBgms as any,
+    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: withPermission('bgm_manage', p2pReorderBgms) as any,
     // Derived
     activeScene,
   }), [
@@ -1181,7 +1189,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
     scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
-    bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
+    bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, p2pReorderBgms,
     activeScene,
   ]);
 
