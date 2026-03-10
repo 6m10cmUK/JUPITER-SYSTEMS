@@ -9,6 +9,8 @@ export class SignalingClient {
   private roomId: string;
   private peerId: string;
   private isHost: boolean;
+  private registeredPublicKey: string = '';
+  private registeredJoinedAt: number = 0;
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private destroyed = false;
@@ -47,12 +49,25 @@ export class SignalingClient {
   // --- Peer registration ---
 
   async registerPeer(joinedAt: number, publicKey: string): Promise<void> {
+    // 初回登録時に保存しておく（ハートビートでも同じ値を使う）
+    if (publicKey) {
+      this.registeredPublicKey = publicKey;
+      this.registeredJoinedAt = joinedAt;
+    }
     await this.post('peers', {
       peerId: this.peerId,
       isHost: this.isHost,
-      joinedAt,
-      publicKey,
+      joinedAt: this.registeredJoinedAt || joinedAt,
+      publicKey: this.registeredPublicKey || publicKey,
     });
+  }
+
+  async unregisterPeer(): Promise<void> {
+    try {
+      await fetch(this.url(`peers/${this.peerId}`), { method: 'DELETE' });
+    } catch {
+      // ignore errors on unload
+    }
   }
 
   async getPeers(): Promise<SignalingPeer[]> {
@@ -80,32 +95,38 @@ export class SignalingClient {
   // --- SDP exchange ---
 
   async sendOffer(targetPeerId: string, sdp: string): Promise<void> {
-    await this.post('offer', { peerId: `${this.peerId}:${targetPeerId}`, sdp });
+    console.log('[Signaling] sendOffer to', targetPeerId.slice(-8));
+    const result = await this.post('offer', { fromPeer: this.peerId, toPeer: targetPeerId, data: sdp });
+    console.log('[Signaling] sendOffer result', result);
   }
 
   async getOffer(fromPeerId: string): Promise<string | null> {
-    const res = (await this.get('offer', { peerId: `${fromPeerId}:${this.peerId}` })) as { sdp: string | null };
-    return res.sdp ?? null;
+    const res = (await this.get('offer', { peerId: this.peerId })) as { data?: string };
+    if (res && (res as any).data) console.log('[Signaling] getOffer found!');
+    return (res as { data?: string }).data ?? null;
   }
 
   async sendAnswer(targetPeerId: string, sdp: string): Promise<void> {
-    await this.post('answer', { peerId: `${this.peerId}:${targetPeerId}`, sdp });
+    console.log('[Signaling] sendAnswer to', targetPeerId.slice(-8));
+    const result = await this.post('answer', { fromPeer: this.peerId, toPeer: targetPeerId, data: sdp });
+    console.log('[Signaling] sendAnswer result', result);
   }
 
   async getAnswer(fromPeerId: string): Promise<string | null> {
-    const res = (await this.get('answer', { peerId: `${fromPeerId}:${this.peerId}` })) as { sdp: string | null };
-    return res.sdp ?? null;
+    const res = (await this.get('answer', { peerId: this.peerId })) as { data?: string };
+    if (res && (res as any).data) console.log('[Signaling] getAnswer found!');
+    return (res as { data?: string }).data ?? null;
   }
 
   // --- ICE exchange ---
 
   async sendIceCandidate(targetPeerId: string, candidate: string): Promise<void> {
-    await this.post('ice', { peerId: `${this.peerId}:${targetPeerId}`, candidate });
+    await this.post('ice', { fromPeer: this.peerId, toPeer: targetPeerId, candidate });
   }
 
   async getIceCandidates(fromPeerId: string): Promise<string[]> {
-    const res = (await this.get('ice', { peerId: `${fromPeerId}:${this.peerId}` })) as { candidates: string[] };
-    return res.candidates ?? [];
+    const res = (await this.get('ice', { peerId: this.peerId })) as { from?: string; candidate?: string }[] | unknown;
+    return (Array.isArray(res) ? res : []).map((x: any) => x.candidate).filter(Boolean);
   }
 
   // --- Host election ---
@@ -146,11 +167,11 @@ export class SignalingClient {
   // --- Polling for new peers (host mode) with exponential backoff ---
 
   startPeerPolling(
-    onNewPeers: (peers: SignalingPeer[]) => void,
+    onPeersUpdate: (allPeers: SignalingPeer[], newPeers: SignalingPeer[]) => void,
     initialIntervalMs = 2000,
   ): void {
     this.stopPeerPolling();
-    const knownPeers = new Set<string>();
+    let lastPeerSet = new Set<string>();
     let noNewPeersCount = 0;
     let currentIntervalMs = initialIntervalMs;
 
@@ -158,21 +179,30 @@ export class SignalingClient {
       if (this.destroyed) return;
       try {
         const peers = await this.getPeers();
-        const newPeers = peers.filter(p => !p.isHost && !knownPeers.has(p.peerId));
-        for (const p of newPeers) knownPeers.add(p.peerId);
+        const currentPeerIds = new Set(peers.map(p => p.peerId));
 
-        if (newPeers.length > 0) {
-          // Reset backoff on new peers found
+        // 変更を検出：新しく参加したピア、および退出したピア
+        const newPeers = peers.filter(p => !lastPeerSet.has(p.peerId));
+        const departures: string[] = [];
+        for (const id of lastPeerSet) {
+          if (!currentPeerIds.has(id)) departures.push(id);
+        }
+
+        // ピアセットを更新
+        lastPeerSet = currentPeerIds;
+
+        // 変更がある場合のみコールバック実行
+        const hasChanges = newPeers.length > 0 || departures.length > 0;
+        if (hasChanges) {
+          onPeersUpdate(peers, newPeers);
           noNewPeersCount = 0;
           currentIntervalMs = initialIntervalMs;
-          onNewPeers(newPeers);
         } else {
-          // Increment no-new-peers counter and adjust interval
           noNewPeersCount++;
           if (noNewPeersCount >= 6) {
-            currentIntervalMs = 10000; // 10 seconds
+            currentIntervalMs = 10000;
           } else if (noNewPeersCount >= 3) {
-            currentIntervalMs = 5000; // 5 seconds
+            currentIntervalMs = 5000;
           }
         }
       } catch {
@@ -195,6 +225,7 @@ export class SignalingClient {
 
   destroy(): void {
     this.destroyed = true;
+    this.unregisterPeer().catch(() => {});
     this.stopHeartbeat();
     this.stopPeerPolling();
   }

@@ -89,7 +89,7 @@ export class PeerManager {
     this.onStateChange('connecting');
     await this.signaling.registerPeer(Date.now(), '');
     this.signaling.startHeartbeat();
-    this.signaling.startPeerPolling(async (newPeers) => {
+    this.signaling.startPeerPolling(async (allPeers, newPeers) => {
       for (const peer of newPeers) {
         await this.createOfferTo(peer.peerId);
       }
@@ -131,18 +131,20 @@ export class PeerManager {
     // シグナリングに登録（CryptoManager から公開鍵を取得）
     const cryptoPublicKey = this.cryptoManager.getPublicKeyBase64();
     await this.signaling.registerPeer(joinedAt, cryptoPublicKey);
-    this.signaling.startHeartbeat();
 
     // HostElectionManager を起動
     this.hostElectionManager = new HostElectionManager(
       this.signaling.getPeerId as string,
       joinedAt,
-      (hostPeerId, peers) => this.onHostChanged(hostPeerId, peers),
+      (hostPeerId) => this.onHostChanged(hostPeerId),
     );
 
+    // シグナリングサーバーのピア有効期限を維持するハートビート開始
+    this.signaling.startHeartbeat();
+
     // ピアポーリングを開始（初期ピア取得 + ホスト選出に利用）
-    this.signaling.startPeerPolling((newPeers) => {
-      this.handleNewPeers(newPeers);
+    this.signaling.startPeerPolling((allPeers, newPeers) => {
+      this.handlePeerListUpdate(allPeers, newPeers);
     });
 
     // 死活監視を開始（ホスト無応答時の自動再選出）
@@ -223,23 +225,14 @@ export class PeerManager {
 
   // --- Private: Host election ---
 
-  private async handleNewPeers(peers: SignalingPeer[]): Promise<void> {
+  private handlePeerListUpdate(allPeers: SignalingPeer[], _newPeers: SignalingPeer[]): void {
     // HostElectionManager に通知して選出計算を実行
     if (this.hostElectionManager) {
-      this.hostElectionManager.notifyHostElection(peers);
-    }
-    // ホストなら新しいピアにofferを送信
-    if (this.isHost) {
-      const myPeerId = this.signaling.getPeerId as string;
-      for (const peer of peers) {
-        if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
-          await this.createOfferTo(peer.peerId);
-        }
-      }
+      this.hostElectionManager.notifyHostElection(allPeers);
     }
   }
 
-  private async onHostChanged(hostPeerId: string | null, peers: SignalingPeer[]): Promise<void> {
+  private async onHostChanged(hostPeerId: string | null): Promise<void> {
     const myPeerId = this.signaling.getPeerId as string;
     const isMe = hostPeerId === myPeerId;
 
@@ -247,26 +240,52 @@ export class PeerManager {
     this.onHostElected?.(hostPeerId, isMe);
 
     if (isMe) {
-      console.log('P2P: ホスト選出（自分）');
+      // 自分がホストに選出: 全既知ピアにofferを送る
+      console.log('P2P: ホスト選出（自分）、ゲストにoffer送信');
       this.isHost = true;
       this.startHostHeartbeat();
-      // ホストとして: 全既存ピアにofferを送信
-      for (const peer of peers) {
-        if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
-          await this.createOfferTo(peer.peerId);
+      try {
+        const peers = await this.signaling.getPeers();
+        console.log('[PeerManager] host elected, peers:', peers.map(p => p.peerId.slice(-8)));
+        for (const peer of peers) {
+          if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
+            await this.createOfferTo(peer.peerId);
+          }
         }
+      } catch (err) {
+        console.warn('P2P: ゲストへのoffer送信エラー', err);
       }
+      // 新規ゲスト用: ポーリングでoffer送信継続
+      this.signaling.stopPeerPolling();
+      this.signaling.startPeerPolling(async (allPeers, newPeers) => {
+        for (const peer of newPeers) {
+          if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
+            await this.createOfferTo(peer.peerId);
+          }
+        }
+      });
     } else if (hostPeerId) {
-      console.log(`P2P: ホスト選出（${hostPeerId}）`);
+      // 他のピアがホスト: offerを待つ
+      console.log(`P2P: ホスト選出（${hostPeerId}）、offerを待機`);
       this.isHost = false;
       this.stopHostHeartbeat();
-      // ゲストとして: ホストからのofferを待つだけ（自分からofferしない）
-      // ホストが createOfferTo で接続してくる
+      // ゲストはofferを待つ（ホストがcreateOfferToで送ってくる）
+      // ポーリングを停止してofferポーリングに切り替え
+      this.signaling.stopPeerPolling();
+      this.waitForOfferAndConnect(hostPeerId, 30_000).catch((err) => {
+        console.warn('P2P: ホストからのoffer待機エラー', err);
+        // offer に応答しなかったピアをブラックリスト化 → 次回の選出から除外
+        this.hostElectionManager?.markAsDead(hostPeerId);
+      });
     } else {
       // ホスト離脱
       console.log('P2P: ホスト離脱、再選出待ち');
       this.isHost = false;
       this.stopHostHeartbeat();
+      // ポーリング再開（新しいホストを待つ）
+      this.signaling.startPeerPolling((allPeers, newPeers) => {
+        this.handlePeerListUpdate(allPeers, newPeers);
+      });
     }
   }
 
@@ -344,19 +363,32 @@ export class PeerManager {
       }
     };
     ch.onopen = () => {
+      console.log(`[PeerManager] DataChannel "${ch.label}" opened with ${remotePeerId.slice(-8)}`);
       this.updateState();
+      // ゲストがホストと接続したら sync_request を送ってフルシンクを要求
+      if (!this.isHost && ch.label === 'reliable') {
+        ch.send(JSON.stringify({ type: 'sync_request' }));
+      }
     };
     ch.onclose = () => {
+      console.log(`[PeerManager] DataChannel "${ch.label}" closed with ${remotePeerId.slice(-8)}`);
       this.updateState();
     };
   }
 
   private async handleSignedMessage(signed: SignedMessage, remotePeerId: string): Promise<void> {
     try {
+      // crypto.subtle が使えない環境（HTTP）では署名検証をスキップ
+      if (!window.crypto?.subtle) {
+        this.onMessage(signed.inner as P2PMessage, remotePeerId);
+        return;
+      }
+
       // 送信元の公開鍵を取得
       const publicKeyBase64 = await this.signaling.getPeerPublicKey(signed.signerPeerId);
       if (!publicKeyBase64) {
-        console.warn('P2P: 公開鍵が見つかりません', signed.signerPeerId);
+        // 公開鍵なし（HTTP環境のピア）→ そのまま処理
+        this.onMessage(signed.inner as P2PMessage, remotePeerId);
         return;
       }
 
@@ -382,6 +414,7 @@ export class PeerManager {
   /** ホスト → ゲストにオファー送信 */
   private async createOfferTo(remotePeerId: string): Promise<void> {
     if (this.destroyed) return;
+    console.log('[PeerManager] createOfferTo', remotePeerId.slice(-8));
     const conn = this.createPeerConnection(remotePeerId);
 
     // DataChannel 作成（オファー側が作る）
@@ -397,9 +430,11 @@ export class PeerManager {
     await conn.pc.setLocalDescription(offer);
 
     await this.signaling.sendOffer(remotePeerId, JSON.stringify(offer));
+    console.log('[PeerManager] offer sent, waiting for answer...');
 
     // answer を polling
     await this.pollForAnswer(remotePeerId, 30_000);
+    console.log('[PeerManager] pollForAnswer done for', remotePeerId.slice(-8));
 
     // ICE candidates を polling
     this.pollIceCandidates(remotePeerId);
@@ -408,15 +443,19 @@ export class PeerManager {
   /** ゲスト: ホストからのオファーを待って接続 */
   private async waitForOfferAndConnect(hostPeerId: string, timeoutMs: number): Promise<void> {
     const start = Date.now();
+    console.log('[PeerManager] waitForOfferAndConnect from', hostPeerId.slice(-8));
     while (!this.destroyed && Date.now() - start < timeoutMs) {
       const sdp = await this.signaling.getOffer(hostPeerId);
       if (sdp) {
+        console.log('[PeerManager] got offer from', hostPeerId.slice(-8));
         await this.handleOffer(hostPeerId, sdp);
         return;
       }
       await sleep(1000);
     }
     console.warn('P2P: オファータイムアウト');
+    // offer に応答しなかったホスト候補をブラックリスト化
+    this.hostElectionManager?.markAsDead(hostPeerId);
     this.onStateChange('disconnected');
   }
 
@@ -520,6 +559,12 @@ export class PeerManager {
       this.connections.delete(remotePeerId);
     }
     this.updateState();
+
+    // ホストが切断した場合、即座に再選出をトリガー
+    if (this.hostElectionManager && this.hostElectionManager.hostPeerId === remotePeerId) {
+      console.log('[PeerManager] ホスト切断検出、即座に再選出');
+      this.hostElectionManager.notifyHostElection([]);
+    }
 
     // ゲスト側: ホスト切断 → 再接続試行
     if (!this.isHost && this.connections.size === 0) {

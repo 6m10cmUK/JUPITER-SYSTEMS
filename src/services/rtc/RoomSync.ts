@@ -63,7 +63,14 @@ export class RoomSync {
     this.isHost = isHost;
     this.getSnapshot = getSnapshot;
 
-    this.peerId = `${userId}_${Date.now()}`;
+    // タブごとにランダムなIDを生成（同アカウント・同デバイスの複数タブを区別するため）
+    // sessionStorage はタブ間で共有されないので各タブ固有になる
+    let tabId = sessionStorage.getItem('adrastea_tab_id');
+    if (!tabId) {
+      tabId = Math.random().toString(36).slice(2, 10);
+      sessionStorage.setItem('adrastea_tab_id', tabId);
+    }
+    this.peerId = `${userId}_${tabId}_${Date.now()}`;
     this.signaling = new SignalingClient(roomId, this.peerId, isHost);
     this.peerManager = new PeerManager(
       this.signaling,

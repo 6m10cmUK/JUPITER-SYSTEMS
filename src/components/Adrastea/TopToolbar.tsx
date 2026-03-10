@@ -9,13 +9,6 @@ import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
 
-const PRESET_COLORS = [
-  { name: '赤', value: '#ef4444' },
-  { name: '青', value: '#3b82f6' },
-  { name: '緑', value: '#22c55e' },
-  { name: '紫', value: '#8b5cf6' },
-];
-
 const PANEL_DEFS = [
   { id: 'scene', component: 'scene', title: 'シーン' },
   { id: 'character', component: 'character', title: 'キャラクター' },
@@ -98,7 +91,7 @@ function IconButton({ onClick, title, children, active }: {
 }
 
 export function TopToolbar({
-  onAddPiece,
+  onAddPiece: _onAddPiece,
   onOpenSettings,
   onOpenProfile,
   onSignOut,
@@ -106,20 +99,11 @@ export function TopToolbar({
   profile,
   dockviewApi,
 }: TopToolbarProps) {
-  const [label, setLabel] = useState('');
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].value);
   const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const { isGuest } = useAuth();
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
-
-  const handleAdd = () => {
-    const trimmed = label.trim();
-    if (!trimmed) return;
-    onAddPiece(trimmed, selectedColor);
-    setLabel('');
-  };
 
   const togglePanel = useCallback(
     (panelId: string, component: string, title: string) => {
@@ -176,58 +160,6 @@ export function TopToolbar({
 
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
-
-      {/* ピース追加 */}
-      <input
-        type="text"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-        placeholder="キャラ名"
-        style={{
-          width: 80,
-          padding: '2px 4px',
-          background: theme.bgInput,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 0,
-          color: theme.textPrimary,
-          fontSize: '11px',
-          outline: 'none',
-        }}
-      />
-      <div style={{ display: 'flex', gap: 2 }}>
-        {PRESET_COLORS.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => setSelectedColor(c.value)}
-            title={c.name}
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: '50%',
-              backgroundColor: c.value,
-              border: selectedColor === c.value ? '2px solid #fff' : '2px solid transparent',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          />
-        ))}
-      </div>
-      <button
-        onClick={handleAdd}
-        style={{
-          padding: '2px 8px',
-          background: selectedColor,
-          color: '#fff',
-          border: 'none',
-          borderRadius: 0,
-          fontSize: '11px',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        追加
-      </button>
 
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />

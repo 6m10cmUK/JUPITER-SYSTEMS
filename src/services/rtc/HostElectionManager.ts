@@ -15,13 +15,16 @@ export class HostElectionManager {
   private lastHeartbeatAt: number = Date.now();
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
-  private onHostChanged: (hostPeerId: string | null, peers: SignalingPeer[]) => void;
+  private onHostChanged: (hostPeerId: string | null) => void;
   private destroyed = false;
+
+  // offer に応答しなかったピアを一時的に除外するブラックリスト
+  private deadCandidates = new Map<string, number>(); // peerId → 除外期限 (ms)
 
   constructor(
     myPeerId: string,
     myJoinedAt: number,
-    onHostChanged: (hostPeerId: string | null, peers: SignalingPeer[]) => void
+    onHostChanged: (hostPeerId: string | null) => void
   ) {
     this.myPeerId = myPeerId;
     this.myJoinedAt = myJoinedAt;
@@ -32,14 +35,28 @@ export class HostElectionManager {
    * ピアリストから最古のピアをホストとして選出（deterministic）
    * tiebreak: joinedAt が同じなら peerId の辞書順で小さい方
    */
+  /**
+   * offer に応答しなかったピアをブラックリストに追加（デフォルト60秒）
+   */
+  markAsDead(peerId: string, durationMs = 60_000): void {
+    console.log(`[HostElection] ${peerId.slice(-8)} を ${durationMs / 1000}秒間除外`);
+    this.deadCandidates.set(peerId, Date.now() + durationMs);
+  }
+
   electHost(peers: SignalingPeer[]): string | null {
     if (!peers || peers.length === 0) {
       return null;
     }
 
-    // 自分も候補に含める
+    // 期限切れのブラックリストエントリを掃除
+    const now = Date.now();
+    for (const [id, until] of this.deadCandidates) {
+      if (now > until) this.deadCandidates.delete(id);
+    }
+
+    // 自分も候補に含める（自分はブラックリストしない）
     const allPeers = [
-      ...peers,
+      ...peers.filter(p => !this.deadCandidates.has(p.peerId)),
       {
         peerId: this.myPeerId,
         isHost: false, // placeholder
@@ -98,7 +115,7 @@ export class HostElectionManager {
     if (nextHost !== this.currentHostPeerId) {
       this.currentHostPeerId = nextHost;
       this.lastHeartbeatAt = Date.now(); // ハートビート監視もリセット
-      this.onHostChanged(nextHost, peers);
+      this.onHostChanged(nextHost);
     }
   }
 
@@ -134,7 +151,7 @@ export class HostElectionManager {
       if (this.currentHostPeerId && !this.isElectedHost && this.isHostUnresponsive(timeout)) {
         // ホストが応答していない → 再選出
         this.currentHostPeerId = null;
-        this.onHostChanged(null, []);
+        this.onHostChanged(null);
       }
     }, checkInterval);
   }

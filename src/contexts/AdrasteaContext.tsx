@@ -834,9 +834,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         user?.uid,
         senderAvatar,
         room?.dice_system,
-      );
-      // P2P chat broadcast is handled after message is created in the sendMessage callback
-      // For now, chat messages are synced via full_sync on reconnect
+      ).then((msg) => {
+        if (msg) sendChatMessageRef.current(msg);
+      });
     },
     [sendMessage, profile, user, room?.dice_system],
   );
