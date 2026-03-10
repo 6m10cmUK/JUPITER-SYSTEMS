@@ -45,6 +45,14 @@ export class RoomSync {
   // Callbacks to update React state
   private callbacks: RoomSyncCallbacks = {};
 
+  // ホスト離脱中のpatchキュー
+  private pendingPatches: Array<{
+    collection: CollectionName;
+    op: PatchOp;
+    id: string;
+    data?: Record<string, unknown>;
+  }> = [];
+
   constructor(
     roomId: string,
     userId: string,
@@ -86,7 +94,7 @@ export class RoomSync {
     };
 
     // CryptoManager は PeerManager 内部で管理
-    await this.peerManager.startAsCandidate(joinedAt, null as unknown as CryptoKey, '');
+    await this.peerManager.startAsCandidate(joinedAt);
   }
 
   destroy(): void {
@@ -101,9 +109,20 @@ export class RoomSync {
     if (this.isHost) {
       // ホスト: 全ゲストに署名付きでブロードキャスト
       await this.peerManager.broadcastWithSignature(msg);
-    } else {
-      // ゲスト: ホストに送信
+      // キュー中のメッセージも送信
+      while (this.pendingPatches.length > 0) {
+        const p = this.pendingPatches.shift()!;
+        const queued: PatchMessage = { type: 'patch', ...p };
+        await this.peerManager.broadcastWithSignature(queued);
+      }
+    } else if (this.peerManager.hasHostConnection()) {
+      // ホスト接続済みなら直接送信
       this.peerManager.broadcast(msg);
+    } else {
+      // ホスト未確定 or 再選出中: キューに積む（最大50件）
+      if (this.pendingPatches.length < 50) {
+        this.pendingPatches.push({ collection, op, id, data });
+      }
     }
   }
 
