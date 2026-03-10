@@ -17,19 +17,15 @@ interface UseP2PSyncOptions {
   onPatch: (collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>) => void;
   onRoomUpdate: (data: Partial<Room>) => void;
   onChatMessage: (msg: ChatMessage) => void;
-  onHostElection?: (isHost: boolean, hostPeerId: string | null) => void;
-  onSaveSnapshot?: () => void;
 }
 
 export function useP2PSync(options: UseP2PSyncOptions) {
   const {
     roomId, userId, enabled,
     getSnapshot, onFullSync, onPatch, onRoomUpdate, onChatMessage,
-    onHostElection, onSaveSnapshot,
   } = options;
 
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
-  const [isHost, setIsHost] = useState(false);
   const syncRef = useRef<RoomSync | null>(null);
 
   // Stable callback refs
@@ -43,10 +39,6 @@ export function useP2PSync(options: UseP2PSyncOptions) {
   onRoomUpdateRef.current = onRoomUpdate;
   const onChatMessageRef = useRef(onChatMessage);
   onChatMessageRef.current = onChatMessage;
-  const onHostElectionRef = useRef(onHostElection);
-  onHostElectionRef.current = onHostElection;
-  const onSaveSnapshotRef = useRef(onSaveSnapshot);
-  onSaveSnapshotRef.current = onSaveSnapshot;
 
   useEffect(() => {
     if (!enabled || !userId) return;
@@ -54,7 +46,6 @@ export function useP2PSync(options: UseP2PSyncOptions) {
     const sync = new RoomSync(
       roomId,
       userId,
-      false, // 最初は全員候補（isHost は false で初期化）
       () => getSnapshotRef.current(),
     );
 
@@ -64,13 +55,6 @@ export function useP2PSync(options: UseP2PSyncOptions) {
       onRoomUpdate: (d) => onRoomUpdateRef.current(d),
       onChatMessage: (m) => onChatMessageRef.current(m),
       onConnectionStateChange: setConnectionState,
-      onHostElection: (hostPeerId: string | null, isMe: boolean) => {
-        setIsHost(isMe);
-        onHostElectionRef.current?.(isMe, hostPeerId);
-      },
-      onSaveSnapshot: () => {
-        onSaveSnapshotRef.current?.();
-      },
     });
 
     syncRef.current = sync;
@@ -80,7 +64,6 @@ export function useP2PSync(options: UseP2PSyncOptions) {
       sync.destroy();
       syncRef.current = null;
       setConnectionState('disconnected');
-      setIsHost(false);
     };
   }, [roomId, userId, enabled]);
 
@@ -101,7 +84,6 @@ export function useP2PSync(options: UseP2PSyncOptions) {
 
   return {
     connectionState,
-    isHost,
     sendPatch,
     sendRoomUpdate,
     sendChatMessage,

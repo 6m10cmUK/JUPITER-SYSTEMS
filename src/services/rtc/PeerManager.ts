@@ -1,6 +1,5 @@
 import { SignalingClient } from './SignalingClient';
-import type { P2PMessage, ConnectionState, SignedMessage, HostHeartbeatMessage, SignalingPeer } from './types';
-import { HostElectionManager } from './HostElectionManager';
+import type { P2PMessage, ConnectionState, SignedMessage } from './types';
 import { CryptoManager } from './CryptoManager';
 
 const ICE_SERVERS: RTCIceServer[] = [
@@ -21,13 +20,15 @@ type MessageHandler = (msg: P2PMessage, fromPeerId: string) => void;
 type StateChangeHandler = (state: ConnectionState) => void;
 
 /**
- * WebRTC PeerConnection 管理
- * - ホスト: 複数ゲストとの接続を管理（スター型ハブ）
- * - ゲスト: ホストへの単一接続
+ * WebRTC PeerConnection 管理（フルメッシュ + Perfect Negotiation）
+ *
+ * 全ピアが平等に接続を確立。Perfect Negotiation により衝突を自動解決。
+ * - polite = myPeerId < remotePeerId（引き役：rollback して相手の offer を受け入れ）
+ * - impolite = myPeerId > remotePeerId（押し通す：相手の offer を無視）
  */
 export class PeerManager {
+  private myPeerId: string;
   private signaling: SignalingClient;
-  private isHost: boolean;
   private connections = new Map<string, PeerConnection>();
   private onMessage: MessageHandler;
   private onStateChange: StateChangeHandler;
@@ -37,25 +38,20 @@ export class PeerManager {
   // ICE candidate queue (collected before remote description is set)
   private pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
 
-  // ホスト選出関連
-  private hostElectionManager: HostElectionManager | null = null;
-  private hostHeartbeatInterval: NodeJS.Timeout | null = null;
-  private cryptoManager = new CryptoManager();
-  // 現在waitForOfferAndConnectを実行中のホストPeerId
-  private waitingForOfferFrom: string | null = null;
+  // Perfect Negotiation: offer作成中フラグ
+  private makingOffer = new Map<string, boolean>();
 
-  // ホスト選出コールバック
-  onHostElected?: (hostPeerId: string | null, isMe: boolean) => void;
+  // Crypto manager
+  private cryptoManager = new CryptoManager();
 
   constructor(
     signaling: SignalingClient,
-    _peerId: string,
-    isHost: boolean,
+    myPeerId: string,
     onMessage: MessageHandler,
     onStateChange: StateChangeHandler,
   ) {
+    this.myPeerId = myPeerId;
     this.signaling = signaling;
-    this.isHost = isHost;
     this.onMessage = onMessage;
     this.onStateChange = onStateChange;
   }
@@ -72,57 +68,9 @@ export class PeerManager {
     return this.connectedPeerIds.length > 0;
   }
 
-  hasHostConnection(): boolean {
-    // ホストへの接続が確立済みかどうか
-    // connections が空でなく、ホストとのchannelがopenならtrue
-    if (this.isHost) return true;
-    // ゲストの場合: 誰かとでも接続済みならtrue（スター型なので相手はホストのはず）
-    for (const conn of this.connections.values()) {
-      if (conn.reliable?.readyState === 'open') return true;
-    }
-    return false;
-  }
-
   /**
-   * ホスト選出ロジックなしで起動（後方互換）
-   * @deprecated startAsCandidate を使用してください
-   */
-  async startAsHost(): Promise<void> {
-    this.onStateChange('connecting');
-    await this.signaling.registerPeer(Date.now(), '');
-    this.signaling.startHeartbeat();
-    this.signaling.startPeerPolling(async (allPeers, newPeers) => {
-      for (const peer of newPeers) {
-        await this.createOfferTo(peer.peerId);
-      }
-    });
-    this.onStateChange('connected');
-  }
-
-  /**
-   * ゲストとして起動: ホストを探して接続（後方互換）
-   * @deprecated startAsCandidate を使用してください
-   */
-  async startAsGuest(): Promise<void> {
-    this.onStateChange('connecting');
-    await this.signaling.registerPeer(Date.now(), '');
-    this.signaling.startHeartbeat();
-
-    // ホストを探す（最大30秒）
-    const hostPeerId = await this.waitForHost(30_000);
-    if (!hostPeerId) {
-      console.warn('P2P: ホストが見つからない');
-      this.onStateChange('disconnected');
-      return;
-    }
-
-    // ホストからのオファーを待つ
-    await this.waitForOfferAndConnect(hostPeerId, 30_000);
-  }
-
-  /**
-   * ホスト選出ロジック統合版
-   * 全ピアが候補として起動し、ホスト選出メカニズムが自動選出を行う
+   * 全ピアが候補として起動（ホスト選出なし）
+   * フルメッシュ P2P 接続を確立する
    */
   async startAsCandidate(joinedAt: number): Promise<void> {
     // 暗号化キーペア生成
@@ -130,28 +78,47 @@ export class PeerManager {
 
     this.onStateChange('connecting');
 
-    // シグナリングに登録（CryptoManager から公開鍵を取得）
+    // シグナリングに登録
     const cryptoPublicKey = this.cryptoManager.getPublicKeyBase64();
     await this.signaling.registerPeer(joinedAt, cryptoPublicKey);
 
-    // HostElectionManager を起動
-    this.hostElectionManager = new HostElectionManager(
-      this.signaling.getPeerId as string,
-      joinedAt,
-      (hostPeerId) => this.onHostChanged(hostPeerId),
-    );
-
-    // シグナリングサーバーのピア有効期限を維持するハートビート開始
+    // ハートビート開始（ピア登録を有効期限内に維持）
     this.signaling.startHeartbeat();
 
-    // ピアポーリングを開始（初期ピア取得 + ホスト選出に利用）
-    this.signaling.startPeerPolling((allPeers, newPeers) => {
-      this.handlePeerListUpdate(allPeers, newPeers);
+    // SSEでイベント受信
+    this.signaling.startSSE({
+      onPeerJoined: (peer) => {
+        if (peer.peerId === this.myPeerId) return;
+        // 新規ピアに対して offer を作成
+        if (!this.connections.has(peer.peerId)) {
+          this.createOfferTo(peer.peerId).catch(console.error);
+        }
+      },
+      onPeerLeft: (peerId) => {
+        if (this.connections.has(peerId)) {
+          this.handleDisconnect(peerId);
+        }
+      },
+      onOffer: (fromPeer, sdp) => {
+        this.handleOffer(fromPeer, sdp).catch(console.error);
+      },
+      onAnswer: (fromPeer, sdp) => {
+        this.handleAnswer(fromPeer, sdp).catch(console.error);
+      },
+      onIce: (fromPeer, candidate) => {
+        this.handleIceCandidateFromSSE(fromPeer, candidate).catch(console.error);
+      },
     });
 
-    // 死活監視を開始（ホスト無応答時の自動再選出）
-    // TODO: DataChannel確立後に有効化 / 現在はデバッグのため無効
-    // this.hostElectionManager.startHealthCheck(120000, 10000);
+    // 初期ピアリスト取得（SSE接続前に参加済みのピア用）
+    try {
+      const peers = await this.signaling.getPeers();
+      for (const peer of peers) {
+        if (peer.peerId !== this.myPeerId && !this.connections.has(peer.peerId)) {
+          await this.createOfferTo(peer.peerId);
+        }
+      }
+    } catch {}
 
     this.onStateChange('connected');
   }
@@ -178,12 +145,11 @@ export class PeerManager {
         type: 'signed',
         inner: msg as any,
         signature,
-        signerPeerId: this.signaling.getPeerId as string,
+        signerPeerId: this.myPeerId,
       };
       this.broadcast(signed);
     } catch (err) {
       console.warn('P2P: 署名生成エラー、メッセージ送信をスキップ', err);
-      // 署名なしでは送信しない
     }
   }
 
@@ -211,12 +177,8 @@ export class PeerManager {
 
   destroy(): void {
     this.destroyed = true;
+    this.signaling.stopSSE?.();
     this.signaling.destroy();
-    if (this.hostHeartbeatInterval) {
-      clearInterval(this.hostHeartbeatInterval);
-      this.hostHeartbeatInterval = null;
-    }
-    this.hostElectionManager?.destroy();
     for (const conn of this.connections.values()) {
       conn.reliable?.close();
       conn.unreliable?.close();
@@ -224,109 +186,7 @@ export class PeerManager {
     }
     this.connections.clear();
     this.chunkBuffers.clear();
-  }
-
-  // --- Private: Host election ---
-
-  private handlePeerListUpdate(allPeers: SignalingPeer[], _newPeers: SignalingPeer[]): void {
-    // HostElectionManager に通知して選出計算を実行
-    if (this.hostElectionManager) {
-      this.hostElectionManager.notifyHostElection(allPeers);
-    }
-  }
-
-  private async onHostChanged(hostPeerId: string | null): Promise<void> {
-    const myPeerId = this.signaling.getPeerId as string;
-    const isMe = hostPeerId === myPeerId;
-
-    // 外部コールバック通知（RoomSync などが登録）
-    this.onHostElected?.(hostPeerId, isMe);
-
-    if (isMe) {
-      // 自分がホストに選出: 全既知ピアにofferを送る
-      console.log('P2P: ホスト選出（自分）、ゲストにoffer送信');
-      this.isHost = true;
-      this.startHostHeartbeat();
-      try {
-        const peers = await this.signaling.getPeers();
-        console.log('[PeerManager] host elected, peers:', peers.map(p => p.peerId.slice(-8)));
-        for (const peer of peers) {
-          if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
-            await this.createOfferTo(peer.peerId);
-          }
-        }
-      } catch (err) {
-        console.warn('P2P: ゲストへのoffer送信エラー', err);
-      }
-      // 新規ゲスト用: ポーリングでoffer送信継続
-      this.signaling.stopPeerPolling();
-      this.signaling.startPeerPolling(async (allPeers, newPeers) => {
-        for (const peer of newPeers) {
-          if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
-            await this.createOfferTo(peer.peerId);
-          }
-        }
-      });
-    } else if (hostPeerId) {
-      // 他のピアがホスト: offerを待つ
-      console.log(`P2P: ホスト選出（${hostPeerId}）、offerを待機`);
-      this.isHost = false;
-      this.stopHostHeartbeat();
-
-      // 既にこのホストと接続済み or 待機中ならスキップ
-      const existingConn = this.connections.get(hostPeerId);
-      if (existingConn?.reliable?.readyState === 'open') {
-        console.log(`[PeerManager] already connected to host ${hostPeerId.slice(-8)}, skipping offer wait`);
-        this.signaling.stopPeerPolling();
-        return;
-      }
-      if (this.waitingForOfferFrom === hostPeerId) {
-        console.log(`[PeerManager] already waiting for offer from ${hostPeerId.slice(-8)}, skipping`);
-        return;
-      }
-
-      // ゲストはofferを待つ（ホストがcreateOfferToで送ってくる）
-      // ポーリングを停止してofferポーリングに切り替え
-      this.signaling.stopPeerPolling();
-      this.waitingForOfferFrom = hostPeerId;
-      this.waitForOfferAndConnect(hostPeerId, 30_000).catch((err) => {
-        console.warn('P2P: ホストからのoffer待機エラー', err);
-      }).finally(() => {
-        if (this.waitingForOfferFrom === hostPeerId) this.waitingForOfferFrom = null;
-      });
-    } else {
-      // ホスト離脱
-      console.log('P2P: ホスト離脱、再選出待ち');
-      this.isHost = false;
-      this.stopHostHeartbeat();
-      // ポーリング再開（新しいホストを待つ）
-      this.signaling.startPeerPolling((allPeers, newPeers) => {
-        this.handlePeerListUpdate(allPeers, newPeers);
-      });
-    }
-  }
-
-  private startHostHeartbeat(): void {
-    if (this.hostHeartbeatInterval) {
-      clearInterval(this.hostHeartbeatInterval);
-    }
-    // 5秒ごとにハートビート送信
-    this.hostHeartbeatInterval = setInterval(() => {
-      if (!this.destroyed && this.isHost) {
-        const heartbeat: HostHeartbeatMessage = {
-          type: 'host_heartbeat',
-          timestamp: Date.now(),
-        };
-        this.broadcast(heartbeat);
-      }
-    }, 5000);
-  }
-
-  private stopHostHeartbeat(): void {
-    if (this.hostHeartbeatInterval) {
-      clearInterval(this.hostHeartbeatInterval);
-      this.hostHeartbeatInterval = null;
-    }
+    this.makingOffer.clear();
   }
 
   // --- Private: Connection setup ---
@@ -355,13 +215,11 @@ export class PeerManager {
       if (ch.label === 'reliable') {
         conn.reliable = ch;
         this.setupChannelHandlers(ch, remotePeerId);
-        // 既に open 状態の場合 onopen は呼ばれないので手動で実行
         if (ch.readyState === 'open') {
           console.log(`[PeerManager] DataChannel "reliable" already open with ${remotePeerId.slice(-8)}`);
           this.updateState();
-          if (!this.isHost) {
-            ch.send(JSON.stringify({ type: 'sync_request' }));
-          }
+          // フルメッシュ：全員が sync_request を送る
+          ch.send(JSON.stringify({ type: 'sync_request' }));
         }
       } else if (ch.label === 'unreliable') {
         conn.unreliable = ch;
@@ -390,8 +248,8 @@ export class PeerManager {
     ch.onopen = () => {
       console.log(`[PeerManager] DataChannel "${ch.label}" opened with ${remotePeerId.slice(-8)}`);
       this.updateState();
-      // ゲストがホストと接続したら sync_request を送ってフルシンクを要求
-      if (!this.isHost && ch.label === 'reliable') {
+      // フルメッシュ：全員が sync_request を送る
+      if (ch.label === 'reliable') {
         ch.send(JSON.stringify({ type: 'sync_request' }));
       }
     };
@@ -403,21 +261,17 @@ export class PeerManager {
 
   private async handleSignedMessage(signed: SignedMessage, remotePeerId: string): Promise<void> {
     try {
-      // crypto.subtle が使えない環境（HTTP）では署名検証をスキップ
       if (!window.crypto?.subtle) {
         this.onMessage(signed.inner as P2PMessage, remotePeerId);
         return;
       }
 
-      // 送信元の公開鍵を取得
       const publicKeyBase64 = await this.signaling.getPeerPublicKey(signed.signerPeerId);
       if (!publicKeyBase64) {
-        // 公開鍵なし（HTTP環境のピア）→ そのまま処理
         this.onMessage(signed.inner as P2PMessage, remotePeerId);
         return;
       }
 
-      // CryptoManager で署名を検証
       const isValid = await CryptoManager.verify(
         publicKeyBase64,
         JSON.stringify(signed.inner),
@@ -428,7 +282,6 @@ export class PeerManager {
         return;
       }
 
-      // 検証成功、メッセージを処理
       const innerMsg = signed.inner as P2PMessage;
       this.onMessage(innerMsg, remotePeerId);
     } catch (err) {
@@ -436,13 +289,27 @@ export class PeerManager {
     }
   }
 
-  /** ホスト → ゲストにオファー送信 */
+  /** offer を送信（全ピアに対して呼び出される） */
   private async createOfferTo(remotePeerId: string): Promise<void> {
     if (this.destroyed) return;
+
+    // 既に有効な接続がある場合はスキップ
+    const existing = this.connections.get(remotePeerId);
+    if (existing?.reliable?.readyState === 'open') {
+      return;
+    }
+
+    // 既存接続を破棄
+    if (existing) {
+      existing.reliable?.close();
+      existing.unreliable?.close();
+      existing.pc.close();
+      this.connections.delete(remotePeerId);
+    }
+
     console.log('[PeerManager] createOfferTo', remotePeerId.slice(-8));
     const conn = this.createPeerConnection(remotePeerId);
 
-    // DataChannel 作成（オファー側が作る）
     conn.reliable = conn.pc.createDataChannel('reliable', { ordered: true });
     conn.unreliable = conn.pc.createDataChannel('unreliable', {
       ordered: false,
@@ -451,129 +318,118 @@ export class PeerManager {
     this.setupChannelHandlers(conn.reliable, remotePeerId);
     this.setupChannelHandlers(conn.unreliable, remotePeerId);
 
-    const offer = await conn.pc.createOffer();
-    await conn.pc.setLocalDescription(offer);
-
-    await this.signaling.sendOffer(remotePeerId, JSON.stringify(offer));
-    console.log('[PeerManager] offer sent, waiting for answer...');
-
-    // answer を polling
-    await this.pollForAnswer(remotePeerId, 30_000);
-    console.log('[PeerManager] pollForAnswer done for', remotePeerId.slice(-8));
-
-    // ICE candidates を polling
-    this.pollIceCandidates(remotePeerId);
-  }
-
-  /** ゲスト: ホストからのオファーを待って接続 */
-  private async waitForOfferAndConnect(hostPeerId: string, timeoutMs: number): Promise<void> {
-    const start = Date.now();
-    console.log('[PeerManager] waitForOfferAndConnect from', hostPeerId.slice(-8));
-    while (!this.destroyed && Date.now() - start < timeoutMs) {
-      const sdp = await this.signaling.getOffer(hostPeerId);
-      if (sdp) {
-        console.log('[PeerManager] got offer from', hostPeerId.slice(-8));
-        await this.handleOffer(hostPeerId, sdp);
-        return;
-      }
-      await sleep(1000);
-    }
-    console.warn('P2P: オファータイムアウト');
-    this.onStateChange('disconnected');
-  }
-
-  private async handleOffer(hostPeerId: string, offerSdp: string): Promise<void> {
-    // 既に有効な接続がある場合はスキップ（上書きによるICE破壊を防止）
-    const existing = this.connections.get(hostPeerId);
-    if (existing && existing.pc.signalingState !== 'closed' && existing.pc.connectionState !== 'failed') {
-      console.log(`[PeerManager] handleOffer: connection to ${hostPeerId.slice(-8)} already exists (${existing.pc.signalingState}), skipping`);
-      return;
-    }
-    const conn = this.createPeerConnection(hostPeerId);
-    const offer = JSON.parse(offerSdp) as RTCSessionDescriptionInit;
-    await conn.pc.setRemoteDescription(new RTCSessionDescription(offer));
-
-    // Apply any pending ICE candidates
-    await this.applyPendingIceCandidates(hostPeerId, conn.pc);
-
-    const answer = await conn.pc.createAnswer();
-    await conn.pc.setLocalDescription(answer);
-    await this.signaling.sendAnswer(hostPeerId, JSON.stringify(answer));
-
-    // ICE candidates を polling
-    this.pollIceCandidates(hostPeerId);
-  }
-
-  private async pollForAnswer(remotePeerId: string, timeoutMs: number): Promise<void> {
-    const start = Date.now();
-    while (!this.destroyed && Date.now() - start < timeoutMs) {
-      const sdp = await this.signaling.getAnswer(remotePeerId);
-      if (sdp) {
-        const conn = this.connections.get(remotePeerId);
-        if (conn) {
-          const answer = JSON.parse(sdp) as RTCSessionDescriptionInit;
-          await conn.pc.setRemoteDescription(new RTCSessionDescription(answer));
-          // Apply any pending ICE candidates
-          await this.applyPendingIceCandidates(remotePeerId, conn.pc);
-        }
-        return;
-      }
-      await sleep(1000);
+    this.makingOffer.set(remotePeerId, true);
+    try {
+      const offer = await conn.pc.createOffer();
+      await conn.pc.setLocalDescription(offer);
+      await this.signaling.sendOffer(remotePeerId, JSON.stringify(offer));
+    } finally {
+      this.makingOffer.set(remotePeerId, false);
     }
   }
 
-  private pollIceCandidates(remotePeerId: string): void {
-    const interval = setInterval(async () => {
-      if (this.destroyed) {
-        clearInterval(interval);
+  /** Perfect Negotiation: offer を受信して処理 */
+  private async handleOffer(fromPeerId: string, offerSdp: string): Promise<void> {
+    if (this.destroyed) return;
+
+    console.log('[PeerManager] handleOffer from', fromPeerId.slice(-8));
+
+    // polite/impolite の決定（peerId の辞書順）
+    const polite = this.myPeerId < fromPeerId;
+    console.log(`[PeerManager] polite=${polite}, myPeerId=${this.myPeerId.slice(-8)}, fromPeerId=${fromPeerId.slice(-8)}`);
+
+    let conn = this.connections.get(fromPeerId);
+    const collision = conn && (this.makingOffer.get(fromPeerId) || conn.pc.signalingState !== 'stable');
+
+    if (collision) {
+      console.log(`[PeerManager] collision detected with ${fromPeerId.slice(-8)}, polite=${polite}`);
+      if (!polite) {
+        // impolite: 相手の offer を無視
+        console.log(`[PeerManager] impolite: ignoring offer from ${fromPeerId.slice(-8)}`);
         return;
       }
-      const conn = this.connections.get(remotePeerId);
-      if (!conn) {
-        clearInterval(interval);
-        return;
-      }
-      // DataChannel が接続済みなら polling 停止
-      if (conn.reliable?.readyState === 'open') {
-        clearInterval(interval);
-        return;
-      }
+      // polite: rollback して相手の offer を受け入れ
+      console.log(`[PeerManager] polite: rolling back and accepting offer from ${fromPeerId.slice(-8)}`);
       try {
-        const candidates = await this.signaling.getIceCandidates(remotePeerId);
-        for (const candidateStr of candidates) {
-          const candidate = JSON.parse(candidateStr) as RTCIceCandidateInit;
-          if (conn.pc.remoteDescription) {
-            await conn.pc.addIceCandidate(new RTCIceCandidate(candidate));
-          } else {
-            const pending = this.pendingIceCandidates.get(remotePeerId) ?? [];
-            pending.push(candidate);
-            this.pendingIceCandidates.set(remotePeerId, pending);
-          }
-        }
-      } catch {
-        // ignore
+        await conn!.pc.setLocalDescription({ type: 'rollback' });
+      } catch (err) {
+        console.warn('[PeerManager] rollback error:', err);
       }
-    }, 1000);
+    }
+
+    // 新規接続を作成（既存を破棄）
+    if (!conn || collision) {
+      if (conn) {
+        conn.reliable?.close();
+        conn.unreliable?.close();
+        conn.pc.close();
+        this.connections.delete(fromPeerId);
+      }
+      conn = this.createPeerConnection(fromPeerId);
+    }
+
+    try {
+      const offer = JSON.parse(offerSdp) as RTCSessionDescriptionInit;
+      await conn.pc.setRemoteDescription(new RTCSessionDescription(offer));
+
+      // Apply any pending ICE candidates
+      await this.applyPendingIceCandidates(fromPeerId, conn.pc);
+
+      const answer = await conn.pc.createAnswer();
+      await conn.pc.setLocalDescription(answer);
+      await this.signaling.sendAnswer(fromPeerId, JSON.stringify(answer));
+    } catch (err) {
+      console.warn('[PeerManager] handleOffer error:', err);
+    }
+  }
+
+  /** answer を受信して処理 */
+  private async handleAnswer(fromPeerId: string, sdp: string): Promise<void> {
+    if (this.destroyed) return;
+
+    console.log('[PeerManager] handleAnswer from', fromPeerId.slice(-8));
+    const conn = this.connections.get(fromPeerId);
+    if (!conn) return;
+
+    try {
+      const answer = JSON.parse(sdp) as RTCSessionDescriptionInit;
+      if (conn.pc.signalingState === 'have-local-offer') {
+        await conn.pc.setRemoteDescription(new RTCSessionDescription(answer));
+        await this.applyPendingIceCandidates(fromPeerId, conn.pc);
+      }
+    } catch (err) {
+      console.warn('[PeerManager] handleAnswer error', err);
+    }
+  }
+
+  /** ICE candidate を SSE で受信して処理 */
+  private async handleIceCandidateFromSSE(fromPeerId: string, candidateStr: string): Promise<void> {
+    try {
+      const candidate = JSON.parse(candidateStr) as RTCIceCandidateInit;
+      const conn = this.connections.get(fromPeerId);
+      if (conn?.pc.remoteDescription) {
+        await conn.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } else {
+        const pending = this.pendingIceCandidates.get(fromPeerId) ?? [];
+        pending.push(candidate);
+        this.pendingIceCandidates.set(fromPeerId, pending);
+      }
+    } catch (err) {
+      console.warn('[PeerManager] handleIceCandidate error', err);
+    }
   }
 
   private async applyPendingIceCandidates(peerId: string, pc: RTCPeerConnection): Promise<void> {
     const pending = this.pendingIceCandidates.get(peerId);
     if (!pending) return;
     for (const candidate of pending) {
-      await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (err) {
+        console.warn('[PeerManager] addIceCandidate error:', err);
+      }
     }
     this.pendingIceCandidates.delete(peerId);
-  }
-
-  private async waitForHost(timeoutMs: number): Promise<string | null> {
-    const start = Date.now();
-    while (!this.destroyed && Date.now() - start < timeoutMs) {
-      const peers = await this.signaling.getPeers();
-      const host = peers.find(p => p.isHost);
-      if (host) return host.peerId;
-      await sleep(2000);
-    }
-    return null;
   }
 
   private handleDisconnect(remotePeerId: string): void {
@@ -585,47 +441,11 @@ export class PeerManager {
       this.connections.delete(remotePeerId);
     }
     this.updateState();
-
-    // ホストが切断した場合、即座に再選出をトリガー
-    if (this.hostElectionManager && this.hostElectionManager.hostPeerId === remotePeerId) {
-      console.log('[PeerManager] ホスト切断検出、即座に再選出');
-      this.hostElectionManager.notifyHostElection([]);
-    }
-
-    // ゲスト側: ホスト切断 → 再接続試行
-    if (!this.isHost && this.connections.size === 0) {
-      this.onStateChange('reconnecting');
-      this.reconnectAsGuest();
-    }
-  }
-
-  private async reconnectAsGuest(): Promise<void> {
-    let delay = 2000;
-    const maxDelay = 30_000;
-    while (!this.destroyed) {
-      await sleep(delay);
-      if (this.destroyed) return;
-      try {
-        const hostPeerId = await this.waitForHost(10_000);
-        if (hostPeerId) {
-          await this.waitForOfferAndConnect(hostPeerId, 30_000);
-          if (this.hasConnections) return;
-        }
-      } catch {
-        // retry
-      }
-      delay = Math.min(delay * 1.5, maxDelay);
-    }
   }
 
   private updateState(): void {
     if (this.destroyed) return;
-    if (this.isHost) {
-      // ホスト: 常に connected（ゲストがいなくてもOK）
-      this.onStateChange('connected');
-    } else {
-      this.onStateChange(this.hasConnections ? 'connected' : 'reconnecting');
-    }
+    this.onStateChange(this.hasConnections ? 'connected' : 'reconnecting');
   }
 
   // --- Chunked transfer ---
@@ -685,8 +505,4 @@ export class PeerManager {
       }
     }
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }

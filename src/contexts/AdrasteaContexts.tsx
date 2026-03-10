@@ -165,7 +165,6 @@ export const UIStateContext = createContext<UIStateContextValue | null>(null);
 export interface P2PContextValue {
   // --- P2P ---
   p2pConnectionState: ConnectionState;
-  isHost: boolean;
 }
 
 export const P2PContext = createContext<P2PContextValue | null>(null);

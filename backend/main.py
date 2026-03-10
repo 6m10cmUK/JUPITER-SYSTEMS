@@ -21,6 +21,7 @@ import sys
 import tempfile
 from logging.handlers import RotatingFileHandler
 import glob
+import asyncio
 
 # Services imports (commented out for now - need to fix imports)
 # from services.pdf_validator import validate_and_save_pdf, validate_page_range
@@ -2252,6 +2253,20 @@ from typing import Any
 _signal_store: dict[str, dict[str, Any]] = {}
 _signal_ttl_seconds = 300
 
+# SSE接続管理: room_id -> {peer_id -> asyncio.Queue}
+_sse_connections: dict[str, dict[str, asyncio.Queue]] = {}
+
+async def _push_to_room(room_id: str, event_type: str, data: dict, target_peer_id: str | None = None):
+    """SSEイベントをルームのクライアントにプッシュ"""
+    if room_id not in _sse_connections:
+        return
+    for peer_id, queue in list(_sse_connections[room_id].items()):
+        if target_peer_id is None or peer_id == target_peer_id:
+            try:
+                await queue.put({"event": event_type, "data": data})
+            except Exception:
+                pass
+
 def _cleanup_expired_signal_entries(room_id: str) -> None:
     """期限切れエントリを削除、および空になったルームを削除"""
     now = datetime.now()
@@ -2324,6 +2339,13 @@ async def register_peer(room_id: str, body: dict[str, Any]):
         "expires_at": _get_expiration_time().isoformat()
     })
 
+    # SSEで全員に通知
+    await _push_to_room(room_id, "peer_joined", {
+        "peerId": peer_id,
+        "joinedAt": joined_at,
+        "publicKey": public_key,
+    })
+
     return {"ok": True}
 
 @app.get("/signal/{room_id}/peers")
@@ -2361,6 +2383,11 @@ async def send_offer(room_id: str, body: dict[str, str]):
         "sdp": sdp,
         "expires_at": _get_expiration_time().isoformat()
     }
+
+    # SSEで宛先ピアに通知
+    from_peer = body.get("fromPeer", "")
+    to_peer = body.get("toPeer", peer_id)
+    await _push_to_room(room_id, "offer", {"fromPeer": from_peer, "toPeer": to_peer, "sdp": sdp}, target_peer_id=to_peer)
 
     return {"ok": True}
 
@@ -2402,6 +2429,11 @@ async def send_answer(room_id: str, body: dict[str, str]):
         "sdp": sdp,
         "expires_at": _get_expiration_time().isoformat()
     }
+
+    # SSEで宛先ピアに通知
+    from_peer = body.get("fromPeer", "")
+    to_peer = body.get("toPeer", peer_id)
+    await _push_to_room(room_id, "answer", {"fromPeer": from_peer, "toPeer": to_peer, "sdp": sdp}, target_peer_id=to_peer)
 
     return {"ok": True}
 
@@ -2449,6 +2481,11 @@ async def send_ice_candidate(room_id: str, body: dict[str, str]):
 
     data[key]["candidates"].append(candidate)
     data[key]["expires_at"] = _get_expiration_time().isoformat()
+
+    # SSEで宛先ピアに通知
+    from_peer = body.get("fromPeer", "")
+    to_peer = body.get("toPeer", peer_id)
+    await _push_to_room(room_id, "ice", {"fromPeer": from_peer, "toPeer": to_peer, "candidate": candidate}, target_peer_id=to_peer)
 
     return {"ok": True}
 
@@ -2506,18 +2543,18 @@ async def announce_host(room_id: str, body: dict[str, Any]):
 @app.get("/signal/{room_id}/host-status")
 async def get_host_status(room_id: str):
     """GET /signal/{room_id}/host-status - ホスト状態取得
-    
+
     現在のホスト情報を返す
     レスポンス: {"hostPeerId": str | None, "timestamp": int | None}
     """
     _cleanup_expired_signal_entries(room_id)
-    
+
     host_key = f"{room_id}:host"
     if host_key not in _signal_store:
         return {"hostPeerId": None, "timestamp": None}
-    
+
     host_info = _signal_store[host_key]
-    
+
     # 有効期限チェック
     now = datetime.now()
     if "expires_at" in host_info:
@@ -2528,11 +2565,68 @@ async def get_host_status(room_id: str):
                 return {"hostPeerId": None, "timestamp": None}
         except:
             pass
-    
+
     return {
         "hostPeerId": host_info.get("peerId"),
         "timestamp": host_info.get("timestamp")
     }
+
+
+@app.get("/signal/{room_id}/events")
+async def signal_events(room_id: str, peerId: str):
+    """GET /signal/{room_id}/events?peerId=xxx - SSEストリーム"""
+    import json as _json
+    queue: asyncio.Queue = asyncio.Queue()
+
+    if room_id not in _sse_connections:
+        _sse_connections[room_id] = {}
+    _sse_connections[room_id][peerId] = queue
+
+    # 接続時に現在のピアリストを送信
+    data = _get_signal_data(room_id)
+    current_peers = list(data.get("peers", []))
+
+    async def event_generator():
+        # 既存ピアを初期通知
+        for p in current_peers:
+            if p.get("peerId") != peerId:
+                msg = f"event: peer_joined\ndata: {_json.dumps({'peerId': p['peerId'], 'joinedAt': p.get('joinedAt', 0), 'publicKey': p.get('publicKey', '')})}\n\n"
+                yield msg
+
+        try:
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    if item is None:
+                        break
+                    yield f"event: {item['event']}\ndata: {_json.dumps(item['data'])}\n\n"
+                except asyncio.TimeoutError:
+                    # keepalive ping
+                    yield f"event: ping\ndata: {{}}\n\n"
+        finally:
+            if room_id in _sse_connections:
+                _sse_connections[room_id].pop(peerId, None)
+                if not _sse_connections[room_id]:
+                    del _sse_connections[room_id]
+
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.delete("/signal/{room_id}/peers/{peer_id}")
+async def unregister_peer_endpoint(room_id: str, peer_id: str):
+    """DELETE /signal/{room_id}/peers/{peer_id} - peer登録解除"""
+    data = _get_signal_data(room_id)
+    data["peers"] = [p for p in data.get("peers", []) if p["peerId"] != peer_id]
+    await _push_to_room(room_id, "peer_left", {"peerId": peer_id})
+    return {"ok": True}
 
 if __name__ == "__main__":
     import uvicorn

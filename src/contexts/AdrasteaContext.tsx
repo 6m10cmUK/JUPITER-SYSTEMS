@@ -210,7 +210,6 @@ export interface AdrasteaContextValue {
 
   // --- P2P ---
   p2pConnectionState: ConnectionState;
-  isHost: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -446,10 +445,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     }
   }, [roomId]);
 
-  // ホスト選出コールバック（ログ出力のみ）
-  const handleHostElection = useCallback((isHost: boolean, hostPeerId: string | null) => {
-    console.log(`[P2P] Host election: isHost=${isHost}, hostPeerId=${hostPeerId}`);
-  }, []);
 
   // P2P: incoming patch handler
   const handleP2PPatch = useCallback((collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>) => {
@@ -514,7 +509,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     _setMessages(snap.messages);
   }, [_setRoom, _setPieces, _setScenes, _setObjects, _setCharacters, _setBgms, _setCutins, _setScenarioTexts, _setMessages]);
 
-  const { connectionState: p2pConnectionState, isHost, sendPatch, sendRoomUpdate, sendChatMessage } = useP2PSync({
+  const { connectionState: p2pConnectionState, sendPatch, sendRoomUpdate, sendChatMessage } = useP2PSync({
     roomId,
     userId: user?.uid ?? '',
     enabled: initialLoadDone && !!user?.uid,
@@ -523,8 +518,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     onPatch: handleP2PPatch,
     onRoomUpdate: (data) => updateRoom(data),
     onChatMessage: (msg) => _addMessage(msg),
-    onHostElection: handleHostElection,
-    onSaveSnapshot: handleSaveSnapshot,
   });
 
   // Refs for P2P send functions (avoid re-creating wrappers on every render)
@@ -1033,7 +1026,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setPendingEdit,
       clearAllEditing,
       registerPanel, unregisterPanel,
-      p2pConnectionState, isHost,
+      p2pConnectionState,
     ],
   );
 
@@ -1091,8 +1084,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const p2pValue = useMemo<P2PContextValue>(() => ({
     p2pConnectionState,
-    isHost,
-  }), [p2pConnectionState, isHost]);
+  }), [p2pConnectionState]);
 
   return (
     <AdrasteaContext.Provider value={value}>
