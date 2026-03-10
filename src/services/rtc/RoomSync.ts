@@ -75,11 +75,18 @@ export class RoomSync {
   // --- Lifecycle ---
 
   async start(): Promise<void> {
-    if (this.isHost) {
-      await this.peerManager.startAsHost();
-    } else {
-      await this.peerManager.startAsGuest();
-    }
+    // 全員が候補として起動（動的ホスト選出）
+    const joinedAt = Date.now();
+
+    // ホスト選出コールバックを登録
+    this.peerManager.onHostElected = (hostPeerId, isMe) => {
+      this.isHost = isMe;
+      this.callbacks.onHostElection?.(hostPeerId, isMe);
+      this.callbacks.onConnectionStateChange?.('connected');
+    };
+
+    // CryptoManager は PeerManager 内部で管理
+    await this.peerManager.startAsCandidate(joinedAt, null as unknown as CryptoKey, '');
   }
 
   destroy(): void {

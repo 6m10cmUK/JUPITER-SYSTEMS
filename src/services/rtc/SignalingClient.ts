@@ -56,8 +56,15 @@ export class SignalingClient {
   }
 
   async getPeers(): Promise<SignalingPeer[]> {
-    const res = (await this.get('peers')) as { peers: SignalingPeer[] };
-    return res.peers ?? [];
+    const res = await this.get('peers');
+    const arr = Array.isArray(res) ? res : (res as any).peers ?? [];
+    return arr.map((p: any) => ({
+      peerId: p.peerId,
+      isHost: p.isHost ?? false,
+      timestamp: p.joinedAt ?? 0,
+      joinedAt: p.joinedAt ?? 0,
+      publicKey: p.publicKey ?? '',
+    })) as SignalingPeer[];
   }
 
   async getPeerPublicKey(peerId: string): Promise<string | null> {
