@@ -1,5 +1,7 @@
 import { SignalingClient } from './SignalingClient';
-import type { P2PMessage, ConnectionState } from './types';
+import type { P2PMessage, ConnectionState, SignedMessage, HostHeartbeatMessage } from './types';
+import { HostElectionManager } from './HostElectionManager';
+import { CryptoManager } from './CryptoManager';
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -35,6 +37,12 @@ export class PeerManager {
   // ICE candidate queue (collected before remote description is set)
   private pendingIceCandidates = new Map<string, RTCIceCandidateInit[]>();
 
+  // ホスト選出関連
+  private hostElectionManager: HostElectionManager | null = null;
+  private _privateKey: CryptoKey | null = null;
+  private hostHeartbeatInterval: NodeJS.Timeout | null = null;
+  private cryptoManager = new CryptoManager();
+
   constructor(
     signaling: SignalingClient,
     _peerId: string,
@@ -61,11 +69,12 @@ export class PeerManager {
   }
 
   /**
-   * ホストとして起動: peer polling 開始 → 新規ゲストにオファー送信
+   * ホスト選出ロジックなしで起動（後方互換）
+   * @deprecated startAsCandidate を使用してください
    */
   async startAsHost(): Promise<void> {
     this.onStateChange('connecting');
-    await this.signaling.registerPeer();
+    await this.signaling.registerPeer(Date.now(), '');
     this.signaling.startHeartbeat();
     this.signaling.startPeerPolling(async (newPeers) => {
       for (const peer of newPeers) {
@@ -76,11 +85,12 @@ export class PeerManager {
   }
 
   /**
-   * ゲストとして起動: ホストを探して接続
+   * ゲストとして起動: ホストを探して接続（後方互換）
+   * @deprecated startAsCandidate を使用してください
    */
   async startAsGuest(): Promise<void> {
     this.onStateChange('connecting');
-    await this.signaling.registerPeer();
+    await this.signaling.registerPeer(Date.now(), '');
     this.signaling.startHeartbeat();
 
     // ホストを探す（最大30秒）
@@ -95,6 +105,41 @@ export class PeerManager {
     await this.waitForOfferAndConnect(hostPeerId, 30_000);
   }
 
+  /**
+   * ホスト選出ロジック統合版
+   * 全ピアが候補として起動し、ホスト選出メカニズムが自動選出を行う
+   */
+  async startAsCandidate(
+    joinedAt: number,
+    privateKey: CryptoKey,
+    _publicKey: string,
+  ): Promise<void> {
+    this._privateKey = privateKey;
+
+    // 暗号化キーペア生成
+    await this.cryptoManager.generateKeyPair();
+
+    this.onStateChange('connecting');
+
+    // シグナリングに登録（CryptoManager から公開鍵を取得）
+    const cryptoPublicKey = this.cryptoManager.getPublicKeyBase64();
+    await this.signaling.registerPeer(joinedAt, cryptoPublicKey);
+
+    // HostElectionManager を起動
+    this.hostElectionManager = new HostElectionManager(
+      this.signaling.getPeerId,
+      joinedAt,
+      (hostPeerId) => this.onHostChanged(hostPeerId),
+    );
+
+    // ピアポーリングを開始（初期ピア取得 + ホスト選出に利用）
+    this.signaling.startPeerPolling((newPeers) => {
+      this.handleNewPeers(newPeers);
+    });
+
+    this.onStateChange('connected');
+  }
+
   /** reliable channel でメッセージ送信（全接続先） */
   broadcast(msg: P2PMessage): void {
     const data = JSON.stringify(msg);
@@ -106,6 +151,28 @@ export class PeerManager {
           conn.reliable.send(data);
         }
       }
+    }
+  }
+
+  /** 署名付きでブロードキャスト */
+  async broadcastWithSignature(msg: P2PMessage): Promise<void> {
+    if (!this._privateKey) {
+      this.broadcast(msg);
+      return;
+    }
+    try {
+      const signature = await this.cryptoManager.sign(JSON.stringify(msg));
+      const signed: SignedMessage = {
+        type: 'signed',
+        inner: msg as any,
+        signature,
+        signerPeerId: this.signaling.getPeerId,
+      };
+      this.broadcast(signed);
+    } catch (err) {
+      console.warn('P2P: 署名生成エラー', err);
+      // フォールバック: 署名なしで送信
+      this.broadcast(msg);
     }
   }
 
@@ -134,6 +201,10 @@ export class PeerManager {
   destroy(): void {
     this.destroyed = true;
     this.signaling.destroy();
+    if (this.hostHeartbeatInterval) {
+      clearInterval(this.hostHeartbeatInterval);
+      this.hostHeartbeatInterval = null;
+    }
     for (const conn of this.connections.values()) {
       conn.reliable?.close();
       conn.unreliable?.close();
@@ -141,6 +212,63 @@ export class PeerManager {
     }
     this.connections.clear();
     this.chunkBuffers.clear();
+  }
+
+  // --- Private: Host election ---
+
+  private handleNewPeers(peers: any[]): void {
+    // HostElectionManager に通知して選出計算を実行
+    if (this.hostElectionManager) {
+      this.hostElectionManager.notifyHostElection(peers);
+    }
+  }
+
+  private async onHostChanged(hostPeerId: string | null): Promise<void> {
+    if (hostPeerId === this.signaling.getPeerId) {
+      // 自分がホストに選出
+      console.log('P2P: ホスト選出（自分）');
+      this.isHost = true;
+      this.startHostHeartbeat();
+      // 全接続済みピアに full_sync をブロードキャスト
+      // (実装は RoomSync 層で行う)
+    } else if (hostPeerId) {
+      // 他のピアがホスト
+      console.log(`P2P: ホスト選出（${hostPeerId}）`);
+      this.isHost = false;
+      this.stopHostHeartbeat();
+      // 必要に応じてそのピアに接続（既に接続済みならスキップ）
+      if (!this.connections.has(hostPeerId)) {
+        await this.createOfferTo(hostPeerId);
+      }
+    } else {
+      // ホスト離脱
+      console.log('P2P: ホスト離脱、再選出待ち');
+      this.isHost = false;
+      this.stopHostHeartbeat();
+    }
+  }
+
+  private startHostHeartbeat(): void {
+    if (this.hostHeartbeatInterval) {
+      clearInterval(this.hostHeartbeatInterval);
+    }
+    // 5秒ごとにハートビート送信
+    this.hostHeartbeatInterval = setInterval(() => {
+      if (!this.destroyed && this.isHost) {
+        const heartbeat: HostHeartbeatMessage = {
+          type: 'host_heartbeat',
+          timestamp: Date.now(),
+        };
+        this.broadcast(heartbeat);
+      }
+    }, 5000);
+  }
+
+  private stopHostHeartbeat(): void {
+    if (this.hostHeartbeatInterval) {
+      clearInterval(this.hostHeartbeatInterval);
+      this.hostHeartbeatInterval = null;
+    }
   }
 
   // --- Private: Connection setup ---
@@ -184,11 +312,13 @@ export class PeerManager {
         const msg = JSON.parse(e.data) as P2PMessage;
         if (msg.type === 'chunk') {
           this.handleChunk(msg, remotePeerId);
+        } else if (msg.type === 'signed') {
+          this.handleSignedMessage(msg as SignedMessage, remotePeerId);
         } else {
           this.onMessage(msg, remotePeerId);
         }
-      } catch {
-        console.warn('P2P: invalid message', e.data);
+      } catch (err) {
+        console.warn('P2P: invalid message', e.data, err);
       }
     };
     ch.onopen = () => {
@@ -197,6 +327,34 @@ export class PeerManager {
     ch.onclose = () => {
       this.updateState();
     };
+  }
+
+  private async handleSignedMessage(signed: SignedMessage, remotePeerId: string): Promise<void> {
+    try {
+      // 送信元の公開鍵を取得
+      const publicKeyBase64 = await this.signaling.getPeerPublicKey(signed.signerPeerId);
+      if (!publicKeyBase64) {
+        console.warn('P2P: 公開鍵が見つかりません', signed.signerPeerId);
+        return;
+      }
+
+      // CryptoManager で署名を検証
+      const isValid = await CryptoManager.verify(
+        publicKeyBase64,
+        JSON.stringify(signed.inner),
+        signed.signature,
+      );
+      if (!isValid) {
+        console.warn('P2P: 署名検証失敗', signed.signerPeerId);
+        return;
+      }
+
+      // 検証成功、メッセージを処理
+      const innerMsg = signed.inner as P2PMessage;
+      this.onMessage(innerMsg, remotePeerId);
+    } catch (err) {
+      console.warn('P2P: 署名メッセージ処理エラー', err);
+    }
   }
 
   /** ホスト → ゲストにオファー送信 */

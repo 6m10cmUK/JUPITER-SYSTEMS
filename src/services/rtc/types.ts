@@ -93,6 +93,27 @@ export interface SyncRequestMessage {
   type: 'sync_request';
 }
 
+/** Host election notification */
+export interface HostElectionMessage {
+  type: 'host_election';
+  hostPeerId: string | null;
+  timestamp: number;
+}
+
+/** Host heartbeat (to prevent timeout) */
+export interface HostHeartbeatMessage {
+  type: 'host_heartbeat';
+  timestamp: number;
+}
+
+/** Signed message wrapper (for host verification) */
+export interface SignedMessage {
+  type: 'signed';
+  signature: string;
+  signerPeerId: string;
+  inner: P2PMessage;
+}
+
 export type P2PMessage =
   | FullSyncMessage
   | PatchMessage
@@ -101,7 +122,10 @@ export type P2PMessage =
   | CursorMessage
   | DragMessage
   | ChunkMessage
-  | SyncRequestMessage;
+  | SyncRequestMessage
+  | HostElectionMessage
+  | HostHeartbeatMessage
+  | SignedMessage;
 
 // ---------------------------------------------------------------------------
 // Connection state
@@ -117,4 +141,12 @@ export interface SignalingPeer {
   peerId: string;
   isHost: boolean;
   timestamp: number;
+  joinedAt: number;
+  publicKey: string;
+  isElected?: boolean;
+}
+
+export interface HostStatus {
+  hostPeerId: string | null;
+  timestamp: number | null;
 }
