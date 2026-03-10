@@ -315,6 +315,18 @@ export function Home() {
                   </p>
                 </Link>
                 
+                <Link
+                  to="/juno"
+                  className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group"
+                >
+                  <h3 className="font-semibold text-gray-900 mb-1 group-hover:text-jupiter-600">
+                    Juno - Darts Scorer
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    ダーツスコア計算ツール
+                  </p>
+                </Link>
+
                 <div className="block p-4 bg-gray-50 rounded-lg opacity-50">
                   <h3 className="font-semibold text-gray-500 mb-1">
                     その他のプロジェクト

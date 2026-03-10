@@ -5,6 +5,7 @@ import { Home } from './pages/Home'
 import { PDF2MD } from './pages/PDF2MD'
 import CharacterDisplayGenerator from './pages/CharacterDisplayGenerator'
 import DiscordObs from './pages/DiscordObs'
+import Juno from './pages/Juno'
 
 function NotFound() {
   return (
@@ -29,6 +30,7 @@ function App() {
           <Route path="discord-obs" element={<DiscordObs />} />
           <Route path="*" element={<NotFound />} />
         </Route>
+        <Route path="juno" element={<Juno />} />
       </Routes>
     </Router>
   )

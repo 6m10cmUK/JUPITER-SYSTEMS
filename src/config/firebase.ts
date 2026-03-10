@@ -13,7 +13,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Firebaseアプリの初期化
+// Firebaseアプリの初期化（API keyが未設定の場合はthrow）
+if (!firebaseConfig.apiKey) {
+  throw new Error('Firebase設定が見つかりません。.envファイルを確認してください。');
+}
+
 const app = initializeApp(firebaseConfig);
 
 // 認証の初期化
@@ -29,8 +33,3 @@ googleProvider.setCustomParameters({
 
 // Firestoreの初期化
 export const db = getFirestore(app);
-
-// エラーハンドリング
-if (!firebaseConfig.apiKey) {
-  console.error('Firebase設定が見つかりません。.envファイルを確認してください。');
-}
