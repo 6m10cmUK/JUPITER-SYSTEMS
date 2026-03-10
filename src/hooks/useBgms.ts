@@ -95,5 +95,10 @@ export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
     setLoading(false);
   }, []);
 
-  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll };
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: BgmTrack) => {
+    setBgms(prev => [...prev, item]);
+  }, []);
+
+  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll, _addOne };
 }

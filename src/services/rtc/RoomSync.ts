@@ -56,7 +56,7 @@ export class RoomSync {
       tabId = Math.random().toString(36).slice(2, 10);
       sessionStorage.setItem('adrastea_tab_id', tabId);
     }
-    this.peerId = `${userId}_${tabId}_${Date.now()}`;
+    this.peerId = `${userId}_${tabId}`;
 
     this.signaling = new SignalingClient(roomId, this.peerId);
     this.peerManager = new PeerManager(

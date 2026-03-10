@@ -7,28 +7,37 @@ import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
+import { usePermission } from '../../hooks/usePermission';
+import type { PermissionKey } from '../../config/permissions';
 
-const PANEL_DEFS = [
-  { id: 'scene', component: 'scene', title: 'シーン' },
-  { id: 'character', component: 'character', title: 'キャラクター' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト' },
-  { id: 'cutin', component: 'cutin', title: 'カットイン' },
-  { id: 'layer', component: 'layer', title: 'レイヤー' },
-  { id: 'property', component: 'property', title: 'プロパティ' },
-  { id: 'chat', component: 'chat', title: 'チャット' },
-  { id: 'board', component: 'board', title: 'Board' },
-  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF' },
-  { id: 'bgm', component: 'bgm', title: 'BGM' },
-] as const;
+interface PanelDef {
+  id: string;
+  component: string;
+  title: string;
+  permission: PermissionKey;
+}
+
+const PANEL_DEFS: PanelDef[] = [
+  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
+  { id: 'character', component: 'character', title: 'キャラクター', permission: 'panel_character' },
+  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト', permission: 'panel_scenarioText' },
+  { id: 'cutin', component: 'cutin', title: 'カットイン', permission: 'panel_cutin' },
+  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
+  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
+  { id: 'chat', component: 'chat', title: 'チャット', permission: 'panel_chat' },
+  { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
+  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
+  { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
+];
 
 function P2PIndicator() {
   const { p2pConnectionState } = useAdrasteaContext();
 
   const config = {
-    connected: { icon: <Wifi size={14} />, color: theme.success, label: 'P2P接続中' },
-    connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'P2P接続中...' },
-    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'P2P再接続中...' },
-    disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'P2P未接続' },
+    connected: { icon: <Wifi size={14} />, color: theme.success, label: 'Connected' },
+    connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Connecting...' },
+    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Reconnecting...' },
+    disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'Disconnected' },
   }[p2pConnectionState];
 
   return (
@@ -97,6 +106,7 @@ export function TopToolbar({
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const { isGuest } = useAuth();
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
+  const { can } = usePermission();
 
   const togglePanel = useCallback(
     (panelId: string, component: string, title: string) => {
@@ -182,7 +192,7 @@ export function TopToolbar({
                 minWidth: 160,
               }}
             >
-              {PANEL_DEFS.map((p) => {
+              {PANEL_DEFS.filter(p => can(p.permission)).map((p) => {
                 const exists = !!dockviewApi?.getPanel(p.id);
                 return (
                   <button

@@ -74,5 +74,10 @@ export function useCharacters(roomId: string, initialCharacters?: Character[]) {
     setLoading(false);
   }, []);
 
-  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll };
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: Character) => {
+    setCharacters(prev => [...prev, item]);
+  }, []);
+
+  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll, _addOne };
 }

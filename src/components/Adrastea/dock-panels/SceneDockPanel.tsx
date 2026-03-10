@@ -32,6 +32,7 @@ export function SceneDockPanel() {
     const newSceneId = result.scene.id;
     rebalanceSortOrder(newSceneId, nextSortOrder);
     await ctx.activateScene(newSceneId);
+    setSelectedSceneIds([newSceneId]);
   };
 
   const handleDuplicateScenes = useCallback(async (sceneIds: string[]) => {

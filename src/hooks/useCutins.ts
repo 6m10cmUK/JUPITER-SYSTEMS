@@ -100,5 +100,10 @@ export function useCutins(
     setLoading(false);
   }, []);
 
-  return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll };
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: Cutin) => {
+    setCutins(prev => [...prev, item]);
+  }, []);
+
+  return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll, _addOne };
 }
