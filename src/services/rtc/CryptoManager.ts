@@ -16,6 +16,11 @@ export class CryptoManager {
    * 生成後は getPublicKeyBase64() で公開鍵を取得可能
    */
   async generateKeyPair(): Promise<void> {
+    // HTTP環境（スマホLAN接続など）では crypto.subtle が使えないためスキップ
+    if (!window.crypto?.subtle) {
+      console.warn('CryptoManager: crypto.subtle 非対応環境（HTTP）。署名なしモードで動作します。');
+      return;
+    }
     this.keyPair = await window.crypto.subtle.generateKey(
       {
         name: 'ECDSA',
@@ -34,10 +39,7 @@ export class CryptoManager {
    * 生成された公開鍵を Base64形式で取得
    */
   getPublicKeyBase64(): string {
-    if (!this.publicKeyBase64) {
-      throw new Error('CryptoManager: キーペアがまだ生成されていません');
-    }
-    return this.publicKeyBase64;
+    return this.publicKeyBase64; // 未生成（HTTP環境）の場合は空文字を返す
   }
 
   /**

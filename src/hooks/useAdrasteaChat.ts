@@ -86,8 +86,10 @@ export function useAdrasteaChat(
 
         setMessages((prev) => [...prev, newMessage]);
         await cacheMessages([newMessage]);
+        return newMessage;
       } catch (error) {
         console.error('メッセージの送信に失敗:', error);
+        return null;
       }
     },
     [roomId]
