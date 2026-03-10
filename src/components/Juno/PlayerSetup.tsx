@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { GameAction, GameMode } from '../../types/juno.types'
+import { isCricketMode } from '../../types/juno.types'
 
 const NAMES_STORAGE_KEY = 'juno-player-names'
 const LAST_MODE_STORAGE_KEY = 'juno-last-mode'
@@ -76,10 +77,11 @@ export function PlayerSetup({ dispatch }: Props) {
   const [selectedMode, setSelectedMode] = useState<GameMode>(loadLastMode)
   const [selectedStartScore, setSelectedStartScore] = useState<301 | 501 | 701>(loadLastStartScore)
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null)
-  const [isCricketSecret, setIsCricketSecret] = useState(loadLastMode() === 'cricket-secret')
   const [shuffle, setShuffle] = useState(() => {
     try { return localStorage.getItem(LAST_SHUFFLE_STORAGE_KEY) === 'true' } catch { return false }
   })
+
+  const isCricketSecret = selectedMode === 'cricket-secret'
 
   useEffect(() => {
     const history = loadNameHistory()
@@ -89,10 +91,6 @@ export function PlayerSetup({ dispatch }: Props) {
       setNames(prefilled)
     }
   }, [])
-
-  useEffect(() => {
-    setIsCricketSecret(selectedMode === 'cricket-secret')
-  }, [selectedMode])
 
   const handleStart = () => {
     let playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`)
@@ -240,19 +238,14 @@ export function PlayerSetup({ dispatch }: Props) {
         <label className="block text-sm font-semibold text-gray-400 mb-2">ゲームモード</label>
         <div className="flex gap-2">
           {([['count-up', 'Count Up'], ['zero-one', '01'], ['cricket', 'Cricket']] as const).map(([mode, label]) => {
-            const disabled = mode === 'cricket' && playerCount < 2
+            const disabled = mode === 'cricket' && isCricketMode(selectedMode) && playerCount < 2
             const isSelected = mode === 'cricket' ? (selectedMode === 'cricket' || selectedMode === 'cricket-secret') : selectedMode === mode
             return (
               <button
                 key={mode}
                 onClick={() => {
                   if (!disabled) {
-                    if (mode === 'cricket') {
-                      setSelectedMode('cricket')
-                      setIsCricketSecret(false)
-                    } else {
-                      setSelectedMode(mode)
-                    }
+                    setSelectedMode(mode === 'cricket' ? 'cricket' : mode)
                   }
                 }}
                 className={`flex-1 py-3 rounded-xl font-bold transition-all ${
@@ -293,10 +286,8 @@ export function PlayerSetup({ dispatch }: Props) {
                 onClick={() => {
                   if (variant === 'normal') {
                     setSelectedMode('cricket')
-                    setIsCricketSecret(false)
                   } else {
                     setSelectedMode('cricket-secret')
-                    setIsCricketSecret(true)
                   }
                 }}
                 className={`flex-1 py-2 rounded-xl font-bold transition-all ${
@@ -331,9 +322,9 @@ export function PlayerSetup({ dispatch }: Props) {
 
       <button
         onClick={handleStart}
-        disabled={selectedMode === 'cricket' && playerCount < 2 || selectedMode === 'cricket-secret' && playerCount < 2}
+        disabled={isCricketMode(selectedMode) && playerCount < 2}
         className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
-          (selectedMode === 'cricket' || selectedMode === 'cricket-secret') && playerCount < 2
+          isCricketMode(selectedMode) && playerCount < 2
             ? 'bg-[#1a1a2e] text-gray-600 border border-[#2a2a4a] cursor-not-allowed'
             : 'bg-[#00d4ff] text-[#0a0a0a] hover:bg-[#00b8d9] active:bg-[#009db8] shadow-[0_0_25px_rgba(0,212,255,0.4)] hover:shadow-[0_0_35px_rgba(0,212,255,0.6)]'
         }`}
