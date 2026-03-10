@@ -1,5 +1,5 @@
 import { SignalingClient } from './SignalingClient';
-import type { P2PMessage, ConnectionState, SignedMessage, HostHeartbeatMessage } from './types';
+import type { P2PMessage, ConnectionState, SignedMessage, HostHeartbeatMessage, SignalingPeer } from './types';
 import { HostElectionManager } from './HostElectionManager';
 import { CryptoManager } from './CryptoManager';
 
@@ -39,7 +39,6 @@ export class PeerManager {
 
   // ホスト選出関連
   private hostElectionManager: HostElectionManager | null = null;
-  private _privateKey: CryptoKey | null = null;
   private hostHeartbeatInterval: NodeJS.Timeout | null = null;
   private cryptoManager = new CryptoManager();
 
@@ -69,6 +68,17 @@ export class PeerManager {
 
   get hasConnections(): boolean {
     return this.connectedPeerIds.length > 0;
+  }
+
+  hasHostConnection(): boolean {
+    // ホストへの接続が確立済みかどうか
+    // connections が空でなく、ホストとのchannelがopenならtrue
+    if (this.isHost) return true;
+    // ゲストの場合: 誰かとでも接続済みならtrue（スター型なので相手はホストのはず）
+    for (const conn of this.connections.values()) {
+      if (conn.reliable?.readyState === 'open') return true;
+    }
+    return false;
   }
 
   /**
@@ -112,14 +122,7 @@ export class PeerManager {
    * ホスト選出ロジック統合版
    * 全ピアが候補として起動し、ホスト選出メカニズムが自動選出を行う
    */
-  async startAsCandidate(
-    joinedAt: number,
-    privateKey: CryptoKey | null,
-    _publicKey: string,
-  ): Promise<void> {
-    // CryptoManager で独自にキーペア生成するため privateKey は使用しない
-    this._privateKey = privateKey;
-
+  async startAsCandidate(joinedAt: number): Promise<void> {
     // 暗号化キーペア生成
     await this.cryptoManager.generateKeyPair();
 
@@ -141,6 +144,9 @@ export class PeerManager {
       this.handleNewPeers(newPeers);
     });
 
+    // 死活監視を開始（ホスト無応答時の自動再選出）
+    this.hostElectionManager.startHealthCheck(30000, 5000);
+
     this.onStateChange('connected');
   }
 
@@ -160,10 +166,6 @@ export class PeerManager {
 
   /** 署名付きでブロードキャスト */
   async broadcastWithSignature(msg: P2PMessage): Promise<void> {
-    if (!this._privateKey) {
-      this.broadcast(msg);
-      return;
-    }
     try {
       const signature = await this.cryptoManager.sign(JSON.stringify(msg));
       const signed: SignedMessage = {
@@ -174,9 +176,8 @@ export class PeerManager {
       };
       this.broadcast(signed);
     } catch (err) {
-      console.warn('P2P: 署名生成エラー', err);
-      // フォールバック: 署名なしで送信
-      this.broadcast(msg);
+      console.warn('P2P: 署名生成エラー、メッセージ送信をスキップ', err);
+      // 署名なしでは送信しない
     }
   }
 
@@ -209,6 +210,7 @@ export class PeerManager {
       clearInterval(this.hostHeartbeatInterval);
       this.hostHeartbeatInterval = null;
     }
+    this.hostElectionManager?.destroy();
     for (const conn of this.connections.values()) {
       conn.reliable?.close();
       conn.unreliable?.close();
@@ -220,7 +222,7 @@ export class PeerManager {
 
   // --- Private: Host election ---
 
-  private handleNewPeers(peers: any[]): void {
+  private handleNewPeers(peers: SignalingPeer[]): void {
     // HostElectionManager に通知して選出計算を実行
     if (this.hostElectionManager) {
       this.hostElectionManager.notifyHostElection(peers);
