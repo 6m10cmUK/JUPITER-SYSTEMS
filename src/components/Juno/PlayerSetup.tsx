@@ -15,7 +15,12 @@ function safeSetItem(key: string, value: string) {
 function loadNameHistory(): string[] {
   try {
     const saved = localStorage.getItem(NAMES_STORAGE_KEY)
-    return saved ? JSON.parse(saved) : []
+    if (!saved) return []
+    const parsed = JSON.parse(saved)
+    if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+      return parsed
+    }
+    return []
   } catch {
     return []
   }
@@ -23,7 +28,8 @@ function loadNameHistory(): string[] {
 
 function saveNameHistory(names: string[]) {
   const history = loadNameHistory()
-  const updated = [...new Set([...names.filter(n => n.trim()), ...history])].slice(0, 20)
+  const trimmedNames = names.map(n => n.trim()).filter(n => n)
+  const updated = [...new Set([...trimmedNames, ...history])].slice(0, 20)
   safeSetItem(NAMES_STORAGE_KEY, JSON.stringify(updated))
 }
 
@@ -238,7 +244,7 @@ export function PlayerSetup({ dispatch }: Props) {
         <label className="block text-sm font-semibold text-gray-400 mb-2">ゲームモード</label>
         <div className="flex gap-2">
           {([['count-up', 'Count Up'], ['zero-one', '01'], ['cricket', 'Cricket']] as const).map(([mode, label]) => {
-            const disabled = mode === 'cricket' && isCricketMode(selectedMode) && playerCount < 2
+            const disabled = mode === 'cricket' && playerCount < 2
             const isSelected = mode === 'cricket' ? (selectedMode === 'cricket' || selectedMode === 'cricket-secret') : selectedMode === mode
             return (
               <button
