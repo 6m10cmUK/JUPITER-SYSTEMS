@@ -18,9 +18,6 @@ export class HostElectionManager {
   private onHostChanged: (hostPeerId: string | null) => void;
   private destroyed = false;
 
-  // offer に応答しなかったピアを一時的に除外するブラックリスト
-  private deadCandidates = new Map<string, number>(); // peerId → 除外期限 (ms)
-
   constructor(
     myPeerId: string,
     myJoinedAt: number,
@@ -35,28 +32,14 @@ export class HostElectionManager {
    * ピアリストから最古のピアをホストとして選出（deterministic）
    * tiebreak: joinedAt が同じなら peerId の辞書順で小さい方
    */
-  /**
-   * offer に応答しなかったピアをブラックリストに追加（デフォルト60秒）
-   */
-  markAsDead(peerId: string, durationMs = 60_000): void {
-    console.log(`[HostElection] ${peerId.slice(-8)} を ${durationMs / 1000}秒間除外`);
-    this.deadCandidates.set(peerId, Date.now() + durationMs);
-  }
-
   electHost(peers: SignalingPeer[]): string | null {
     if (!peers || peers.length === 0) {
       return null;
     }
 
-    // 期限切れのブラックリストエントリを掃除
-    const now = Date.now();
-    for (const [id, until] of this.deadCandidates) {
-      if (now > until) this.deadCandidates.delete(id);
-    }
-
-    // 自分も候補に含める（自分はブラックリストしない）
+    // 自分も候補に含める
     const allPeers = [
-      ...peers.filter(p => !this.deadCandidates.has(p.peerId)),
+      ...peers,
       {
         peerId: this.myPeerId,
         isHost: false, // placeholder

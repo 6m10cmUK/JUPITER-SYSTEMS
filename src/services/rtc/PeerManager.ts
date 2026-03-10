@@ -41,6 +41,8 @@ export class PeerManager {
   private hostElectionManager: HostElectionManager | null = null;
   private hostHeartbeatInterval: NodeJS.Timeout | null = null;
   private cryptoManager = new CryptoManager();
+  // 現在waitForOfferAndConnectを実行中のホストPeerId
+  private waitingForOfferFrom: string | null = null;
 
   // ホスト選出コールバック
   onHostElected?: (hostPeerId: string | null, isMe: boolean) => void;
@@ -148,7 +150,8 @@ export class PeerManager {
     });
 
     // 死活監視を開始（ホスト無応答時の自動再選出）
-    this.hostElectionManager.startHealthCheck(30000, 5000);
+    // TODO: DataChannel確立後に有効化 / 現在はデバッグのため無効
+    // this.hostElectionManager.startHealthCheck(120000, 10000);
 
     this.onStateChange('connected');
   }
@@ -269,13 +272,27 @@ export class PeerManager {
       console.log(`P2P: ホスト選出（${hostPeerId}）、offerを待機`);
       this.isHost = false;
       this.stopHostHeartbeat();
+
+      // 既にこのホストと接続済み or 待機中ならスキップ
+      const existingConn = this.connections.get(hostPeerId);
+      if (existingConn?.reliable?.readyState === 'open') {
+        console.log(`[PeerManager] already connected to host ${hostPeerId.slice(-8)}, skipping offer wait`);
+        this.signaling.stopPeerPolling();
+        return;
+      }
+      if (this.waitingForOfferFrom === hostPeerId) {
+        console.log(`[PeerManager] already waiting for offer from ${hostPeerId.slice(-8)}, skipping`);
+        return;
+      }
+
       // ゲストはofferを待つ（ホストがcreateOfferToで送ってくる）
       // ポーリングを停止してofferポーリングに切り替え
       this.signaling.stopPeerPolling();
+      this.waitingForOfferFrom = hostPeerId;
       this.waitForOfferAndConnect(hostPeerId, 30_000).catch((err) => {
         console.warn('P2P: ホストからのoffer待機エラー', err);
-        // offer に応答しなかったピアをブラックリスト化 → 次回の選出から除外
-        this.hostElectionManager?.markAsDead(hostPeerId);
+      }).finally(() => {
+        if (this.waitingForOfferFrom === hostPeerId) this.waitingForOfferFrom = null;
       });
     } else {
       // ホスト離脱
@@ -338,6 +355,14 @@ export class PeerManager {
       if (ch.label === 'reliable') {
         conn.reliable = ch;
         this.setupChannelHandlers(ch, remotePeerId);
+        // 既に open 状態の場合 onopen は呼ばれないので手動で実行
+        if (ch.readyState === 'open') {
+          console.log(`[PeerManager] DataChannel "reliable" already open with ${remotePeerId.slice(-8)}`);
+          this.updateState();
+          if (!this.isHost) {
+            ch.send(JSON.stringify({ type: 'sync_request' }));
+          }
+        }
       } else if (ch.label === 'unreliable') {
         conn.unreliable = ch;
         this.setupChannelHandlers(ch, remotePeerId);
@@ -454,12 +479,16 @@ export class PeerManager {
       await sleep(1000);
     }
     console.warn('P2P: オファータイムアウト');
-    // offer に応答しなかったホスト候補をブラックリスト化
-    this.hostElectionManager?.markAsDead(hostPeerId);
     this.onStateChange('disconnected');
   }
 
   private async handleOffer(hostPeerId: string, offerSdp: string): Promise<void> {
+    // 既に有効な接続がある場合はスキップ（上書きによるICE破壊を防止）
+    const existing = this.connections.get(hostPeerId);
+    if (existing && existing.pc.signalingState !== 'closed' && existing.pc.connectionState !== 'failed') {
+      console.log(`[PeerManager] handleOffer: connection to ${hostPeerId.slice(-8)} already exists (${existing.pc.signalingState}), skipping`);
+      return;
+    }
     const conn = this.createPeerConnection(hostPeerId);
     const offer = JSON.parse(offerSdp) as RTCSessionDescriptionInit;
     await conn.pc.setRemoteDescription(new RTCSessionDescription(offer));
@@ -494,7 +523,6 @@ export class PeerManager {
   }
 
   private pollIceCandidates(remotePeerId: string): void {
-    let knownCount = 0;
     const interval = setInterval(async () => {
       if (this.destroyed) {
         clearInterval(interval);
@@ -512,18 +540,16 @@ export class PeerManager {
       }
       try {
         const candidates = await this.signaling.getIceCandidates(remotePeerId);
-        for (let i = knownCount; i < candidates.length; i++) {
-          const candidate = JSON.parse(candidates[i]) as RTCIceCandidateInit;
+        for (const candidateStr of candidates) {
+          const candidate = JSON.parse(candidateStr) as RTCIceCandidateInit;
           if (conn.pc.remoteDescription) {
             await conn.pc.addIceCandidate(new RTCIceCandidate(candidate));
           } else {
-            // Queue for later
             const pending = this.pendingIceCandidates.get(remotePeerId) ?? [];
             pending.push(candidate);
             this.pendingIceCandidates.set(remotePeerId, pending);
           }
         }
-        knownCount = candidates.length;
       } catch {
         // ignore
       }
