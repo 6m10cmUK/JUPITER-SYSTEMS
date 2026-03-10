@@ -131,6 +131,7 @@ export class PeerManager {
     // シグナリングに登録（CryptoManager から公開鍵を取得）
     const cryptoPublicKey = this.cryptoManager.getPublicKeyBase64();
     await this.signaling.registerPeer(joinedAt, cryptoPublicKey);
+    this.signaling.startHeartbeat();
 
     // HostElectionManager を起動
     this.hostElectionManager = new HostElectionManager(
