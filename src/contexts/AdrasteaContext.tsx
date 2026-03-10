@@ -788,6 +788,22 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     sendPatchRef.current('objects', 'remove', id);
   }, [removeObject]);
 
+  const p2pReorderObjects = useCallback((orderedIds: string[]) => {
+    reorderObjects(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('objects', 'update', id, { sort_order: i, updated_at: now });
+    });
+  }, [reorderObjects]);
+
+  const p2pBatchUpdateSort = useCallback((updates: { id: string; sort: number }[]) => {
+    batchUpdateSort(updates);
+    const now = Date.now();
+    updates.forEach(({ id, sort }) => {
+      sendPatchRef.current('objects', 'update', id, { sort_order: sort, updated_at: now });
+    });
+  }, [batchUpdateSort]);
+
   // Character operations + P2P broadcast
   const p2pUpdateCharacter = useCallback((id: string, data: Partial<Character>) => {
     updateCharacter(id, data);
@@ -809,6 +825,75 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     removeBgm(id);
     sendPatchRef.current('bgms', 'remove', id);
   }, [removeBgm]);
+
+  // add 操作の P2P ブロードキャストラッパー
+  const p2pAddScene = useCallback(
+    (
+      data: Parameters<typeof addScene>[0],
+      duplicateFromSceneId?: string,
+      allObjectsForDup?: BoardObject[]
+    ) => {
+      const result = addScene(data, duplicateFromSceneId, allObjectsForDup);
+      if (!result) return result;
+      const { scene, objects } = result;
+      sendPatchRef.current('scenes', 'add', scene.id, scene as Record<string, unknown>);
+      objects.forEach((obj) => {
+        sendPatchRef.current('objects', 'add', obj.id, obj as Record<string, unknown>);
+      });
+      return result;
+    },
+    [addScene]
+  );
+
+  const p2pAddObject = useCallback(
+    (data: Parameters<typeof addObject>[0]) => {
+      const newObj = addObject(data);
+      if (!newObj) return newObj;
+      sendPatchRef.current('objects', 'add', newObj.id, newObj as Record<string, unknown>);
+      return newObj;
+    },
+    [addObject]
+  );
+
+  const p2pAddCharacter = useCallback(
+    (data: Parameters<typeof addCharacter>[0]) => {
+      const newChar = addCharacter(data);
+      if (!newChar) return newChar;
+      sendPatchRef.current('characters', 'add', newChar.id, newChar as Record<string, unknown>);
+      return newChar;
+    },
+    [addCharacter]
+  );
+
+  const p2pAddBgm = useCallback(
+    (data: Parameters<typeof addBgm>[0]) => {
+      const newBgm = addBgm(data);
+      if (!newBgm) return newBgm;
+      sendPatchRef.current('bgms', 'add', newBgm.id, newBgm as Record<string, unknown>);
+      return newBgm;
+    },
+    [addBgm]
+  );
+
+  const p2pAddCutin = useCallback(
+    (data: Parameters<typeof addCutin>[0]) => {
+      const newCutin = addCutin(data);
+      if (!newCutin) return newCutin;
+      sendPatchRef.current('cutins', 'add', newCutin.id, newCutin as Record<string, unknown>);
+      return newCutin;
+    },
+    [addCutin]
+  );
+
+  const p2pAddScenarioText = useCallback(
+    (data: Parameters<typeof addScenarioText>[0]) => {
+      const newText = addScenarioText(data);
+      if (!newText) return newText;
+      sendPatchRef.current('scenarioTexts', 'add', newText.id, newText as Record<string, unknown>);
+      return newText;
+    },
+    [addScenarioText]
+  );
 
   // --- Callbacks ---
   const handleSendMessage = useCallback(
@@ -923,35 +1008,35 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
 
       // useScenes (P2P-aware)
-      scenes: effectiveScenes, addScene,
+      scenes: effectiveScenes, addScene: p2pAddScene,
       updateScene: p2pUpdateScene,
       removeScene: p2pRemoveScene,
       reorderScenes,
       activateScene: safeActivateScene,
 
       // useCharacters (P2P-aware)
-      characters, addCharacter,
+      characters, addCharacter: p2pAddCharacter,
       updateCharacter: p2pUpdateCharacter,
       removeCharacter: p2pRemoveCharacter,
       reorderCharacters,
 
       // useObjects (P2P-aware)
       allObjects, activeObjects: effectiveActiveObjects,
-      addObject: addObject as any,
+      addObject: p2pAddObject as any,
       updateObject: syncedUpdateObject as any,
       removeObject: p2pRemoveObject as any,
-      reorderObjects: reorderObjects as any,
-      batchUpdateSort: batchUpdateSort as any,
+      reorderObjects: p2pReorderObjects as any,
+      batchUpdateSort: p2pBatchUpdateSort as any,
       injectOptimistic,
 
       // useScenarioTexts
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+      scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
 
       // useCutins
-      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+      cutins, addCutin: p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
 
       // useBgms (P2P-aware)
-      bgms, addBgm: addBgm as any,
+      bgms, addBgm: p2pAddBgm as any,
       updateBgm: p2pUpdateBgm as any,
       removeBgm: p2pRemoveBgm as any,
       reorderBgms: reorderBgms as any,
@@ -998,19 +1083,18 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // P2P
       p2pConnectionState,
-      isHost,
     }),
     [
       roomId, roomRole,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-      effectiveScenes, addScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
-      characters, addCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
+      effectiveScenes, p2pAddScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
+      characters, p2pAddCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
-      addObject, syncedUpdateObject, p2pRemoveObject, reorderObjects, batchUpdateSort, injectOptimistic,
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
-      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-      bgms, addBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
+      p2pAddObject, syncedUpdateObject, p2pRemoveObject, p2pReorderObjects, p2pBatchUpdateSort, injectOptimistic,
+      scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+      cutins, p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+      bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
@@ -1037,28 +1121,28 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Chat
     messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
     // Scenes
-    scenes: effectiveScenes, addScene, updateScene: p2pUpdateScene, removeScene: p2pRemoveScene, reorderScenes, activateScene: safeActivateScene,
+    scenes: effectiveScenes, addScene: p2pAddScene, updateScene: p2pUpdateScene, removeScene: p2pRemoveScene, reorderScenes, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter, updateCharacter: p2pUpdateCharacter, removeCharacter: p2pRemoveCharacter, reorderCharacters,
+    characters, addCharacter: p2pAddCharacter, updateCharacter: p2pUpdateCharacter, removeCharacter: p2pRemoveCharacter, reorderCharacters,
     // Objects
-    allObjects, activeObjects: effectiveActiveObjects, addObject: addObject as any, updateObject: syncedUpdateObject as any, removeObject: p2pRemoveObject as any, reorderObjects: reorderObjects as any, batchUpdateSort: batchUpdateSort as any, injectOptimistic,
+    allObjects, activeObjects: effectiveActiveObjects, addObject: p2pAddObject as any, updateObject: syncedUpdateObject as any, removeObject: p2pRemoveObject as any, reorderObjects: p2pReorderObjects as any, batchUpdateSort: p2pBatchUpdateSort as any, injectOptimistic,
     // ScenarioTexts
-    scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     // Cutins
-    cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    cutins, addCutin: p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
     // BGMs
-    bgms, addBgm: addBgm as any, updateBgm: p2pUpdateBgm as any, removeBgm: p2pRemoveBgm as any, reorderBgms: reorderBgms as any,
+    bgms, addBgm: p2pAddBgm as any, updateBgm: p2pUpdateBgm as any, removeBgm: p2pRemoveBgm as any, reorderBgms: reorderBgms as any,
     // Derived
     activeScene,
   }), [
     pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
     messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-    effectiveScenes, addScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
-    characters, addCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
-    allObjects, effectiveActiveObjects, addObject, syncedUpdateObject, p2pRemoveObject, reorderObjects, batchUpdateSort, injectOptimistic,
-    scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
-    cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-    bgms, addBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
+    effectiveScenes, p2pAddScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
+    characters, p2pAddCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
+    allObjects, effectiveActiveObjects, p2pAddObject, syncedUpdateObject, p2pRemoveObject, p2pReorderObjects, p2pBatchUpdateSort, injectOptimistic,
+    scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    cutins, p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
     activeScene,
   ]);
 

@@ -42,7 +42,7 @@ export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
         updated_at: now,
       };
       setBgms((prev) => [...prev, newBgm]);
-      return newId;
+      return newBgm;
     },
     [roomId, bgms.length]
   );

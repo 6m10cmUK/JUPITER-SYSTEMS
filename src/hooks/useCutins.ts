@@ -45,7 +45,7 @@ export function useCutins(
         updated_at: now,
       };
       setCutins((prev) => [...prev, newCutin]);
-      return newId;
+      return newCutin;
     },
     [roomId, cutins.length]
   );

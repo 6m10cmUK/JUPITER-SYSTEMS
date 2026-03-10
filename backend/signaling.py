@@ -135,24 +135,13 @@ async def register_peer(room_id: str, body: dict[str, Any]):
     if "peers" not in data:
         data["peers"] = []
 
-    # 同じpeerIdを削除（更新） & 同一ユーザーの古いピアも削除（tabId変更を考慮してuserIdレベルで削除）
-    # peerIdフォーマット: userId_tabId_timestamp （例: abc123_xyz_1234567890）
-    # rsplit("_", 2) で [userId, tabId, timestamp] に分割し、userIdで古いピアを検索
-    parts = peer_id.rsplit("_", 2)
-    user_id = parts[0] if len(parts) == 3 else peer_id
+    # 同じpeerIdのみ削除（再登録・ハートビート）。同じuserの別タブは共存させる
     is_existing = any(p["peerId"] == peer_id for p in data["peers"])
-    old_peers = [
-        p for p in data["peers"]
-        if p["peerId"] != peer_id and p["peerId"].rsplit("_", 2)[0] == user_id
-    ]
     data["peers"] = [
         p for p in data["peers"]
-        if p["peerId"] == peer_id or p["peerId"].rsplit("_", 2)[0] != user_id
+        if p["peerId"] != peer_id
     ]
 
-    # 削除された古いピアをSSEでpeer_leftとして通知
-    for old_peer in old_peers:
-        await _push_to_room(room_id, "peer_left", {"peerId": old_peer["peerId"]})
     data["peers"].append({
         "peerId": peer_id,
         "joinedAt": joined_at,
@@ -162,14 +151,7 @@ async def register_peer(room_id: str, body: dict[str, Any]):
     })
 
     # 新規ピアのみSSEで通知（既存peerIdの更新=ハートビートは通知しない）
-    if not is_existing and not old_peers:
-        await _push_to_room(room_id, "peer_joined", {
-            "peerId": peer_id,
-            "joinedAt": joined_at,
-            "publicKey": public_key,
-        })
-    elif old_peers:
-        # 古いpeerIdから新しいpeerIdへの「再接続」は新規として通知
+    if not is_existing:
         await _push_to_room(room_id, "peer_joined", {
             "peerId": peer_id,
             "joinedAt": joined_at,
@@ -377,6 +359,20 @@ async def signal_events(room_id: str, peerId: str):
         for p in current_peers:
             msg = f"event: peer_joined\ndata: {_json.dumps({'peerId': p['peerId'], 'joinedAt': p.get('joinedAt', 0), 'publicKey': p.get('publicKey', '')})}\n\n"
             yield msg
+
+        # 接続前に保存済みの offer/answer/ice を即座に配信（catch-up）
+        pending_offer = data.get(f"offer:{peerId}")
+        if pending_offer and "from_peer" in pending_offer:
+            yield f"event: offer\ndata: {_json.dumps({'fromPeer': pending_offer['from_peer'], 'toPeer': peerId, 'sdp': pending_offer['sdp']})}\n\n"
+
+        pending_answer = data.get(f"answer:{peerId}")
+        if pending_answer and "from_peer" in pending_answer:
+            yield f"event: answer\ndata: {_json.dumps({'fromPeer': pending_answer['from_peer'], 'toPeer': peerId, 'sdp': pending_answer['sdp']})}\n\n"
+
+        pending_ice = data.get(f"ice:{peerId}")
+        if pending_ice and "candidates" in pending_ice:
+            for candidate in pending_ice.get("candidates", []):
+                yield f"event: ice\ndata: {_json.dumps({'fromPeer': pending_ice.get('from_peer', ''), 'toPeer': peerId, 'candidate': candidate})}\n\n"
 
         try:
             while True:

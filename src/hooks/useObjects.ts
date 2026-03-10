@@ -70,7 +70,7 @@ export function useObjects(
         updated_at: now,
       };
       setAllObjects((prev) => [...prev, newObj]);
-      return newId;
+      return newObj;
     },
     [allObjects.length]
   );
