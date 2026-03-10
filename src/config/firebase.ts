@@ -13,11 +13,11 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Firebaseアプリの初期化
-const app = initializeApp(firebaseConfig);
+// Firebaseアプリの初期化（API keyが未設定の場合はスキップ）
+const app = firebaseConfig.apiKey ? initializeApp(firebaseConfig) : null;
 
 // 認証の初期化
-export const auth = getAuth(app);
+export const auth = app ? getAuth(app) : null;
 export const googleProvider = new GoogleAuthProvider();
 
 // Google Providerにスコープを追加してプロフィール情報を確実に取得
@@ -28,7 +28,7 @@ googleProvider.setCustomParameters({
 });
 
 // Firestoreの初期化
-export const db = getFirestore(app);
+export const db = app ? getFirestore(app) : null;
 
 // エラーハンドリング
 if (!firebaseConfig.apiKey) {
