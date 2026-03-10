@@ -223,10 +223,19 @@ export class PeerManager {
 
   // --- Private: Host election ---
 
-  private handleNewPeers(peers: SignalingPeer[]): void {
+  private async handleNewPeers(peers: SignalingPeer[]): Promise<void> {
     // HostElectionManager に通知して選出計算を実行
     if (this.hostElectionManager) {
       this.hostElectionManager.notifyHostElection(peers);
+    }
+    // ホストなら新しいピアにofferを送信
+    if (this.isHost) {
+      const myPeerId = this.signaling.getPeerId as string;
+      for (const peer of peers) {
+        if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
+          await this.createOfferTo(peer.peerId);
+        }
+      }
     }
   }
 
@@ -238,34 +247,21 @@ export class PeerManager {
     this.onHostElected?.(hostPeerId, isMe);
 
     if (isMe) {
-      // 自分がホストに選出
       console.log('P2P: ホスト選出（自分）');
       this.isHost = true;
       this.startHostHeartbeat();
-
-      // 全既存ピアに offer を送信（まだ接続していないピアのみ）
-      // perfect negotiation パターン: peerId の辞書順で小さい方がofferを送る
+      // ホストとして: 全既存ピアにofferを送信
       for (const peer of peers) {
         if (peer.peerId !== myPeerId && !this.connections.has(peer.peerId)) {
-          // 自分のpieerIdが相手より辞書順で小さい場合のみoffer送信
-          if (myPeerId < peer.peerId) {
-            await this.createOfferTo(peer.peerId);
-          }
+          await this.createOfferTo(peer.peerId);
         }
       }
     } else if (hostPeerId) {
-      // 他のピアがホスト
       console.log(`P2P: ホスト選出（${hostPeerId}）`);
       this.isHost = false;
       this.stopHostHeartbeat();
-
-      // 必要に応じてそのピアに接続（既に接続済みならスキップ）
-      if (!this.connections.has(hostPeerId)) {
-        // perfect negotiation パターン: peerId の辞書順で小さい方がofferを送る
-        if (myPeerId < hostPeerId) {
-          await this.createOfferTo(hostPeerId);
-        }
-      }
+      // ゲストとして: ホストからのofferを待つだけ（自分からofferしない）
+      // ホストが createOfferTo で接続してくる
     } else {
       // ホスト離脱
       console.log('P2P: ホスト離脱、再選出待ち');
