@@ -13,12 +13,6 @@ interface Props {
   dispatch: React.Dispatch<GameAction>
 }
 
-// チェックアウト計算用の型
-interface CheckoutOption {
-  darts: DartThrow[]
-  score: number
-}
-
 // 使用可能な得点を生成
 function getAvailableScores(): Array<{ score: number; label: string }> {
   const scores: Array<{ score: number; label: string }> = []
@@ -112,22 +106,19 @@ export function GameView({ state, strategy, dispatch }: Props) {
     dispatch({ type: 'RECORD_THROW', dart: 'miss' })
   }
 
-  const handleSelect = (dart: DartThrow) => {
-    if (isRoundComplete) return
-    dispatch({ type: 'RECORD_THROW', dart })
-  }
-
   const handleConfirm = () => {
     dispatch({ type: 'CONFIRM_TURN' })
   }
 
   const canUndo = state.currentThrows.length > 0 || state.currentRound > 0 || state.currentPlayerIndex > 0
 
+  const currentRoundScore = state.currentThrows.reduce((sum, t) => sum + getThrowScore(t), 0)
+
   const totalScore = state.mode === 'zero-one'
-    ? (state.startScore ?? 501) - strategy.getTotalScore(currentPlayer)
+    ? (state.startScore ?? 501) - strategy.getTotalScore(currentPlayer) - currentRoundScore
     : isCricketMode(state.mode)
     ? (state.cricketScores?.[state.currentPlayerIndex] ?? 0)
-    : strategy.getTotalScore(currentPlayer)
+    : strategy.getTotalScore(currentPlayer) + currentRoundScore
 
   // チェックアウト計算（01モードのみ）
   const checkoutDarts = useMemo(() => {
