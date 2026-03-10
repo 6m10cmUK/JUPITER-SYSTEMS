@@ -123,11 +123,9 @@ export function GameView({ state, strategy, dispatch }: Props) {
   // チェックアウト計算（01モードのみ）
   const checkoutDarts = useMemo(() => {
     if (state.mode !== 'zero-one' || state.currentThrows.length >= 3) return null
-    const currentRoundScore = state.currentThrows.reduce((sum, t) => sum + getThrowScore(t), 0)
-    const remaining = totalScore - currentRoundScore
     const dartsLeft = 3 - state.currentThrows.length
-    if (remaining > 0 && remaining <= 180 && dartsLeft > 0) {
-      return findCheckout(remaining, dartsLeft)
+    if (totalScore > 0 && totalScore <= 180 && dartsLeft > 0) {
+      return findCheckout(totalScore, dartsLeft)
     }
     return null
   }, [state.mode, state.currentThrows, totalScore])
@@ -139,19 +137,15 @@ export function GameView({ state, strategy, dispatch }: Props) {
   // 1投でクリアできる全セグメント（盤面ハイライト用）
   const checkoutSegments = useMemo(() => {
     if (state.mode !== 'zero-one' || state.currentThrows.length >= 3) return []
-    const currentRoundScore = state.currentThrows.reduce((sum, t) => sum + getThrowScore(t), 0)
-    const remaining = totalScore - currentRoundScore
-    if (remaining <= 0) return []
+    if (totalScore <= 0) return []
     const segments: Segment[] = []
-    // シングル 1-20
     for (let n = 1; n <= 20; n++) {
-      if (n === remaining) segments.push({ number: n as DartNumber, multiplier: 'single' })
-      if (n * 2 === remaining) segments.push({ number: n as DartNumber, multiplier: 'double' })
-      if (n * 3 === remaining) segments.push({ number: n as DartNumber, multiplier: 'triple' })
+      if (n === totalScore) segments.push({ number: n as DartNumber, multiplier: 'single' })
+      if (n * 2 === totalScore) segments.push({ number: n as DartNumber, multiplier: 'double' })
+      if (n * 3 === totalScore) segments.push({ number: n as DartNumber, multiplier: 'triple' })
     }
-    // ブル
-    if (remaining === 25) segments.push({ number: 25, multiplier: 'single' })
-    if (remaining === 50) segments.push({ number: 25, multiplier: 'double' })
+    if (totalScore === 25) segments.push({ number: 25, multiplier: 'single' })
+    if (totalScore === 50) segments.push({ number: 25, multiplier: 'double' })
     return segments
   }, [state.mode, state.currentThrows, totalScore])
 
