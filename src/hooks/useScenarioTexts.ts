@@ -83,6 +83,11 @@ export function useScenarioTexts(
     setLoading(false);
   }, []);
 
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: ScenarioText) => {
+    setScenarioTexts(prev => [...prev, item]);
+  }, []);
+
   return {
     scenarioTexts,
     loading,
@@ -91,5 +96,6 @@ export function useScenarioTexts(
     removeScenarioText,
     reorderScenarioTexts,
     _setAll,
+    _addOne,
   };
 }

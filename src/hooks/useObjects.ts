@@ -150,6 +150,11 @@ export function useObjects(
     setLoading(false);
   }, []);
 
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: BoardObject) => {
+    setAllObjects(prev => [...prev, item]);
+  }, []);
+
   return {
     allObjects,
     activeObjects,
@@ -162,5 +167,6 @@ export function useObjects(
     injectOptimistic,
     removeObjectsForScene,
     _setAll,
+    _addOne,
   };
 }

@@ -29,6 +29,7 @@ import { useP2PSync } from '../hooks/useP2PSync';
 import type { ConnectionState, CollectionName, PatchOp, RoomSnapshot as P2PRoomSnapshot } from '../services/rtc/types';
 import { RoomDataContext, UIStateContext, P2PContext } from './AdrasteaContexts';
 import type { RoomDataContextValue, UIStateContextValue, P2PContextValue } from './AdrasteaContexts';
+import { checkPermission, type PermissionKey } from '../config/permissions';
 
 // ---------------------------------------------------------------------------
 // Empty fallbacks (stable references to avoid useEffect infinite loops)
@@ -66,7 +67,7 @@ export interface PendingEdit {
   data: Record<string, unknown>;
 }
 
-export type RoomRole = 'owner' | 'user' | 'guest';
+export type RoomRole = 'owner' | 'sub_owner' | 'user' | 'guest';
 
 export interface AdrasteaContextValue {
   // --- roomId ---
@@ -296,8 +297,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updateRoom(updates as Partial<Room>);
   }, [updateRoom]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll: _setScenes } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll: _setCharacters } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll: _setScenes, _addOne: _addSceneOne } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll: _setCharacters, _addOne: _addCharacterOne } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -312,7 +313,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const {
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
-    _setAll: _setObjects,
+    _setAll: _setObjects, _addOne: _addObjectOne,
   } = useObjects(roomId, effectiveSceneId, snapshot === undefined ? undefined : snapshot?.objects ?? EMPTY_ARRAY as BoardObject[]);
 
   // objectsCreatedRef に injectOptimistic を設定
@@ -322,9 +323,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const scenarioTextsEnabled = activePanels.has('scenarioText');
   const cutinsEnabled = activePanels.has('cutin');
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts, _setAll: _setScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll: _setCutins } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
-  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll: _setBgms } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts, _setAll: _setScenarioTexts, _addOne: _addScenarioTextOne } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll: _setCutins, _addOne: _addCutinOne } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll: _setBgms, _addOne: _addBgmOne } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
 
   // --- スナップショット保存 ---
   const snapshotLoading = snapshot === undefined;
@@ -454,32 +455,32 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       remove: (id: string) => void;
     }> = {
       scenes: {
-        add: (d) => addScene({ ...d, id } as never),
+        add: (d) => _addSceneOne({ ...d, id } as Scene),
         update: (id, d) => updateScene(id, d as Partial<Scene>),
         remove: (id) => removeScene(id),
       },
       objects: {
-        add: (d) => addObject({ ...d, id } as Partial<BoardObject>),
+        add: (d) => _addObjectOne({ ...d, id } as BoardObject),
         update: (id, d) => updateObject(id, d as Partial<BoardObject>),
         remove: (id) => removeObject(id),
       },
       characters: {
-        add: (d) => addCharacter({ ...d, id } as never),
+        add: (d) => _addCharacterOne({ ...d, id } as Character),
         update: (id, d) => updateCharacter(id, d as Partial<Character>),
         remove: (id) => removeCharacter(id),
       },
       bgms: {
-        add: (d) => addBgm({ ...d, id } as never),
+        add: (d) => _addBgmOne({ ...d, id } as BgmTrack),
         update: (id, d) => updateBgm(id, d as Partial<BgmTrack>),
         remove: (id) => removeBgm(id),
       },
       cutins: {
-        add: (d) => addCutin({ ...d, id } as never),
+        add: (d) => _addCutinOne({ ...d, id } as Cutin),
         update: (id, d) => updateCutin(id, d as Partial<Cutin>),
         remove: (id) => removeCutin(id),
       },
       scenarioTexts: {
-        add: (d) => addScenarioText({ ...d, id } as never),
+        add: (d) => _addScenarioTextOne({ ...d, id } as ScenarioText),
         update: (id, d) => updateScenarioText(id, d as Partial<ScenarioText>),
         remove: (id) => removeScenarioText(id),
       },
@@ -826,6 +827,22 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     sendPatchRef.current('bgms', 'remove', id);
   }, [removeBgm]);
 
+  // --- Permission guard ref ---
+  const roomRoleRef = useRef(roomRole);
+  roomRoleRef.current = roomRole;
+
+  /** パーミッションチェック付きで関数を実行。権限なしの場合はwarnしてno-op */
+  const withPermission = useCallback(<T extends unknown[]>(
+    permission: PermissionKey,
+    fn: (...args: T) => unknown,
+  ) => (...args: T) => {
+    if (!checkPermission(roomRoleRef.current, permission)) {
+      console.warn(`[Permission] denied: ${permission} (role: ${roomRoleRef.current})`);
+      return;
+    }
+    return fn(...args);
+  }, []);
+
   // add 操作の P2P ブロードキャストラッパー
   const p2pAddScene = useCallback(
     (
@@ -994,6 +1011,28 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingObjectId(null);
   }, []);
 
+  // --- Permission guarded functions ---
+  const guardedAddScene       = withPermission('scene_edit',     p2pAddScene as any);
+  const guardedUpdateScene    = withPermission('scene_edit',     p2pUpdateScene as any);
+  const guardedRemoveScene    = withPermission('scene_edit',     p2pRemoveScene as any);
+  const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes as any);
+  const guardedAddObject      = withPermission('object_edit',    p2pAddObject as any);
+  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject as any);
+  const guardedRemoveObject   = withPermission('object_edit',    p2pRemoveObject as any);
+  const guardedReorderObjects = withPermission('object_edit',    p2pReorderObjects as any);
+  const guardedBatchSort      = withPermission('object_edit',    p2pBatchUpdateSort as any);
+  const guardedAddCharacter   = withPermission('character_edit', p2pAddCharacter as any);
+  const guardedUpdateCharacter= withPermission('character_edit', p2pUpdateCharacter as any);
+  const guardedRemoveCharacter= withPermission('character_edit', p2pRemoveCharacter as any);
+  const guardedAddBgm         = withPermission('bgm_manage',     p2pAddBgm as any);
+  const guardedUpdateBgm      = withPermission('bgm_manage',     p2pUpdateBgm as any);
+  const guardedRemoveBgm      = withPermission('bgm_manage',     p2pRemoveBgm as any);
+  const guardedAddCutin       = withPermission('cutin_manage',   p2pAddCutin as any);
+  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin as any);
+  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin as any);
+  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin as any);
+  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage as any);
+
   // --- Context value ---
   const value = useMemo<AdrasteaContextValue>(
     () => ({
@@ -1119,30 +1158,30 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Rooms/Pieces
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom: p2pUpdateRoom,
     // Chat
-    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage,
     // Scenes
-    scenes: effectiveScenes, addScene: p2pAddScene, updateScene: p2pUpdateScene, removeScene: p2pRemoveScene, reorderScenes, activateScene: safeActivateScene,
+    scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter: p2pAddCharacter, updateCharacter: p2pUpdateCharacter, removeCharacter: p2pRemoveCharacter, reorderCharacters,
+    characters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters,
     // Objects
-    allObjects, activeObjects: effectiveActiveObjects, addObject: p2pAddObject as any, updateObject: syncedUpdateObject as any, removeObject: p2pRemoveObject as any, reorderObjects: p2pReorderObjects as any, batchUpdateSort: p2pBatchUpdateSort as any, injectOptimistic,
+    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject, updateObject: guardedUpdateObject, removeObject: guardedRemoveObject, reorderObjects: guardedReorderObjects, batchUpdateSort: guardedBatchSort, injectOptimistic,
     // ScenarioTexts
     scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     // Cutins
-    cutins, addCutin: p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    cutins, addCutin: guardedAddCutin, updateCutin: guardedUpdateCutin, removeCutin: guardedRemoveCutin, reorderCutins, triggerCutin: guardedTriggerCutin, clearCutin,
     // BGMs
-    bgms, addBgm: p2pAddBgm as any, updateBgm: p2pUpdateBgm as any, removeBgm: p2pRemoveBgm as any, reorderBgms: reorderBgms as any,
+    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: reorderBgms as any,
     // Derived
     activeScene,
   }), [
     pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
-    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-    effectiveScenes, p2pAddScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
-    characters, p2pAddCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
-    allObjects, effectiveActiveObjects, p2pAddObject, syncedUpdateObject, p2pRemoveObject, p2pReorderObjects, p2pBatchUpdateSort, injectOptimistic,
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
+    effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
+    characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
+    allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
     scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
-    cutins, p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-    bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, reorderBgms,
+    cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
+    bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
     activeScene,
   ]);
 

@@ -120,7 +120,7 @@ export class PeerManager {
       }
     } catch {}
 
-    this.onStateChange('connected');
+    this.updateState();
   }
 
   /** reliable channel でメッセージ送信（全接続先） */
@@ -204,9 +204,13 @@ export class PeerManager {
     };
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+      console.log(`[PeerManager] connectionState=${pc.connectionState} iceConnectionState=${pc.iceConnectionState} with ${remotePeerId.slice(-8)}`);
+      if (pc.connectionState === 'failed') {
         this.handleDisconnect(remotePeerId);
       }
+    };
+    pc.oniceconnectionstatechange = () => {
+      console.log(`[PeerManager] iceConnectionState=${pc.iceConnectionState} with ${remotePeerId.slice(-8)}`);
     };
 
     // 受信側の DataChannel ハンドリング
@@ -443,6 +447,22 @@ export class PeerManager {
       this.connections.delete(remotePeerId);
     }
     this.updateState();
+
+    // WebRTC失敗後に再接続を試みる（3秒後）
+    if (!this.destroyed) {
+      setTimeout(async () => {
+        if (this.destroyed || this.connections.has(remotePeerId)) return;
+        try {
+          const peers = await this.signaling.getPeers();
+          if (peers.some(p => p.peerId === remotePeerId)) {
+            console.log(`[PeerManager] 再接続を試みます: ${remotePeerId.slice(-8)}`);
+            await this.createOfferTo(remotePeerId);
+          }
+        } catch {
+          // 再接続失敗は無視（次のSSEイベントで試みる）
+        }
+      }, 3000);
+    }
   }
 
   private updateState(): void {

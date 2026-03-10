@@ -216,7 +216,7 @@ const DockviewInner = memo(function DockviewInner({
         position: { referencePanel: 'scene', direction: 'right' },
       });
       api.addPanel({
-        id: 'property', component: 'property', title: 'ルームオブジェクト',
+        id: 'property', component: 'property', title: 'プロパティ',
         position: { referencePanel: bgmPanel.id, direction: 'below' },
       });
       api.addPanel({

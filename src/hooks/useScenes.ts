@@ -166,5 +166,10 @@ export function useScenes(
     setLoading(false);
   }, []);
 
-  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll };
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: Scene) => {
+    setScenes(prev => [...prev, item]);
+  }, []);
+
+  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll, _addOne };
 }
