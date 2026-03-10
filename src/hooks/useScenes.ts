@@ -111,7 +111,7 @@ export function useScenes(
         onObjectsCreated?.(createdObjects);
       }
 
-      return newSceneId;
+      return { scene: newScene, objects: createdObjects };
     },
     [roomId, scenes.length, onObjectsCreated]
   );

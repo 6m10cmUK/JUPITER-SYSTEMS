@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
-import { X, Trash2 } from 'lucide-react';
+import { Trash2, Copy } from 'lucide-react';
 
 interface LogEntry {
   level: 'log' | 'warn' | 'error' | 'info';
@@ -55,11 +55,12 @@ const LEVEL_COLORS: Record<LogEntry['level'], string> = {
   error: '#f87171',
 };
 
-export function DebugConsole({ onClose }: { onClose: () => void }) {
+export function DebugConsoleContent() {
   const [, setTick] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState<LogEntry['level'] | 'all'>('all');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const listener = () => setTick(t => t + 1);
@@ -80,84 +81,87 @@ export function DebugConsole({ onClose }: { onClose: () => void }) {
 
   const filtered = filter === 'all' ? logBuffer : logBuffer.filter(l => l.level === filter);
 
+  const handleCopy = useCallback(() => {
+    const text = filtered.map(e =>
+      `${new Date(e.timestamp).toLocaleTimeString()} [${e.level}] ${e.args}`
+    ).join('\n');
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [filtered]);
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 20000,
-      background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }} onClick={onClose}>
-      <div
-        style={{
-          background: theme.bgBase, border: `1px solid ${theme.border}`,
-          width: '90vw', maxWidth: '700px', height: '70vh',
-          display: 'flex', flexDirection: 'column', borderRadius: '4px',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        {/* ヘッダー */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 12px', borderBottom: `1px solid ${theme.border}`,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: theme.textPrimary, fontSize: '13px', fontWeight: 600 }}>Debug Console</span>
-            {(['all', 'error', 'warn', 'log', 'info'] as const).map(lv => (
-              <button
-                key={lv}
-                onClick={() => setFilter(lv)}
-                style={{
-                  background: filter === lv ? theme.accent : 'transparent',
-                  border: `1px solid ${filter === lv ? theme.accent : theme.border}`,
-                  color: filter === lv ? '#fff' : theme.textSecondary,
-                  fontSize: '10px', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px',
-                }}
-              >
-                {lv === 'all' ? 'All' : lv} {lv === 'all' ? `(${logBuffer.length})` : `(${logBuffer.filter(l => l.level === lv).length})`}
-              </button>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <button onClick={handleClear} style={{ background: 'transparent', border: 'none', color: theme.textSecondary, cursor: 'pointer' }}>
-              <Trash2 size={14} />
-            </button>
-            <button onClick={onClose} style={{ background: 'transparent', border: 'none', color: theme.textSecondary, cursor: 'pointer' }}>
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        {/* ログ本体 */}
-        <div
-          ref={scrollRef}
-          onScroll={() => {
-            if (!scrollRef.current) return;
-            const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-            setAutoScroll(scrollHeight - scrollTop - clientHeight < 30);
-          }}
-          style={{
-            flex: 1, overflow: 'auto', padding: '4px 0',
-            fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.5',
-          }}
-        >
-          {filtered.length === 0 && (
-            <div style={{ color: theme.textMuted, padding: '12px', textAlign: 'center' }}>ログなし</div>
-          )}
-          {filtered.map((entry, i) => (
-            <div
-              key={i}
+      background: theme.bgBase,
+      width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+    }}>
+      {/* ヘッダー */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '8px 12px', borderBottom: `1px solid ${theme.border}`,
+        flexShrink: 0,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ color: theme.textPrimary, fontSize: '13px', fontWeight: 600 }}>Debug Console</span>
+          {(['all', 'error', 'warn', 'log', 'info'] as const).map(lv => (
+            <button
+              key={lv}
+              onClick={() => setFilter(lv)}
               style={{
-                padding: '1px 12px',
-                color: LEVEL_COLORS[entry.level],
-                borderBottom: '1px solid rgba(255,255,255,0.03)',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                background: filter === lv ? theme.accent : 'transparent',
+                border: `1px solid ${filter === lv ? theme.accent : theme.border}`,
+                color: filter === lv ? '#fff' : theme.textSecondary,
+                fontSize: '10px', padding: '1px 6px', cursor: 'pointer', borderRadius: '2px',
               }}
             >
-              <span style={{ color: theme.textMuted, marginRight: '6px' }}>
-                {new Date(entry.timestamp).toLocaleTimeString()}
-              </span>
-              {entry.args}
-            </div>
+              {lv === 'all' ? 'All' : lv} {lv === 'all' ? `(${logBuffer.length})` : `(${logBuffer.filter(l => l.level === lv).length})`}
+            </button>
           ))}
         </div>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          <button onClick={handleCopy} title="全コピー" style={{ background: 'transparent', border: 'none', color: copied ? '#4ade80' : theme.textSecondary, cursor: 'pointer' }}>
+            <Copy size={14} />
+          </button>
+          <button onClick={handleClear} style={{ background: 'transparent', border: 'none', color: theme.textSecondary, cursor: 'pointer' }}>
+            <Trash2 size={14} />
+          </button>
+        </div>
+      </div>
+
+      {/* ログ本体 */}
+      <div
+        ref={scrollRef}
+        onScroll={() => {
+          if (!scrollRef.current) return;
+          const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+          setAutoScroll(scrollHeight - scrollTop - clientHeight < 30);
+        }}
+        style={{
+          flex: 1, overflow: 'auto', padding: '4px 0',
+          fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.5',
+        }}
+      >
+        {filtered.length === 0 && (
+          <div style={{ color: theme.textMuted, padding: '12px', textAlign: 'center' }}>ログなし</div>
+        )}
+        {filtered.map((entry, i) => (
+          <div
+            key={i}
+            style={{
+              padding: '1px 12px',
+              color: LEVEL_COLORS[entry.level],
+              borderBottom: '1px solid rgba(255,255,255,0.03)',
+              whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+            }}
+          >
+            <span style={{ color: theme.textMuted, marginRight: '6px' }}>
+              {new Date(entry.timestamp).toLocaleTimeString()}
+            </span>
+            {entry.args}
+          </div>
+        ))}
       </div>
     </div>
   );

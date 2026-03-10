@@ -41,7 +41,7 @@ export function useScenarioTexts(
         updated_at: now,
       };
       setScenarioTexts((prev) => [...prev, newText]);
-      return newId;
+      return newText;
     },
     [roomId]
   );

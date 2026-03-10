@@ -4,7 +4,6 @@ import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
-import { DebugConsole } from './DebugConsole';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
@@ -96,7 +95,6 @@ export function TopToolbar({
 }: TopToolbarProps) {
   const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   const { isGuest } = useAuth();
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
 
@@ -258,7 +256,7 @@ export function TopToolbar({
       )}
 
       {/* デバッグコンソール */}
-      <IconButton onClick={() => setShowDebug(true)} title="デバッグコンソール">
+      <IconButton onClick={() => togglePanel('debugConsole', 'debugConsole', 'Debug Console')} title="デバッグコンソール">
         <Terminal size={14} />
       </IconButton>
 
@@ -309,7 +307,6 @@ export function TopToolbar({
       </IconButton>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}
-      {showDebug && <DebugConsole onClose={() => setShowDebug(false)} />}
     </div>
   );
 }

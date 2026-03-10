@@ -351,7 +351,9 @@ export class PeerManager {
       // polite: rollback して相手の offer を受け入れ
       console.log(`[PeerManager] polite: rolling back and accepting offer from ${fromPeerId.slice(-8)}`);
       try {
-        await conn!.pc.setLocalDescription({ type: 'rollback' });
+        if (conn!.pc.signalingState !== 'stable') {
+          await conn!.pc.setLocalDescription({ type: 'rollback' });
+        }
       } catch (err) {
         console.warn('[PeerManager] rollback error:', err);
       }

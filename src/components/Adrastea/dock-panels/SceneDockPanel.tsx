@@ -24,10 +24,12 @@ export function SceneDockPanel() {
 
   const handleAddScene = async () => {
     const nextSortOrder = getInsertSortOrder();
-    const newSceneId = await ctx.addScene({
+    const result = await ctx.addScene({
       name: '新しいシーン',
       sort_order: nextSortOrder,
     });
+    if (!result) return;
+    const newSceneId = result.scene.id;
     rebalanceSortOrder(newSceneId, nextSortOrder);
     await ctx.activateScene(newSceneId);
   };
@@ -39,7 +41,7 @@ export function SceneDockPanel() {
     let lastNewId: string | null = null;
     for (const scene of sorted) {
       const nextSortOrder = getInsertSortOrder(scene.id);
-      const newSceneId = await ctx.addScene(
+      const result = await ctx.addScene(
         {
           name: `${scene.name} (複製)`,
           background_url: scene.background_url ?? null,
@@ -47,7 +49,10 @@ export function SceneDockPanel() {
           sort_order: nextSortOrder,
         },
         scene.id,
+        ctx.allObjects,
       );
+      if (!result) continue;
+      const newSceneId = result.scene.id;
       rebalanceSortOrder(newSceneId, nextSortOrder);
 
       // 元シーンに紐づくBGMトラックに新シーンIDも追加
@@ -64,7 +69,7 @@ export function SceneDockPanel() {
       lastNewId = newSceneId;
     }
     if (lastNewId) await ctx.activateScene(lastNewId);
-  }, [ctx.scenes, ctx.bgms, ctx.addScene, ctx.updateBgm, ctx.activateScene]);
+  }, [ctx.scenes, ctx.bgms, ctx.allObjects, ctx.addScene, ctx.updateBgm, ctx.activateScene]);
 
   const handleRemoveScenes = useCallback(async (sceneIds: string[]) => {
     const activeSceneId = ctx.room?.active_scene_id ?? null;

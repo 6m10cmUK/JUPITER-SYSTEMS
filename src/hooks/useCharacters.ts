@@ -36,7 +36,7 @@ export function useCharacters(roomId: string, initialCharacters?: Character[]) {
         updated_at: now,
       };
       setCharacters((prev) => [...prev, newChar]);
-      return newId;
+      return newChar;
     },
     [roomId, characters.length]
   );
