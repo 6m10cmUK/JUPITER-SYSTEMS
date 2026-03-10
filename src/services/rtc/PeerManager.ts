@@ -43,6 +43,9 @@ export class PeerManager {
   private hostHeartbeatInterval: NodeJS.Timeout | null = null;
   private cryptoManager = new CryptoManager();
 
+  // ホスト選出コールバック
+  onHostElected?: (hostPeerId: string | null, isMe: boolean) => void;
+
   constructor(
     signaling: SignalingClient,
     _peerId: string,
@@ -111,9 +114,10 @@ export class PeerManager {
    */
   async startAsCandidate(
     joinedAt: number,
-    privateKey: CryptoKey,
+    privateKey: CryptoKey | null,
     _publicKey: string,
   ): Promise<void> {
+    // CryptoManager で独自にキーペア生成するため privateKey は使用しない
     this._privateKey = privateKey;
 
     // 暗号化キーペア生成
@@ -127,7 +131,7 @@ export class PeerManager {
 
     // HostElectionManager を起動
     this.hostElectionManager = new HostElectionManager(
-      this.signaling.getPeerId,
+      this.signaling.getPeerId as string,
       joinedAt,
       (hostPeerId) => this.onHostChanged(hostPeerId),
     );
@@ -166,7 +170,7 @@ export class PeerManager {
         type: 'signed',
         inner: msg as any,
         signature,
-        signerPeerId: this.signaling.getPeerId,
+        signerPeerId: this.signaling.getPeerId as string,
       };
       this.broadcast(signed);
     } catch (err) {
@@ -224,7 +228,13 @@ export class PeerManager {
   }
 
   private async onHostChanged(hostPeerId: string | null): Promise<void> {
-    if (hostPeerId === this.signaling.getPeerId) {
+    const myPeerId = this.signaling.getPeerId as string;
+    const isMe = hostPeerId === myPeerId;
+
+    // 外部コールバック通知（RoomSync などが登録）
+    this.onHostElected?.(hostPeerId, isMe);
+
+    if (isMe) {
       // 自分がホストに選出
       console.log('P2P: ホスト選出（自分）');
       this.isHost = true;
