@@ -1,5 +1,5 @@
 import { BACKEND_URL } from '../../config/api';
-import type { SignalingPeer } from './types';
+import type { SignalingPeer, HostStatus } from './types';
 
 /**
  * HTTP polling ベースのシグナリングクライアント
@@ -17,6 +17,11 @@ export class SignalingClient {
     this.roomId = roomId;
     this.peerId = peerId;
     this.isHost = isHost;
+  }
+
+  // Getter for peerId (needed by PeerManager)
+  get getPeerId(): string {
+    return this.peerId;
   }
 
   private url(path: string, params?: Record<string, string>): string {
@@ -41,13 +46,28 @@ export class SignalingClient {
 
   // --- Peer registration ---
 
-  async registerPeer(): Promise<void> {
-    await this.post('peers', { peerId: this.peerId, isHost: this.isHost });
+  async registerPeer(joinedAt: number, publicKey: string): Promise<void> {
+    await this.post('peers', {
+      peerId: this.peerId,
+      isHost: this.isHost,
+      joinedAt,
+      publicKey,
+    });
   }
 
   async getPeers(): Promise<SignalingPeer[]> {
     const res = (await this.get('peers')) as { peers: SignalingPeer[] };
     return res.peers ?? [];
+  }
+
+  async getPeerPublicKey(peerId: string): Promise<string | null> {
+    try {
+      const peers = await this.getPeers();
+      const peer = peers.find(p => p.peerId === peerId);
+      return peer?.publicKey ?? null;
+    } catch {
+      return null;
+    }
   }
 
   // --- SDP exchange ---
@@ -81,12 +101,31 @@ export class SignalingClient {
     return res.candidates ?? [];
   }
 
+  // --- Host election ---
+
+  async announceHost(timestamp: number): Promise<void> {
+    await this.post('announce-host', {
+      peerId: this.peerId,
+      timestamp,
+    });
+  }
+
+  async getHostStatus(): Promise<HostStatus> {
+    const res = (await this.get('host-status')) as HostStatus;
+    return res ?? { hostPeerId: null, timestamp: null };
+  }
+
   // --- Heartbeat (keep peer entry alive) ---
 
-  startHeartbeat(intervalMs = 60_000): void {
+  startHeartbeat(intervalMs = 10_000): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
-      if (!this.destroyed) this.registerPeer().catch(() => {});
+      if (!this.destroyed) {
+        // Get current timestamp for joinedAt
+        const now = Date.now();
+        // For heartbeat, use a minimal publicKey (could be empty or a hash)
+        this.registerPeer(now, '').catch(() => {});
+      }
     }, intervalMs);
   }
 

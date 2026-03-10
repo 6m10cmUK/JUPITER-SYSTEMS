@@ -2272,6 +2272,18 @@ def _cleanup_expired_signal_entries(room_id: str) -> None:
         # ルーム内のエントリが全て期限切れになった場合、ルームごと削除
         if len(data) == 0:
             del _signal_store[store_key]
+    
+    # ホスト情報のクリーンアップ
+    host_key = f"{room_id}:host"
+    if host_key in _signal_store:
+        host_info = _signal_store[host_key]
+        if "expires_at" in host_info:
+            try:
+                expires_at = datetime.fromisoformat(host_info["expires_at"])
+                if now > expires_at:
+                    del _signal_store[host_key]
+            except:
+                pass
 
 def _get_expiration_time() -> datetime:
     """TTL付き有効期限を返す"""
@@ -2290,6 +2302,8 @@ async def register_peer(room_id: str, body: dict[str, Any]):
     """POST /signal/{room_id}/peers - peer登録"""
     peer_id = body.get("peerId")
     is_host = body.get("isHost", False)
+    joined_at = body.get("joinedAt")  # ミリ秒タイムスタンプ
+    public_key = body.get("publicKey")  # base64エンコード済みECDSA公開鍵
 
     if not peer_id:
         return {"error": "peerId required"}, 400
@@ -2303,6 +2317,9 @@ async def register_peer(room_id: str, body: dict[str, Any]):
     data["peers"].append({
         "peerId": peer_id,
         "isHost": is_host,
+        "joinedAt": joined_at,
+        "publicKey": public_key,
+        "isElected": False,  # 初期値は未選出
         "timestamp": datetime.now().isoformat(),
         "expires_at": _get_expiration_time().isoformat()
     })
@@ -2458,6 +2475,64 @@ async def get_ice_candidates(room_id: str, peerId: str = None):
             pass
 
     return {"candidates": ice_data.get("candidates", [])}
+
+@app.post("/signal/{room_id}/announce-host")
+async def announce_host(room_id: str, body: dict[str, Any]):
+    """POST /signal/{room_id}/announce-host - ホスト宣言
+    
+    ホストが自分の選出を宣言するエンドポイント
+    リクエストボディ: {"peerId": str, "timestamp": int}
+    """
+    peer_id = body.get("peerId")
+    timestamp = body.get("timestamp")
+
+    if not peer_id:
+        return {"error": "peerId required"}, 400
+
+    # ホスト情報をインメモリに記録（TTL付き）
+    host_info = {
+        "peerId": peer_id,
+        "timestamp": timestamp or datetime.now().timestamp() * 1000,  # ミリ秒
+        "announced_at": datetime.now().isoformat(),
+        "expires_at": _get_expiration_time().isoformat()
+    }
+    
+    host_key = f"{room_id}:host"
+    _signal_store[host_key] = host_info
+
+    return {"ok": True, "hostPeerId": peer_id}
+
+
+@app.get("/signal/{room_id}/host-status")
+async def get_host_status(room_id: str):
+    """GET /signal/{room_id}/host-status - ホスト状態取得
+    
+    現在のホスト情報を返す
+    レスポンス: {"hostPeerId": str | None, "timestamp": int | None}
+    """
+    _cleanup_expired_signal_entries(room_id)
+    
+    host_key = f"{room_id}:host"
+    if host_key not in _signal_store:
+        return {"hostPeerId": None, "timestamp": None}
+    
+    host_info = _signal_store[host_key]
+    
+    # 有効期限チェック
+    now = datetime.now()
+    if "expires_at" in host_info:
+        try:
+            expires_at = datetime.fromisoformat(host_info["expires_at"])
+            if now > expires_at:
+                del _signal_store[host_key]
+                return {"hostPeerId": None, "timestamp": None}
+        except:
+            pass
+    
+    return {
+        "hostPeerId": host_info.get("peerId"),
+        "timestamp": host_info.get("timestamp")
+    }
 
 if __name__ == "__main__":
     import uvicorn
