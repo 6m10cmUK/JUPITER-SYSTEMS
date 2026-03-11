@@ -46,7 +46,7 @@ export function SortableListPanel({
   children,
 }: SortableListPanelProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -153,6 +153,7 @@ export function SortableListItem({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -185,9 +186,12 @@ export function SortableListItem({
       {!disabled && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <span
+            ref={setActivatorNodeRef}
             {...attributes}
             {...listeners}
-            style={{ cursor: 'grab', display: 'flex' }}
+            style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
           >
             <GripVertical size={12} color={theme.textMuted} />
           </span>
