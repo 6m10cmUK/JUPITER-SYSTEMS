@@ -736,14 +736,27 @@ interface AdToggleButtonsProps<T extends string | null> {
   onChange: (value: T) => void;
 }
 
-// ── AdTagInput（候補ドロップダウン付きタグ入力） ──
-interface AdTagInputProps {
+// ── AdComboBox（単一値 or 複数値のコンボボックス） ──
+interface AdComboBoxMultiProps {
+  mode: 'multi';
   tags: string[];
   onChange: (tags: string[]) => void;
-  existingTags?: string[];
+  suggestions?: string[];
+  placeholder?: string;
 }
 
-export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProps) {
+interface AdComboBoxSingleProps {
+  mode: 'single';
+  value: string;
+  onChange: (value: string) => void;
+  suggestions?: string[];
+  placeholder?: string;
+  style?: React.CSSProperties;
+}
+
+type AdComboBoxProps = AdComboBoxMultiProps | AdComboBoxSingleProps;
+
+export function AdComboBox(props: AdComboBoxProps) {
   const [input, setInput] = useState('');
   const [highlightIndex, setHighlightIndex] = useState(0);
   const composingRef = useRef(false);
@@ -753,14 +766,21 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
   const dropRef = useRef<HTMLDivElement>(null);
   const [dropOpen, setDropOpen] = useState(false);
 
-  // 既に選択済みのタグを除外した候補（入力に近いもの優先、最大5件）
+  const isSingleMode = props.mode === 'single';
   const suggestions = React.useMemo(() => {
-    const excluded = new Set(tags);
-    const available = existingTags.filter((t) => !excluded.has(t));
+    const allSuggestions = props.suggestions ?? [];
     const q = input.trim().toLowerCase();
-    if (!q) return available.slice(0, 5);
-    return available.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
-  }, [existingTags, tags, input]);
+    if (!q) return allSuggestions.slice(0, 5);
+    if (isSingleMode) {
+      // single モード: 既存タグ関係なく候補をフィルタ
+      return allSuggestions.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
+    } else {
+      // multi モード: 既に選択済みのタグを除外
+      const excluded = new Set((props as AdComboBoxMultiProps).tags);
+      const available = allSuggestions.filter((t) => !excluded.has(t));
+      return available.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
+    }
+  }, [props.suggestions, props.mode, input, isSingleMode, ...(isSingleMode ? [] : [(props as AdComboBoxMultiProps).tags])]);
 
   // 外側クリックで閉じる
   useEffect(() => {
@@ -787,13 +807,21 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
     el?.scrollIntoView({ block: 'nearest' });
   }, [highlightIndex]);
 
-  const addTag = (tag: string) => {
-    const t = tag.trim();
-    if (t && !tags.includes(t)) {
-      onChange([...tags, t]);
+  const handleSelect = (value: string) => {
+    if (isSingleMode) {
+      const singleProps = props as AdComboBoxSingleProps;
+      singleProps.onChange(value);
+      setInput('');
+      setDropOpen(false);
+    } else {
+      const multiProps = props as AdComboBoxMultiProps;
+      const v = value.trim();
+      if (v && !multiProps.tags.includes(v)) {
+        multiProps.onChange([...multiProps.tags, v]);
+      }
+      setInput('');
+      setDropOpen(false);
     }
-    setInput('');
-    setDropOpen(false);
   };
 
   const getDropPos = () => {
@@ -816,25 +844,102 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
           return;
         case 'Enter':
           e.preventDefault();
-          addTag(suggestions[highlightIndex]);
+          handleSelect(suggestions[highlightIndex]);
           return;
         case 'Escape':
           setDropOpen(false);
           return;
       }
     }
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && input.trim()) {
       e.preventDefault();
-      if (input.trim()) addTag(input);
+      handleSelect(input);
     }
   };
 
+  if (isSingleMode) {
+    const singleProps = props as AdComboBoxSingleProps;
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', ...singleProps.style }}>
+        <div ref={wrapRef} style={{ display: 'flex', gap: '4px' }}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={singleProps.value}
+            onChange={(e) => {
+              singleProps.onChange(e.target.value);
+              setInput(e.target.value);
+              setDropOpen(true);
+            }}
+            onFocus={() => setDropOpen(true)}
+            onCompositionStart={() => { composingRef.current = true; }}
+            onCompositionEnd={() => { composingRef.current = false; }}
+            onKeyDown={handleKeyDown}
+            placeholder={singleProps.placeholder}
+            style={{
+              flex: 1,
+              height: HEIGHT,
+              padding: PADDING,
+              fontSize: FONT_SIZE,
+              background: theme.bgInput,
+              border: `1px solid ${theme.borderInput}`,
+              borderRadius: 0,
+              color: theme.textPrimary,
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+        {dropOpen && suggestions.length > 0 && createPortal(
+          <div
+            ref={dropRef}
+            className="adrastea-root"
+            style={{
+              position: 'fixed',
+              bottom: window.innerHeight - getDropPos().top,
+              left: getDropPos().left,
+              width: getDropPos().width,
+              zIndex: 9999,
+              background: theme.bgSurface,
+              border: `1px solid ${theme.border}`,
+              maxHeight: '150px',
+              overflowY: 'auto',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            }}
+          >
+            <div ref={listRef}>
+              {suggestions.map((tag, i) => (
+                <div
+                  key={tag}
+                  onClick={() => handleSelect(tag)}
+                  onMouseEnter={() => setHighlightIndex(i)}
+                  style={{
+                    padding: '4px 8px',
+                    fontSize: FONT_SIZE,
+                    cursor: 'pointer',
+                    background: i === highlightIndex ? theme.accentHighlight : 'transparent',
+                    color: theme.textPrimary,
+                  }}
+                >
+                  {tag}
+                </div>
+              ))}
+            </div>
+          </div>,
+          document.body,
+        )}
+      </div>
+    );
+  }
+
+  // multi モード
+  const multiProps = props as AdComboBoxMultiProps;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
       <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>タグ</label>
-      {tags.length > 0 && (
+      {multiProps.tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {tags.map((tag) => (
+          {multiProps.tags.map((tag) => (
             <span
               key={tag}
               style={{
@@ -851,7 +956,7 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
               {tag}
               <button
                 type="button"
-                onClick={() => onChange(tags.filter((t) => t !== tag))}
+                onClick={() => multiProps.onChange(multiProps.tags.filter((t) => t !== tag))}
                 style={{
                   background: 'transparent',
                   border: 'none',
@@ -881,7 +986,7 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
           onCompositionStart={() => { composingRef.current = true; }}
           onCompositionEnd={() => { composingRef.current = false; }}
           onKeyDown={handleKeyDown}
-          placeholder="タグを入力"
+          placeholder={multiProps.placeholder ?? 'タグを入力'}
           style={{
             flex: 1,
             height: HEIGHT,
@@ -898,7 +1003,7 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
         <button
           className="ad-btn"
           type="button"
-          onClick={() => { if (input.trim()) addTag(input); }}
+          onClick={() => { if (input.trim()) handleSelect(input); }}
           disabled={!input.trim()}
           style={{
             height: HEIGHT,
@@ -935,7 +1040,7 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
             {suggestions.map((tag, i) => (
               <div
                 key={tag}
-                onClick={() => addTag(tag)}
+                onClick={() => handleSelect(tag)}
                 onMouseEnter={() => setHighlightIndex(i)}
                 style={{
                   padding: '4px 8px',
@@ -953,6 +1058,25 @@ export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProp
         document.body,
       )}
     </div>
+  );
+}
+
+// ── AdTagInput（後方互換ラッパー、非推奨） ──
+interface AdTagInputProps {
+  tags: string[];
+  onChange: (tags: string[]) => void;
+  existingTags?: string[];
+}
+
+export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProps) {
+  return (
+    <AdComboBox
+      mode="multi"
+      tags={tags}
+      onChange={onChange}
+      suggestions={existingTags}
+      placeholder="タグを入力"
+    />
   );
 }
 

@@ -120,23 +120,13 @@ export class AuthService {
    * ゲストログイン
    */
   static async signInAsGuest(displayName: string): Promise<AuthUser> {
-    console.log('[guest] fetching:', `${API_BASE_URL}/auth/guest`);
-    let res: Response;
-    try {
-      res = await fetch(`${API_BASE_URL}/auth/guest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ displayName: displayName || 'ゲスト' }),
-      });
-    } catch (err) {
-      console.error('[guest] fetch error:', err, String(err));
-      throw err;
-    }
-    console.log('[guest] status:', res.status);
+    const res = await fetch(`${API_BASE_URL}/auth/guest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ displayName: displayName || 'ゲスト' }),
+    });
 
     if (!res.ok) {
-      const text = await res.text();
-      console.error('[guest] response:', text);
       throw new Error('ゲストログインに失敗しました');
     }
 

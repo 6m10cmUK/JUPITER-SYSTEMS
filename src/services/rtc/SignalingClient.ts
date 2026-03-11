@@ -95,7 +95,7 @@ export class SignalingClient {
     await this.post('offer', { fromPeer: this.peerId, toPeer: targetPeerId, sdp });
   }
 
-  async getOffer(fromPeerId: string): Promise<string | null> {
+  async getOffer(_fromPeerId: string): Promise<string | null> {
     const res = (await this.get('offer', { peerId: this.peerId })) as { data?: string };
     if (res && (res as any).data) console.log('[Signaling] getOffer found!');
     return (res as { data?: string }).data ?? null;
@@ -106,7 +106,7 @@ export class SignalingClient {
     await this.post('answer', { fromPeer: this.peerId, toPeer: targetPeerId, sdp });
   }
 
-  async getAnswer(fromPeerId: string): Promise<string | null> {
+  async getAnswer(_fromPeerId: string): Promise<string | null> {
     const res = (await this.get('answer', { peerId: this.peerId })) as { data?: string };
     if (res && (res as any).data) console.log('[Signaling] getAnswer found!');
     return (res as { data?: string }).data ?? null;
@@ -118,14 +118,14 @@ export class SignalingClient {
     await this.post('ice', { fromPeer: this.peerId, toPeer: targetPeerId, candidate });
   }
 
-  async getIceCandidates(fromPeerId: string): Promise<string[]> {
+  async getIceCandidates(_fromPeerId: string): Promise<string[]> {
     const res = (await this.get('ice', { peerId: this.peerId })) as { from?: string; candidate?: string }[] | unknown;
     return (Array.isArray(res) ? res : []).map((x: any) => x.candidate).filter(Boolean);
   }
 
   // --- Heartbeat (keep peer entry alive) ---
 
-  startHeartbeat(intervalMs = 10_000): void {
+  startHeartbeat(intervalMs = 30_000): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
       if (!this.destroyed) {

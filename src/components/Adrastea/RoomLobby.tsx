@@ -6,7 +6,7 @@ import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
-import { AdModal, AdInput, AdButton, AdTagInput } from './ui/AdComponents';
+import { AdModal, AdInput, AdButton, AdComboBox } from './ui/AdComponents';
 import {
   DndContext,
   closestCenter,
@@ -762,7 +762,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               autoFocus
             />
             <DiceSystemPicker value={createDice} onChange={handleCreateDiceChange} systems={diceSystems} />
-            <AdTagInput tags={createTags} onChange={setCreateTags} existingTags={allExistingTags} />
+            <AdComboBox mode="multi" tags={createTags} onChange={setCreateTags} suggestions={allExistingTags} />
           </div>
         </AdModal>
       )}
@@ -790,7 +790,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               autoFocus
             />
             <DiceSystemPicker value={editDice} onChange={handleEditDiceChange} systems={diceSystems} />
-            <AdTagInput tags={editTags} onChange={setEditTags} existingTags={allExistingTags} />
+            <AdComboBox mode="multi" tags={editTags} onChange={setEditTags} suggestions={allExistingTags} />
           </div>
         </AdModal>
       )}

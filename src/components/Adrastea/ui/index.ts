@@ -10,6 +10,8 @@ export {
   AdModal,
   ConfirmModal,
   AdToggleButtons,
+  AdComboBox,
+  AdTagInput,
 } from './AdComponents';
 
 export { SortableListPanel, SortableListItem } from './SortableList';

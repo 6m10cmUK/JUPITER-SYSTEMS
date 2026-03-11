@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 6100,
+    strictPort: true, // 6100が使用中なら起動失敗（他ポートへのフォールバック禁止）
     host: true, // LAN内の他デバイス（スマホ等）からアクセス可能にする
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin-allow-popups',

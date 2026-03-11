@@ -71,7 +71,9 @@ export function useAssets() {
         });
       } catch (e) {
         // D1登録失敗 → R2ファイルを削除してロールバック
-        await deleteR2File(result.r2_key).catch(() => {});
+        await deleteR2File(result.r2_key).catch((err) => {
+          console.error('R2削除失敗（アセット登録ロールバック中）:', err);
+        });
         throw e;
       }
       const created: Asset = await res.json();
@@ -104,7 +106,9 @@ export function useAssets() {
           }),
         });
       } catch (e) {
-        await deleteR2File(result.r2_key).catch(() => {});
+        await deleteR2File(result.r2_key).catch((err) => {
+          console.error('R2削除失敗（オーディオアセット登録ロールバック中）:', err);
+        });
         throw e;
       }
       const created: Asset = await res.json();

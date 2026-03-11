@@ -11,10 +11,12 @@ import { PropertyDockPanel } from './PropertyDockPanel';
 import { PdfViewerDockPanel } from './PdfViewerDockPanel';
 import { BgmDockPanel } from './BgmDockPanel';
 import { DebugConsoleDockPanel } from './DebugConsoleDockPanel';
+import { ChatPaletteDockPanel } from './ChatPaletteDockPanel';
 
 export const panelComponents: Record<string, React.FC> = {
   board: BoardDockPanel,
   chat: ChatDockPanel,
+  chatPalette: ChatPaletteDockPanel,
   scene: SceneDockPanel,
   character: CharacterDockPanel,
   scenarioText: ScenarioTextDockPanel,

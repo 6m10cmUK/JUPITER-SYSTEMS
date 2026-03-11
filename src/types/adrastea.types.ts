@@ -74,12 +74,22 @@ export interface Piece {
 export interface Character {
   id: string;
   room_id: string;
+  owner_id: string;
   name: string;
-  image_url: string | null;
+  images: { url: string; label: string }[];
+  active_image_index: number;
   color: string;
-  statuses: PieceStatus[];
-  tags: string[];
+  sheet_url: string | null;
+  initiative: number;
+  size: number;
+  statuses: { label: string; value: number; max: number }[];
+  parameters: { label: string; value: number | string }[];
   memo: string;
+  secret_memo: string;
+  chat_palette: string;
+  is_status_private: boolean;
+  is_hidden_on_board: boolean;
+  is_speech_hidden: boolean;
   sort_order: number;
   created_at: number;
   updated_at: number;
