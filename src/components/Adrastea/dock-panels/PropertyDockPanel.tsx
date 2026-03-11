@@ -1,4 +1,5 @@
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
+import { useAuth } from '../../../contexts/AuthContext';
 import { SceneEditor } from '../SceneEditor';
 import { CharacterEditor } from '../CharacterEditor';
 import { ObjectEditor } from '../ObjectEditor';
@@ -8,6 +9,7 @@ import { BgmEditor } from '../BgmEditor';
 
 export function PropertyDockPanel() {
   const ctx = useAdrasteaContext();
+  const { user } = useAuth();
 
   // PieceEditor
   if (ctx.editingPieceId) {
@@ -76,6 +78,7 @@ export function PropertyDockPanel() {
         key={ctx.editingCharacter?.id ?? 'new-character'}
         character={ctx.editingCharacter}
         roomId={ctx.roomId}
+        currentUserId={user?.uid ?? ''}
         onSave={async (data) => {
           if (ctx.editingCharacter) {
             await ctx.updateCharacter(ctx.editingCharacter.id, data);

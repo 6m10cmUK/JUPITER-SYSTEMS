@@ -184,7 +184,7 @@ export function LayerPanel() {
       }
     }
 
-    const newObj = await addObject({
+    const newObjId = await addObject({
       type,
       name: `新規${type}`,
       x: center.x,
@@ -196,9 +196,9 @@ export function LayerPanel() {
       scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
       ...(imageData ? { image_url: imageData.url } : {}),
     });
-    if (newObj) {
-      setSelectedObjectIds([newObj.id]);
-      setEditingObjectId(newObj.id);
+    if (newObjId) {
+      setSelectedObjectIds([newObjId]);
+      setEditingObjectId(newObjId);
     }
   };
 
@@ -261,12 +261,12 @@ export function LayerPanel() {
     const newIds: string[] = [];
     for (const obj of targets) {
       const { id, created_at, updated_at, ...rest } = obj;
-      const newObj = await addObject({
+      const newObjId = await addObject({
         ...rest,
         name: `${obj.name} (複製)`,
         sort_order: obj.sort_order + 1,
       });
-      if (newObj) newIds.push(newObj.id);
+      if (newObjId) newIds.push(newObjId);
     }
     if (newIds.length > 0) {
       setSelectedObjectIds(newIds);
