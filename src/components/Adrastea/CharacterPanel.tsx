@@ -1,10 +1,10 @@
 import { useCallback } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, UserPlus } from 'lucide-react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
-import { SortableListPanel, SortableListItem } from './ui';
+import { SortableListPanel, SortableListItem, Tooltip } from './ui';
 
 interface CharacterPanelProps {
   characters: Character[];
@@ -13,7 +13,6 @@ interface CharacterPanelProps {
   onSelectCharacter: (char: Character) => void;
   onRemoveCharacter: (charId: string) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
-  onClose: () => void;
 }
 
 export function CharacterPanel({
@@ -23,8 +22,17 @@ export function CharacterPanel({
   onSelectCharacter,
   onRemoveCharacter,
   onReorderCharacters,
-  onClose,
 }: CharacterPanelProps) {
+  const iconBtnStyle: React.CSSProperties = {
+    background: 'transparent',
+    border: 'none',
+    color: theme.textSecondary,
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    padding: '2px 4px',
+    lineHeight: 1,
+  };
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !onReorderCharacters) return;
@@ -39,37 +47,16 @@ export function CharacterPanel({
     <SortableListPanel
       title="キャラクター"
       headerActions={
-        <button
-          onClick={onClose}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: theme.textSecondary,
-            fontSize: '1.2rem',
-            cursor: 'pointer',
-            padding: '0 4px',
-          }}
-        >
-          x
-        </button>
-      }
-      footerActions={
-        <button
-          onClick={onAddCharacter}
-          style={{
-            width: '100%',
-            padding: '8px',
-            background: theme.accent,
-            color: theme.textOnAccent,
-            border: 'none',
-            borderRadius: 0,
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            cursor: 'pointer',
-          }}
-        >
-          + キャラクター追加
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+          <Tooltip label="キャラクター追加">
+            <button
+              onClick={onAddCharacter}
+              style={{ ...iconBtnStyle, color: theme.accent }}
+            >
+              <UserPlus size={14} />
+            </button>
+          </Tooltip>
+        </div>
       }
       items={characters}
       onDragEnd={handleDragEnd}
