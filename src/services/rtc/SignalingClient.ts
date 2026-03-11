@@ -125,7 +125,7 @@ export class SignalingClient {
 
   // --- Heartbeat (keep peer entry alive) ---
 
-  startHeartbeat(intervalMs = 10_000): void {
+  startHeartbeat(intervalMs = 30_000): void {
     this.stopHeartbeat();
     this.heartbeatTimer = setInterval(() => {
       if (!this.destroyed) {
