@@ -89,6 +89,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(messages.length);
+  const isLoadingMoreRef = useRef(false);
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -105,9 +106,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     if (messages.length > prevMessageCountRef.current) {
       if (isNearBottomRef.current) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      } else {
+      } else if (!isLoadingMoreRef.current) {
         setHasNewMessage(true);
       }
+      isLoadingMoreRef.current = false;
     }
     prevMessageCountRef.current = messages.length;
   }, [messages.length]);
@@ -276,7 +278,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       >
         {hasMore && (
           <button
-            onClick={onLoadMore}
+            onClick={() => {
+              isLoadingMoreRef.current = true;
+              onLoadMore();
+            }}
             disabled={loading}
             style={{
               display: 'block',
