@@ -96,6 +96,8 @@ export interface AdrasteaContextValue {
     characterName?: string,
     characterAvatar?: string | null,
   ) => void;
+  activeSpeakerCharId: string | null;
+  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
 
   // --- useScenes ---
   scenes: Scene[];
@@ -557,6 +559,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
   const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
+  const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
 
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
@@ -1053,6 +1056,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // useAdrasteaChat
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+      activeSpeakerCharId, setActiveSpeakerCharId,
 
       // useScenes (P2P-aware)
       scenes: effectiveScenes, addScene: p2pAddScene,
@@ -1135,6 +1139,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       roomId, roomRole,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+      activeSpeakerCharId, setActiveSpeakerCharId,
       effectiveScenes, p2pAddScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
       characters, p2pAddCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
@@ -1167,6 +1172,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom: p2pUpdateRoom,
     // Chat
     messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage,
+    activeSpeakerCharId, setActiveSpeakerCharId,
     // Scenes
     scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
     // Characters
@@ -1184,6 +1190,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }), [
     pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
     messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
+    activeSpeakerCharId, setActiveSpeakerCharId,
     effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
     characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
     allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,

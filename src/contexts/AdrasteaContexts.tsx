@@ -49,6 +49,8 @@ export interface RoomDataContextValue {
     characterName?: string,
     characterAvatar?: string | null,
   ) => void;
+  activeSpeakerCharId: string | null;
+  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
 
   // --- Scenes ---
   scenes: Scene[];
