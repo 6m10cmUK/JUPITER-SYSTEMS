@@ -134,6 +134,7 @@ interface SortableListItemProps {
   isSelected?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
   handleExtra?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -144,6 +145,7 @@ export function SortableListItem({
   isSelected,
   isGroupDrag,
   onClick,
+  onDoubleClick,
   handleExtra,
   children,
 }: SortableListItemProps) {
@@ -178,6 +180,7 @@ export function SortableListItem({
       ref={setNodeRef}
       style={style}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     >
       {!disabled && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
