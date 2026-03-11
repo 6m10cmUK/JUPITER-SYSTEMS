@@ -13,7 +13,3 @@ bucket_name = "adrastea-assets"
 binding = "DB"
 database_name = "adrastea-db"
 database_id = "3816e6dc-5093-47da-8811-ea36ea6257c2"
-
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = "96731d59658e45bf811597ed40c56f39"
