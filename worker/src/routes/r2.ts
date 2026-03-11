@@ -1,4 +1,4 @@
-import { checkStorageUsage, updateStorageUsage } from '../utils/rateLimit';
+import { reserveStorageUsage, releaseStorageUsage } from '../utils/rateLimit';
 import type { Env, AuthUser } from '../types';
 
 export const handleR2 = {
@@ -53,7 +53,7 @@ export const handleR2 = {
     }
 
     // ストレージ使用量チェック
-    const storage = await checkStorageUsage(env.RATE_LIMIT, user.uid, file.size);
+    const storage = await reserveStorageUsage(env.DB, user.uid, file.size);
     if (!storage.ok) {
       return Response.json(
         { error: 'ストレージ上限に達しました' },
@@ -71,9 +71,6 @@ export const handleR2 = {
     await env.R2_BUCKET.put(key, file.stream(), {
       httpMetadata: { contentType },
     });
-
-    // ストレージ使用量更新
-    await updateStorageUsage(env.RATE_LIMIT, user.uid, file.size);
 
     const url = new URL(request.url);
     const publicUrl = `${url.origin}/file/${encodeURIComponent(key)}`;
@@ -114,7 +111,7 @@ export const handleR2 = {
     await env.R2_BUCKET.delete(path);
 
     if (object?.size) {
-      await updateStorageUsage(env.RATE_LIMIT, user.uid, -object.size);
+      await releaseStorageUsage(env.DB, user.uid, object.size);
     }
 
     return new Response('OK', { status: 200, headers });
