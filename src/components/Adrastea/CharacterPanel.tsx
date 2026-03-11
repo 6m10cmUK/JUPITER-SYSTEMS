@@ -73,7 +73,7 @@ export function CharacterPanel({
           onDoubleClick={() => onDoubleClickCharacter?.(char)}
         >
           {/* サムネイル */}
-            {char.images[char.active_image_index]?.url ? (
+            {char.images?.[char.active_image_index]?.url ? (
               <img
                 src={char.images[char.active_image_index].url}
                 alt={char.name}
