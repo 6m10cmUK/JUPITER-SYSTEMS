@@ -205,6 +205,10 @@ const DockviewInner = memo(function DockviewInner({
         id: 'chat', component: 'chat', title: 'チャット',
         position: { referencePanel: 'board', direction: 'right' },
       });
+      api.addPanel({
+        id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
+        position: { referencePanel: 'chat', direction: 'below' },
+      });
       const scenePanel = api.addPanel({
         id: 'scene', component: 'scene', title: 'シーン',
         position: { referencePanel: 'board', direction: 'left' },
