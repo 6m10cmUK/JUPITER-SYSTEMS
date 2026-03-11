@@ -11,6 +11,7 @@ interface CharacterPanelProps {
   selectedCharId?: string;
   onAddCharacter: () => void;
   onSelectCharacter: (char: Character) => void;
+  onDoubleClickCharacter?: (char: Character) => void;
   onRemoveCharacter: (charId: string) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
 }
@@ -20,6 +21,7 @@ export function CharacterPanel({
   selectedCharId,
   onAddCharacter,
   onSelectCharacter,
+  onDoubleClickCharacter,
   onRemoveCharacter,
   onReorderCharacters,
 }: CharacterPanelProps) {
@@ -68,6 +70,7 @@ export function CharacterPanel({
           id={char.id}
           isSelected={char.id === selectedCharId}
           onClick={() => onSelectCharacter(char)}
+          onDoubleClick={() => onDoubleClickCharacter?.(char)}
         >
           {/* サムネイル */}
             {char.images[char.active_image_index]?.url ? (

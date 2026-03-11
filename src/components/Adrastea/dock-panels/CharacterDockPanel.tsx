@@ -51,6 +51,7 @@ export function CharacterDockPanel() {
         selectedCharId={ctx.editingCharacter?.id}
         onAddCharacter={handleAddCharacter}
         onSelectCharacter={handleSelectCharacter}
+        onDoubleClickCharacter={(char) => setModalChar(char)}
         onRemoveCharacter={ctx.removeCharacter}
         onReorderCharacters={ctx.reorderCharacters}
       />
