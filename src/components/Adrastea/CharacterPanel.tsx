@@ -75,9 +75,9 @@ export function CharacterPanel({
       {characters.map((char) => (
         <SortableListItem key={char.id} id={char.id}>
           {/* アバター */}
-          {char.image_url ? (
+          {char.images[char.active_image_index]?.url ? (
             <img
-              src={char.image_url}
+              src={char.images[char.active_image_index].url}
               alt={char.name}
               style={{
                 width: '40px',
@@ -121,28 +121,10 @@ export function CharacterPanel({
             >
               {char.name}
             </div>
-            {char.tags.length > 0 && (
-              <div style={{ display: 'flex', gap: '3px', marginTop: '2px', flexWrap: 'wrap' }}>
-                {char.tags.slice(0, 3).map((tag, i) => (
-                  <span
-                    key={i}
-                    style={{
-                      padding: '1px 6px',
-                      background: theme.bgInput,
-                      borderRadius: 0,
-                      color: theme.textSecondary,
-                      fontSize: '0.65rem',
-                    }}
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            )}
             {char.statuses.length > 0 && (
               <div style={{ display: 'flex', gap: '6px', marginTop: '3px' }}>
                 {char.statuses.map((s, i) => (
-                  <span key={i} style={{ color: s.color, fontSize: '0.7rem' }}>
+                  <span key={i} style={{ color: theme.textSecondary, fontSize: '0.7rem' }}>
                     {s.label}: {s.value}/{s.max}
                   </span>
                 ))}
