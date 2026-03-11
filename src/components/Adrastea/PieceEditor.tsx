@@ -44,14 +44,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
         setLabel(char.name);
         setColor(char.color);
         setImageUrl(char.images[char.active_image_index]?.url ?? '');
-        setStatuses(
-          char.statuses.length > 0
-            ? char.statuses.map((s) => ({
-                ...s,
-                color: STATUS_COLORS[0],
-              }))
-            : statuses
-        );
+        setStatuses(char.statuses.length > 0 ? [...char.statuses] : statuses);
       }
     }
   };

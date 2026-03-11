@@ -19,7 +19,7 @@ export function useCharacters(roomId: string, initialCharacters?: Character[]) {
   }, [initialCharacters]);
 
   const addCharacter = useCallback(
-    (data: Partial<Omit<Character, 'id' | 'room_id'>>) => {
+    (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>) => {
       const now = Date.now();
       const newId = (data as { id?: string }).id ?? genId();
       const newChar: Character = {

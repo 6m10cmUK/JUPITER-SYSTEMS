@@ -83,6 +83,10 @@ export interface AdrasteaContextValue {
   updatePiece: ReturnType<typeof useAdrastea>['updatePiece'];
   updateRoom: ReturnType<typeof useAdrastea>['updateRoom'];
 
+  // --- Active speaker character ---
+  activeSpeakerCharId: string | null;
+  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
+
   // --- useAdrasteaChat ---
   messages: ChatMessage[];
   chatLoading: boolean;
@@ -916,12 +920,12 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const p2pAddCharacter = useCallback(
     (data: Parameters<typeof addCharacter>[0]) => {
-      const newChar = addCharacter(data);
+      const newChar = addCharacter({ ...data, owner_id: user?.uid ?? '' });
       if (!newChar) return newChar;
       sendPatchRef.current('characters', 'add', newChar.id, newChar as unknown as Record<string, unknown>);
       return newChar;
     },
-    [addCharacter]
+    [addCharacter, user?.uid]
   );
 
   const p2pAddBgm = useCallback(
@@ -1134,6 +1138,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       selectedObjectIds, setSelectedObjectIds,
       showRoomSettings, setShowRoomSettings,
       showProfileEdit, setShowProfileEdit,
+      activeSpeakerCharId, setActiveSpeakerCharId,
 
       // Derived
       activeScene,
@@ -1181,7 +1186,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
-      showRoomSettings, showProfileEdit,
+      showRoomSettings, showProfileEdit, activeSpeakerCharId, setActiveSpeakerCharId,
       activeScene,
       profile, user, signOut, updateProfile,
       onAddObject,
