@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { apiFetch } from '../../config/api';
+import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
 import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
@@ -612,6 +613,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       <div style={{ padding: '24px 32px 0', textAlign: 'center', position: 'relative' }}>
         <h1 style={{ margin: '0 0 4px', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>
           Adrastea
+          <span style={{ fontSize: '0.7rem', fontWeight: 400, color: theme.textMuted, marginLeft: '6px' }}>
+            {ADRASTEA_STAGE} {ADRASTEA_VERSION}
+          </span>
         </h1>
         <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: theme.textMuted }}>
           TRPG盤面共有ツール

@@ -9,6 +9,7 @@ import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
 import { usePermission } from '../../hooks/usePermission';
 import type { PermissionKey } from '../../config/permissions';
+import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
 
 interface PanelDef {
   id: string;
@@ -36,7 +37,7 @@ function P2PIndicator() {
   const config = {
     connected: { icon: <Wifi size={14} />, color: theme.success, label: 'Connected' },
     connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Connecting...' },
-    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Reconnecting...' },
+    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Waiting...' },
     disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'Disconnected' },
   }[p2pConnectionState];
 
@@ -156,13 +157,20 @@ export function TopToolbar({
         zIndex: 10,
       }}
     >
-      {/* アプリ名 */}
-      <span style={{ color: theme.textMuted, fontSize: '0.75rem', fontWeight: 600, marginRight: 4 }}>
-        Adrastea (α)
-      </span>
-
-      {/* セパレータ */}
-      <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
+      {/* ロゴ */}
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: '4px',
+        paddingRight: '8px',
+        borderRight: `1px solid ${theme.border}`,
+        marginRight: '4px',
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', color: theme.textPrimary }}>
+          Adrastea
+        </span>
+        <span style={{ fontSize: '9px', color: theme.textMuted, opacity: 0.7 }}>
+          {ADRASTEA_STAGE} {ADRASTEA_VERSION}
+        </span>
+      </div>
 
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
