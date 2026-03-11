@@ -351,7 +351,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const buildSnapshotRef = useRef(buildSnapshot);
   buildSnapshotRef.current = buildSnapshot;
 
-  // 定期保存（30秒ごと、オーナーのみ）
+  // 定期保存（3分ごと、オーナーのみ）
   useEffect(() => {
     if (roomRole !== 'owner') return;
     const timer = setInterval(() => {
@@ -362,7 +362,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ data }),
       }).catch(err => console.error('スナップショット保存失敗:', err));
-    }, 30000);
+    }, 180_000);
     return () => clearInterval(timer);
   }, [roomId, roomRole]);
 

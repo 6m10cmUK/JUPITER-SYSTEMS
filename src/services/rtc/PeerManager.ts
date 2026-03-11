@@ -218,12 +218,10 @@ export class PeerManager {
       const ch = e.channel;
       if (ch.label === 'reliable') {
         conn.reliable = ch;
-        this.setupChannelHandlers(ch, remotePeerId);
+        this.setupChannelHandlers(ch, remotePeerId); // isInitiator=false（受信側）
         if (ch.readyState === 'open') {
           console.log(`[PeerManager] DataChannel "reliable" already open with ${remotePeerId.slice(-8)}`);
           this.updateState();
-          // フルメッシュ：全員が sync_request を送る
-          ch.send(JSON.stringify({ type: 'sync_request' }));
         }
       } else if (ch.label === 'unreliable') {
         conn.unreliable = ch;
@@ -234,7 +232,7 @@ export class PeerManager {
     return conn;
   }
 
-  private setupChannelHandlers(ch: RTCDataChannel, remotePeerId: string): void {
+  private setupChannelHandlers(ch: RTCDataChannel, remotePeerId: string, isInitiator = false): void {
     ch.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data) as P2PMessage;
@@ -252,8 +250,8 @@ export class PeerManager {
     ch.onopen = () => {
       console.log(`[PeerManager] DataChannel "${ch.label}" opened with ${remotePeerId.slice(-8)}`);
       this.updateState();
-      // フルメッシュ：全員が sync_request を送る
-      if (ch.label === 'reliable') {
+      // Offer を出した側（新規参加者）だけが sync_request を送る
+      if (ch.label === 'reliable' && isInitiator) {
         ch.send(JSON.stringify({ type: 'sync_request' }));
       }
     };
@@ -319,8 +317,8 @@ export class PeerManager {
       ordered: false,
       maxRetransmits: 0,
     });
-    this.setupChannelHandlers(conn.reliable, remotePeerId);
-    this.setupChannelHandlers(conn.unreliable, remotePeerId);
+    this.setupChannelHandlers(conn.reliable, remotePeerId, true);   // offer側=initiator
+    this.setupChannelHandlers(conn.unreliable, remotePeerId, false);
 
     this.makingOffer.set(remotePeerId, true);
     try {
