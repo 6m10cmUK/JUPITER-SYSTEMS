@@ -432,6 +432,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   // --- P2P sync ---
 
+  // 並び替え等の後にデバウンスでスナップショット保存（リロード後の復元用）
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // スナップショット保存コールバック（ホスト離脱時に呼ばれる）
   const handleSaveSnapshot = useCallback(async () => {
     const snapshot = buildSnapshotRef.current();
@@ -448,6 +451,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     }
   }, [roomId]);
 
+  // デバウンスでスナップショット保存（並び替え等の後）
+  const debouncedSaveSnapshot = useCallback(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleSaveSnapshot();
+    }, 2000);
+  }, [handleSaveSnapshot]);
 
   // P2P: incoming patch handler
   const handleP2PPatch = useCallback((collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>) => {
@@ -781,6 +791,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     sendPatchRef.current('scenes', 'remove', id);
   }, [removeScene]);
 
+  const p2pReorderScenes = useCallback((orderedIds: string[]) => {
+    reorderScenes(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('scenes', 'update', id, { sort_order: i, updated_at: now });
+    });
+    debouncedSaveSnapshot();
+  }, [reorderScenes, debouncedSaveSnapshot]);
+
   // Object operations + P2P broadcast
   const p2pUpdateObject = useCallback((id: string, data: Partial<BoardObject>) => {
     updateObject(id, data);
@@ -818,6 +837,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     removeCharacter(id);
     sendPatchRef.current('characters', 'remove', id);
   }, [removeCharacter]);
+
+  const p2pReorderCharacters = useCallback((orderedIds: string[]) => {
+    reorderCharacters(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('characters', 'update', id, { sort_order: i, updated_at: now });
+    });
+    debouncedSaveSnapshot();
+  }, [reorderCharacters, debouncedSaveSnapshot]);
 
   // BGM operations + P2P broadcast
   const p2pUpdateBgm = useCallback((id: string, data: Partial<BgmTrack>) => {
@@ -1026,7 +1054,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const guardedAddScene       = withPermission('scene_edit',     p2pAddScene as any);
   const guardedUpdateScene    = withPermission('scene_edit',     p2pUpdateScene as any);
   const guardedRemoveScene    = withPermission('scene_edit',     p2pRemoveScene as any);
-  const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes as any);
+  const guardedReorderScenes  = withPermission('scene_edit',     p2pReorderScenes as any);
   const guardedAddObject      = withPermission('object_edit',    p2pAddObject as any);
   const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject as any);
   const guardedRemoveObject   = withPermission('object_edit',    p2pRemoveObject as any);
@@ -1176,7 +1204,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Scenes
     scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters,
+    characters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters: p2pReorderCharacters,
     // Objects
     allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject, updateObject: guardedUpdateObject, removeObject: guardedRemoveObject, reorderObjects: guardedReorderObjects, batchUpdateSort: guardedBatchSort, injectOptimistic,
     // ScenarioTexts
@@ -1192,7 +1220,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
     activeSpeakerCharId, setActiveSpeakerCharId,
     effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
-    characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
+    characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, p2pReorderCharacters,
     allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
     scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,

@@ -46,7 +46,9 @@ export function SortableListPanel({
   children,
 }: SortableListPanelProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -174,12 +176,14 @@ export function SortableListItem({
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
+    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...(!disabled ? listeners : {})}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
@@ -188,10 +192,7 @@ export function SortableListItem({
           <span
             ref={setActivatorNodeRef}
             {...attributes}
-            {...listeners}
             style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
           >
             <GripVertical size={12} color={theme.textMuted} />
           </span>
