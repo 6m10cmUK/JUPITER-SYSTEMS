@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { theme } from '../../styles/theme';
 import type { UserProfile } from '../../types/adrastea.types';
+import { useAuth } from '../../contexts/AuthContext';
 import { AssetPicker } from './AssetPicker';
 import { AdInput, AdButton, AdModal } from './ui';
 
@@ -11,10 +12,14 @@ interface ProfileEditModalProps {
 }
 
 export function ProfileEditModal({ profile, onSave, onClose }: ProfileEditModalProps) {
+  const { isGuest } = useAuth();
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ゲストは編集不可
+  if (isGuest) return null;
 
   const handleSave = async () => {
     if (!displayName.trim()) return;

@@ -152,7 +152,6 @@ const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut } = useAuth();
-  const [guestNameInput, setGuestNameInput] = useState('');
   const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
   const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
 
@@ -237,45 +236,23 @@ const Adrastea: React.FC = () => {
             <div style={{ flex: 1, height: '1px', background: theme.border }} />
           </div>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={guestNameInput}
-              onChange={(e) => setGuestNameInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && guestNameInput.trim()) signInAsGuest(guestNameInput.trim()).catch((err) => console.error('ゲストログイン失敗:', err));
-              }}
-              placeholder="表示名を入力"
-              style={{
-                flex: 1,
-                padding: '10px 12px',
-                background: theme.bgInput,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 0,
-                color: theme.textPrimary,
-                fontSize: '0.9rem',
-                outline: 'none',
-              }}
-            />
-            <button
-              onClick={() => {
-                if (guestNameInput.trim()) signInAsGuest(guestNameInput.trim()).catch((err) => console.error('ゲストログイン失敗:', err));
-              }}
-              style={{
-                padding: '10px 16px',
-                background: guestNameInput.trim() ? theme.accent : theme.bgInput,
-                color: guestNameInput.trim() ? theme.bgBase : theme.textMuted,
-                border: 'none',
-                borderRadius: 0,
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                cursor: guestNameInput.trim() ? 'pointer' : 'not-allowed',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              ゲスト参加
-            </button>
-          </div>
+          <button
+            onClick={() => signInAsGuest('ゲスト').catch((err) => console.error('ゲストログイン失敗:', err))}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              background: theme.accent,
+              color: theme.bgBase,
+              border: 'none',
+              borderRadius: 0,
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            ゲスト参加
+          </button>
         </div>
       </div>
     );
