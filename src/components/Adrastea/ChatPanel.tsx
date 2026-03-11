@@ -135,7 +135,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     if (!text) return;
 
     const charName = selectedCharacter?.name;
-    const charAvatar = selectedCharacter?.image_url;
+    const charAvatar = selectedCharacter?.images[selectedCharacter.active_image_index]?.url ?? null;
 
     if (text.startsWith('/')) {
       const command = text.slice(1);
@@ -363,7 +363,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                 outline: 'none',
               }}
             >
-              <option value="">自分として発言</option>
+              <option value="">（キャラクターなし）</option>
               {characters.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
@@ -371,8 +371,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             {selectedCharacter && (
               <div style={{
                 width: '24px', height: '24px', borderRadius: 0, flexShrink: 0,
-                background: selectedCharacter.image_url
-                  ? `url(${selectedCharacter.image_url}) center/cover`
+                background: selectedCharacter.images[selectedCharacter.active_image_index]?.url
+                  ? `url(${selectedCharacter.images[selectedCharacter.active_image_index].url}) center/cover`
                   : selectedCharacter.color,
               }} />
             )}
@@ -390,7 +390,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           {DICE_BUTTONS.map((dice) => (
             <button
               key={dice.label}
-              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter?.image_url)}
+              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter ? (selectedCharacter.images[selectedCharacter.active_image_index]?.url ?? null) : null)}
               style={{
                 padding: '2px 6px',
                 borderRadius: 0,
