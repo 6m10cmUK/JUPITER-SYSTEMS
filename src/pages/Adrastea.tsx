@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { apiFetch } from '../config/api';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
@@ -152,10 +151,14 @@ function AdrasteaRoom() {
 const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { user, isGuest, loading: authLoading, signIn, signInAsGuest } = useAuth();
+  const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut } = useAuth();
   const [guestNameInput, setGuestNameInput] = useState('');
   const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
   const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    document.title = 'Adrastea';
+  }, []);
 
   // ルーム存在チェック & オーナーUID取得
   useEffect(() => {
@@ -163,9 +166,10 @@ const Adrastea: React.FC = () => {
       setOwnerCheck('loading');
       return;
     }
-    getDoc(doc(db, 'rooms', roomId)).then((snap) => {
-      if (snap.exists()) {
-        setRoomOwnerUid(snap.data()?.owner_uid ?? null);
+    apiFetch(`/api/rooms/${roomId}`).then(async (res) => {
+      if (res.ok) {
+        const data = await res.json();
+        setRoomOwnerUid(data.owner_id ?? null);
         setOwnerCheck('ok');
       } else {
         setOwnerCheck('denied');
@@ -239,7 +243,7 @@ const Adrastea: React.FC = () => {
               value={guestNameInput}
               onChange={(e) => setGuestNameInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' && guestNameInput.trim()) void signInAsGuest(guestNameInput.trim());
+                if (e.key === 'Enter' && guestNameInput.trim()) signInAsGuest(guestNameInput.trim()).catch((err) => console.error('ゲストログイン失敗:', err));
               }}
               placeholder="表示名を入力"
               style={{
@@ -255,7 +259,7 @@ const Adrastea: React.FC = () => {
             />
             <button
               onClick={() => {
-                if (guestNameInput.trim()) void signInAsGuest(guestNameInput.trim());
+                if (guestNameInput.trim()) signInAsGuest(guestNameInput.trim()).catch((err) => console.error('ゲストログイン失敗:', err));
               }}
               style={{
                 padding: '10px 16px',
@@ -273,6 +277,45 @@ const Adrastea: React.FC = () => {
             </button>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ゲストはルームIDなしではアクセス不可（共有リンクからのみ入室）
+  if (!roomId && isGuest) {
+    return (
+      <div
+        className="adrastea-root"
+        style={{
+          position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
+          background: theme.bgBase, color: theme.textPrimary,
+        }}
+      >
+        <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '16px' }}>
+          ルームが指定されていません
+        </div>
+        <div style={{ fontSize: '0.9rem', color: theme.textSecondary, marginBottom: '24px' }}>
+          共有リンクからルームに参加してください
+        </div>
+        <button
+          onClick={async () => {
+            await signOut();
+            navigate('/adrastea');
+          }}
+          style={{
+            padding: '10px 20px',
+            background: theme.accent,
+            color: theme.textOnAccent,
+            border: 'none',
+            borderRadius: 0,
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          ログイン画面へ
+        </button>
       </div>
     );
   }

@@ -1,190 +1,175 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db } from '../config/firebase';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  getDocs,
-  query,
-  orderBy,
-  where,
-  writeBatch,
-} from 'firebase/firestore';
-import type { Scene } from '../types/adrastea.types';
+import type { Scene, BoardObject } from '../types/adrastea.types';
 
-export function useScenes(roomId: string) {
-  const [scenes, setScenes] = useState<Scene[]>([]);
-  const [loading, setLoading] = useState(true);
+const genId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
+
+/** addScene が外部にオブジェクト追加を通知するためのコールバック */
+export type OnObjectsCreated = (objects: BoardObject[]) => void;
+
+export function useScenes(
+  roomId: string,
+  initialScenes?: Scene[],
+  /** シーン追加時にオブジェクトを外部に通知するコールバック */
+  onObjectsCreated?: OnObjectsCreated
+) {
+  const [scenes, setScenes] = useState<Scene[]>(initialScenes ?? []);
+  const [loading, setLoading] = useState(!initialScenes);
 
   useEffect(() => {
-    if (!roomId) {
+    if (initialScenes) {
+      setScenes(initialScenes);
       setLoading(false);
-      return;
     }
-    setLoading(true);
-    const q = query(
-      collection(db, 'rooms', roomId, 'scenes'),
-      orderBy('sort_order', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const updated: Scene[] = snapshot.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            room_id: roomId,
-            name: data.name ?? '',
-            background_url: data.background_url ?? null,
-            foreground_url: data.foreground_url ?? null,
-            foreground_opacity: data.foreground_opacity ?? 0.5,
-            bg_transition: data.bg_transition ?? 'none',
-            bg_transition_duration: data.bg_transition_duration ?? 500,
-            fg_transition: data.fg_transition ?? 'none',
-            fg_transition_duration: data.fg_transition_duration ?? 500,
-            bg_blur: data.bg_blur ?? true,
-            sort_order: data.sort_order ?? 0,
-            created_at: data.created_at ?? Date.now(),
-            updated_at: data.updated_at ?? Date.now(),
-          } as Scene;
-        });
-        setScenes(updated);
-        setLoading(false);
-      },
-      (error) => {
-        console.error('シーンの監視に失敗:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [roomId]);
+  }, [initialScenes]);
 
   const addScene = useCallback(
-    async (data: Partial<Omit<Scene, 'id' | 'room_id'>>, duplicateFromSceneId?: string) => {
-      const docRef = await addDoc(collection(db, 'rooms', roomId, 'scenes'), {
+    (
+      data: Partial<Omit<Scene, 'id' | 'room_id'>>,
+      duplicateFromSceneId?: string,
+      allObjects?: BoardObject[]
+    ) => {
+      const now = Date.now();
+      const newSceneId = (data as { id?: string }).id ?? genId();
+
+      const newScene: Scene = {
+        id: newSceneId,
+        room_id: roomId,
         name: data.name ?? '新しいシーン',
         background_url: data.background_url ?? null,
         foreground_url: data.foreground_url ?? null,
         foreground_opacity: data.foreground_opacity ?? 0.5,
+        bg_transition: data.bg_transition ?? 'none',
+        bg_transition_duration: data.bg_transition_duration ?? 500,
+        fg_transition: data.fg_transition ?? 'none',
+        fg_transition_duration: data.fg_transition_duration ?? 500,
         bg_blur: data.bg_blur ?? true,
         sort_order: data.sort_order ?? scenes.length,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
+        created_at: now,
+        updated_at: now,
+      };
+      setScenes((prev) => [...prev, newScene]);
 
-      const objectsCol = collection(db, 'rooms', roomId, 'objects');
-      const now = Date.now();
-      const newSceneId = docRef.id;
+      // オブジェクト生成
+      const createdObjects: BoardObject[] = [];
 
-      if (duplicateFromSceneId) {
-        // 元シーンに紐付くオブジェクトを検索して複製（scene_ids に元シーンID含む非グローバル）
-        const sourceSnap = await getDocs(
-          query(objectsCol, where('scene_ids', 'array-contains', duplicateFromSceneId))
+      if (duplicateFromSceneId && allObjects) {
+        // 元シーンに紐付くオブジェクトを複製（グローバルは除外）
+        const sourceObjects = allObjects.filter(
+          (o) => !o.global && o.scene_ids.includes(duplicateFromSceneId)
         );
-        const batch = writeBatch(db);
-        sourceSnap.docs.forEach((d) => {
-          const objData = d.data();
-          // グローバルオブジェクトは複製しない（既に全シーンで表示される）
-          if (objData.global) return;
-          const newRef = doc(objectsCol);
-          batch.set(newRef, {
-            ...objData,
+        for (const obj of sourceObjects) {
+          createdObjects.push({
+            ...obj,
+            id: genId(),
             scene_ids: [newSceneId],
             created_at: now,
             updated_at: now,
           });
-        });
-        await batch.commit();
+        }
       } else {
-        // デフォルト背景オブジェクト（シーン固有）
-        await addDoc(objectsCol, {
+        // デフォルト背景オブジェクト
+        createdObjects.push({
+          id: genId(),
           type: 'background',
           name: '背景',
           global: false,
           scene_ids: [newSceneId],
           x: -50, y: -50, width: 100, height: 100,
           visible: true, opacity: 1, sort_order: 0, locked: true,
+          position_locked: false, size_locked: false,
           image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
-          text_content: null, font_size: 16, text_color: '#ffffff',
+          text_content: null, font_size: 16, font_family: 'sans-serif',
+          letter_spacing: 0, line_height: 1.2, auto_size: true,
+          text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+          scale_x: 1, scale_y: 1,
           created_at: now, updated_at: now,
         });
-        // デフォルト前景オブジェクト（シーン固有）
-        await addDoc(objectsCol, {
+        // デフォルト前景オブジェクト
+        createdObjects.push({
+          id: genId(),
           type: 'foreground',
           name: '前景',
           global: false,
           scene_ids: [newSceneId],
           x: -24, y: -14, width: 48, height: 27,
           visible: true, opacity: 1, sort_order: 100, locked: false,
+          position_locked: false, size_locked: false,
           image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
-          text_content: null, font_size: 16, text_color: '#ffffff',
+          text_content: null, font_size: 16, font_family: 'sans-serif',
+          letter_spacing: 0, line_height: 1.2, auto_size: true,
+          text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+          scale_x: 1, scale_y: 1,
           created_at: now, updated_at: now,
         });
       }
 
-      return docRef.id;
+      if (createdObjects.length > 0) {
+        onObjectsCreated?.(createdObjects);
+      }
+
+      return { scene: newScene, objects: createdObjects };
     },
-    [roomId, scenes.length]
+    [roomId, scenes.length, onObjectsCreated]
   );
 
   const updateScene = useCallback(
-    async (sceneId: string, updates: Partial<Scene>) => {
-      const { id, room_id, ...data } = updates as any;
-      await updateDoc(doc(db, 'rooms', roomId, 'scenes', sceneId), {
-        ...data,
-        updated_at: Date.now(),
-      });
+    (sceneId: string, updates: Partial<Scene>) => {
+      setScenes((prev) =>
+        prev.map((s) =>
+          s.id === sceneId ? { ...s, ...updates, updated_at: Date.now() } : s
+        )
+      );
     },
-    [roomId]
+    []
   );
 
   const removeScene = useCallback(
-    async (sceneId: string) => {
-      try {
-        const objectsCol = collection(db, 'rooms', roomId, 'objects');
-
-        // scene_ids にこのシーンIDを含むオブジェクトを検索
-        const snap = await getDocs(
-          query(objectsCol, where('scene_ids', 'array-contains', sceneId))
-        );
-
-        const batch = writeBatch(db);
-        for (const d of snap.docs) {
-          const data = d.data();
-          if (data.global) continue; // グローバルオブジェクトは影響なし
-          const newSceneIds = (data.scene_ids as string[]).filter(id => id !== sceneId);
-          if (newSceneIds.length === 0) {
-            // どのシーンにも属さなくなった → 削除
-            batch.delete(d.ref);
-          } else {
-            batch.update(d.ref, { scene_ids: newSceneIds, updated_at: Date.now() });
-          }
-        }
-
-        // シーン本体を削除
-        batch.delete(doc(db, 'rooms', roomId, 'scenes', sceneId));
-        await batch.commit();
-      } catch (e) {
-        console.error('シーン削除エラー:', e);
-        throw e;
-      }
+    (sceneId: string) => {
+      setScenes((prev) => prev.filter((s) => s.id !== sceneId));
     },
-    [roomId]
+    []
   );
 
+  /** activateScene は room の更新なので、外部の updateRoom を使うことを想定。
+   *  後方互換のためにコールバックを返す形にする。
+   *  呼び出し側で updateRoom({ active_scene_id: sceneId }) を呼んでもらう。 */
   const activateScene = useCallback(
-    async (sceneId: string | null) => {
-      await updateDoc(doc(db, 'rooms', roomId), {
-        active_scene_id: sceneId,
-        updated_at: Date.now(),
+    (_sceneId: string | null) => {
+      // no-op: 呼び出し側で updateRoom を使う
+    },
+    []
+  );
+
+  const reorderScenes = useCallback(
+    (orderedIds: string[]) => {
+      const now = Date.now();
+      setScenes((prev) => {
+        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+        return prev.map((s) => {
+          const newSort = orderMap.get(s.id);
+          return newSort !== undefined && s.sort_order !== newSort
+            ? { ...s, sort_order: newSort, updated_at: now }
+            : s;
+        });
       });
     },
-    [roomId]
+    []
   );
 
-  return { scenes, loading, addScene, updateScene, removeScene, activateScene };
+  // P2P: expose raw setter for full sync
+  const _setAll = useCallback((items: Scene[]) => {
+    setScenes(items);
+    setLoading(false);
+  }, []);
+
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: Scene) => {
+    setScenes(prev => [...prev, item]);
+  }, []);
+
+  return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll, _addOne };
 }
