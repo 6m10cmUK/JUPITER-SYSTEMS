@@ -66,77 +66,56 @@ export function CharacterPanel({
         <SortableListItem
           key={char.id}
           id={char.id}
+          isSelected={char.id === selectedCharId}
           onClick={() => onSelectCharacter(char)}
         >
-          <div
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              background: char.id === selectedCharId ? `${theme.accent}33` : 'transparent',
-              padding: '0 4px',
-              borderRadius: '4px',
-            }}
-          >
-            {/* アバター */}
+          {/* サムネイル */}
             {char.images[char.active_image_index]?.url ? (
               <img
                 src={char.images[char.active_image_index].url}
                 alt={char.name}
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
                   flexShrink: 0,
+                  width: '20px',
+                  height: '20px',
+                  objectFit: 'cover',
+                  borderRadius: '2px',
+                  border: `1px solid ${theme.border}`,
                 }}
               />
             ) : (
               <div
                 style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
+                  flexShrink: 0,
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '2px',
                   background: char.color,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#fff',
                   fontWeight: 700,
-                  fontSize: '1rem',
-                  flexShrink: 0,
+                  fontSize: '10px',
                 }}
               >
                 {char.name.charAt(0)}
               </div>
             )}
 
-            {/* 情報 */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  color: theme.textPrimary,
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {char.name}
-              </div>
-              {char.statuses.length > 0 && (
-                <div style={{ display: 'flex', gap: '6px', marginTop: '3px' }}>
-                  {char.statuses.map((s, i) => (
-                    <span key={i} style={{ color: theme.textSecondary, fontSize: '0.7rem' }}>
-                      {s.label}: {s.value}/{s.max}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* 名前 */}
+            <span
+              style={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                fontSize: '12px',
+                color: theme.textPrimary,
+              }}
+            >
+              {char.name}
+            </span>
 
             {/* 操作 */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
@@ -155,7 +134,6 @@ export function CharacterPanel({
                 <Trash2 size={14} />
               </button>
             </div>
-          </div>
         </SortableListItem>
       ))}
     </SortableListPanel>
