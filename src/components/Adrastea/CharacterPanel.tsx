@@ -7,8 +7,9 @@ import { SortableListPanel, SortableListItem } from './ui';
 
 interface CharacterPanelProps {
   characters: Character[];
+  selectedCharId?: string;
   onAddCharacter: () => void;
-  onEditCharacter: (char: Character) => void;
+  onSelectCharacter: (char: Character) => void;
   onRemoveCharacter: (charId: string) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
   onClose: () => void;
@@ -16,8 +17,9 @@ interface CharacterPanelProps {
 
 export function CharacterPanel({
   characters,
+  selectedCharId,
   onAddCharacter,
-  onEditCharacter,
+  onSelectCharacter,
   onRemoveCharacter,
   onReorderCharacters,
   onClose,
@@ -73,93 +75,97 @@ export function CharacterPanel({
       emptyMessage="キャラクターがありません"
     >
       {characters.map((char) => (
-        <SortableListItem key={char.id} id={char.id}>
-          {/* アバター */}
-          {char.images[char.active_image_index]?.url ? (
-            <img
-              src={char.images[char.active_image_index].url}
-              alt={char.name}
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 0,
-                objectFit: 'cover',
-                flexShrink: 0,
-              }}
-            />
-          ) : (
-            <div
-              style={{
-                width: '40px',
-                height: '40px',
-                borderRadius: 0,
-                background: char.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontWeight: 700,
-                fontSize: '1rem',
-                flexShrink: 0,
-              }}
-            >
-              {char.name.charAt(0)}
-            </div>
-          )}
-
-          {/* 情報 */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div
-              style={{
-                color: theme.textPrimary,
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {char.name}
-            </div>
-            {char.statuses.length > 0 && (
-              <div style={{ display: 'flex', gap: '6px', marginTop: '3px' }}>
-                {char.statuses.map((s, i) => (
-                  <span key={i} style={{ color: theme.textSecondary, fontSize: '0.7rem' }}>
-                    {s.label}: {s.value}/{s.max}
-                  </span>
-                ))}
+        <SortableListItem
+          key={char.id}
+          id={char.id}
+          onClick={() => onSelectCharacter(char)}
+        >
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: 'pointer',
+              background: char.id === selectedCharId ? `${theme.accent}33` : 'transparent',
+              padding: '0 4px',
+              borderRadius: '4px',
+            }}
+          >
+            {/* アバター */}
+            {char.images[char.active_image_index]?.url ? (
+              <img
+                src={char.images[char.active_image_index].url}
+                alt={char.name}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  objectFit: 'cover',
+                  flexShrink: 0,
+                }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: char.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  fontWeight: 700,
+                  fontSize: '1rem',
+                  flexShrink: 0,
+                }}
+              >
+                {char.name.charAt(0)}
               </div>
             )}
-          </div>
 
-          {/* 操作 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); onEditCharacter(char); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.textSecondary,
-                fontSize: '0.7rem',
-                cursor: 'pointer',
-                padding: '2px 4px',
-              }}
-            >
-              編集
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.danger,
-                fontSize: '0.7rem',
-                cursor: 'pointer',
-                padding: '2px 4px',
-              }}
-            >
-              削除
-            </button>
+            {/* 情報 */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  color: theme.textPrimary,
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {char.name}
+              </div>
+              {char.statuses.length > 0 && (
+                <div style={{ display: 'flex', gap: '6px', marginTop: '3px' }}>
+                  {char.statuses.map((s, i) => (
+                    <span key={i} style={{ color: theme.textSecondary, fontSize: '0.7rem' }}>
+                      {s.label}: {s.value}/{s.max}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 操作 */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.danger,
+                  fontSize: '0.7rem',
+                  cursor: 'pointer',
+                  padding: '2px 4px',
+                }}
+              >
+                削除
+              </button>
+            </div>
           </div>
         </SortableListItem>
       ))}
