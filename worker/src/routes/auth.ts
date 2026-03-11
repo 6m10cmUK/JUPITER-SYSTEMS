@@ -125,7 +125,7 @@ export async function handleAuth(
     } else {
       userId = generateId();
       displayName = googleUser.displayName;
-      avatarUrl = googleUser.avatarUrl;
+      avatarUrl = null; // 初回はデフォルト表示、プロフィールから任意設定
       await env.DB.prepare(
         'INSERT INTO users (id, google_id, display_name, avatar_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       )
