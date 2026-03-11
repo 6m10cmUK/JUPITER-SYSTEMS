@@ -1,38 +1,28 @@
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import type { User } from 'firebase/auth';
-
-interface UserEncryptionKey {
-  userId: string;
-  encryptionKey: string;
-  createdAt: Date;
-  lastUsed: Date;
-}
+import { apiFetch } from '../config/api';
 
 export class EncryptionKeyService {
-  private static readonly COLLECTION_NAME = 'userEncryptionKeys';
-
   /**
-   * ユーザーの暗号化キーを取得（なければ生成）
+   * ユーザーの暗号化キーを取得（なければ生成してサーバーに保存）
    */
-  static async getUserKey(user: User): Promise<string> {
-    const docRef = doc(db, this.COLLECTION_NAME, user.uid);
-    const docSnap = await getDoc(docRef);
+  static async getUserKey(_uid?: string): Promise<string> {
+    // D1からキーを取得
+    const res = await apiFetch('/auth/me');
+    if (!res.ok) throw new Error('ユーザー情報の取得に失敗しました');
+    const data = await res.json();
 
-    if (docSnap.exists()) {
-      const data = docSnap.data() as UserEncryptionKey;
-      // 最終使用日時を更新
-      await setDoc(docRef, {
-        ...data,
-        lastUsed: new Date()
-      }, { merge: true });
-      return data.encryptionKey;
-    } else {
-      // 新規ユーザーの場合、キーを生成
-      const newKey = await this.generateSecureKey();
-      await this.saveUserKey(user, newKey);
-      return newKey;
+    if (data.encryption_key) {
+      return data.encryption_key;
     }
+
+    // キーがなければ生成して保存
+    const newKey = await this.generateSecureKey();
+    const updateRes = await apiFetch('/auth/me', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ encryption_key: newKey }),
+    });
+    if (!updateRes.ok) throw new Error('暗号化キーの保存に失敗しました');
+    return newKey;
   }
 
   /**
@@ -42,29 +32,5 @@ export class EncryptionKeyService {
     const array = new Uint8Array(32);
     crypto.getRandomValues(array);
     return btoa(String.fromCharCode(...array));
-  }
-
-  /**
-   * ユーザーの暗号化キーを保存
-   */
-  private static async saveUserKey(user: User, encryptionKey: string): Promise<void> {
-    const docRef = doc(db, this.COLLECTION_NAME, user.uid);
-    const keyData: UserEncryptionKey = {
-      userId: user.uid,
-      encryptionKey,
-      createdAt: new Date(),
-      lastUsed: new Date()
-    };
-    
-    await setDoc(docRef, keyData);
-  }
-
-  /**
-   * キーの定期的なローテーション（オプション）
-   */
-  static async rotateUserKey(user: User): Promise<string> {
-    const newKey = await this.generateSecureKey();
-    await this.saveUserKey(user, newKey);
-    return newKey;
   }
 }

@@ -1,33 +1,58 @@
 import { useState, useCallback } from 'react';
-import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal } from 'lucide-react';
+import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal, Wifi, WifiOff, Loader } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
-import { DebugConsole } from './DebugConsole';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
+import { usePermission } from '../../hooks/usePermission';
+import type { PermissionKey } from '../../config/permissions';
 
-const PRESET_COLORS = [
-  { name: '赤', value: '#ef4444' },
-  { name: '青', value: '#3b82f6' },
-  { name: '緑', value: '#22c55e' },
-  { name: '紫', value: '#8b5cf6' },
+interface PanelDef {
+  id: string;
+  component: string;
+  title: string;
+  permission: PermissionKey;
+}
+
+const PANEL_DEFS: PanelDef[] = [
+  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
+  { id: 'character', component: 'character', title: 'キャラクター', permission: 'panel_character' },
+  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト', permission: 'panel_scenarioText' },
+  { id: 'cutin', component: 'cutin', title: 'カットイン', permission: 'panel_cutin' },
+  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
+  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
+  { id: 'chat', component: 'chat', title: 'チャット', permission: 'panel_chat' },
+  { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
+  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
+  { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
 ];
 
-const PANEL_DEFS = [
-  { id: 'scene', component: 'scene', title: 'シーン' },
-  { id: 'character', component: 'character', title: 'キャラクター' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト' },
-  { id: 'cutin', component: 'cutin', title: 'カットイン' },
-  { id: 'layer', component: 'layer', title: 'レイヤー' },
-  { id: 'property', component: 'property', title: 'プロパティ' },
-  { id: 'chat', component: 'chat', title: 'チャット' },
-  { id: 'board', component: 'board', title: 'Board' },
-  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF' },
-  { id: 'bgm', component: 'bgm', title: 'BGM' },
-] as const;
+function P2PIndicator() {
+  const { p2pConnectionState } = useAdrasteaContext();
+
+  const config = {
+    connected: { icon: <Wifi size={14} />, color: theme.success, label: 'Connected' },
+    connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Connecting...' },
+    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Reconnecting...' },
+    disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'Disconnected' },
+  }[p2pConnectionState];
+
+  return (
+    <div
+      title={config.label}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '4px',
+        color: config.color, fontSize: '11px', padding: '0 6px',
+      }}
+    >
+      {config.icon}
+      <span>{config.label}</span>
+    </div>
+  );
+}
 
 interface TopToolbarProps {
   onAddPiece: (label: string, color: string) => void;
@@ -69,7 +94,7 @@ function IconButton({ onClick, title, children, active }: {
 }
 
 export function TopToolbar({
-  onAddPiece,
+  onAddPiece: _onAddPiece,
   onOpenSettings,
   onOpenProfile,
   onSignOut,
@@ -77,20 +102,11 @@ export function TopToolbar({
   profile,
   dockviewApi,
 }: TopToolbarProps) {
-  const [label, setLabel] = useState('');
-  const [selectedColor, setSelectedColor] = useState(PRESET_COLORS[0].value);
   const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
-  const [showDebug, setShowDebug] = useState(false);
   const { isGuest } = useAuth();
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
-
-  const handleAdd = () => {
-    const trimmed = label.trim();
-    if (!trimmed) return;
-    onAddPiece(trimmed, selectedColor);
-    setLabel('');
-  };
+  const { can } = usePermission();
 
   const togglePanel = useCallback(
     (panelId: string, component: string, title: string) => {
@@ -148,58 +164,6 @@ export function TopToolbar({
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
-      {/* ピース追加 */}
-      <input
-        type="text"
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter') handleAdd(); }}
-        placeholder="キャラ名"
-        style={{
-          width: 80,
-          padding: '2px 4px',
-          background: theme.bgInput,
-          border: `1px solid ${theme.border}`,
-          borderRadius: 0,
-          color: theme.textPrimary,
-          fontSize: '11px',
-          outline: 'none',
-        }}
-      />
-      <div style={{ display: 'flex', gap: 2 }}>
-        {PRESET_COLORS.map((c) => (
-          <button
-            key={c.value}
-            onClick={() => setSelectedColor(c.value)}
-            title={c.name}
-            style={{
-              width: 16,
-              height: 16,
-              borderRadius: '50%',
-              backgroundColor: c.value,
-              border: selectedColor === c.value ? '2px solid #fff' : '2px solid transparent',
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          />
-        ))}
-      </div>
-      <button
-        onClick={handleAdd}
-        style={{
-          padding: '2px 8px',
-          background: selectedColor,
-          color: '#fff',
-          border: 'none',
-          borderRadius: 0,
-          fontSize: '11px',
-          fontWeight: 600,
-          cursor: 'pointer',
-        }}
-      >
-        追加
-      </button>
-
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
@@ -228,7 +192,7 @@ export function TopToolbar({
                 minWidth: 160,
               }}
             >
-              {PANEL_DEFS.map((p) => {
+              {PANEL_DEFS.filter(p => can(p.permission)).map((p) => {
                 const exists = !!dockviewApi?.getPanel(p.id);
                 return (
                   <button
@@ -257,6 +221,9 @@ export function TopToolbar({
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
+
+      {/* P2P接続状態 */}
+      <P2PIndicator />
 
       {/* BGMプレイヤー */}
       <BgmMiniPlayer />
@@ -299,7 +266,7 @@ export function TopToolbar({
       )}
 
       {/* デバッグコンソール */}
-      <IconButton onClick={() => setShowDebug(true)} title="デバッグコンソール">
+      <IconButton onClick={() => togglePanel('debugConsole', 'debugConsole', 'Debug Console')} title="デバッグコンソール">
         <Terminal size={14} />
       </IconButton>
 
@@ -350,7 +317,6 @@ export function TopToolbar({
       </IconButton>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}
-      {showDebug && <DebugConsole onClose={() => setShowDebug(false)} />}
     </div>
   );
 }

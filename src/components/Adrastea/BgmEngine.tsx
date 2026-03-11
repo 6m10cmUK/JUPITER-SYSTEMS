@@ -10,10 +10,15 @@ export function BgmEngine() {
   }, []);
 
   const prevSceneIdRef = useRef<string | null>(null);
+  const sceneTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const [fadeStates, setFadeStates] = useState<Map<string, 'none' | 'in' | 'out'>>(new Map());
 
   // シーン切替検知: 停止/自動再生/継続を管理
   useEffect(() => {
+    // 前回のタイマーをすべてクリア（高速シーン切替対策）
+    sceneTimersRef.current.forEach(id => clearTimeout(id));
+    sceneTimersRef.current = [];
+
     const currentSceneId = activeScene?.id ?? null;
     if (prevSceneIdRef.current === currentSceneId) return;
     const prevSceneId = prevSceneIdRef.current;
@@ -47,7 +52,7 @@ export function BgmEngine() {
         0
       );
 
-      setTimeout(() => {
+      const outTimer = setTimeout(() => {
         // フェードアウト完了 → 停止をFirestoreに書き込み
         tracksToStop.forEach(t => {
           updateBgm(t.id, { is_playing: false, is_paused: false });
@@ -72,10 +77,12 @@ export function BgmEngine() {
           ...tracksToStart.filter(t => t.fade_in).map(t => t.fade_duration),
           0
         );
-        setTimeout(() => {
+        const inTimer = setTimeout(() => {
           setFadeStates(new Map());
         }, maxInDuration + 100);
+        sceneTimersRef.current.push(inTimer);
       }, maxOutDuration + 100);
+      sceneTimersRef.current.push(outTimer);
     } else {
       // === 初回シーン読み込み: auto_play トラックをフェードイン ===
       const tracksToStart = bgms.filter(
@@ -96,19 +103,30 @@ export function BgmEngine() {
         ...tracksToStart.filter(t => t.fade_in).map(t => t.fade_duration),
         0
       );
-      setTimeout(() => setFadeStates(new Map()), maxInDuration + 100);
+      const initTimer = setTimeout(() => setFadeStates(new Map()), maxInDuration + 100);
+      sceneTimersRef.current.push(initTimer);
     }
+
+    return () => {
+      sceneTimersRef.current.forEach(id => clearTimeout(id));
+      sceneTimersRef.current = [];
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeScene?.id]);
 
-  // 孤立トラック（どのシーンにも属さない）を自動停止＆削除
+  // 孤立トラック（どのシーンにも属さない）を自動停止
+  // NOTE: bgms を依存配列に入れると updateBgm → setBgms → 再トリガーの無限ループになるため、
+  // シーン切替時（activeScene?.id 変化時）のみチェックする
+  const bgmsRef = useRef(bgms);
+  bgmsRef.current = bgms;
   useEffect(() => {
-    bgms.forEach(t => {
+    bgmsRef.current.forEach(t => {
       if (t.scene_ids.length === 0 && t.is_playing) {
         updateBgm(t.id, { is_playing: false, is_paused: false });
       }
     });
-  }, [bgms, updateBgm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeScene?.id]);
 
   const playingTracks = bgms.filter(t => t.is_playing);
 

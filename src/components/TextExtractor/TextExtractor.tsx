@@ -34,7 +34,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     setExtractedData(null);
 
     // ログインチェック
-    const currentUser = AuthService.getCurrentUser();
+    const currentUser = AuthService.restoreUser();
     if (!currentUser) {
       setError('ログインが必要です');
       setIsExtracting(false);
@@ -50,7 +50,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     try {
       // 暗号化は絶対要件 - ユーザーの暗号化キーを取得
       console.log('暗号化キーを取得中...');
-      const encryptionKey = await EncryptionKeyService.getUserKey(currentUser);
+      const encryptionKey = await EncryptionKeyService.getUserKey(currentUser.uid);
       console.log('暗号化キー取得完了');
 
       // 暗号化APIを使用してテキストを抽出（成形オプション有効）

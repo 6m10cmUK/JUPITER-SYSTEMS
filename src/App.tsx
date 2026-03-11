@@ -7,6 +7,7 @@ import CharacterDisplayGenerator from './pages/CharacterDisplayGenerator'
 import DiscordObs from './pages/DiscordObs'
 import Adrastea from './pages/Adrastea'
 import { AuthProvider } from './contexts/AuthContext'
+import { AuthCallback } from './pages/AuthCallback'
 
 function NotFound() {
   return (
@@ -25,6 +26,7 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="auth/callback" element={<AuthCallback />} />
           <Route path="adrastea" element={<Adrastea />} />
           <Route path="adrastea/:roomId" element={<Adrastea />} />
           <Route path="/" element={<Layout />} errorElement={<div>エラーが発生しました</div>}>

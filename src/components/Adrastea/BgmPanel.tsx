@@ -16,6 +16,27 @@ const extractVideoId = (url: string): string => {
   return match ? match[1] : url;
 };
 
+/** Dropbox / Google Drive の共有URLを直接再生可能なURLに変換する */
+const normalizeAudioUrl = (url: string): string => {
+  // Dropbox: ?dl=0 → ?dl=1（なければ追加）
+  if (url.includes('dropbox.com/')) {
+    const u = new URL(url);
+    u.searchParams.set('dl', '1');
+    return u.toString();
+  }
+  // Google Drive: /file/d/FILE_ID/view → uc?export=download&id=FILE_ID
+  const driveMatch = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (driveMatch) {
+    return `https://drive.google.com/uc?export=download&id=${driveMatch[1]}`;
+  }
+  // Google Drive: open?id=FILE_ID
+  const driveOpenMatch = url.match(/drive\.google\.com\/open\?.*id=([^&]+)/);
+  if (driveOpenMatch) {
+    return `https://drive.google.com/uc?export=download&id=${driveOpenMatch[1]}`;
+  }
+  return url;
+};
+
 // --- Volume Fader (OBS-style) ---
 function VolumeFader({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const pct = Math.round(value * 100);
@@ -179,7 +200,9 @@ export function BgmPanel() {
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
   const filteredBgms = useMemo(
-    () => bgms.filter(b => b.scene_ids.includes(currentSceneId)),
+    () => bgms
+      .filter(b => b.scene_ids.includes(currentSceneId))
+      .sort((a, b) => a.sort_order - b.sort_order),
     [bgms, currentSceneId]
   );
 
@@ -224,9 +247,10 @@ export function BgmPanel() {
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
-    const videoId = extractVideoId(url);
-    const isYoutube = videoId !== url;
-    const source = isYoutube ? videoId : url;
+    const normalizedUrl = normalizeAudioUrl(url);
+    const videoId = extractVideoId(normalizedUrl);
+    const isYoutube = videoId !== normalizedUrl;
+    const source = isYoutube ? videoId : normalizedUrl;
 
     // 同じソースの既存トラックがあれば scene_ids に追加するだけ
     const existing = bgms.find(b => b.bgm_source === source);
@@ -255,8 +279,8 @@ export function BgmPanel() {
       addBgm({ name: title, bgm_type: 'youtube', bgm_source: videoId, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
     } else {
       const name = assetTitle
-        || decodeURIComponent(url.split('/').pop() || '新規BGM').replace(/^\d+_/, '');
-      addBgm({ name, bgm_type: 'url', bgm_source: url, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
+        || decodeURIComponent(normalizedUrl.split('/').pop()?.split('?')[0] || '新規BGM').replace(/^\d+_/, '');
+      addBgm({ name, bgm_type: 'url', bgm_source: normalizedUrl, scene_ids: [activeScene.id], auto_play_scene_ids: [activeScene.id] });
     }
     setShowAddPicker(false);
   }, [addBgm, updateBgm, bgms, activeScene]);

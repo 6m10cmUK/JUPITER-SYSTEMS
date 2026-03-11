@@ -1,93 +1,53 @@
 /**
- * Cloudflare Worker — R2 アップロードプロキシ + 画像配信 + Firebase JWT検証
+ * Cloudflare Worker — Adrastea API
  *
- * バインディング:
- *   R2_BUCKET: R2バケット
- * 環境変数:
- *   FIREBASE_PROJECT_ID: Firebase プロジェクトID
- *   ALLOWED_ORIGINS: 許可するオリジン（カンマ区切り）
+ * - R2 ファイルアップロード/配信
+ * - D1 ユーザー/ルーム/アセット管理
+ * - Google OAuth2 認証 + 自前JWT
+ * - WebRTC シグナリング (KV polling)
+ * - 使用量制御 (KV カウンター)
  */
 
-interface Env {
-  R2_BUCKET: R2Bucket;
-  FIREBASE_PROJECT_ID: string;
-  ALLOWED_ORIGINS: string;
-}
+import { handleAuth } from './routes/auth';
+import { handleRooms } from './routes/rooms';
+import { handleAssets } from './routes/assets';
+import { handleR2 } from './routes/r2';
+import { corsHeaders } from './utils/cors';
+import { checkRateLimit } from './utils/rateLimit';
+import { verifyJwt } from './utils/jwt';
+import type { Env, AuthUser } from './types';
 
-// Googleの公開鍵キャッシュ
-let cachedKeys: { keys: JsonWebKey[]; exp: number } | null = null;
-
-async function getGooglePublicKeys(): Promise<JsonWebKey[]> {
-  if (cachedKeys && Date.now() < cachedKeys.exp) return cachedKeys.keys;
-
-  const res = await fetch(
-    'https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'
-  );
-  const data = (await res.json()) as { keys: JsonWebKey[] };
-  cachedKeys = { keys: data.keys, exp: Date.now() + 3600_000 };
-  return data.keys;
-}
-
-async function verifyFirebaseToken(
-  token: string,
-  projectId: string
-): Promise<{ uid: string } | null> {
-  try {
-    // JWTをデコード（ヘッダー、ペイロード）
-    const parts = token.split('.');
-    if (parts.length !== 3) return null;
-
-    const header = JSON.parse(atob(parts[0].replace(/-/g, '+').replace(/_/g, '/')));
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-
-    // 基本検証
-    if (payload.aud !== projectId) return null;
-    if (payload.iss !== `https://securetoken.google.com/${projectId}`) return null;
-    if (payload.exp < Date.now() / 1000) return null;
-
-    // 公開鍵で署名検証
-    const keys = await getGooglePublicKeys();
-    const key = keys.find((k: any) => k.kid === header.kid);
-    if (!key) return null;
-
-    const cryptoKey = await crypto.subtle.importKey(
-      'jwk',
-      key,
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      false,
-      ['verify']
-    );
-
-    const signatureBytes = Uint8Array.from(
-      atob(parts[2].replace(/-/g, '+').replace(/_/g, '/')),
-      (c) => c.charCodeAt(0)
-    );
-    const dataBytes = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
-
-    const valid = await crypto.subtle.verify(
-      'RSASSA-PKCS1-v1_5',
-      cryptoKey,
-      signatureBytes,
-      dataBytes
-    );
-
-    if (!valid) return null;
-    return { uid: payload.sub };
-  } catch {
-    return null;
+async function handleAuthMe(
+  request: Request,
+  env: Env,
+  headers: Record<string, string>,
+  user: AuthUser,
+): Promise<Response> {
+  // GET /auth/me — プロフィール取得
+  if (request.method === 'GET') {
+    const row = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.uid).first();
+    if (!row) {
+      return Response.json({ uid: user.uid, display_name: user.displayName, avatar_url: user.avatarUrl }, { headers });
+    }
+    return Response.json(row, { headers });
   }
-}
 
-function corsHeaders(origin: string, allowedOrigins: string): Record<string, string> {
-  if (!allowedOrigins) return {};
-  const origins = allowedOrigins.split(',').map((o) => o.trim());
-  const allowed = origins.includes(origin) || origins.includes('*');
-  if (!allowed) return {};
-  return {
-    'Access-Control-Allow-Origin': origin,
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  };
+  // PATCH /auth/me — プロフィール更新
+  if (request.method === 'PATCH') {
+    const body = (await request.json()) as Record<string, unknown>;
+    const sets: string[] = ['updated_at = ?'];
+    const vals: unknown[] = [Date.now()];
+
+    if (body.display_name !== undefined) { sets.push('display_name = ?'); vals.push(body.display_name); }
+    if (body.avatar_url !== undefined) { sets.push('avatar_url = ?'); vals.push(body.avatar_url); }
+    if (body.encryption_key !== undefined) { sets.push('encryption_key = ?'); vals.push(body.encryption_key); }
+
+    vals.push(user.uid);
+    await env.DB.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
+    return Response.json({ ok: true }, { headers });
+  }
+
+  return new Response('Method Not Allowed', { status: 405, headers });
 }
 
 export default {
@@ -101,27 +61,25 @@ export default {
       return new Response(null, { status: 204, headers });
     }
 
-    // GET /file/* — 認証不要、R2から画像を配信
+    // 使用量制御（GET /file/* は除外）
+    if (!url.pathname.startsWith('/file/')) {
+      const rateLimitResult = await checkRateLimit(env.RATE_LIMIT);
+      if (!rateLimitResult.ok) {
+        return new Response(
+          JSON.stringify({ error: '本日の利用上限に達しました' }),
+          { status: 429, headers: { ...headers, 'Content-Type': 'application/json' } },
+        );
+      }
+    }
+
+    // --- R2 画像配信（認証不要） ---
     if (url.pathname.startsWith('/file/') && request.method === 'GET') {
-      const key = decodeURIComponent(url.pathname.slice('/file/'.length));
-      if (!key || key.includes('..')) {
-        return new Response('Bad Request', { status: 400, headers });
-      }
+      return handleR2.getFile(request, env, headers);
+    }
 
-      const object = await env.R2_BUCKET.get(key);
-      if (!object) {
-        return new Response('Not Found', { status: 404, headers });
-      }
-
-      return new Response(object.body, {
-        status: 200,
-        headers: {
-          ...headers,
-          'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
-          'Cache-Control': 'public, max-age=31536000, immutable',
-          'X-Content-Type-Options': 'nosniff',
-        },
-      });
+    // --- 認証エンドポイント（認証不要） ---
+    if (url.pathname.startsWith('/auth/') && !url.pathname.startsWith('/auth/me')) {
+      return handleAuth(request, url, env, headers);
     }
 
     // --- 以下は認証必須 ---
@@ -129,76 +87,32 @@ export default {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const token = authHeader.slice(7);
-    const user = await verifyFirebaseToken(token, env.FIREBASE_PROJECT_ID);
+    const user = await verifyJwt(authHeader.slice(7), env.JWT_SECRET);
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
 
-    // POST /upload
-    if (url.pathname === '/upload' && request.method === 'POST') {
-      const formData = await request.formData();
-      const file = formData.get('file') as File | null;
-      const path = formData.get('path') as string | null;
-
-      if (!file || !path) {
-        return new Response('Bad Request: file and path required', {
-          status: 400,
-          headers,
-        });
-      }
-
-      if (path.includes('..') || path.startsWith('/')) {
-        return new Response('Invalid path', { status: 400, headers });
-      }
-
-      if (!path.startsWith(`${user.uid}/`)) {
-        return new Response('Forbidden', { status: 403, headers });
-      }
-
-      const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
-      if (file.size > MAX_FILE_SIZE) {
-        return new Response('File too large', { status: 413, headers });
-      }
-
-      const ALLOWED_TYPE_PREFIXES = ['image/', 'audio/'];
-      const contentType = ALLOWED_TYPE_PREFIXES.some((p) => file.type.startsWith(p))
-        ? file.type
-        : 'application/octet-stream';
-
-      const key = `${path}/${Date.now()}_${file.name}`;
-      await env.R2_BUCKET.put(key, file.stream(), {
-        httpMetadata: { contentType },
-      });
-
-      // Worker経由の公開URL
-      const publicUrl = `${url.origin}/file/${encodeURIComponent(key)}`;
-
-      return new Response(JSON.stringify({ url: publicUrl, key }), {
-        status: 200,
-        headers: { ...headers, 'Content-Type': 'application/json' },
-      });
+    // --- /auth/me（認証必須） ---
+    if (url.pathname === '/auth/me') {
+      return handleAuthMe(request, env, headers, user);
     }
 
-    // DELETE /delete
+    // --- R2 アップロード/削除 ---
+    if (url.pathname === '/upload' && request.method === 'POST') {
+      return handleR2.upload(request, env, headers, user);
+    }
     if (url.pathname === '/delete' && request.method === 'DELETE') {
-      const path = url.searchParams.get('path');
-      if (!path) {
-        return new Response('Bad Request: path required', { status: 400, headers });
-      }
+      return handleR2.deleteFile(request, url, env, headers, user);
+    }
 
-      if (path.includes('..') || path.startsWith('/')) {
-        return new Response('Invalid path', { status: 400, headers });
-      }
+    // --- Rooms API ---
+    if (url.pathname.startsWith('/api/rooms')) {
+      return handleRooms(request, url, env, headers, user);
+    }
 
-      if (!path.startsWith(`${user.uid}/`)) {
-        return new Response('Forbidden', { status: 403, headers });
-      }
-
-      // 指定キーのみ削除（prefix一致ではなくexact match）
-      await env.R2_BUCKET.delete(path);
-
-      return new Response('OK', { status: 200, headers });
+    // --- Assets API ---
+    if (url.pathname.startsWith('/api/assets')) {
+      return handleAssets(request, url, env, headers, user);
     }
 
     return new Response('Not Found', { status: 404, headers });

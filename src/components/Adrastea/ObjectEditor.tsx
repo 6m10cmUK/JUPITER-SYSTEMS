@@ -165,7 +165,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       : isForeground
         ? '前景'
         : isGlobal
-          ? 'グローバルオブジェクト'
+          ? 'ルームオブジェクト'
           : 'シーンオブジェクト';
 
   return (

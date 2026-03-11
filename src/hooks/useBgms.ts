@@ -1,77 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
-import { db } from '../config/firebase';
-import {
-  collection,
-  doc,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  orderBy,
-  writeBatch,
-} from 'firebase/firestore';
 import type { BgmTrack } from '../types/adrastea.types';
 
-const mapDoc = (d: { id: string; data: () => any }): BgmTrack => {
-  const data = d.data();
-  return {
-    id: d.id,
-    name: data.name ?? '新規BGM',
-    bgm_type: data.bgm_type ?? null,
-    bgm_source: data.bgm_source ?? null,
-    bgm_volume: data.bgm_volume ?? 0.5,
-    bgm_loop: data.bgm_loop ?? true,
-    scene_ids: data.scene_ids ?? [],
-    is_playing: data.is_playing ?? false,
-    is_paused: data.is_paused ?? false,
-    auto_play_scene_ids: data.auto_play_scene_ids ?? [],
-    fade_in: data.fade_in ?? false,
-    fade_out: data.fade_out ?? false,
-    fade_duration: data.fade_duration ?? 500,
-    sort_order: data.sort_order ?? 0,
-    created_at: data.created_at ?? Date.now(),
-    updated_at: data.updated_at ?? Date.now(),
-  };
-};
+const genId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
+    b.toString(16).padStart(2, '0')
+  ).join('');
 
-export function useBgms(roomId: string) {
-  const [bgms, setBgms] = useState<BgmTrack[]>([]);
-  const [loading, setLoading] = useState(true);
+export function useBgms(roomId: string, initialBgms?: BgmTrack[]) {
+  const [bgms, setBgms] = useState<BgmTrack[]>(initialBgms ?? []);
+  const [loading, setLoading] = useState(!initialBgms);
 
   useEffect(() => {
-    if (!roomId) {
-      setBgms([]);
+    if (initialBgms) {
+      setBgms(initialBgms);
       setLoading(false);
-      return;
     }
-
-    setLoading(true);
-    const q = query(
-      collection(db, 'rooms', roomId, 'bgms'),
-      orderBy('sort_order', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        setBgms(snapshot.docs.map(mapDoc));
-        setLoading(false);
-      },
-      (error) => {
-        console.error('BGMの監視に失敗:', error);
-        setLoading(false);
-      }
-    );
-
-    return () => unsubscribe();
-  }, [roomId]);
+  }, [initialBgms]);
 
   const addBgm = useCallback(
-    async (data: Partial<Omit<BgmTrack, 'id'>>) => {
+    (data: Partial<Omit<BgmTrack, 'id'>>) => {
       if (!roomId) throw new Error('roomId required');
-      const colRef = collection(db, 'rooms', roomId, 'bgms');
-      const docRef = await addDoc(colRef, {
+      const now = Date.now();
+      const newId = (data as { id?: string }).id ?? genId();
+      const newBgm: BgmTrack = {
+        id: newId,
         name: data.name ?? '新規BGM',
         bgm_type: data.bgm_type ?? null,
         bgm_source: data.bgm_source ?? null,
@@ -85,48 +38,67 @@ export function useBgms(roomId: string) {
         fade_out: data.fade_out ?? true,
         fade_duration: data.fade_duration ?? 500,
         sort_order: data.sort_order ?? bgms.length,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      });
-      return docRef.id;
+        created_at: now,
+        updated_at: now,
+      };
+      setBgms((prev) => [...prev, newBgm]);
+      return newBgm;
     },
     [roomId, bgms.length]
   );
 
   const updateBgm = useCallback(
-    async (id: string, updates: Partial<BgmTrack>) => {
+    (id: string, updates: Partial<BgmTrack>) => {
       if (!roomId) return;
-      const { id: _id, created_at: _ca, ...data } = updates as any;
-      await updateDoc(doc(db, 'rooms', roomId, 'bgms', id), {
-        ...data,
-        updated_at: Date.now(),
+      setBgms((prev) => {
+        const updated = prev.map((b) =>
+          b.id === id ? { ...b, ...updates, updated_at: Date.now() } : b
+        );
+        // scene_ids が空になったトラックは自動削除
+        const target = updated.find((b) => b.id === id);
+        if (target && target.scene_ids.length === 0) {
+          return updated.filter((b) => b.id !== id);
+        }
+        return updated;
       });
     },
     [roomId]
   );
 
   const removeBgm = useCallback(
-    async (id: string) => {
+    (id: string) => {
       if (!roomId) return;
-      await deleteDoc(doc(db, 'rooms', roomId, 'bgms', id));
+      setBgms((prev) => prev.filter((b) => b.id !== id));
     },
     [roomId]
   );
 
   const reorderBgms = useCallback(
-    async (orderedIds: string[]) => {
+    (orderedIds: string[]) => {
       if (!roomId) return;
-      const batch = writeBatch(db);
-      orderedIds.forEach((id, index) => {
-        batch.update(doc(db, 'rooms', roomId, 'bgms', id), {
-          sort_order: index,
-          updated_at: Date.now(),
+      setBgms((prev) => {
+        const now = Date.now();
+        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+        return prev.map((b) => {
+          const newSort = orderMap.get(b.id);
+          return newSort !== undefined
+            ? { ...b, sort_order: newSort, updated_at: now }
+            : b;
         });
       });
-      await batch.commit();
     },
     [roomId]
   );
 
-  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms };
+  const _setAll = useCallback((items: BgmTrack[]) => {
+    setBgms(items);
+    setLoading(false);
+  }, []);
+
+  // P2P: add single item without Firestore write
+  const _addOne = useCallback((item: BgmTrack) => {
+    setBgms(prev => [...prev, item]);
+  }, []);
+
+  return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll, _addOne };
 }

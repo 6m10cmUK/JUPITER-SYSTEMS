@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import type { User } from 'firebase/auth';
+import type { AuthUser } from '../services/auth';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
 import type {
@@ -21,9 +21,37 @@ import { useObjects } from '../hooks/useObjects';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
 import { useBgms } from '../hooks/useBgms';
-import { useImagePreloader } from '../hooks/useImagePreloader';
+import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
+import { apiFetch, API_BASE_URL, getAccessToken } from '../config/api';
+import { useP2PSync } from '../hooks/useP2PSync';
+import type { ConnectionState, CollectionName, PatchOp, RoomSnapshot as P2PRoomSnapshot } from '../services/rtc/types';
+import { RoomDataContext, UIStateContext, P2PContext } from './AdrasteaContexts';
+import type { RoomDataContextValue, UIStateContextValue, P2PContextValue } from './AdrasteaContexts';
+import { checkPermission, type PermissionKey } from '../config/permissions';
+
+// ---------------------------------------------------------------------------
+// Empty fallbacks (stable references to avoid useEffect infinite loops)
+// ---------------------------------------------------------------------------
+const EMPTY_ARRAY: never[] = [];
+const EMPTY_INITIAL = { room: null as unknown as Room, pieces: EMPTY_ARRAY as Piece[] };
+
+// ---------------------------------------------------------------------------
+// Snapshot type
+// ---------------------------------------------------------------------------
+
+interface RoomSnapshot {
+  room: Room;
+  scenes: Scene[];
+  objects: BoardObject[];
+  characters: Character[];
+  bgms: BgmTrack[];
+  cutins: Cutin[];
+  scenarioTexts: ScenarioText[];
+  pieces: Piece[];
+  messages: ChatMessage[];
+}
 
 // ---------------------------------------------------------------------------
 // Context value type
@@ -39,7 +67,7 @@ export interface PendingEdit {
   data: Record<string, unknown>;
 }
 
-export type RoomRole = 'owner' | 'user' | 'guest';
+export type RoomRole = 'owner' | 'sub_owner' | 'user' | 'guest';
 
 export interface AdrasteaContextValue {
   // --- roomId ---
@@ -74,6 +102,7 @@ export interface AdrasteaContextValue {
   addScene: ReturnType<typeof useScenes>['addScene'];
   updateScene: ReturnType<typeof useScenes>['updateScene'];
   removeScene: ReturnType<typeof useScenes>['removeScene'];
+  reorderScenes: ReturnType<typeof useScenes>['reorderScenes'];
   activateScene: ReturnType<typeof useScenes>['activateScene'];
 
   // --- useCharacters ---
@@ -146,7 +175,7 @@ export interface AdrasteaContextValue {
   activeScene: Scene | null;
   // --- Auth ---
   profile: UserProfile | null;
-  user: User | null;
+  user: AuthUser | null;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) => Promise<void>;
 
@@ -179,6 +208,9 @@ export interface AdrasteaContextValue {
   // --- パネル登録（遅延リスナー用） ---
   registerPanel: (panelId: string) => void;
   unregisterPanel: (panelId: string) => void;
+
+  // --- P2P ---
+  p2pConnectionState: ConnectionState;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +232,23 @@ interface AdrasteaProviderProps {
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile } = useAuth();
 
+  // --- スナップショット読み込み ---
+  const [snapshot, setSnapshot] = useState<RoomSnapshot | null | undefined>(undefined); // undefined=loading
+
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch(`/api/rooms/${roomId}/snapshot`)
+      .then(res => res.json())
+      .then(result => {
+        if (!cancelled) setSnapshot(result.data ?? null);
+      })
+      .catch(err => {
+        console.error('スナップショット読み込み失敗:', err);
+        if (!cancelled) setSnapshot(null); // 空で開始
+      });
+    return () => { cancelled = true; };
+  }, [roomId]);
+
   // --- パネルのマウント状態追跡（遅延リスナー用） ---
   const [activePanels, setActivePanels] = useState<Set<string>>(new Set());
   const registerPanel = useCallback((panelId: string) => {
@@ -209,22 +258,52 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setActivePanels(prev => { const next = new Set(prev); next.delete(panelId); return next; });
   }, []);
 
+  // --- onObjectsCreated コールバック用 Ref（循環依存を回避） ---
+  const objectsCreatedRef = useRef<((objects: BoardObject[]) => void) | null>(null);
+  const handleObjectsCreated = useCallback((objects: BoardObject[]) => {
+    objectsCreatedRef.current?.(objects);
+  }, []);
+
   // --- Data hooks ---
+
+  // スナップショットの room に欠損フィールドがある場合（旧形式）のフォールバック
+  const snapshotRoom = useMemo<Room | null>(() => {
+    if (!snapshot?.room) return null;
+    return {
+      ...snapshot.room,
+      id: snapshot.room.id ?? roomId,
+      name: snapshot.room.name ?? '',
+      dice_system: snapshot.room.dice_system ?? 'DiceBot',
+      created_at: snapshot.room.created_at ?? Date.now(),
+      updated_at: snapshot.room.updated_at ?? Date.now(),
+      active_scene_id: snapshot.room.active_scene_id ?? null,
+      active_cutin: snapshot.room.active_cutin ?? null,
+      foreground_url: snapshot.room.foreground_url ?? null,
+    };
+  }, [snapshot, roomId]);
+
   const {
     pieces, room, loading: adrasteaLoading, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-  } = useAdrastea(roomId);
+    _setPieces, _setRoom,
+  } = useAdrastea(roomId, snapshot === undefined ? undefined : snapshot ? { room: snapshotRoom, pieces: snapshot.pieces } : EMPTY_INITIAL);
 
   const {
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
-  } = useAdrasteaChat(roomId);
+    _addMessage, _setAll: _setMessages,
+  } = useAdrasteaChat(roomId, snapshot === undefined ? undefined : snapshot?.messages ?? EMPTY_ARRAY as ChatMessage[]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, activateScene } = useScenes(roomId);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
+  // onRoomUpdate コールバック（useCutins → useAdrastea）
+  const handleRoomUpdate = useCallback((updates: Record<string, unknown>) => {
+    updateRoom(updates as Partial<Room>);
+  }, [updateRoom]);
 
-  // 楽観的 activeSceneId: Firestore 反映を待たずシーン切り替えを即座に反映
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene, _setAll: _setScenes, _addOne: _addSceneOne } = useScenes(roomId, snapshot === undefined ? undefined : snapshot?.scenes ?? EMPTY_ARRAY as Scene[], handleObjectsCreated);
+  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll: _setCharacters, _addOne: _addCharacterOne } = useCharacters(roomId, snapshot === undefined ? undefined : snapshot?.characters ?? EMPTY_ARRAY as Character[]);
+
+  // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
   const effectiveSceneId = optimisticSceneId ?? room?.active_scene_id ?? null;
-  // Firestore が追いついたら楽観値をクリア
+  // ローカルstateが追いついたら楽観値をクリア
   useEffect(() => {
     if (optimisticSceneId && room?.active_scene_id === optimisticSceneId) {
       setOptimisticSceneId(null);
@@ -234,15 +313,88 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const {
     allObjects, activeObjects, loading: objectsLoading,
     addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
-  } = useObjects(roomId, effectiveSceneId);
+    _setAll: _setObjects, _addOne: _addObjectOne,
+  } = useObjects(roomId, effectiveSceneId, snapshot === undefined ? undefined : snapshot?.objects ?? EMPTY_ARRAY as BoardObject[]);
+
+  // objectsCreatedRef に injectOptimistic を設定
+  useEffect(() => {
+    objectsCreatedRef.current = injectOptimistic;
+  }, [injectOptimistic]);
+
   const scenarioTextsEnabled = activePanels.has('scenarioText');
   const cutinsEnabled = activePanels.has('cutin');
-  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts } = useScenarioTexts(roomId, scenarioTextsEnabled);
-  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin } = useCutins(roomId, cutinsEnabled);
-  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms } = useBgms(roomId);
+  const { scenarioTexts, loading: scenarioTextsLoading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts, _setAll: _setScenarioTexts, _addOne: _addScenarioTextOne } = useScenarioTexts(roomId, scenarioTextsEnabled, snapshot === undefined ? undefined : snapshot?.scenarioTexts ?? EMPTY_ARRAY as ScenarioText[]);
+  const { cutins, loading: cutinsLoading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin, _setAll: _setCutins, _addOne: _addCutinOne } = useCutins(roomId, cutinsEnabled, snapshot === undefined ? undefined : snapshot?.cutins ?? EMPTY_ARRAY as Cutin[], handleRoomUpdate);
+  const { bgms, loading: bgmsLoading, addBgm, updateBgm, removeBgm, reorderBgms, _setAll: _setBgms, _addOne: _addBgmOne } = useBgms(roomId, snapshot === undefined ? undefined : snapshot?.bgms ?? EMPTY_ARRAY as BgmTrack[]);
+
+  // --- スナップショット保存 ---
+  const snapshotLoading = snapshot === undefined;
+
+  const buildSnapshot = useCallback((): RoomSnapshot | null => {
+    if (!room) return null;
+    return {
+      room: { ...room },
+      scenes,
+      objects: allObjects,
+      characters,
+      bgms,
+      cutins,
+      scenarioTexts,
+      pieces,
+      messages: messages.slice(-100),
+    };
+  }, [room, scenes, allObjects, characters, bgms, cutins, scenarioTexts, pieces, messages]);
+
+  // buildSnapshot を ref 経由で参照（useEffect の依存配列から外すため）
+  const buildSnapshotRef = useRef(buildSnapshot);
+  buildSnapshotRef.current = buildSnapshot;
+
+  // 定期保存（30秒ごと、オーナーのみ）
+  useEffect(() => {
+    if (roomRole !== 'owner') return;
+    const timer = setInterval(() => {
+      const data = buildSnapshotRef.current();
+      if (!data) return;
+      apiFetch(`/api/rooms/${roomId}/snapshot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data }),
+      }).catch(err => console.error('スナップショット保存失敗:', err));
+    }, 30000);
+    return () => clearInterval(timer);
+  }, [roomId, roomRole]);
+
+  useEffect(() => {
+    if (roomRole !== 'owner') return;
+    const handleUnload = () => {
+      const data = buildSnapshotRef.current();
+      if (!data) return;
+      const body = JSON.stringify({ data });
+      // keepalive の 64KB 制限を超える場合は messages を除外して再試行
+      const MAX_KEEPALIVE = 65536;
+      let finalBody = body;
+      if (body.length > MAX_KEEPALIVE) {
+        const slim = { ...data, messages: [] };
+        finalBody = JSON.stringify({ data: slim });
+      }
+      const token = getAccessToken();
+      fetch(`${API_BASE_URL}/api/rooms/${roomId}/snapshot`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: finalBody,
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => window.removeEventListener('beforeunload', handleUnload);
+  }, [roomId, roomRole]);
 
   // --- Loading steps ---
   const loadingSteps = useMemo(() => [
+    { label: 'スナップショット', done: !snapshotLoading },
     { label: 'ルーム', done: !adrasteaLoading },
     { label: 'シーン', done: !scenesLoading },
     { label: 'キャラクター', done: !charactersLoading },
@@ -251,7 +403,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     { label: 'BGM', done: !bgmsLoading },
     { label: 'カットイン', done: !cutinsEnabled || !cutinsLoading },
     { label: 'シナリオテキスト', done: !scenarioTextsEnabled || !scenarioTextsLoading },
-  ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
+  ], [snapshotLoading, adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading]);
 
   // 初回ロード完了後はローディング画面を二度と出さない
   // （シーン切り替え時の objectsLoading 等で全画面ローディングが再表示されるのを防ぐ）
@@ -264,14 +416,136 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const isLoading = !initialLoadDone && loadingSteps.some(s => !s.done);
   const loadingProgress = loadingSteps.filter(s => s.done).length / loadingSteps.length;
 
+  // スナップショット復元後、active_scene_id が未設定ならシーンを自動アクティベート
+  useEffect(() => {
+    if (!initialLoadDone) return;
+    if (effectiveSceneId) return; // すでにアクティブなシーンがある
+    if (scenes.length > 0) {
+      setOptimisticSceneId(scenes[0].id);
+      updateRoom({ active_scene_id: scenes[0].id });
+    }
+  }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
+
   // 背景/前景はシーンごとに useScenes.ts の addScene で作成される
 
-  // --- Image preload ---
-  const preloadUrls = useMemo(() =>
-    scenes.flatMap(s => [s.background_url, s.foreground_url]),
-    [scenes]
-  );
-  useImagePreloader(preloadUrls);
+  // --- P2P sync ---
+
+  // スナップショット保存コールバック（ホスト離脱時に呼ばれる）
+  const handleSaveSnapshot = useCallback(async () => {
+    const snapshot = buildSnapshotRef.current();
+    if (!snapshot) return;
+
+    try {
+      await apiFetch(`/api/rooms/${roomId}/snapshot`, {
+        method: 'PUT',
+        body: JSON.stringify({ data: snapshot }),
+        headers: { 'Content-Type': 'application/json' },
+      });
+    } catch (error) {
+      console.error('Failed to save snapshot:', error);
+    }
+  }, [roomId]);
+
+
+  // P2P: incoming patch handler
+  const handleP2PPatch = useCallback((collection: CollectionName, op: PatchOp, id: string, data?: Record<string, unknown>) => {
+    const setterMap: Record<CollectionName, {
+      add: (d: Record<string, unknown>) => void;
+      update: (id: string, d: Record<string, unknown>) => void;
+      remove: (id: string) => void;
+    }> = {
+      scenes: {
+        add: (d) => _addSceneOne({ ...d, id } as Scene),
+        update: (id, d) => updateScene(id, d as Partial<Scene>),
+        remove: (id) => removeScene(id),
+      },
+      objects: {
+        add: (d) => _addObjectOne({ ...d, id } as BoardObject),
+        update: (id, d) => updateObject(id, d as Partial<BoardObject>),
+        remove: (id) => removeObject(id),
+      },
+      characters: {
+        add: (d) => _addCharacterOne({ ...d, id } as Character),
+        update: (id, d) => updateCharacter(id, d as Partial<Character>),
+        remove: (id) => removeCharacter(id),
+      },
+      bgms: {
+        add: (d) => _addBgmOne({ ...d, id } as BgmTrack),
+        update: (id, d) => updateBgm(id, d as Partial<BgmTrack>),
+        remove: (id) => removeBgm(id),
+      },
+      cutins: {
+        add: (d) => _addCutinOne({ ...d, id } as Cutin),
+        update: (id, d) => updateCutin(id, d as Partial<Cutin>),
+        remove: (id) => removeCutin(id),
+      },
+      scenarioTexts: {
+        add: (d) => _addScenarioTextOne({ ...d, id } as ScenarioText),
+        update: (id, d) => updateScenarioText(id, d as Partial<ScenarioText>),
+        remove: (id) => removeScenarioText(id),
+      },
+      pieces: {
+        add: () => {}, // pieces use addPiece with different signature
+        update: (id, d) => updatePiece(id, d as Partial<Piece>),
+        remove: (id) => removePiece(id),
+      },
+    };
+    const handler = setterMap[collection];
+    if (!handler) return;
+    if (op === 'add' && data) handler.add(data);
+    else if (op === 'update' && data) handler.update(id, data);
+    else if (op === 'remove') handler.remove(id);
+  }, [addScene, updateScene, removeScene, addObject, updateObject, removeObject, addCharacter, updateCharacter, removeCharacter, addBgm, updateBgm, removeBgm, addCutin, updateCutin, removeCutin, addScenarioText, updateScenarioText, removeScenarioText, updatePiece, removePiece]);
+
+  // P2P: incoming full sync handler
+  const handleP2PFullSync = useCallback((snap: P2PRoomSnapshot) => {
+    _setRoom(snap.room);
+    _setPieces(snap.pieces);
+    _setScenes(snap.scenes);
+    _setObjects(snap.objects);
+    _setCharacters(snap.characters);
+    _setBgms(snap.bgms);
+    _setCutins(snap.cutins);
+    _setScenarioTexts(snap.scenarioTexts);
+    _setMessages(snap.messages);
+  }, [_setRoom, _setPieces, _setScenes, _setObjects, _setCharacters, _setBgms, _setCutins, _setScenarioTexts, _setMessages]);
+
+  const { connectionState: p2pConnectionState, sendPatch, sendRoomUpdate, sendChatMessage } = useP2PSync({
+    roomId,
+    userId: user?.uid ?? '',
+    enabled: initialLoadDone && !!user?.uid,
+    getSnapshot: buildSnapshot as () => P2PRoomSnapshot | null,
+    onFullSync: handleP2PFullSync,
+    onPatch: handleP2PPatch,
+    onRoomUpdate: (data) => updateRoom(data),
+    onChatMessage: (msg) => _addMessage(msg),
+  });
+
+  // Refs for P2P send functions (avoid re-creating wrappers on every render)
+  const sendPatchRef = useRef(sendPatch);
+  sendPatchRef.current = sendPatch;
+  const sendRoomUpdateRef = useRef(sendRoomUpdate);
+  sendRoomUpdateRef.current = sendRoomUpdate;
+  const sendChatMessageRef = useRef(sendChatMessage);
+  sendChatMessageRef.current = sendChatMessage;
+
+  // --- Image preload（スナップショット読み込み後に全画像を blobCache にプリロード） ---
+  const preloadDoneRef = useRef(false);
+  useEffect(() => {
+    if (preloadDoneRef.current || !initialLoadDone) return;
+    preloadDoneRef.current = true;
+    const urls: string[] = [];
+    // シーンの bg/fg URL
+    for (const s of scenes) {
+      if (s.background_url) urls.push(s.background_url);
+      if (s.foreground_url) urls.push(s.foreground_url);
+    }
+    // オブジェクトの画像
+    for (const o of allObjects) {
+      if (o.image_url) urls.push(o.image_url);
+    }
+    if (urls.length > 0) preloadImageBlobs(urls); // TODO: プリロードがアニメ継続を壊してないか確認
+  }, [initialLoadDone, scenes, allObjects]);
 
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
@@ -317,6 +591,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [localSceneOverrides, setLocalSceneOverrides] = useState<Map<string, Partial<Scene>>>(new Map());
   const [localObjectOverrides, setLocalObjectOverrides] = useState<Map<string, Partial<BoardObject>>>(new Map());
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingEditsRef = useRef<Map<string, PendingEdit>>(new Map());
 
   // アンマウント時にデバウンスタイマーをクリア
   useEffect(() => {
@@ -360,6 +635,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       const timer = debounceTimersRef.current.get(key);
       if (timer) clearTimeout(timer);
       debounceTimersRef.current.delete(key);
+      pendingEditsRef.current.delete(key);
       return;
     }
 
@@ -386,7 +662,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
           setLocalSceneOverrides(prev => {
             const next = new Map(prev);
             const existing = next.get(effectiveSceneId!) ?? {};
-            next.set(effectiveSceneId!, { ...existing, [sceneField]: (edit.data as any).image_url ?? null });
+            next.set(effectiveSceneId!, { ...existing, [sceneField]: (edit.data as Partial<BoardObject>).image_url ?? null });
             return next;
           });
         }
@@ -415,8 +691,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // デバウンス付きDB保存
     const existing = debounceTimersRef.current.get(key);
     if (existing) clearTimeout(existing);
+    pendingEditsRef.current.set(key, edit);
     debounceTimersRef.current.set(key, setTimeout(async () => {
       debounceTimersRef.current.delete(key);
+      pendingEditsRef.current.delete(key);
       try {
         await flushEdit(edit);
         clearLocalOverride(edit);
@@ -438,11 +716,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [effectiveSceneId, scenes, localSceneOverrides]);
 
   const effectiveScenes = useMemo(() => {
-    if (localSceneOverrides.size === 0) return scenes;
-    return scenes.map(s => {
-      const override = localSceneOverrides.get(s.id);
-      return override ? { ...s, ...override } : s;
-    });
+    let result = scenes;
+    if (localSceneOverrides.size > 0) {
+      result = result.map(s => {
+        const override = localSceneOverrides.get(s.id);
+        return override ? { ...s, ...override } : s;
+      });
+    }
+    return [...result].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   }, [scenes, localSceneOverrides]);
 
   const effectiveActiveObjects = useMemo(() => {
@@ -478,6 +759,167 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [effectiveSceneId, effectiveScenes]);
 
 
+  // --- P2P-aware operation wrappers ---
+
+  // updateRoom + P2P broadcast
+  const p2pUpdateRoom = useCallback((updates: Partial<Room>) => {
+    updateRoom(updates);
+    sendRoomUpdateRef.current(updates);
+  }, [updateRoom]);
+
+  // Scene operations + P2P broadcast
+  const p2pUpdateScene = useCallback((id: string, data: Partial<Scene>) => {
+    updateScene(id, data);
+    sendPatchRef.current('scenes', 'update', id, data as Record<string, unknown>);
+  }, [updateScene]);
+
+  const p2pRemoveScene = useCallback((id: string) => {
+    removeScene(id);
+    sendPatchRef.current('scenes', 'remove', id);
+  }, [removeScene]);
+
+  // Object operations + P2P broadcast
+  const p2pUpdateObject = useCallback((id: string, data: Partial<BoardObject>) => {
+    updateObject(id, data);
+    sendPatchRef.current('objects', 'update', id, data as Record<string, unknown>);
+  }, [updateObject]);
+
+  const p2pRemoveObject = useCallback((id: string) => {
+    removeObject(id);
+    sendPatchRef.current('objects', 'remove', id);
+  }, [removeObject]);
+
+  const p2pReorderObjects = useCallback((orderedIds: string[]) => {
+    reorderObjects(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('objects', 'update', id, { sort_order: i, updated_at: now });
+    });
+  }, [reorderObjects]);
+
+  const p2pBatchUpdateSort = useCallback((updates: { id: string; sort: number }[]) => {
+    batchUpdateSort(updates);
+    const now = Date.now();
+    updates.forEach(({ id, sort }) => {
+      sendPatchRef.current('objects', 'update', id, { sort_order: sort, updated_at: now });
+    });
+  }, [batchUpdateSort]);
+
+  // Character operations + P2P broadcast
+  const p2pUpdateCharacter = useCallback((id: string, data: Partial<Character>) => {
+    updateCharacter(id, data);
+    sendPatchRef.current('characters', 'update', id, data as Record<string, unknown>);
+  }, [updateCharacter]);
+
+  const p2pRemoveCharacter = useCallback((id: string) => {
+    removeCharacter(id);
+    sendPatchRef.current('characters', 'remove', id);
+  }, [removeCharacter]);
+
+  // BGM operations + P2P broadcast
+  const p2pUpdateBgm = useCallback((id: string, data: Partial<BgmTrack>) => {
+    updateBgm(id, data);
+    sendPatchRef.current('bgms', 'update', id, data as Record<string, unknown>);
+  }, [updateBgm]);
+
+  const p2pRemoveBgm = useCallback((id: string) => {
+    removeBgm(id);
+    sendPatchRef.current('bgms', 'remove', id);
+  }, [removeBgm]);
+
+  const p2pReorderBgms = useCallback((orderedIds: string[]) => {
+    reorderBgms(orderedIds);
+    const now = Date.now();
+    orderedIds.forEach((id, i) => {
+      sendPatchRef.current('bgms', 'update', id, { sort_order: i, updated_at: now });
+    });
+  }, [reorderBgms]);
+
+  // --- Permission guard ref ---
+  const roomRoleRef = useRef(roomRole);
+  roomRoleRef.current = roomRole;
+
+  /** パーミッションチェック付きで関数を実行。権限なしの場合はwarnしてno-op */
+  const withPermission = useCallback(<T extends unknown[]>(
+    permission: PermissionKey,
+    fn: (...args: T) => unknown,
+  ) => (...args: T) => {
+    if (!checkPermission(roomRoleRef.current, permission)) {
+      console.warn(`[Permission] denied: ${permission} (role: ${roomRoleRef.current})`);
+      return;
+    }
+    return fn(...args);
+  }, []);
+
+  // add 操作の P2P ブロードキャストラッパー
+  const p2pAddScene = useCallback(
+    (
+      data: Parameters<typeof addScene>[0],
+      duplicateFromSceneId?: string,
+      allObjectsForDup?: BoardObject[]
+    ) => {
+      const result = addScene(data, duplicateFromSceneId, allObjectsForDup);
+      if (!result) return result;
+      const { scene, objects } = result;
+      sendPatchRef.current('scenes', 'add', scene.id, scene as Record<string, unknown>);
+      objects.forEach((obj) => {
+        sendPatchRef.current('objects', 'add', obj.id, obj as Record<string, unknown>);
+      });
+      return result;
+    },
+    [addScene]
+  );
+
+  const p2pAddObject = useCallback(
+    (data: Parameters<typeof addObject>[0]) => {
+      const newObj = addObject(data);
+      if (!newObj) return newObj;
+      sendPatchRef.current('objects', 'add', newObj.id, newObj as Record<string, unknown>);
+      return newObj;
+    },
+    [addObject]
+  );
+
+  const p2pAddCharacter = useCallback(
+    (data: Parameters<typeof addCharacter>[0]) => {
+      const newChar = addCharacter(data);
+      if (!newChar) return newChar;
+      sendPatchRef.current('characters', 'add', newChar.id, newChar as Record<string, unknown>);
+      return newChar;
+    },
+    [addCharacter]
+  );
+
+  const p2pAddBgm = useCallback(
+    (data: Parameters<typeof addBgm>[0]) => {
+      const newBgm = addBgm(data);
+      if (!newBgm) return newBgm;
+      sendPatchRef.current('bgms', 'add', newBgm.id, newBgm as Record<string, unknown>);
+      return newBgm;
+    },
+    [addBgm]
+  );
+
+  const p2pAddCutin = useCallback(
+    (data: Parameters<typeof addCutin>[0]) => {
+      const newCutin = addCutin(data);
+      if (!newCutin) return newCutin;
+      sendPatchRef.current('cutins', 'add', newCutin.id, newCutin as Record<string, unknown>);
+      return newCutin;
+    },
+    [addCutin]
+  );
+
+  const p2pAddScenarioText = useCallback(
+    (data: Parameters<typeof addScenarioText>[0]) => {
+      const newText = addScenarioText(data);
+      if (!newText) return newText;
+      sendPatchRef.current('scenarioTexts', 'add', newText.id, newText as Record<string, unknown>);
+      return newText;
+    },
+    [addScenarioText]
+  );
+
   // --- Callbacks ---
   const handleSendMessage = useCallback(
     (
@@ -486,21 +928,35 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       characterName?: string,
       characterAvatar?: string | null,
     ) => {
+      const senderName = characterName ?? profile?.display_name ?? 'ユーザー';
+      const senderAvatar = characterAvatar !== undefined ? characterAvatar : profile?.avatar_url;
       sendMessage(
-        characterName ?? profile?.display_name ?? 'ユーザー',
+        senderName,
         content,
         messageType,
         user?.uid,
-        characterAvatar !== undefined ? characterAvatar : profile?.avatar_url,
-      );
+        senderAvatar,
+        room?.dice_system,
+      ).then((msg) => {
+        if (msg) sendChatMessageRef.current(msg);
+      });
     },
-    [sendMessage, profile, user],
+    [sendMessage, profile, user, room?.dice_system],
   );
 
   const safeActivateScene = useCallback(async (sceneId: string | null) => {
-    // デバウンスタイマーをすべてクリア
+    // pending なデバウンス編集を即時 flush（データ消失防止）
     for (const timer of debounceTimersRef.current.values()) clearTimeout(timer);
     debounceTimersRef.current.clear();
+    const pendingEntries = Array.from(pendingEditsRef.current.values());
+    pendingEditsRef.current.clear();
+    for (const edit of pendingEntries) {
+      try {
+        await flushEdit(edit);
+      } catch (err) {
+        console.error('シーン切替時の pendingEdit flush 失敗:', err);
+      }
+    }
     // 楽観的にシーンを即座に切り替え（Firestore 反映を待たない）
     setOptimisticSceneId(sceneId);
     setLocalSceneOverrides(new Map());
@@ -513,9 +969,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
-    // Firestore に非同期で書き込み（バックグラウンド）
+    // room.active_scene_id を更新（スナップショット保存に反映）+ P2P broadcast
+    p2pUpdateRoom({ active_scene_id: sceneId } );
+    // ローカルstateを更新
     activateScene(sceneId);
-  }, [activateScene]);
+  }, [activateScene, p2pUpdateRoom, flushEdit]);
 
   // updateObjectラッパー: 背景/前景のimage_url変更時にSceneも同期 + ローカルオーバーライドをクリア
   const syncedUpdateObject = useCallback(async (id: string, data: Partial<BoardObject>) => {
@@ -526,6 +984,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       next.delete(id);
       return next;
     });
+    // bg/fg の image_url 変更時はシーンのローカルオーバーライドもクリア
+    if ('image_url' in data && effectiveSceneId) {
+      setLocalSceneOverrides(prev => {
+        if (!prev.has(effectiveSceneId)) return prev;
+        const next = new Map(prev);
+        next.delete(effectiveSceneId);
+        return next;
+      });
+    }
     // デバウンスタイマーもクリア
     const timerKey = `object:${id}`;
     const timer = debounceTimersRef.current.get(timerKey);
@@ -534,9 +1001,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       debounceTimersRef.current.delete(timerKey);
     }
 
-    await updateObject(id, data);
+    await p2pUpdateObject(id, data);
     await syncObjectImageToScene(data, id);
-  }, [updateObject, syncObjectImageToScene]);
+  }, [p2pUpdateObject, syncObjectImageToScene, effectiveSceneId]);
 
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
@@ -552,37 +1019,74 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingObjectId(null);
   }, []);
 
+  // --- Permission guarded functions ---
+  const guardedAddScene       = withPermission('scene_edit',     p2pAddScene as any);
+  const guardedUpdateScene    = withPermission('scene_edit',     p2pUpdateScene as any);
+  const guardedRemoveScene    = withPermission('scene_edit',     p2pRemoveScene as any);
+  const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes as any);
+  const guardedAddObject      = withPermission('object_edit',    p2pAddObject as any);
+  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject as any);
+  const guardedRemoveObject   = withPermission('object_edit',    p2pRemoveObject as any);
+  const guardedReorderObjects = withPermission('object_edit',    p2pReorderObjects as any);
+  const guardedBatchSort      = withPermission('object_edit',    p2pBatchUpdateSort as any);
+  const guardedAddCharacter   = withPermission('character_edit', p2pAddCharacter as any);
+  const guardedUpdateCharacter= withPermission('character_edit', p2pUpdateCharacter as any);
+  const guardedRemoveCharacter= withPermission('character_edit', p2pRemoveCharacter as any);
+  const guardedAddBgm         = withPermission('bgm_manage',     p2pAddBgm as any);
+  const guardedUpdateBgm      = withPermission('bgm_manage',     p2pUpdateBgm as any);
+  const guardedRemoveBgm      = withPermission('bgm_manage',     p2pRemoveBgm as any);
+  const guardedAddCutin       = withPermission('cutin_manage',   p2pAddCutin as any);
+  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin as any);
+  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin as any);
+  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin as any);
+  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage as any);
+
   // --- Context value ---
   const value = useMemo<AdrasteaContextValue>(
     () => ({
       roomId,
       roomRole,
 
-      // useAdrastea
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      // useAdrastea (P2P-aware)
+      pieces, room, movePiece, addPiece, removePiece, updatePiece,
+      updateRoom: p2pUpdateRoom,
 
       // useAdrasteaChat
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
 
-      // useScenes
-      scenes: effectiveScenes, addScene, updateScene, removeScene,
+      // useScenes (P2P-aware)
+      scenes: effectiveScenes, addScene: p2pAddScene,
+      updateScene: p2pUpdateScene,
+      removeScene: p2pRemoveScene,
+      reorderScenes,
       activateScene: safeActivateScene,
 
-      // useCharacters
-      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
+      // useCharacters (P2P-aware)
+      characters, addCharacter: p2pAddCharacter,
+      updateCharacter: p2pUpdateCharacter,
+      removeCharacter: p2pRemoveCharacter,
+      reorderCharacters,
 
-      // useObjects
+      // useObjects (P2P-aware)
       allObjects, activeObjects: effectiveActiveObjects,
-      addObject, updateObject: syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+      addObject: p2pAddObject as any,
+      updateObject: syncedUpdateObject as any,
+      removeObject: p2pRemoveObject as any,
+      reorderObjects: p2pReorderObjects as any,
+      batchUpdateSort: p2pBatchUpdateSort as any,
+      injectOptimistic,
 
       // useScenarioTexts
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+      scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
 
       // useCutins
-      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+      cutins, addCutin: p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
 
-      // useBgms
-      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+      // useBgms (P2P-aware)
+      bgms, addBgm: p2pAddBgm as any,
+      updateBgm: p2pUpdateBgm as any,
+      removeBgm: p2pRemoveBgm as any,
+      reorderBgms: p2pReorderBgms as any,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
 
       // UI state
@@ -623,18 +1127,21 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // パネル登録
       registerPanel, unregisterPanel,
+
+      // P2P
+      p2pConnectionState,
     }),
     [
       roomId, roomRole,
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
-      effectiveScenes, addScene, updateScene, removeScene, safeActivateScene,
-      characters, addCharacter, updateCharacter, removeCharacter, reorderCharacters,
+      effectiveScenes, p2pAddScene, p2pUpdateScene, p2pRemoveScene, reorderScenes, safeActivateScene,
+      characters, p2pAddCharacter, p2pUpdateCharacter, p2pRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
-      addObject, syncedUpdateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
-      scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
-      cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
-      bgms, addBgm, updateBgm, removeBgm, reorderBgms,
+      p2pAddObject, syncedUpdateObject, p2pRemoveObject, p2pReorderObjects, p2pBatchUpdateSort, injectOptimistic,
+      scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+      cutins, p2pAddCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+      bgms, p2pAddBgm, p2pUpdateBgm, p2pRemoveBgm, p2pReorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
@@ -650,12 +1157,75 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setPendingEdit,
       clearAllEditing,
       registerPanel, unregisterPanel,
+      p2pConnectionState,
     ],
   );
 
+  // --- Split value objects for new contexts ---
+  const roomDataValue = useMemo<RoomDataContextValue>(() => ({
+    // Rooms/Pieces
+    pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom: p2pUpdateRoom,
+    // Chat
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage,
+    // Scenes
+    scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
+    // Characters
+    characters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters,
+    // Objects
+    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject, updateObject: guardedUpdateObject, removeObject: guardedRemoveObject, reorderObjects: guardedReorderObjects, batchUpdateSort: guardedBatchSort, injectOptimistic,
+    // ScenarioTexts
+    scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    // Cutins
+    cutins, addCutin: guardedAddCutin, updateCutin: guardedUpdateCutin, removeCutin: guardedRemoveCutin, reorderCutins, triggerCutin: guardedTriggerCutin, clearCutin,
+    // BGMs
+    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: withPermission('bgm_manage', p2pReorderBgms) as any,
+    // Derived
+    activeScene,
+  }), [
+    pieces, room, movePiece, addPiece, removePiece, updatePiece, p2pUpdateRoom,
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
+    effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
+    characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
+    allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
+    scenarioTexts, p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
+    bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, p2pReorderBgms,
+    activeScene,
+  ]);
+
+  const uiStateValue = useMemo<UIStateContextValue>(() => ({
+    // UI editing state
+    editingScene, setEditingScene, editingCharacter, setEditingCharacter, editingCutin, setEditingCutin,
+    editingBgmId, setEditingBgmId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
+    selectedObjectIds, setSelectedObjectIds, showRoomSettings, setShowRoomSettings, showProfileEdit, setShowProfileEdit,
+    // BGM master volume
+    masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
+    // Grid
+    gridVisible, setGridVisible,
+    // Dockview
+    dockviewApi, setDockviewApi,
+    // Auto-save edits
+    setPendingEdit,
+    // 排他編集リセット
+    clearAllEditing,
+  }), [
+    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, selectedObjectIds, showRoomSettings, showProfileEdit,
+    masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing,
+  ]);
+
+  const p2pValue = useMemo<P2PContextValue>(() => ({
+    p2pConnectionState,
+  }), [p2pConnectionState]);
+
   return (
     <AdrasteaContext.Provider value={value}>
-      {children}
+      <RoomDataContext.Provider value={roomDataValue}>
+        <UIStateContext.Provider value={uiStateValue}>
+          <P2PContext.Provider value={p2pValue}>
+            {children}
+          </P2PContext.Provider>
+        </UIStateContext.Provider>
+      </RoomDataContext.Provider>
     </AdrasteaContext.Provider>
   );
 };
