@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Trash2, UserPlus } from 'lucide-react';
+import { Trash2, Plus } from 'lucide-react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
@@ -53,7 +53,7 @@ export function CharacterPanel({
               onClick={onAddCharacter}
               style={{ ...iconBtnStyle, color: theme.accent }}
             >
-              <UserPlus size={14} />
+              <Plus size={14} />
             </button>
           </Tooltip>
         </div>
