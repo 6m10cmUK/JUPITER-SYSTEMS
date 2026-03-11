@@ -52,11 +52,11 @@ export function ChatPaletteDockPanel() {
         ) : paletteItems.map((item, i) => (
           <button
             key={i}
-            onClick={() => ctx.handleSendMessage(item, 'message', activeChar.name, activeChar.avatar_url)}
+            onClick={() => ctx.handleSendMessage(item, 'chat', activeChar.name, activeChar.images[activeChar.active_image_index]?.url ?? null)}
             style={{
               display: 'block', width: '100%', textAlign: 'left',
               padding: '6px 8px', marginBottom: '2px',
-              background: theme.bgPanel, color: theme.textPrimary,
+              background: theme.bgSurface, color: theme.textPrimary,
               border: `1px solid ${theme.border}`, cursor: 'pointer',
               fontSize: '0.85rem',
             }}

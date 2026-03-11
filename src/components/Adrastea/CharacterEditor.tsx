@@ -275,7 +275,7 @@ export function CharacterEditor({
             label="イニシアティブ"
             type="number"
             value={initiative}
-            onChange={(e) => setInitiative(e.target.value)}
+            onChange={(e) => setInitiative(parseInt(e.target.value, 10))}
             style={{ flex: 1 }}
           />
           <AdInput

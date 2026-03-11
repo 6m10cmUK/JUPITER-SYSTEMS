@@ -895,9 +895,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       const result = addScene(data, duplicateFromSceneId, allObjectsForDup);
       if (!result) return result;
       const { scene, objects } = result;
-      sendPatchRef.current('scenes', 'add', scene.id, scene as Record<string, unknown>);
+      sendPatchRef.current('scenes', 'add', scene.id, scene as unknown as Record<string, unknown>);
       objects.forEach((obj) => {
-        sendPatchRef.current('objects', 'add', obj.id, obj as Record<string, unknown>);
+        sendPatchRef.current('objects', 'add', obj.id, obj as unknown as Record<string, unknown>);
       });
       return result;
     },
@@ -908,7 +908,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     (data: Parameters<typeof addObject>[0]) => {
       const newObj = addObject(data);
       if (!newObj) return newObj;
-      sendPatchRef.current('objects', 'add', newObj.id, newObj as Record<string, unknown>);
+      sendPatchRef.current('objects', 'add', newObj.id, newObj as unknown as Record<string, unknown>);
       return newObj;
     },
     [addObject]
@@ -918,7 +918,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     (data: Parameters<typeof addCharacter>[0]) => {
       const newChar = addCharacter(data);
       if (!newChar) return newChar;
-      sendPatchRef.current('characters', 'add', newChar.id, newChar as Record<string, unknown>);
+      sendPatchRef.current('characters', 'add', newChar.id, newChar as unknown as Record<string, unknown>);
       return newChar;
     },
     [addCharacter]
@@ -928,7 +928,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     (data: Parameters<typeof addBgm>[0]) => {
       const newBgm = addBgm(data);
       if (!newBgm) return newBgm;
-      sendPatchRef.current('bgms', 'add', newBgm.id, newBgm as Record<string, unknown>);
+      sendPatchRef.current('bgms', 'add', newBgm.id, newBgm as unknown as Record<string, unknown>);
       return newBgm;
     },
     [addBgm]
@@ -938,7 +938,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     (data: Parameters<typeof addCutin>[0]) => {
       const newCutin = addCutin(data);
       if (!newCutin) return newCutin;
-      sendPatchRef.current('cutins', 'add', newCutin.id, newCutin as Record<string, unknown>);
+      sendPatchRef.current('cutins', 'add', newCutin.id, newCutin as unknown as Record<string, unknown>);
       return newCutin;
     },
     [addCutin]
@@ -948,7 +948,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     (data: Parameters<typeof addScenarioText>[0]) => {
       const newText = addScenarioText(data);
       if (!newText) return newText;
-      sendPatchRef.current('scenarioTexts', 'add', newText.id, newText as Record<string, unknown>);
+      sendPatchRef.current('scenarioTexts', 'add', newText.id, newText as unknown as Record<string, unknown>);
       return newText;
     },
     [addScenarioText]
@@ -1054,26 +1054,26 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, []);
 
   // --- Permission guarded functions ---
-  const guardedAddScene       = withPermission('scene_edit',     p2pAddScene as any);
-  const guardedUpdateScene    = withPermission('scene_edit',     p2pUpdateScene as any);
-  const guardedRemoveScene    = withPermission('scene_edit',     p2pRemoveScene as any);
-  const guardedReorderScenes  = withPermission('scene_edit',     p2pReorderScenes as any);
-  const guardedAddObject      = withPermission('object_edit',    p2pAddObject as any);
-  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject as any);
-  const guardedRemoveObject   = withPermission('object_edit',    p2pRemoveObject as any);
-  const guardedReorderObjects = withPermission('object_edit',    p2pReorderObjects as any);
-  const guardedBatchSort      = withPermission('object_edit',    p2pBatchUpdateSort as any);
-  const guardedAddCharacter   = withPermission('character_edit', p2pAddCharacter as any);
-  const guardedUpdateCharacter= withPermission('character_edit', p2pUpdateCharacter as any);
-  const guardedRemoveCharacter= withPermission('character_edit', p2pRemoveCharacter as any);
-  const guardedAddBgm         = withPermission('bgm_manage',     p2pAddBgm as any);
-  const guardedUpdateBgm      = withPermission('bgm_manage',     p2pUpdateBgm as any);
-  const guardedRemoveBgm      = withPermission('bgm_manage',     p2pRemoveBgm as any);
-  const guardedAddCutin       = withPermission('cutin_manage',   p2pAddCutin as any);
-  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin as any);
-  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin as any);
-  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin as any);
-  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage as any);
+  const guardedAddScene       = withPermission('scene_edit',     p2pAddScene) as any;
+  const guardedUpdateScene    = withPermission('scene_edit',     p2pUpdateScene) as any;
+  const guardedRemoveScene    = withPermission('scene_edit',     p2pRemoveScene) as any;
+  const guardedReorderScenes  = withPermission('scene_edit',     p2pReorderScenes) as any;
+  const guardedAddObject      = withPermission('object_edit',    p2pAddObject) as any;
+  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject) as any;
+  const guardedRemoveObject   = withPermission('object_edit',    p2pRemoveObject) as any;
+  const guardedReorderObjects = withPermission('object_edit',    p2pReorderObjects) as any;
+  const guardedBatchSort      = withPermission('object_edit',    p2pBatchUpdateSort) as any;
+  const guardedAddCharacter   = withPermission('character_edit', p2pAddCharacter) as any;
+  const guardedUpdateCharacter= withPermission('character_edit', p2pUpdateCharacter) as any;
+  const guardedRemoveCharacter= withPermission('character_edit', p2pRemoveCharacter) as any;
+  const guardedAddBgm         = withPermission('bgm_manage',     p2pAddBgm) as any;
+  const guardedUpdateBgm      = withPermission('bgm_manage',     p2pUpdateBgm) as any;
+  const guardedRemoveBgm      = withPermission('bgm_manage',     p2pRemoveBgm) as any;
+  const guardedAddCutin       = withPermission('cutin_manage',   p2pAddCutin) as any;
+  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin) as any;
+  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin) as any;
+  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin) as any;
+  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage) as any;
 
   // --- Context value ---
   const value = useMemo<AdrasteaContextValue>(
@@ -1202,20 +1202,20 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Rooms/Pieces
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom: p2pUpdateRoom,
     // Chat
-    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage,
+    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage as any,
     activeSpeakerCharId, setActiveSpeakerCharId,
     // Scenes
-    scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
+    scenes: effectiveScenes, addScene: guardedAddScene as any, updateScene: guardedUpdateScene as any, removeScene: guardedRemoveScene as any, reorderScenes: guardedReorderScenes as any, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters: p2pReorderCharacters,
+    characters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: p2pReorderCharacters,
     // Objects
-    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject, updateObject: guardedUpdateObject, removeObject: guardedRemoveObject, reorderObjects: guardedReorderObjects, batchUpdateSort: guardedBatchSort, injectOptimistic,
+    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
     // ScenarioTexts
     scenarioTexts, addScenarioText: p2pAddScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     // Cutins
-    cutins, addCutin: guardedAddCutin, updateCutin: guardedUpdateCutin, removeCutin: guardedRemoveCutin, reorderCutins, triggerCutin: guardedTriggerCutin, clearCutin,
+    cutins, addCutin: guardedAddCutin as any, updateCutin: guardedUpdateCutin as any, removeCutin: guardedRemoveCutin as any, reorderCutins, triggerCutin: guardedTriggerCutin as any, clearCutin,
     // BGMs
-    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: withPermission('bgm_manage', p2pReorderBgms) as any,
+    bgms, addBgm: guardedAddBgm as any, updateBgm: guardedUpdateBgm as any, removeBgm: guardedRemoveBgm as any, reorderBgms: withPermission('bgm_manage', p2pReorderBgms) as any,
     // Derived
     activeScene,
   }), [
