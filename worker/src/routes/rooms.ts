@@ -106,10 +106,7 @@ export async function handleRooms(
   if (!subResource && request.method === 'GET') {
     const room = await env.DB.prepare('SELECT * FROM rooms WHERE id = ?').bind(roomId).first();
     if (!room) return json({ error: 'Not found' }, headers, 404);
-    // オーナーのみ（ゲストは許可）
-    if (!user.isGuest && (room as { owner_id: string }).owner_id !== user.uid) {
-      return json({ error: 'Forbidden' }, headers, 403);
-    }
+    // 認証済みなら誰でも読める（ゲスト含む）
     return json(room, headers);
   }
 
