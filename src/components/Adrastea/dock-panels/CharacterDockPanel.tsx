@@ -17,10 +17,10 @@ export function CharacterDockPanel() {
     setModalChar(null);
   };
 
-  const handleEditCharacter = (char: Character) => {
+  const handleSelectCharacter = (char: Character) => {
     ctx.clearAllEditing();
     ctx.setEditingCharacter(char);
-    setModalChar(char);
+    // プロパティパネルに表示するのみで、モーダルは開かない
   };
 
   const handleModalClose = () => {
@@ -48,8 +48,9 @@ export function CharacterDockPanel() {
     <>
       <CharacterPanel
         characters={ctx.characters}
+        selectedCharId={ctx.editingCharacter?.id}
         onAddCharacter={handleAddCharacter}
-        onEditCharacter={handleEditCharacter}
+        onSelectCharacter={handleSelectCharacter}
         onRemoveCharacter={ctx.removeCharacter}
         onReorderCharacters={ctx.reorderCharacters}
         onClose={() => {}}
