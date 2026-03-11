@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
-import { ConfirmModal } from './ui';
+import { ConfirmModal, AdComboBox } from './ui';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -17,15 +17,6 @@ interface ChatPanelProps {
   onClearMessages?: () => void;
 }
 
-const DICE_BUTTONS = [
-  { label: 'D4', faces: 4 },
-  { label: 'D6', faces: 6 },
-  { label: 'D8', faces: 8 },
-  { label: 'D10', faces: 10 },
-  { label: 'D12', faces: 12 },
-  { label: 'D20', faces: 20 },
-  { label: 'D100', faces: 100 },
-];
 
 const formatTime = (timestamp: number): string => {
   const d = new Date(timestamp);
@@ -91,12 +82,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [hasNewMessage, setHasNewMessage] = useState(false);
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [speakerName, setSpeakerName] = useState('');
   const [showClearConfirm, setShowClearConfirm] = useState(false);
-
-  const selectedCharacter = selectedCharacterId
-    ? characters.find((c) => c.id === selectedCharacterId) ?? null
-    : null;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -133,10 +120,13 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-
-    const charName = selectedCharacter?.name;
-    const charAvatar = selectedCharacter?.images[selectedCharacter.active_image_index]?.url ?? null;
-
+    const matchedChar = speakerName.trim()
+      ? characters.find(c => c.name === speakerName.trim())
+      : null;
+    const charName = speakerName.trim() || undefined;
+    const charAvatar = matchedChar
+      ? (matchedChar.images[matchedChar.active_image_index]?.url ?? null)
+      : null;
     if (text.startsWith('/')) {
       const command = text.slice(1);
       if (command) {
@@ -345,68 +335,33 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           gap: '4px',
         }}
       >
-        {/* キャラクター選択 */}
-        {characters.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <select
-              value={selectedCharacterId ?? ''}
-              onChange={(e) => setSelectedCharacterId(e.target.value || null)}
-              style={{
-                flex: 1,
-                padding: '2px 6px',
-                background: theme.bgInput,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 0,
-                color: theme.textPrimary,
-                fontSize: '12px',
-                height: '24px',
-                outline: 'none',
-              }}
-            >
-              <option value="">（キャラクターなし）</option>
-              {characters.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-            {selectedCharacter && (
+        {/* 発言者名 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {/* マッチキャラのアイコン */}
+          {(() => {
+            const matched = speakerName.trim()
+              ? characters.find(c => c.name === speakerName.trim())
+              : null;
+            return (
               <div style={{
-                width: '24px', height: '24px', borderRadius: 0, flexShrink: 0,
-                background: selectedCharacter.images[selectedCharacter.active_image_index]?.url
-                  ? `url(${selectedCharacter.images[selectedCharacter.active_image_index].url}) center/cover`
-                  : selectedCharacter.color,
+                width: '20px', height: '20px', flexShrink: 0,
+                background: matched
+                  ? (matched.images[matched.active_image_index]?.url
+                      ? `url(${matched.images[matched.active_image_index].url}) center/cover`
+                      : matched.color)
+                  : theme.bgInput,
+                border: `1px solid ${theme.border}`,
               }} />
-            )}
-          </div>
-        )}
-
-        {/* ダイスボタンバー */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '2px',
-            overflowX: 'auto',
-          }}
-        >
-          {DICE_BUTTONS.map((dice) => (
-            <button
-              key={dice.label}
-              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter ? (selectedCharacter.images[selectedCharacter.active_image_index]?.url ?? null) : null)}
-              style={{
-                padding: '2px 6px',
-                borderRadius: 0,
-                border: 'none',
-                background: theme.bgInput,
-                color: theme.textSecondary,
-                fontSize: '11px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0,
-              }}
-            >
-              {dice.label}
-            </button>
-          ))}
+            );
+          })()}
+          <AdComboBox
+            mode="single"
+            value={speakerName}
+            onChange={setSpeakerName}
+            suggestions={characters.map(c => c.name)}
+            placeholder="発言者名（省略可）"
+            style={{ flex: 1 }}
+          />
         </div>
 
         <div style={{ display: 'flex', gap: '4px' }}>
