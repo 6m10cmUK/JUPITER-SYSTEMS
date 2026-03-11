@@ -173,10 +173,6 @@ export class RoomSync {
 
   private handleStateChange(state: ConnectionState): void {
     this.callbacks.onConnectionStateChange?.(state);
-
-    // 接続確立時にフルシンクを要求（全員）
-    if (state === 'connected') {
-      this.peerManager.broadcast({ type: 'sync_request' });
-    }
+    // 接続確立時の sync_request は、offer を出した側が ch.onopen 時に送信する
   }
 }

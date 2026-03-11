@@ -46,7 +46,9 @@ export function SortableListPanel({
   children,
 }: SortableListPanelProps) {
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 5 },
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -134,6 +136,7 @@ interface SortableListItemProps {
   isSelected?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
   handleExtra?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -144,6 +147,7 @@ export function SortableListItem({
   isSelected,
   isGroupDrag,
   onClick,
+  onDoubleClick,
   handleExtra,
   children,
 }: SortableListItemProps) {
@@ -151,6 +155,7 @@ export function SortableListItem({
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -171,20 +176,23 @@ export function SortableListItem({
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
+    touchAction: 'none',
   };
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      {...(!disabled ? listeners : {})}
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
     >
       {!disabled && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <span
+            ref={setActivatorNodeRef}
             {...attributes}
-            {...listeners}
-            style={{ cursor: 'grab', display: 'flex' }}
+            style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
           >
             <GripVertical size={12} color={theme.textMuted} />
           </span>

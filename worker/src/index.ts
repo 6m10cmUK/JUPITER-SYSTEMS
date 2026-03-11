@@ -63,7 +63,7 @@ export default {
 
     // 使用量制御（GET /file/* は除外）
     if (!url.pathname.startsWith('/file/')) {
-      const rateLimitResult = await checkRateLimit(env.RATE_LIMIT);
+      const rateLimitResult = await checkRateLimit(env.DB);
       if (!rateLimitResult.ok) {
         return new Response(
           JSON.stringify({ error: '本日の利用上限に達しました' }),

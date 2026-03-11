@@ -128,8 +128,8 @@ export async function handleAssets(
 
     // ストレージ使用量更新
     if (asset.size_bytes > 0) {
-      const { updateStorageUsage } = await import('../utils/rateLimit');
-      await updateStorageUsage(env.RATE_LIMIT, user.uid, -asset.size_bytes).catch((e: unknown) =>
+      const { releaseStorageUsage } = await import('../utils/rateLimit');
+      await releaseStorageUsage(env.DB, user.uid, asset.size_bytes).catch((e: unknown) =>
         console.error('ストレージ使用量更新失敗:', e),
       );
     }
