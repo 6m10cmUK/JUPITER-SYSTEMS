@@ -461,14 +461,16 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               <X size={16} />
             </button>
           </div>
-          <button
-            style={menuBtnStyle}
-            disabled={uploading}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Upload size={14} />
-            {uploading ? 'アップロード中...' : 'ファイルを選択'}
-          </button>
+          {activeTab !== 'audio' && (
+            <button
+              style={menuBtnStyle}
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload size={14} />
+              {uploading ? 'アップロード中...' : 'ファイルを選択'}
+            </button>
+          )}
           <button style={menuBtnStyle} onClick={() => setAddMode('url')}>
             <Link size={14} />
             URLから追加
@@ -489,7 +491,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         onDrop={dnd.handleDrop}
       >
         {/* DnD オーバーレイ */}
-        {dnd.dragging && (
+        {dnd.dragging && activeTab !== 'audio' && (
           <div style={{
             position: 'absolute', inset: 0, zIndex: 10,
             background: 'rgba(0,0,0,0.7)',
