@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { Trash2 } from 'lucide-react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
@@ -158,12 +159,13 @@ export function CharacterPanel({
                   background: 'transparent',
                   border: 'none',
                   color: theme.danger,
-                  fontSize: '0.7rem',
                   cursor: 'pointer',
-                  padding: '2px 4px',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
                 }}
               >
-                削除
+                <Trash2 size={14} />
               </button>
             </div>
           </div>
