@@ -83,10 +83,6 @@ export interface AdrasteaContextValue {
   updatePiece: ReturnType<typeof useAdrastea>['updatePiece'];
   updateRoom: ReturnType<typeof useAdrastea>['updateRoom'];
 
-  // --- Active speaker character ---
-  activeSpeakerCharId: string | null;
-  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
-
   // --- useAdrasteaChat ---
   messages: ChatMessage[];
   chatLoading: boolean;
@@ -100,6 +96,8 @@ export interface AdrasteaContextValue {
     characterName?: string,
     characterAvatar?: string | null,
   ) => void;
+
+  // --- Active speaker character ---
   activeSpeakerCharId: string | null;
   setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
 
@@ -1138,7 +1136,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       selectedObjectIds, setSelectedObjectIds,
       showRoomSettings, setShowRoomSettings,
       showProfileEdit, setShowProfileEdit,
-      activeSpeakerCharId, setActiveSpeakerCharId,
 
       // Derived
       activeScene,

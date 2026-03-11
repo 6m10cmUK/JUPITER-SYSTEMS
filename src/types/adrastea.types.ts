@@ -51,6 +51,7 @@ export interface PieceStatus {
   label: string;
   value: number;
   max: number;
+  color?: string;
 }
 
 export interface CharacterImage {

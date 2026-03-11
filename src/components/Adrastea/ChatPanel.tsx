@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
-import { ConfirmModal, AdComboBox } from './ui';
+import { ConfirmModal } from './ui';
 
 interface ChatPanelProps {
   messages: ChatMessage[];

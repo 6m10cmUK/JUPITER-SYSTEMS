@@ -45,11 +45,11 @@ export function AdInput({ label, fullWidth = true, inputWidth, style, id, ...pro
 }
 
 // ── AdTextArea ──
-interface AdTextAreaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'style'> {
+interface AdTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
 }
 
-export function AdTextArea({ label, ...props }: AdTextAreaProps) {
+export function AdTextArea({ label, style, ...props }: AdTextAreaProps) {
   const autoId = useId();
   const textareaId = props.id || autoId;
   return (
@@ -70,6 +70,7 @@ export function AdTextArea({ label, ...props }: AdTextAreaProps) {
           width: '100%',
           minHeight: '60px',
           resize: 'vertical',
+          ...style,
         }}
       />
     </div>

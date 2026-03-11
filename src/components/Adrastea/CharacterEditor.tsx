@@ -18,7 +18,7 @@ interface CharacterEditorProps {
 export function CharacterEditor({
   character,
   roomId: _roomId,
-  currentUserId,
+  currentUserId: _currentUserId,
   onSave,
   onDuplicate,
   onDelete,
@@ -139,7 +139,6 @@ export function CharacterEditor({
       is_hidden_on_board: isHiddenOnBoard,
       is_speech_hidden: isSpeechHidden,
     });
-  };
   };
 
   const panelStyle: React.CSSProperties = {
@@ -453,7 +452,7 @@ export function CharacterEditor({
 
         {/* 右側: キャンセル / 保存 */}
         <div style={{ display: 'flex', gap: '4px' }}>
-          <AdButton variant="secondary" onClick={() => _onClose?.()}>
+          <AdButton variant="default" onClick={() => _onClose?.()}>
             キャンセル
           </AdButton>
           <AdButton variant="primary" onClick={handleSave}>
