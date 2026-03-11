@@ -817,7 +817,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     orderedIds.forEach((id, i) => {
       sendPatchRef.current('objects', 'update', id, { sort_order: i, updated_at: now });
     });
-  }, [reorderObjects]);
+    debouncedSaveSnapshot();
+  }, [reorderObjects, debouncedSaveSnapshot]);
 
   const p2pBatchUpdateSort = useCallback((updates: { id: string; sort: number }[]) => {
     batchUpdateSort(updates);
@@ -825,7 +826,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updates.forEach(({ id, sort }) => {
       sendPatchRef.current('objects', 'update', id, { sort_order: sort, updated_at: now });
     });
-  }, [batchUpdateSort]);
+    debouncedSaveSnapshot();
+  }, [batchUpdateSort, debouncedSaveSnapshot]);
 
   // Character operations + P2P broadcast
   const p2pUpdateCharacter = useCallback((id: string, data: Partial<Character>) => {
@@ -864,7 +866,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     orderedIds.forEach((id, i) => {
       sendPatchRef.current('bgms', 'update', id, { sort_order: i, updated_at: now });
     });
-  }, [reorderBgms]);
+    debouncedSaveSnapshot();
+  }, [reorderBgms, debouncedSaveSnapshot]);
 
   // --- Permission guard ref ---
   const roomRoleRef = useRef(roomRole);
