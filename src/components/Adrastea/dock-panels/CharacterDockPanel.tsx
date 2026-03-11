@@ -53,7 +53,6 @@ export function CharacterDockPanel() {
         onSelectCharacter={handleSelectCharacter}
         onRemoveCharacter={ctx.removeCharacter}
         onReorderCharacters={ctx.reorderCharacters}
-        onClose={() => {}}
       />
       {modalChar !== undefined && ctx.roomId && (
         <AdModal
