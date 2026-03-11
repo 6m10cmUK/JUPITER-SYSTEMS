@@ -39,7 +39,6 @@ export function LayerPanel() {
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
-  const sortGenerationRef = useRef(0);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -126,13 +125,8 @@ export function LayerPanel() {
       }
     });
     if (updates.length > 0) {
-      const gen = ++sortGenerationRef.current;
-      batchUpdateSort(updates).then(() => {
-        // 後続のドラッグが発生していなければオーバーライドをクリア
-        if (sortGenerationRef.current === gen) {
-          setLocalOrderOverride(null);
-        }
-      });
+      batchUpdateSort(updates);
+      setLocalOrderOverride(null);
     }
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
