@@ -1,7 +1,8 @@
 import type React from 'react';
 
 import { BoardDockPanel } from './BoardDockPanel';
-import { ChatDockPanel } from './ChatDockPanel';
+import { ChatLogDockPanel } from './ChatLogDockPanel';
+import { ChatInputDockPanel } from './ChatInputDockPanel';
 import { SceneDockPanel } from './SceneDockPanel';
 import { CharacterDockPanel } from './CharacterDockPanel';
 import { ScenarioTextDockPanel } from './ScenarioTextDockPanel';
@@ -15,7 +16,8 @@ import { ChatPaletteDockPanel } from './ChatPaletteDockPanel';
 
 export const panelComponents: Record<string, React.FC> = {
   board: BoardDockPanel,
-  chat: ChatDockPanel,
+  chatLog: ChatLogDockPanel,
+  chatInput: ChatInputDockPanel,
   chatPalette: ChatPaletteDockPanel,
   scene: SceneDockPanel,
   character: CharacterDockPanel,
