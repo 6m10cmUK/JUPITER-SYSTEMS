@@ -93,22 +93,6 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
       return handleAuth(request, url, env, headers);
     }
 
-    // --- D1 migration: セッションID除去（一時エンドポイント、後で削除） ---
-    if (url.pathname === '/_migrate/fix-user-ids' && request.method === 'POST') {
-      const tables = ['assets', 'users'];
-      const results: Record<string, number> = {};
-      for (const table of tables) {
-        const col = table === 'assets' ? 'owner_id' : 'id';
-        const rows = await env.DB.prepare(`SELECT rowid, ${col} FROM ${table} WHERE ${col} LIKE '%|%'`).all();
-        for (const row of rows.results as any[]) {
-          const clean = row[col].split('|')[0];
-          await env.DB.prepare(`UPDATE ${table} SET ${col} = ? WHERE rowid = ?`).bind(clean, row.rowid).run();
-        }
-        results[table] = rows.results.length;
-      }
-      return Response.json({ ok: true, fixed: results }, { headers });
-    }
-
     // --- 以下は認証必須 ---
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
