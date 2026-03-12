@@ -55,7 +55,18 @@ function sortByOrder(rooms: Room[]): Room[] {
 export function useRooms(_uid?: string) {
   const roomsData = useQuery(api.rooms.list);
   const deleteMutation = useMutation(api.rooms.remove);
-  const updateMutation = useMutation(api.rooms.update);
+  const updateMutation = useMutation(api.rooms.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.rooms.list, {});
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.rooms.list,
+          {},
+          current.map((r) => r.id === args.id ? { ...r, ...args } : r),
+        );
+      }
+    }
+  );
   const createMutation = useMutation(api.rooms.create);
 
   const loading = roomsData === undefined;

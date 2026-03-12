@@ -12,7 +12,18 @@ const genId = () =>
 export function useScenarioTexts(roomId: string, _enabled = true) {
   const textsData = useQuery(api.scenario_texts.list, { room_id: roomId });
   const createMutation = useMutation(api.scenario_texts.create);
-  const updateMutation = useMutation(api.scenario_texts.update);
+  const updateMutation = useMutation(api.scenario_texts.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.scenario_texts.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.scenario_texts.list,
+          { room_id: roomId },
+          current.map((t) => t.id === args.id ? { ...t, ...args } : t),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.scenario_texts.remove);
   const reorderMutation = useMutation(api.scenario_texts.reorder);
 

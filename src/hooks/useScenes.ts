@@ -17,7 +17,18 @@ export function useScenes(
 ) {
   const scenesData = useQuery(api.scenes.list, { room_id: roomId });
   const createMutation = useMutation(api.scenes.create);
-  const updateMutation = useMutation(api.scenes.update);
+  const updateMutation = useMutation(api.scenes.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.scenes.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.scenes.list,
+          { room_id: roomId },
+          current.map((s) => s.id === args.id ? { ...s, ...args } : s),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.scenes.remove);
   const reorderMutation = useMutation(api.scenes.reorder);
   const createObjectBatchMutation = useMutation(api.objects.createBatch);

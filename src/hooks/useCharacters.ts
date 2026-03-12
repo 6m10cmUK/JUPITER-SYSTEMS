@@ -12,7 +12,18 @@ const genId = () =>
 export function useCharacters(roomId: string) {
   const charsData = useQuery(api.characters.list, { room_id: roomId });
   const createMutation = useMutation(api.characters.create);
-  const updateMutation = useMutation(api.characters.update);
+  const updateMutation = useMutation(api.characters.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.characters.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.characters.list,
+          { room_id: roomId },
+          current.map((c) => c.id === args.id ? { ...c, ...args } : c),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.characters.remove);
   const reorderMutation = useMutation(api.characters.reorder);
 

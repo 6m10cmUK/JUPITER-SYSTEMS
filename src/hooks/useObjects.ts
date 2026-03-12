@@ -15,7 +15,18 @@ export function useObjects(
 ) {
   const objectsData = useQuery(api.objects.list, { room_id: roomId });
   const createMutation = useMutation(api.objects.create);
-  const updateMutation = useMutation(api.objects.update);
+  const updateMutation = useMutation(api.objects.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.objects.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.objects.list,
+          { room_id: roomId },
+          current.map((o) => o.id === args.id ? { ...o, ...args } : o),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.objects.remove);
   const reorderMutation = useMutation(api.objects.reorder);
   const batchSortMutation = useMutation(api.objects.batchUpdateSort);

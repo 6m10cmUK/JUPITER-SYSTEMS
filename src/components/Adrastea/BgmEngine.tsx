@@ -66,7 +66,11 @@ export function BgmEngine() {
         // フェードイン設定
         setFadeStates(_prev => {
           const next = new Map<string, 'none' | 'in' | 'out'>();
-          // 停止済みトラックのフェード状態をクリア
+          // 停止トラックは 'out' を維持（is_playing=false でアンマウントされるまでボリューム戻しを防ぐ）
+          tracksToStop.forEach(t => {
+            if (t.fade_out) next.set(t.id, 'out');
+          });
+          // 開始トラックはフェードイン
           tracksToStart.forEach(t => {
             next.set(t.id, t.fade_in ? 'in' : 'none');
           });
@@ -78,7 +82,12 @@ export function BgmEngine() {
           0
         );
         const inTimer = setTimeout(() => {
-          setFadeStates(new Map());
+          // 'in' 状態のトラックだけクリア（'out' は is_playing=false → アンマウントまで維持）
+          setFadeStates(prev => {
+            const next = new Map(prev);
+            tracksToStart.forEach(t => next.delete(t.id));
+            return next;
+          });
         }, maxInDuration + 100);
         sceneTimersRef.current.push(inTimer);
       }, maxOutDuration + 100);

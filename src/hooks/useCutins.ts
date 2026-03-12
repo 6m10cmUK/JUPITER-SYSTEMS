@@ -18,7 +18,18 @@ export function useCutins(
 ) {
   const cutinsData = useQuery(api.cutins.list, { room_id: roomId });
   const createMutation = useMutation(api.cutins.create);
-  const updateMutation = useMutation(api.cutins.update);
+  const updateMutation = useMutation(api.cutins.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.cutins.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.cutins.list,
+          { room_id: roomId },
+          current.map((c) => c.id === args.id ? { ...c, ...args } : c),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.cutins.remove);
   const reorderMutation = useMutation(api.cutins.reorder);
 

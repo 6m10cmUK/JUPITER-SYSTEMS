@@ -12,7 +12,18 @@ const genId = () =>
 export function useBgms(roomId: string) {
   const bgmsData = useQuery(api.bgms.list, { room_id: roomId });
   const createMutation = useMutation(api.bgms.create);
-  const updateMutation = useMutation(api.bgms.update);
+  const updateMutation = useMutation(api.bgms.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.bgms.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.bgms.list,
+          { room_id: roomId },
+          current.map((b) => b.id === args.id ? { ...b, ...args } : b),
+        );
+      }
+    }
+  );
   const removeMutation = useMutation(api.bgms.remove);
   const reorderMutation = useMutation(api.bgms.reorder);
 

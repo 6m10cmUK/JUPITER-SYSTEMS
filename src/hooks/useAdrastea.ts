@@ -13,9 +13,27 @@ export function useAdrastea(roomId: string) {
   const roomData = useQuery(api.rooms.get, { id: roomId });
   const piecesData = useQuery(api.pieces.list, { room_id: roomId });
 
-  const updateRoomMutation = useMutation(api.rooms.update);
+  const updateRoomMutation = useMutation(api.rooms.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.rooms.get, { id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(api.rooms.get, { id: roomId }, { ...current, ...args });
+      }
+    }
+  );
   const createPieceMutation = useMutation(api.pieces.create);
-  const updatePieceMutation = useMutation(api.pieces.update);
+  const updatePieceMutation = useMutation(api.pieces.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.pieces.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.pieces.list,
+          { room_id: roomId },
+          current.map((p) => p.id === args.id ? { ...p, ...args } : p),
+        );
+      }
+    }
+  );
   const removePieceMutation = useMutation(api.pieces.remove);
 
   const loading = roomData === undefined || piecesData === undefined;
