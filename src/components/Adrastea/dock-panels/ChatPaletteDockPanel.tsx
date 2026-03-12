@@ -1,17 +1,12 @@
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import { theme } from '../../../styles/theme';
 
 export function ChatPaletteDockPanel() {
   const ctx = useAdrasteaContext();
-  const { user } = useAuth();
-
-  // 自分のキャラのみを対象
-  const myCharacters = ctx.characters.filter((char) => char.owner_id === user?.uid);
 
   // アクティブなキャラを取得
   const activeCharacter = ctx.activeSpeakerCharId
-    ? myCharacters.find((c) => c.id === ctx.activeSpeakerCharId) ?? null
+    ? ctx.characters.find((c) => c.id === ctx.activeSpeakerCharId) ?? null
     : null;
 
   // チャットパレットを改行で分割
@@ -136,51 +131,6 @@ export function ChatPaletteDockPanel() {
               {item}
             </button>
           ))}
-        </div>
-      )}
-
-      {/* キャラクター選択セクション */}
-      {myCharacters.length > 0 && (
-        <div
-          style={{
-            padding: '6px 8px',
-            borderTop: `1px solid ${theme.border}`,
-            background: theme.bgBase,
-          }}
-        >
-          <label
-            style={{
-              display: 'block',
-              color: theme.textSecondary,
-              fontSize: '11px',
-              fontWeight: 600,
-              marginBottom: '4px',
-            }}
-          >
-            キャラクター選択
-          </label>
-          <select
-            value={activeCharacter?.id ?? ''}
-            onChange={(e) => ctx.setActiveSpeakerCharId(e.target.value || null)}
-            style={{
-              width: '100%',
-              padding: '4px 6px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
-              borderRadius: 0,
-              color: theme.textPrimary,
-              fontSize: '12px',
-              boxSizing: 'border-box',
-              outline: 'none',
-            }}
-          >
-            <option value="">なし（地の文）</option>
-            {myCharacters.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
         </div>
       )}
     </div>

@@ -4,6 +4,7 @@ import { User, Bold, Italic, Strikethrough, Heading1 } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 
 const COLOR_TEXT_PRIMARY = '#e0e0e0';
 const COLOR_TEXT_MUTED = '#707070';
@@ -267,22 +268,62 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   characters = [],
   onSendMessage,
 }) => {
+  const ctx = useAdrasteaContext();
   const [senderName, setSenderName] = useState(() => localStorage.getItem('adrastea-last-sender') ?? '');
   const [showCharacterList, setShowCharacterList] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionIndex, setSuggestionIndex] = useState(0);
   const editorRef = useRef<HTMLDivElement>(null);
+  const editorContainerRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
   const isUpdating = useRef(false);
   const compositionJustEnded = useRef(false);
   const charListRef = useRef<HTMLDivElement>(null);
   const charIconRef = useRef<HTMLButtonElement>(null);
   const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+  const [suggestionPos, setSuggestionPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const selectedCharacterForIcon = useMemo(
     () => (senderName ? (characters.find((c) => c.name === senderName) ?? null) : null),
     [characters, senderName]
   );
+
+  const activeCharForPalette = useMemo(
+    () => senderName ? (characters.find((c) => c.name === senderName) ?? null) : null,
+    [senderName, characters]
+  );
+
+  const paletteItems = useMemo(
+    () => (activeCharForPalette?.chat_palette
+      ? activeCharForPalette.chat_palette.split('\n').filter((s) => s.trim())
+      : []),
+    [activeCharForPalette?.chat_palette]
+  );
+
+  const updateSuggestions = useCallback((text: string) => {
+    if (!text.trim()) {
+      setSuggestions([]);
+      setSuggestionIndex(0);
+      return;
+    }
+    const matched = paletteItems.filter((item) => item.startsWith(text));
+    setSuggestions(matched);
+    setSuggestionIndex(0);
+  }, [paletteItems]);
+
+  const applySuggestion = useCallback((text: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    isUpdating.current = true;
+    el.innerHTML = highlightMarkup(text) || '';
+    setCursorOffset(el, text.length);
+    isUpdating.current = false;
+    setIsEmpty(false);
+    setSuggestions([]);
+  }, []);
 
   const applyHighlight = useCallback(() => {
     const el = editorRef.current;
@@ -385,6 +426,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
     if (editorRef.current) editorRef.current.innerHTML = '';
     setIsEmpty(true);
+    setSuggestions([]);
   }, [getInputText, senderName, selectedCharacterForIcon, onSendMessage]);
 
   const handleInput = useCallback(() => {
@@ -392,9 +434,13 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     applyHighlight();
     const el = editorRef.current;
     if (el) {
-      setIsEmpty(el.innerText.replace(/\n$/, '').length === 0);
+      const text = el.innerText.replace(/\n$/, '');
+      setIsEmpty(text.length === 0);
+      if (!isComposing.current) {
+        updateSuggestions(text);
+      }
     }
-  }, [applyHighlight]);
+  }, [applyHighlight, updateSuggestions]);
 
   const handleCompositionStart = useCallback(() => {
     isComposing.current = true;
@@ -409,11 +455,39 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       compositionJustEnded.current = false;
       applyHighlight();
       const el = editorRef.current;
-      if (el) setIsEmpty(el.innerText.replace(/\n$/, '').length === 0);
+      if (el) {
+        const text = el.innerText.replace(/\n$/, '');
+        setIsEmpty(text.length === 0);
+        updateSuggestions(text);
+      }
     }, 0);
-  }, [applyHighlight]);
+  }, [applyHighlight, updateSuggestions]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // サジェストが表示されている場合のキー操作
+    if (suggestions.length > 0 && !isComposing.current) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSuggestionIndex((i) => Math.min(i + 1, suggestions.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSuggestionIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault();
+        applySuggestion(suggestions[suggestionIndex]);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSuggestions([]);
+        return;
+      }
+    }
+
     if (e.key === 'Enter' && !isComposing.current) {
       e.preventDefault();
       if (e.shiftKey) {
@@ -437,7 +511,18 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         handleSend();
       }
     }
-  }, [handleSend, applyHighlight]);
+  }, [handleSend, applyHighlight, suggestions, suggestionIndex, applySuggestion]);
+
+  useEffect(() => {
+    if (suggestions.length === 0) {
+      setSuggestionPos(null);
+      return;
+    }
+    const el = editorContainerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setSuggestionPos({ top: rect.top, left: rect.left, width: rect.width });
+  }, [suggestions.length]);
 
   useEffect(() => {
     if (!showCharacterList) return;
@@ -453,6 +538,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [showCharacterList]);
+
 
   return (
     <div
@@ -477,8 +563,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           position: 'relative',
         }}
       >
-        {characters.length > 0 && (
-          <button
+        <button
             ref={charIconRef}
             onClick={() => {
               if (showCharacterList) {
@@ -514,14 +599,15 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               <User size={12} color={theme.textMuted} />
             ) : null}
           </button>
-        )}
 
-        {characters.length > 0 && (
-          <input
+        <input
             type="text"
             value={senderName}
             onChange={(e) => {
-              setSenderName(e.target.value);
+              const name = e.target.value;
+              setSenderName(name);
+              const found = characters.find((c) => c.name === name) ?? null;
+              ctx.setActiveSpeakerCharId(found?.id ?? null);
             }}
             placeholder="noname"
             style={{
@@ -536,7 +622,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               boxSizing: 'border-box',
             }}
           />
-        )}
 
         <button
           onClick={handleSend}
@@ -614,6 +699,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
       {/* エディタ */}
       <div
+        ref={editorContainerRef}
         style={{
           flex: 1,
           position: 'relative',
@@ -764,6 +850,49 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           />
         </div>
       </div>
+
+      {suggestions.length > 0 && suggestionPos && createPortal(
+        <div
+          ref={suggestionRef}
+          style={{
+            position: 'fixed',
+            top: suggestionPos.top,
+            left: suggestionPos.left,
+            width: suggestionPos.width,
+            transform: 'translateY(-100%)',
+            background: theme.bgSurface,
+            border: `1px solid ${theme.border}`,
+            boxShadow: '0 -4px 12px rgba(0,0,0,0.3)',
+            zIndex: 10000,
+            maxHeight: '160px',
+            overflowY: 'auto',
+          }}
+        >
+          {suggestions.map((item, i) => (
+            <div
+              key={i}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                applySuggestion(item);
+              }}
+              style={{
+                padding: '5px 8px',
+                fontSize: '12px',
+                color: i === suggestionIndex ? theme.textOnAccent : theme.textPrimary,
+                background: i === suggestionIndex ? theme.accent : 'transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+              onMouseEnter={() => setSuggestionIndex(i)}
+            >
+              {item}
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
