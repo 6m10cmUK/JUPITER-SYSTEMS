@@ -1,4 +1,5 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { User } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 
@@ -13,18 +14,18 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   onSendMessage,
 }) => {
   const [input, setInput] = useState('');
-  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
-
-  const selectedCharacter = selectedCharacterId
-    ? characters.find(c => c.id === selectedCharacterId)
-    : null;
+  const [senderName, setSenderName] = useState('');
+  const [selectedCharacterForIcon, setSelectedCharacterForIcon] = useState<Character | null>(null);
+  const [showCharacterList, setShowCharacterList] = useState(false);
+  const charListRef = useRef<HTMLDivElement>(null);
+  const charIconRef = useRef<HTMLButtonElement>(null);
 
   const handleSend = useCallback(() => {
     const text = input.trim();
     if (!text) return;
 
-    const charName = selectedCharacter?.name;
-    const charAvatar = selectedCharacter?.images[selectedCharacter.active_image_index]?.url;
+    const charName = senderName.trim() || undefined;
+    const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.url ?? null;
 
     if (text.startsWith('/')) {
       const command = text.slice(1);
@@ -35,7 +36,21 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       onSendMessage(text, 'chat', charName, charAvatar);
     }
     setInput('');
-  }, [input, selectedCharacter, onSendMessage]);
+  }, [input, senderName, selectedCharacterForIcon, onSendMessage]);
+
+  useEffect(() => {
+    if (!showCharacterList) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        charListRef.current && !charListRef.current.contains(e.target as Node) &&
+        charIconRef.current && !charIconRef.current.contains(e.target as Node)
+      ) {
+        setShowCharacterList(false);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [showCharacterList]);
 
   return (
     <div
@@ -50,7 +65,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         gap: '4px',
       }}
     >
-      {/* 発言キャラクター選択（アクティブキャラ情報表示） */}
+      {/* キャラクター選択エリア */}
       {characters.length > 0 && (
         <div
           style={{
@@ -61,50 +76,142 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             background: theme.bgInput,
             borderRadius: 0,
             border: `1px solid ${theme.border}`,
+            position: 'relative',
           }}
         >
-          {selectedCharacter ? (
-            <>
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: selectedCharacter.images[selectedCharacter.active_image_index]?.url
-                    ? `url(${selectedCharacter.images[selectedCharacter.active_image_index]?.url}) center/cover`
-                    : selectedCharacter.color,
-                  flexShrink: 0,
-                }}
-              />
-              <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600, flex: 1 }}>
-                {selectedCharacter.name}
-              </span>
-            </>
-          ) : (
-            <span style={{ color: theme.textMuted, fontSize: '12px', flex: 1 }}>
-              地の文で発言
-            </span>
-          )}
-          <select
-            value={selectedCharacterId ?? ''}
-            onChange={(e) => setSelectedCharacterId(e.target.value || null)}
+          {/* 丸アイコンボタン */}
+          <button
+            ref={charIconRef}
+            onClick={() => setShowCharacterList(!showCharacterList)}
             style={{
-              padding: '2px 4px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: selectedCharacterForIcon
+                ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
+                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) center/cover`
+                  : selectedCharacterForIcon.color
+                : theme.bgInput,
+              border: `1px solid ${theme.border}`,
+              flexShrink: 0,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              outline: 'none',
+            }}
+            title="キャラクター選択"
+          >
+            {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url ? (
+              <User size={12} color={theme.textMuted} />
+            ) : null}
+          </button>
+
+          {/* 名前入力テキストフィールド */}
+          <input
+            type="text"
+            value={senderName}
+            onChange={(e) => setSenderName(e.target.value)}
+            placeholder="名前（空欄で地の文）"
+            style={{
+              flex: 1,
+              padding: '4px 6px',
               background: theme.bgBase,
               border: `1px solid ${theme.border}`,
               borderRadius: 0,
-              color: theme.textSecondary,
-              fontSize: '11px',
+              color: theme.textPrimary,
+              fontSize: '12px',
               outline: 'none',
-              cursor: 'pointer',
+              boxSizing: 'border-box',
             }}
-            title="発言キャラクターを選択"
-          >
-            <option value="">変更</option>
-            {characters.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          />
+
+          {/* キャラクター一覧ドロップダウン */}
+          {showCharacterList && (
+            <div
+              ref={charListRef}
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                background: theme.bgSurface,
+                border: `1px solid ${theme.border}`,
+                zIndex: 100,
+                maxHeight: '200px',
+                overflowY: 'auto',
+              }}
+            >
+              {/* 「地の文」選択肢 */}
+              <div
+                onClick={() => {
+                  setSenderName('');
+                  setSelectedCharacterForIcon(null);
+                  setShowCharacterList(false);
+                }}
+                style={{
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  color: theme.textSecondary,
+                  fontSize: '12px',
+                  borderBottom: `1px solid ${theme.border}`,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = theme.bgInput;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+                }}
+              >
+                地の文
+              </div>
+
+              {/* キャラクターリスト */}
+              {characters.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => {
+                    setSenderName(c.name);
+                    setSelectedCharacterForIcon(c);
+                    setShowCharacterList(false);
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    color: theme.textPrimary,
+                    fontSize: '12px',
+                    borderBottom: `1px solid ${theme.border}`,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.background = theme.bgInput;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.background = 'transparent';
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      background: c.images[c.active_image_index]?.url
+                        ? `url(${c.images[c.active_image_index]?.url}) center/cover`
+                        : c.color,
+                      border: `1px solid ${theme.border}`,
+                      flexShrink: 0,
+                    }}
+                  />
+                  <span>{c.name}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
