@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Piece, Room } from '../types/adrastea.types';
-import { genId } from '../utils/id';
 
 export function useAdrastea(roomId: string) {
   const roomData = useQuery(api.rooms.get, { id: roomId });
@@ -12,7 +11,7 @@ export function useAdrastea(roomId: string) {
     (localStore, args) => {
       const current = localStore.getQuery(api.rooms.get, { id: roomId });
       if (current !== undefined) {
-        localStore.setQuery(api.rooms.get, { id: roomId }, { ...current, ...args });
+        localStore.setQuery(api.rooms.get, { id: roomId }, { ...current, ...args } as any);
       }
     }
   );
@@ -79,8 +78,6 @@ export function useAdrastea(roomId: string) {
       const baseY = centerY ?? 2500;
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
-      const now = Date.now();
-      const id = genId();
       createPieceMutation({
         room_id: roomId,
         x: baseX + offsetX,
@@ -90,7 +87,7 @@ export function useAdrastea(roomId: string) {
         label,
         color,
         z_index: pieces.length,
-      }).catch(console.error);
+      } as any).catch(console.error);
     },
     [roomId, pieces.length, createPieceMutation]
   );

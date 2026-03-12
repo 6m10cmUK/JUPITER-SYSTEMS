@@ -202,7 +202,8 @@ interface AdrasteaProviderProps {
 }
 
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
-  const { user, profile, signOut, updateProfile } = useAuth();
+  const { user, profile, signOut, updateProfile: updateProfileFromAuth } = useAuth();
+  const updateProfile = updateProfileFromAuth ?? (async () => {});
 
   // --- パネルのマウント状態追跡（遅延リスナー用） ---
   const [activePanels, setActivePanels] = useState<Set<string>>(new Set());
@@ -650,7 +651,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const guardedRemoveObject   = withPermission('object_edit',    removeObject) as any;
   const guardedReorderObjects = withPermission('object_edit',    reorderObjects) as any;
   const guardedBatchSort      = withPermission('object_edit',    batchUpdateSort) as any;
-  const guardedAddCharacter   = withPermission('character_edit', (data) => addCharacter({ ...data, owner_id: user?.uid ?? '' })) as any;
+  const guardedAddCharacter   = withPermission('character_edit', (data: any) => addCharacter({ ...data, owner_id: user?.uid ?? '' })) as any;
   const guardedUpdateCharacter= withPermission('character_edit', updateCharacter) as any;
   const guardedRemoveCharacter= withPermission('character_edit', removeCharacter) as any;
   const guardedAddBgm         = withPermission('bgm_manage',     addBgm) as any;

@@ -72,8 +72,6 @@ export const assignRole = mutation({
     const myRole = await getRole(ctx, args.room_id);
     assertMinRole(myRole, 'owner');
 
-    const userId = identity.subject;
-
     // 対象ユーザーを取得
     let member = await ctx.db
       .query("room_members")

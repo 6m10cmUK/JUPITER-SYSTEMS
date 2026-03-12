@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { apiFetch } from '../../config/api';
 import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
 import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';

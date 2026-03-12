@@ -123,7 +123,7 @@ export function useRooms(_uid?: string) {
   }, []);
 
   const addRoom = useCallback(
-    async (name: string, dice_system: string, tags: string[]): Promise<string> => {
+    async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
       const id = crypto.randomUUID();
       await createMutation({ id, name, dice_system, gm_can_see_secret_memo: false });
       return id;

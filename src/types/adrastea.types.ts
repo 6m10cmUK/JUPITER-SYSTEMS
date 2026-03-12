@@ -20,6 +20,7 @@ export interface ActiveCutin {
 
 export interface Room {
   id: string;
+  owner_id: string;
   name: string;
   active_scene_id: string | null;
   foreground_url: string | null;
@@ -112,6 +113,7 @@ export type BoardObjectType = 'panel' | 'text' | 'foreground' | 'background';
 
 export interface BoardObject {
   id: string;
+  room_id: string;
   type: BoardObjectType;
   name: string;
 
