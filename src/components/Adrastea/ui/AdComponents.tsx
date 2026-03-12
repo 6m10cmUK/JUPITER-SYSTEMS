@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
-import { ChevronRight, ChevronDown, X } from 'lucide-react';
+import { ChevronRight, ChevronDown, X, Palette } from 'lucide-react';
 
 // ── Shared compact styles ──
 const FONT_SIZE = '12px';
@@ -292,6 +292,9 @@ interface AdColorPickerProps {
   value: string;
   onChange: (value: string) => void;
   enableAlpha?: boolean;
+  compact?: boolean;
+  onOpen?: () => void;
+  onClose?: (value: string) => void;
 }
 
 type RgbaColor = { r: number; g: number; b: number; a: number };
@@ -344,7 +347,7 @@ function rgbaToDisplayBg(c: RgbaColor): string {
   return `rgba(${c.r},${c.g},${c.b},${c.a})`;
 }
 
-export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPickerProps) {
+export function AdColorPicker({ label, value, onChange, enableAlpha, compact, onOpen, onClose }: AdColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(loadPalette);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
@@ -376,11 +379,12 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
         setOpen(false);
         setContextMenu(null);
+        onClose?.(rgbaToCss(rgba));
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
+  }, [open, rgba, onClose]);
 
   // コンテキストメニュー外クリックで閉じる
   useEffect(() => {
@@ -413,31 +417,54 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {label && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      {label && !compact && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <div style={{ display: 'flex', gap: GAP, alignItems: 'center' }}>
-        {/* 色プレビューボタン */}
-        <button
-          ref={btnRef}
-          onClick={() => setOpen(!open)}
-          style={{
-            width: '24px', height: '22px', border: `1px solid ${theme.border}`,
-            background: checkerBg,
-            backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px',
-            cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
-          }}
-        >
-          <div style={{ position: 'absolute', inset: 0, background: rgbaToDisplayBg(rgba) }} />
-        </button>
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          style={{
-            flex: 1, height: HEIGHT, padding: PADDING, fontSize: FONT_SIZE,
-            background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
-            borderRadius: 0, color: theme.textPrimary, outline: 'none', boxSizing: 'border-box',
-          }}
-        />
+        {compact ? (
+          <button
+            ref={btnRef}
+            onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
+            style={{
+              width: '24px', height: '24px',
+              background: theme.bgInput,
+              border: 'none',
+              borderRadius: '2px',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
+            title="カラー"
+          >
+            <Palette size={14} />
+          </button>
+        ) : (
+          <>
+            <button
+              ref={btnRef}
+              onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
+              style={{
+                width: '24px', height: '22px', border: `1px solid ${theme.border}`,
+                background: checkerBg,
+                backgroundSize: '8px 8px', backgroundPosition: '0 0, 4px 4px',
+                cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
+              }}
+            >
+              <div style={{ position: 'absolute', inset: 0, background: rgbaToDisplayBg(rgba) }} />
+            </button>
+            <input
+              type="text"
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              style={{
+                flex: 1, height: HEIGHT, padding: PADDING, fontSize: FONT_SIZE,
+                background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+                borderRadius: 0, color: theme.textPrimary, outline: 'none', boxSizing: 'border-box',
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* ポップオーバー（Portal） */}
@@ -452,7 +479,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha }: AdColorPi
           }}
         >
           {/* 左: カラーピッカー */}
-          <div className="ad-color-picker-popover">
+          <div className="ad-color-picker-popover" data-hide-alpha={!enableAlpha ? "true" : undefined}>
             <RgbaColorPicker
               color={enableAlpha ? rgba : { ...rgba, a: 1 }}
               onChange={handleChange}

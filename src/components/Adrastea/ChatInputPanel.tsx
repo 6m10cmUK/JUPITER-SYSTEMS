@@ -1,8 +1,9 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { User } from 'lucide-react';
+import { User, Bold, Italic, Strikethrough, Heading1 } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
+import { AdColorPicker } from './ui/AdComponents';
 
 const COLOR_TEXT_PRIMARY = '#e0e0e0';
 const COLOR_TEXT_MUTED = '#707070';
@@ -80,6 +81,62 @@ function highlightMarkup(code: string): string {
   }
 
   return html;
+}
+
+// 選択範囲の start と end のオフセットを取得
+function getSelectionOffsets(el: HTMLElement): { start: number; end: number } | null {
+  const sel = window.getSelection();
+  if (!sel || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (!el.contains(range.startContainer) || !el.contains(range.endContainer)) return null;
+
+  function calcOffset(container: Node, containerOffset: number): number {
+    let offset = 0;
+    let found = false;
+
+    function countAll(node: Node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent?.length ?? 0;
+      } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'BR') {
+        offset += 1;
+      } else {
+        for (let i = 0; i < node.childNodes.length; i++) countAll(node.childNodes[i]);
+      }
+    }
+
+    function walk(node: Node): boolean {
+      if (found) return true;
+      if (node === container) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          offset += containerOffset;
+        } else {
+          for (let i = 0; i < containerOffset; i++) {
+            const child = node.childNodes[i];
+            if (child) countAll(child);
+          }
+        }
+        found = true;
+        return true;
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent?.length ?? 0;
+      } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'BR') {
+        offset += 1;
+      } else {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (walk(node.childNodes[i])) return true;
+        }
+      }
+      return false;
+    }
+
+    walk(el);
+    return offset;
+  }
+
+  const start = calcOffset(range.startContainer, range.startOffset);
+  const end = calcOffset(range.endContainer, range.endOffset);
+  return { start, end };
 }
 
 // カーソル位置を文字オフセットとして取得
@@ -211,7 +268,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   onSendMessage,
 }) => {
   const [senderName, setSenderName] = useState(() => localStorage.getItem('adrastea-last-sender') ?? '');
-  const [selectedCharacterForIcon, setSelectedCharacterForIcon] = useState<Character | null>(null);
   const [showCharacterList, setShowCharacterList] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
@@ -221,13 +277,12 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const compositionJustEnded = useRef(false);
   const charListRef = useRef<HTMLDivElement>(null);
   const charIconRef = useRef<HTMLButtonElement>(null);
+  const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
 
-  // 初回 or characters 変更時に、保存された名前と一致するキャラをセット
-  useEffect(() => {
-    if (!senderName || !characters.length) return;
-    const matched = characters.find((c) => c.name === senderName) ?? null;
-    setSelectedCharacterForIcon(matched);
-  }, [characters]); // eslint-disable-line react-hooks/exhaustive-deps
+  const selectedCharacterForIcon = useMemo(
+    () => (senderName ? (characters.find((c) => c.name === senderName) ?? null) : null),
+    [characters, senderName]
+  );
 
   const applyHighlight = useCallback(() => {
     const el = editorRef.current;
@@ -244,6 +299,73 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     const el = editorRef.current;
     if (!el) return '';
     return el.innerText.replace(/\n$/, '');
+  }, []);
+
+  const wrapSelection = useCallback((prefix: string, suffix: string) => {
+    const el = editorRef.current;
+    if (!el) return;
+    const offsets = getSelectionOffsets(el);
+    if (!offsets) return;
+
+    const text = el.innerText.replace(/\n$/, '');
+    const { start, end } = offsets;
+    const selectedText = text.slice(start, end);
+    const newText = text.slice(0, start) + prefix + selectedText + suffix + text.slice(end);
+
+    isUpdating.current = true;
+    el.innerHTML = highlightMarkup(newText) || '';
+    const newCursorOffset = start + prefix.length + selectedText.length;
+    setCursorOffset(el, newCursorOffset);
+    isUpdating.current = false;
+
+    setIsEmpty(newText.length === 0);
+  }, []);
+
+  const toggleHeading = useCallback(() => {
+    const el = editorRef.current;
+    if (!el) return;
+    const text = el.innerText.replace(/\n$/, '');
+    const offset = getCursorOffset(el);
+
+    // カーソルがある行を特定
+    const lines = text.split('\n');
+    let charCount = 0;
+    let lineIndex = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const lineEnd = charCount + lines[i].length;
+      if (offset <= lineEnd) {
+        lineIndex = i;
+        break;
+      }
+      charCount += lines[i].length + 1; // +1 for \n
+    }
+
+    const line = lines[lineIndex];
+    let newLine: string;
+    let cursorDelta: number;
+    if (line.startsWith('# ')) {
+      // 見出しを解除
+      newLine = line.slice(2);
+      cursorDelta = -2;
+    } else if (line.startsWith('#')) {
+      // # だけの場合も解除
+      newLine = line.slice(1);
+      cursorDelta = -1;
+    } else {
+      // 見出しを追加
+      newLine = '# ' + line;
+      cursorDelta = 2;
+    }
+
+    lines[lineIndex] = newLine;
+    const newText = lines.join('\n');
+    const newOffset = Math.max(0, offset + cursorDelta);
+
+    isUpdating.current = true;
+    el.innerHTML = highlightMarkup(newText) || '';
+    setCursorOffset(el, newOffset);
+    isUpdating.current = false;
+    setIsEmpty(newText.length === 0);
   }, []);
 
   const handleSend = useCallback(() => {
@@ -374,9 +496,9 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               borderRadius: '50%',
               background: selectedCharacterForIcon
                 ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
-                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top/cover`
+                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top/cover ${selectedCharacterForIcon.color}`
                   : selectedCharacterForIcon.color
-                : theme.border,
+                : theme.bgInput,
               border: `1px solid ${theme.border}`,
               flexShrink: 0,
               cursor: 'pointer',
@@ -399,10 +521,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             type="text"
             value={senderName}
             onChange={(e) => {
-              const val = e.target.value;
-              setSenderName(val);
-              const matched = characters.find((c) => c.name === val) ?? null;
-              setSelectedCharacterForIcon(matched);
+              setSenderName(e.target.value);
             }}
             placeholder="noname"
             style={{
@@ -456,7 +575,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                   key={c.id}
                   onClick={() => {
                     setSenderName(c.name);
-                    setSelectedCharacterForIcon(c);
                     setShowCharacterList(false);
                     setDropdownPos(null);
                   }}
@@ -480,7 +598,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                       height: '16px',
                       borderRadius: '50%',
                       background: c.images[c.active_image_index]?.url
-                        ? `url(${c.images[c.active_image_index]?.url}) top/cover`
+                        ? `url(${c.images[c.active_image_index]?.url}) top/cover ${c.color}`
                         : c.color,
                       border: `1px solid ${theme.border}`,
                       flexShrink: 0,
@@ -544,6 +662,107 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             メッセージを入力...
           </div>
         )}
+      </div>
+
+      {/* 修飾子ツールバー */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '2px',
+          padding: '2px 4px',
+          flexShrink: 0,
+          position: 'relative',
+        }}
+      >
+        {([
+          { icon: Bold, prefix: '**', suffix: '**' },
+          { icon: Italic, prefix: '*', suffix: '*' },
+          { icon: Strikethrough, prefix: '~~', suffix: '~~' },
+        ] as const).map(({ icon: Icon, prefix, suffix }) => (
+          <button
+            key={prefix}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              wrapSelection(prefix, suffix);
+            }}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: theme.bgInput,
+              border: 'none',
+              borderRadius: '2px',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
+            title={prefix === '**' ? '太字' : prefix === '*' ? '斜体' : '打消し'}
+          >
+            <Icon size={14} />
+          </button>
+        ))}
+        {/* 見出しボタン */}
+        <button
+          onMouseDown={(e) => {
+            e.preventDefault();
+            toggleHeading();
+          }}
+          style={{
+            width: '24px',
+            height: '24px',
+            background: theme.bgInput,
+            border: 'none',
+            borderRadius: '2px',
+            color: theme.textSecondary,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
+          title="見出し"
+        >
+          <Heading1 size={14} />
+        </button>
+        {/* 色ボタン */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <AdColorPicker
+            compact
+            enableAlpha={false}
+            value="#ff0000"
+            onChange={() => {}}
+            onOpen={() => {
+              const el = editorRef.current;
+              if (el) {
+                savedSelectionRef.current = getSelectionOffsets(el);
+              }
+            }}
+            onClose={(color) => {
+              const saved = savedSelectionRef.current;
+              const el = editorRef.current;
+              if (!el || !saved) return;
+              const text = el.innerText.replace(/\n$/, '');
+              const { start, end } = saved;
+              const selectedText = text.slice(start, end);
+              const prefix = `<color=${color}>`;
+              const suffix = '</color>';
+              const newText = text.slice(0, start) + prefix + selectedText + suffix + text.slice(end);
+              isUpdating.current = true;
+              el.innerHTML = highlightMarkup(newText) || '';
+              setCursorOffset(el, start + prefix.length + selectedText.length);
+              isUpdating.current = false;
+              setIsEmpty(newText.length === 0);
+              savedSelectionRef.current = null;
+            }}
+          />
+        </div>
       </div>
     </div>
   );
