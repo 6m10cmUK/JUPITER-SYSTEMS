@@ -157,3 +157,9 @@
 .milkdown-menu {
   display: none !important;
 }
+
+/* AdColorPicker: enableAlpha=false 時のアルファスライダー非表示 */
+.ad-color-picker-popover[data-hide-alpha="true"] .react-colorful__alpha,
+.ad-color-picker-popover[data-hide-alpha="true"] .react-colorful__alpha-pointer {
+  display: none;
+}

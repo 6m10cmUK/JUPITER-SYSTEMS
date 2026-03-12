@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const viewerData = useQuery(api.users.viewer);
 
   const signIn = async () => {
-    await convexSignIn("google");
+    await convexSignIn("google", { redirectTo: window.location.pathname + window.location.search });
   };
 
   const signInAsGuest = async (_displayName: string) => {

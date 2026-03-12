@@ -304,7 +304,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600 }}>
+              <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined }}>
                 🎲 {msg.sender_name}
               </span>
               <span style={{ color: theme.textMuted, fontSize: '10px' }}>
@@ -333,7 +333,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600 }}>
+            <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined }}>
               {msg.sender_name}
             </span>
             <span style={{ color: theme.textMuted, fontSize: '10px' }}>
