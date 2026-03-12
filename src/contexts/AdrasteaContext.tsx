@@ -12,6 +12,7 @@ import type {
   ScenarioText,
   Cutin,
   UserProfile,
+  ChatChannel,
 } from '../types/adrastea.types';
 import { useAdrastea } from '../hooks/useAdrastea';
 import { useAdrasteaChat } from '../hooks/useAdrasteaChat';
@@ -21,6 +22,7 @@ import { useObjects } from '../hooks/useObjects';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
 import { useBgms } from '../hooks/useBgms';
+import { useChannels } from '../hooks/useChannels';
 import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import type { BgmTrack } from '../types/adrastea.types';
 import { useAuth } from './AuthContext';
@@ -75,6 +77,10 @@ export interface AdrasteaContextValue {
   // --- Active chat channel ---
   activeChatChannel: string;
   setActiveChatChannel: (channel: string) => void;
+
+  // --- useChannels ---
+  channels: ChatChannel[];
+  upsertChannel: (channel: ChatChannel) => Promise<void>;
 
   // --- useScenes ---
   scenes: Scene[];
@@ -234,6 +240,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
   } = useAdrasteaChat(roomId);
 
+  const {
+    channels, upsertChannel, loading: channelsLoading,
+  } = useChannels(room?.id ?? '');
+
   // onRoomUpdate コールバック（useCutins → useAdrastea）
   const handleRoomUpdate = useCallback((updates: Record<string, unknown>) => {
     updateRoom(updates as Partial<Room>);
@@ -275,10 +285,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     { label: 'キャラクター', done: !charactersLoading },
     { label: 'オブジェクト', done: !objectsLoading },
     { label: 'チャット', done: !chatLoading },
+    { label: 'チャンネル', done: !channelsLoading },
     { label: 'BGM', done: !bgmsLoading },
     { label: 'カットイン', done: !cutinsEnabled || !cutinsLoading },
     { label: 'シナリオテキスト', done: !scenarioTextsEnabled || !scenarioTextsLoading },
-  ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading, cutinsEnabled, scenarioTextsEnabled]);
+  ], [adrasteaLoading, scenesLoading, charactersLoading, objectsLoading, chatLoading, channelsLoading, bgmsLoading, cutinsLoading, scenarioTextsLoading, cutinsEnabled, scenarioTextsEnabled]);
 
   // 初回ロード完了後はローディング画面を二度と出さない
   // （シーン切り替え時の objectsLoading 等で全画面ローディングが再表示されるのを防ぐ）
@@ -683,6 +694,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
 
+      // useChannels
+      channels, upsertChannel,
+
       // useScenes
       scenes: effectiveScenes, addScene: guardedAddScene,
       updateScene: guardedUpdateScene,
@@ -763,6 +777,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
+      channels, upsertChannel,
       effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
       characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,

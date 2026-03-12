@@ -258,4 +258,15 @@ export default defineSchema({
     .index("by_room", ["room_id"])
     .index("by_room_user", ["room_id", "user_id"])
     .index("by_user", ["user_id"]),
+
+  channels: defineTable({
+    room_id: v.string(),
+    channel_id: v.string(),
+    label: v.string(),
+    order: v.number(),
+    is_archived: v.boolean(),
+    allowed_user_ids: v.array(v.string()),
+  })
+    .index("by_room", ["room_id"])
+    .index("by_room_channel", ["room_id", "channel_id"]),
 });

@@ -13,12 +13,6 @@ import { ConfirmModal } from './ui';
  * - ~~テキスト~~ → <span style="text-decoration: line-through">
  * - [color=#ff0000]テキスト[/color] → <span style="color: #ff0000">
  */
-// チャンネルラベルマッピング
-const CHANNEL_LABELS: Record<string, string> = {
-  main: 'メイン',
-  info: '情報',
-  other: '雑談',
-};
 
 const parseMarkup = (text: string): React.ReactNode[] => {
   const elements: React.ReactNode[] = [];
@@ -236,7 +230,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   onLoadMore,
   onClearMessages,
 }) => {
-  const { activeChatChannel, setActiveChatChannel } = useAdrasteaContext();
+  const { activeChatChannel, setActiveChatChannel, channels } = useAdrasteaContext();
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -245,13 +239,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(messages.length);
   const isLoadingMoreRef = useRef(false);
-
-  // チャンネル一覧を動的に収集
-  const channels = useMemo(() => {
-    const set = new Set<string>(['main']); // main は常に表示
-    messages.forEach(m => set.add(m.channel ?? 'main'));
-    return Array.from(set); // 登場順を保持
-  }, [messages]);
 
   // アクティブチャンネルでメッセージをフィルタ
   const filteredMessages = useMemo(
@@ -419,7 +406,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       </div>
 
       {/* チャンネルタブ */}
-      {channels.length > 1 && (
+      {channels.length >= 1 && (
         <div
           style={{
             display: 'flex',
@@ -429,25 +416,25 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             overflowX: 'auto',
           }}
         >
-          {channels.map((channel) => (
+          {channels.map((ch) => (
             <button
-              key={channel}
-              onClick={() => setActiveChatChannel(channel)}
+              key={ch.channel_id}
+              onClick={() => setActiveChatChannel(ch.channel_id)}
               style={{
                 padding: '4px 10px',
-                background: activeChatChannel === channel ? theme.bgInput : 'transparent',
-                color: activeChatChannel === channel ? theme.textPrimary : theme.textSecondary,
+                background: activeChatChannel === ch.channel_id ? theme.bgInput : 'transparent',
+                color: activeChatChannel === ch.channel_id ? theme.textPrimary : theme.textSecondary,
                 border: 'none',
-                borderBottom: activeChatChannel === channel ? `2px solid ${theme.accent}` : 'none',
+                borderBottom: activeChatChannel === ch.channel_id ? `2px solid ${theme.accent}` : 'none',
                 cursor: 'pointer',
                 fontSize: '11px',
-                fontWeight: activeChatChannel === channel ? 600 : 400,
+                fontWeight: activeChatChannel === ch.channel_id ? 600 : 400,
                 whiteSpace: 'nowrap',
                 transition: 'background 0.2s, color 0.2s',
               }}
-              title={channel}
+              title={ch.label}
             >
-              {CHANNEL_LABELS[channel] || channel}
+              {ch.label}
             </button>
           ))}
         </div>

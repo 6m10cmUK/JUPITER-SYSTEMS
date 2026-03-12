@@ -303,6 +303,14 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     [activeCharForPalette?.chat_palette]
   );
 
+  // マウント時に senderName → activeSpeakerCharId を同期
+  useEffect(() => {
+    if (!senderName) return;
+    const found = characters.find((c) => c.name === senderName) ?? null;
+    ctx.setActiveSpeakerCharId(found?.id ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [characters]);
+
   const updateSuggestions = useCallback((text: string) => {
     if (!text.trim()) {
       setSuggestions([]);
@@ -761,6 +769,26 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           position: 'relative',
         }}
       >
+        {/* チャンネル選択 */}
+        <select
+          value={ctx.activeChatChannel}
+          onChange={(e) => ctx.setActiveChatChannel(e.target.value)}
+          style={{
+            background: theme.bgInput,
+            border: `1px solid ${theme.border}`,
+            color: theme.textSecondary,
+            fontSize: '10px',
+            padding: '2px 4px',
+            borderRadius: 0,
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+        >
+          {ctx.channels.map(ch => (
+            <option key={ch.channel_id} value={ch.channel_id}>{ch.label}</option>
+          ))}
+        </select>
+
         {([
           { icon: Bold, prefix: '**', suffix: '**' },
           { icon: Italic, prefix: '*', suffix: '*' },
