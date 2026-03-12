@@ -9,6 +9,7 @@ export function ChatLogDockPanel() {
       loading={ctx.chatLoading}
       hasMore={ctx.hasMore}
       roomName={ctx.room?.name}
+      characters={ctx.characters}
       onLoadMore={ctx.loadMore}
       onClearMessages={ctx.clearMessages}
     />

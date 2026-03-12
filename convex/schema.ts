@@ -235,6 +235,7 @@ export default defineSchema({
     sender_name: v.string(),
     sender_uid: v.union(v.string(), v.null()),
     sender_avatar: v.union(v.string(), v.null()),
+    sender_color: v.optional(v.string()), // 旧データ互換
     content: v.string(),
     message_type: v.union(
       v.literal("chat"),

@@ -178,11 +178,13 @@ const DockviewInner = memo(function DockviewInner({
   const dockviewComponents = useMemo(() => {
     const comps: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {};
     for (const [key, Comp] of Object.entries(panelComponents)) {
-      comps[key] = () => (
-        <ErrorBoundary>
-          <Comp />
-        </ErrorBoundary>
-      );
+      comps[key] = React.memo(function DockPanelWrapper() {
+        return (
+          <ErrorBoundary>
+            <Comp />
+          </ErrorBoundary>
+        );
+      });
     }
     return comps;
   }, []);

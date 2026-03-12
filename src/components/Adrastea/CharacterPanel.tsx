@@ -83,6 +83,7 @@ export function CharacterPanel({
                 height: '40px',
                 borderRadius: 0,
                 objectFit: 'cover',
+                objectPosition: 'top',
                 flexShrink: 0,
               }}
             />

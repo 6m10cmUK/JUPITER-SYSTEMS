@@ -18,7 +18,7 @@ function parseInlineHtml(text: string): string {
 
   while ((match = markupRegex.exec(text)) !== null) {
     const before = text.slice(lastIndex, match.index);
-    if (before) result += `<span style="color:${COLOR_TEXT_PRIMARY}">${esc(before)}</span>`;
+    if (before) result += esc(before);
 
     const m = match[0];
     if (m.startsWith('<color=')) {
@@ -49,13 +49,13 @@ function parseInlineHtml(text: string): string {
   }
 
   const trailing = text.slice(lastIndex);
-  if (trailing) result += `<span style="color:${COLOR_TEXT_PRIMARY}">${esc(trailing)}</span>`;
+  if (trailing) result += esc(trailing);
   return result;
 }
 
 function highlightMarkup(code: string): string {
   const lines = code.split('\n');
-  return lines.map((line) => {
+  let html = lines.map((line) => {
     let hashCount = 0;
     while (hashCount < line.length && line[hashCount] === '#') hashCount++;
     const isHeading = hashCount > 0 && (line[hashCount] === ' ' || line.length === hashCount);
@@ -72,6 +72,14 @@ function highlightMarkup(code: string): string {
 
     return parseInlineHtml(line);
   }).join('<br>');
+
+  // 末尾が改行で終わる場合、sentinel <br> を追加
+  // これがないと contentEditable の innerText が末尾の改行を吸収してしまう
+  if (code.endsWith('\n')) {
+    html += '<br>';
+  }
+
+  return html;
 }
 
 // カーソル位置を文字オフセットとして取得
@@ -79,36 +87,118 @@ function getCursorOffset(el: HTMLElement): number {
   const sel = window.getSelection();
   if (!sel || !sel.rangeCount) return 0;
   const range = sel.getRangeAt(0);
-  const pre = range.cloneRange();
-  pre.selectNodeContents(el);
-  pre.setEnd(range.endContainer, range.endOffset);
-  return pre.toString().length;
+  if (!el.contains(range.endContainer)) return 0;
+
+  let offset = 0;
+  let found = false;
+
+  function countAll(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      offset += node.textContent?.length ?? 0;
+    } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'BR') {
+      offset += 1;
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        countAll(node.childNodes[i]);
+      }
+    }
+  }
+
+  function walk(node: Node): boolean {
+    if (found) return true;
+    if (node === range.endContainer) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += range.endOffset;
+      } else {
+        // element node: endOffset は childNodes のインデックス
+        for (let i = 0; i < range.endOffset; i++) {
+          const child = node.childNodes[i];
+          if (child) countAll(child);
+        }
+      }
+      found = true;
+      return true;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      offset += node.textContent?.length ?? 0;
+    } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'BR') {
+      offset += 1;
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        if (walk(node.childNodes[i])) return true;
+      }
+    }
+    return false;
+  }
+
+  walk(el);
+  return offset;
 }
 
 // 文字オフセットにカーソルを復元
 function setCursorOffset(el: HTMLElement, offset: number) {
   const sel = window.getSelection();
   if (!sel) return;
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+
   let remaining = offset;
-  let node: Text | null;
-  while ((node = walker.nextNode() as Text | null)) {
-    if (remaining <= node.length) {
-      const range = document.createRange();
-      range.setStart(node, remaining);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
-      return;
+
+  function walk(node: Node): boolean {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const len = node.textContent?.length ?? 0;
+      if (remaining <= len) {
+        const r = document.createRange();
+        r.setStart(node, remaining);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        return true;
+      }
+      remaining -= len;
+    } else if (node.nodeType === Node.ELEMENT_NODE && (node as HTMLElement).tagName === 'BR') {
+      if (remaining === 0) {
+        const r = document.createRange();
+        r.setStartBefore(node);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+        return true;
+      }
+      remaining -= 1;
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        if (walk(node.childNodes[i])) return true;
+      }
     }
-    remaining -= node.length;
+    return false;
   }
-  // オフセットが末尾を超えた場合は末尾に
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  range.collapse(false);
-  sel.removeAllRanges();
-  sel.addRange(range);
+
+  if (!walk(el)) {
+    // 末尾に設定
+    const r = document.createRange();
+    r.selectNodeContents(el);
+    r.collapse(false);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
+
+  // span 内テキストノードの末尾にカーソルがある場合、span の外に移動する
+  // Chrome は span 末尾にカーソルがあると次の入力を span 外の新テキストノードに
+  // 追加するため、getCursorOffset が正しいオフセットを返せなくなる
+  const cur = sel.getRangeAt(0);
+  if (
+    cur.startContainer.nodeType === Node.TEXT_NODE &&
+    cur.startOffset === (cur.startContainer.textContent?.length ?? 0) &&
+    cur.startContainer.parentElement &&
+    cur.startContainer.parentElement !== el
+  ) {
+    const parent = cur.startContainer.parentElement;
+    const r = document.createRange();
+    r.setStartAfter(parent);
+    r.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(r);
+  }
 }
 
 interface ChatInputPanelProps {
@@ -128,8 +218,16 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
   const isUpdating = useRef(false);
+  const compositionJustEnded = useRef(false);
   const charListRef = useRef<HTMLDivElement>(null);
   const charIconRef = useRef<HTMLButtonElement>(null);
+
+  // 初回 or characters 変更時に、保存された名前と一致するキャラをセット
+  useEffect(() => {
+    if (!senderName || !characters.length) return;
+    const matched = characters.find((c) => c.name === senderName) ?? null;
+    setSelectedCharacterForIcon(matched);
+  }, [characters]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyHighlight = useCallback(() => {
     const el = editorRef.current;
@@ -168,7 +266,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   }, [getInputText, senderName, selectedCharacterForIcon, onSendMessage]);
 
   const handleInput = useCallback(() => {
-    if (isUpdating.current || isComposing.current) return;
+    if (isUpdating.current || isComposing.current || compositionJustEnded.current) return;
     applyHighlight();
     const el = editorRef.current;
     if (el) {
@@ -178,19 +276,46 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
   const handleCompositionStart = useCallback(() => {
     isComposing.current = true;
+    compositionJustEnded.current = false;
   }, []);
 
   const handleCompositionEnd = useCallback(() => {
     isComposing.current = false;
-    applyHighlight();
+    compositionJustEnded.current = true;
+    // input イベントより後に実行して一回だけ applyHighlight を呼ぶ
+    setTimeout(() => {
+      compositionJustEnded.current = false;
+      applyHighlight();
+      const el = editorRef.current;
+      if (el) setIsEmpty(el.innerText.replace(/\n$/, '').length === 0);
+    }, 0);
   }, [applyHighlight]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isComposing.current) {
+    if (e.key === 'Enter' && !isComposing.current) {
       e.preventDefault();
-      handleSend();
+      if (e.shiftKey) {
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const br = document.createElement('br');
+          const sentinel = document.createElement('br');
+          range.insertNode(sentinel);
+          range.insertNode(br);
+          range.setStartAfter(br);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        applyHighlight();
+        const el = editorRef.current;
+        if (el) setIsEmpty(el.innerText.replace(/\n$/, '').length === 0);
+      } else {
+        handleSend();
+      }
     }
-  }, [handleSend]);
+  }, [handleSend, applyHighlight]);
 
   useEffect(() => {
     if (!showCharacterList) return;
@@ -390,6 +515,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           onKeyDown={handleKeyDown}
           style={{
             minHeight: '60px',
+            height: '100%',
             padding: '4px 6px',
             fontSize: '12px',
             lineHeight: 1.5,
