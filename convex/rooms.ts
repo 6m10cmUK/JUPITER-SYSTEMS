@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getUserId } from "./_helpers";
 
 /**
  * List rooms owned by the current user
@@ -12,7 +13,7 @@ export const list = query({
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
     const rooms = await ctx.db
       .query("rooms")
       .withIndex("by_owner", (q) => q.eq("owner_id", userId))
@@ -62,7 +63,7 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
     const now = Date.now();
 
     const room = {
@@ -119,7 +120,7 @@ export const update = mutation({
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
 
     const room = await ctx.db
       .query("rooms")
@@ -167,7 +168,7 @@ export const remove = mutation({
       throw new Error("Not authenticated");
     }
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
 
     const room = await ctx.db
       .query("rooms")

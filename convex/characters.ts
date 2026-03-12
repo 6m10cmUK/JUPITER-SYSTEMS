@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getUserId } from "./_helpers";
 
 const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
 type RoomRole = typeof ROLE_HIERARCHY[number];
@@ -9,7 +10,7 @@ async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
   if (!identity) return 'guest';
   const member = await ctx.db
     .query("room_members")
-    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", identity.subject))
+    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", getUserId(identity)))
     .first();
   return (member?.role ?? 'guest') as RoomRole;
 }
@@ -161,7 +162,7 @@ export const updateStats = mutation({
       .first();
     if (!doc) throw new Error("Character stats not found");
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
     const role = await getRole(ctx, doc.room_id);
 
     // sub_owner以上は常に編集可、user は自分のキャラのみ
@@ -205,7 +206,7 @@ export const updateBase = mutation({
       .filter((q) => q.eq(q.field("id"), id))
       .first();
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
     const role = await getRole(ctx, doc.room_id);
 
     // sub_owner以上は常に編集可、user は自分のキャラのみ
@@ -232,7 +233,7 @@ export const remove = mutation({
       .filter((q) => q.eq(q.field("id"), args.id))
       .first();
     if (statDoc) {
-      const userId = identity.subject;
+      const userId = getUserId(identity);
       const role = await getRole(ctx, statDoc.room_id);
 
       // sub_owner以上は常に削除可、user は自分のキャラのみ

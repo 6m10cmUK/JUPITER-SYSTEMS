@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { getUserId } from "./_helpers";
 
 const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
 type RoomRole = typeof ROLE_HIERARCHY[number];
@@ -9,7 +10,7 @@ async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
   if (!identity) return 'guest';
   const member = await ctx.db
     .query("room_members")
-    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", identity.subject))
+    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", getUserId(identity)))
     .first();
   return (member?.role ?? 'guest') as RoomRole;
 }
@@ -33,7 +34,7 @@ export const join = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    const userId = identity.subject;
+    const userId = getUserId(identity);
 
     // 既存メンバーをチェック
     const existing = await ctx.db
