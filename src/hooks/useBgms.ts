@@ -2,12 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { BgmTrack } from '../types/adrastea.types';
-
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+import { genId } from '../utils/id';
 
 export function useBgms(roomId: string) {
   const bgmsData = useQuery(api.bgms.list, { room_id: roomId });
@@ -76,6 +71,17 @@ export function useBgms(roomId: string) {
     return merged;
   }, [bgmsData, roomId]);
 
+  const removeFromLocalStorageOrder = useCallback((id: string) => {
+    const storageKey = `adrastea-bgm-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (!savedOrder) return;
+    try {
+      const orderedIds = JSON.parse(savedOrder) as string[];
+      const filtered = orderedIds.filter((oid) => oid !== id);
+      localStorage.setItem(storageKey, JSON.stringify(filtered));
+    } catch { /* ignore */ }
+  }, [roomId]);
+
   const addBgm = useCallback(
     async (data: Partial<Omit<BgmTrack, 'id'>>): Promise<string> => {
       const id = (data as { id?: string }).id ?? genId();
@@ -109,16 +115,18 @@ export function useBgms(roomId: string) {
       const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
       if ((merged as BgmTrack).scene_ids?.length === 0) {
         await removeMutation({ id });
+        removeFromLocalStorageOrder(id);
       }
     },
-    [bgms, updateMutation, removeMutation]
+    [bgms, updateMutation, removeMutation, removeFromLocalStorageOrder]
   );
 
   const removeBgm = useCallback(
     async (id: string): Promise<void> => {
       await removeMutation({ id });
+      removeFromLocalStorageOrder(id);
     },
-    [removeMutation]
+    [removeMutation, removeFromLocalStorageOrder]
   );
 
   const reorderBgms = useCallback(

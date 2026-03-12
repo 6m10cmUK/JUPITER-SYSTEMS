@@ -1,13 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { BoardObject } from '../types/adrastea.types';
-
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+import { genId } from '../utils/id';
 
 export function useObjects(
   roomId: string,
@@ -63,6 +58,15 @@ export function useObjects(
     return [...serverObjs, ...extras];
   }, [objectsData, optimisticObjects]);
 
+  useEffect(() => {
+    if (!objectsData) return;
+    const serverIds = new Set(objectsData.map((o) => o.id));
+    setOptimisticObjects((prev) => {
+      const filtered = prev.filter((o) => !serverIds.has(o.id));
+      return filtered.length === prev.length ? prev : filtered;
+    });
+  }, [objectsData]);
+
   const activeObjects = useMemo(() => {
     if (!activeSceneId) return allObjects.filter((o) => o.global);
     return allObjects
@@ -91,7 +95,7 @@ export function useObjects(
         size_locked: data.size_locked ?? false,
         image_url: data.image_url ?? null, image_asset_id: data.image_asset_id ?? null,
         background_color: data.background_color ?? 'transparent',
-        image_fit: data.image_fit ?? 'cover',
+        image_fit: data.image_fit ?? 'contain',
         text_content: data.text_content ?? null, font_size: data.font_size ?? 128,
         font_family: data.font_family ?? 'sans-serif',
         letter_spacing: data.letter_spacing ?? 0, line_height: data.line_height ?? 1.2,

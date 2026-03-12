@@ -2,12 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Scene, BoardObject } from '../types/adrastea.types';
-
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+import { genId } from '../utils/id';
 
 export type OnObjectsCreated = (objects: BoardObject[]) => void;
 
@@ -30,7 +25,19 @@ export function useScenes(
     }
   );
   const removeMutation = useMutation(api.scenes.remove);
-  const reorderMutation = useMutation(api.scenes.reorder);
+  const reorderMutation = useMutation(api.scenes.reorder).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.scenes.list, { room_id: roomId });
+      if (current !== undefined) {
+        const orderMap = new Map(args.updates.map((u) => [u.id, u.sort_order]));
+        localStore.setQuery(
+          api.scenes.list,
+          { room_id: roomId },
+          current.map((s) => orderMap.has(s.id) ? { ...s, sort_order: orderMap.get(s.id)! } : s),
+        );
+      }
+    }
+  );
   const createObjectBatchMutation = useMutation(api.objects.createBatch);
 
   const loading = scenesData === undefined;

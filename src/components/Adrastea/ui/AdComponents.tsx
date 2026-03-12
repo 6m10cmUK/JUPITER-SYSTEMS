@@ -1095,6 +1095,7 @@ export function AdToggleButtons<T extends string | null>({ label, value, options
               height: HEIGHT,
               padding: '0 8px',
               fontSize: '11px',
+              whiteSpace: 'nowrap',
               background: value === opt.value ? theme.accent : theme.bgInput,
               color: value === opt.value ? theme.textOnAccent : theme.textPrimary,
               border: 'none',

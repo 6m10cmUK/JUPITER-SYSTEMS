@@ -2,12 +2,7 @@ import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Cutin } from '../types/adrastea.types';
-
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+import { genId } from '../utils/id';
 
 export type OnRoomUpdate = (updates: Record<string, unknown>) => void;
 

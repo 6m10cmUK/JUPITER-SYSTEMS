@@ -420,7 +420,7 @@ export function LayerPanel() {
                   flexShrink: 0,
                   width: '20px',
                   height: '20px',
-                  objectFit: 'cover',
+                  objectFit: 'contain',
                   objectPosition: 'center center',
                   borderRadius: '2px',
                   border: `1px solid ${theme.border}`,

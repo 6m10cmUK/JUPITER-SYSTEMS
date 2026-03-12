@@ -52,7 +52,7 @@ export function useAssets() {
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const result = await uploadAssetToR2(file, uid);
+      const result = await uploadAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
       try {
@@ -73,7 +73,7 @@ export function useAssets() {
         }, token ?? undefined);
       } catch (e) {
         // D1登録失敗 → R2ファイルを削除してロールバック
-        await deleteR2File(result.r2_key).catch((err) => {
+        await deleteR2File(result.r2_key, token ?? '').catch((err) => {
           console.error('R2削除失敗（アセット登録ロールバック中）:', err);
         });
         throw e;
@@ -88,7 +88,7 @@ export function useAssets() {
   const uploadAudioAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const result = await uploadAudioAssetToR2(file, uid);
+      const result = await uploadAudioAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
       try {
@@ -108,7 +108,7 @@ export function useAssets() {
           }),
         }, token ?? undefined);
       } catch (e) {
-        await deleteR2File(result.r2_key).catch((err) => {
+        await deleteR2File(result.r2_key, token ?? '').catch((err) => {
           console.error('R2削除失敗（オーディオアセット登録ロールバック中）:', err);
         });
         throw e;

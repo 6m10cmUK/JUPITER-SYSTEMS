@@ -56,7 +56,7 @@ const LEVEL_COLORS: Record<LogEntry['level'], string> = {
 };
 
 export function DebugConsoleContent() {
-  const [, setTick] = useState(0);
+  const [tick, setTick] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [filter, setFilter] = useState<LogEntry['level'] | 'all'>('all');
@@ -72,7 +72,7 @@ export function DebugConsoleContent() {
     if (autoScroll && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  });
+  }, [autoScroll, tick]);
 
   const handleClear = useCallback(() => {
     logBuffer.length = 0;

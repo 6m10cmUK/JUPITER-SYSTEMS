@@ -3,12 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { ChatMessage } from '../types/adrastea.types';
 import { rollDice } from '../services/diceRoller';
-
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+import { genId } from '../utils/id';
 
 export function useAdrasteaChat(roomId: string) {
   const messagesData = useQuery(api.messages.list, { room_id: roomId });
