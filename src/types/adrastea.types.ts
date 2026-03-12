@@ -246,3 +246,11 @@ export interface Asset {
   asset_type: 'image' | 'audio';
   created_at: number;
 }
+
+export interface ChatChannel {
+  channel_id: string;
+  label: string;
+  order: number;
+  is_archived: boolean;
+  allowed_user_ids: string[];
+}
