@@ -192,21 +192,3 @@ export const remove = mutation({
   },
 });
 
-export const reorder = mutation({
-  args: {
-    updates: v.array(v.object({ id: v.string(), sort_order: v.number() })),
-  },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const now = Date.now();
-    for (const u of args.updates) {
-      const doc = await ctx.db
-        .query("characters_stats")
-        .filter((q) => q.eq(q.field("id"), u.id))
-        .first();
-      if (doc) await ctx.db.patch(doc._id, { sort_order: u.sort_order, updated_at: now });
-    }
-  },
-});

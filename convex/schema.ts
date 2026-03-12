@@ -92,7 +92,7 @@ export default defineSchema({
     ),
     is_hidden_on_board: v.boolean(),
     is_speech_hidden: v.boolean(),
-    sort_order: v.number(),
+    sort_order: v.optional(v.number()),
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -191,7 +191,7 @@ export default defineSchema({
     fade_in: v.boolean(),
     fade_out: v.boolean(),
     fade_duration: v.number(),
-    sort_order: v.number(),
+    sort_order: v.optional(v.number()),
     created_at: v.number(),
     updated_at: v.number(),
   })

@@ -17,7 +17,6 @@ export function useCharacters(roomId: string) {
   const updateStatsMutation = useMutation(api.characters.updateStats);
   const updateBaseMutation = useMutation(api.characters.updateBase);
   const removeMutation = useMutation(api.characters.remove);
-  const reorderMutation = useMutation(api.characters.reorder);
 
   const loading = statsData === undefined || baseData === undefined;
 
@@ -27,7 +26,7 @@ export function useCharacters(roomId: string) {
     // Create map of base data for quick lookup
     const baseMap = new Map(baseData.map(b => [b.id, b]));
 
-    return statsData.map((stat) => {
+    const merged = statsData.map((stat) => {
       const base = baseMap.get(stat.id);
       return {
         id: stat.id,
@@ -40,7 +39,7 @@ export function useCharacters(roomId: string) {
         parameters: stat.parameters ?? [],
         is_hidden_on_board: stat.is_hidden_on_board,
         is_speech_hidden: stat.is_speech_hidden,
-        sort_order: stat.sort_order,
+        sort_order: stat.sort_order ?? 0,
         created_at: stat.created_at,
         updated_at: stat.updated_at,
         // From base table
@@ -54,7 +53,42 @@ export function useCharacters(roomId: string) {
         is_status_private: base?.is_status_private ?? false,
       } as Character;
     });
-  }, [statsData, baseData]);
+
+    // Load sort order from localStorage
+    const storageKey = `adrastea-char-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (savedOrder) {
+      try {
+        const orderedIds = JSON.parse(savedOrder) as string[];
+        const idToChar = new Map(merged.map(c => [c.id, c]));
+        const sorted: Character[] = [];
+        const seenIds = new Set<string>();
+
+        // Add characters in saved order
+        for (const id of orderedIds) {
+          const char = idToChar.get(id);
+          if (char) {
+            sorted.push(char);
+            seenIds.add(id);
+          }
+        }
+
+        // Add remaining characters not in saved order at the end
+        for (const char of merged) {
+          if (!seenIds.has(char.id)) {
+            sorted.push(char);
+          }
+        }
+
+        return sorted;
+      } catch {
+        // If JSON parsing fails, return unsorted
+        return merged;
+      }
+    }
+
+    return merged;
+  }, [statsData, baseData, roomId]);
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
@@ -138,10 +172,10 @@ export function useCharacters(roomId: string) {
 
   const reorderCharacters = useCallback(
     async (orderedIds: string[]): Promise<void> => {
-      const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await reorderMutation({ updates });
+      const storageKey = `adrastea-char-order-${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
     },
-    [reorderMutation]
+    [roomId]
   );
 
   return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters };

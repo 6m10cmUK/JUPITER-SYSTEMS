@@ -25,20 +25,56 @@ export function useBgms(roomId: string) {
     }
   );
   const removeMutation = useMutation(api.bgms.remove);
-  const reorderMutation = useMutation(api.bgms.reorder);
 
   const loading = bgmsData === undefined;
-  const bgms: BgmTrack[] = useMemo(() => (bgmsData ?? []).map((b) => ({
-    id: b.id, name: b.name,
-    bgm_type: b.bgm_type as BgmTrack['bgm_type'],
-    bgm_source: (b as any).bgm_source ?? null,
-    bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,
-    scene_ids: b.scene_ids, is_playing: b.is_playing, is_paused: b.is_paused,
-    auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
-    fade_in: (b as any).fade_in ?? true, fade_out: (b as any).fade_out ?? true,
-    fade_duration: (b as any).fade_duration ?? 500,
-    sort_order: b.sort_order, created_at: b._creationTime, updated_at: b._creationTime,
-  } as BgmTrack)), [bgmsData]);
+  const bgms: BgmTrack[] = useMemo(() => {
+    const merged = (bgmsData ?? []).map((b) => ({
+      id: b.id, name: b.name,
+      bgm_type: b.bgm_type as BgmTrack['bgm_type'],
+      bgm_source: (b as any).bgm_source ?? null,
+      bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,
+      scene_ids: b.scene_ids, is_playing: b.is_playing, is_paused: b.is_paused,
+      auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
+      fade_in: (b as any).fade_in ?? true, fade_out: (b as any).fade_out ?? true,
+      fade_duration: (b as any).fade_duration ?? 500,
+      sort_order: b.sort_order ?? 0, created_at: b._creationTime, updated_at: b._creationTime,
+    } as BgmTrack));
+
+    // Load sort order from localStorage
+    const storageKey = `adrastea-bgm-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (savedOrder) {
+      try {
+        const orderedIds = JSON.parse(savedOrder) as string[];
+        const idToBgm = new Map(merged.map(b => [b.id, b]));
+        const sorted: BgmTrack[] = [];
+        const seenIds = new Set<string>();
+
+        // Add BGMs in saved order
+        for (const id of orderedIds) {
+          const bgm = idToBgm.get(id);
+          if (bgm) {
+            sorted.push(bgm);
+            seenIds.add(id);
+          }
+        }
+
+        // Add remaining BGMs not in saved order at the end
+        for (const bgm of merged) {
+          if (!seenIds.has(bgm.id)) {
+            sorted.push(bgm);
+          }
+        }
+
+        return sorted;
+      } catch {
+        // If JSON parsing fails, return unsorted
+        return merged;
+      }
+    }
+
+    return merged;
+  }, [bgmsData, roomId]);
 
   const addBgm = useCallback(
     async (data: Partial<Omit<BgmTrack, 'id'>>): Promise<string> => {
@@ -87,10 +123,10 @@ export function useBgms(roomId: string) {
 
   const reorderBgms = useCallback(
     async (orderedIds: string[]): Promise<void> => {
-      const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await reorderMutation({ updates });
+      const storageKey = `adrastea-bgm-order-${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
     },
-    [reorderMutation]
+    [roomId]
   );
 
   return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms };
