@@ -72,6 +72,10 @@ export interface AdrasteaContextValue {
   activeSpeakerCharId: string | null;
   setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
 
+  // --- Active chat channel ---
+  activeChatChannel: string;
+  setActiveChatChannel: (channel: string) => void;
+
   // --- useScenes ---
   scenes: Scene[];
   addScene: ReturnType<typeof useScenes>['addScene'];
@@ -326,6 +330,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
   const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
   const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
+  const [activeChatChannel, setActiveChatChannel] = useState<string>('main');
 
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
@@ -561,9 +566,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         user?.uid,
         senderAvatar,
         room?.dice_system,
+        activeChatChannel,
       );
     },
-    [sendMessage, profile, user, room?.dice_system],
+    [sendMessage, profile, user, room?.dice_system, activeChatChannel],
   );
 
   const safeActivateScene = useCallback(async (sceneId: string | null) => {
@@ -675,6 +681,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // useAdrasteaChat
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
+      activeChatChannel, setActiveChatChannel,
 
       // useScenes
       scenes: effectiveScenes, addScene: guardedAddScene,
@@ -755,6 +762,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
+      activeChatChannel, setActiveChatChannel,
       effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
       characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,

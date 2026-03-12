@@ -21,6 +21,8 @@ export function useAdrasteaChat(roomId: string) {
       sender_avatar: (m as any).sender_avatar ?? null,
       content: m.content,
       message_type: m.message_type as ChatMessage['message_type'],
+      channel: (m as any).channel ?? 'main',
+      allowed_user_ids: (m as any).allowed_user_ids,
       created_at: m._creationTime,
     }));
   }, [messagesData]);
@@ -32,7 +34,9 @@ export function useAdrasteaChat(roomId: string) {
       messageType: ChatMessage['message_type'] = 'chat',
       senderUid?: string,
       senderAvatar?: string | null,
-      diceSystem?: string
+      diceSystem?: string,
+      channel?: string,
+      allowedUserIds?: string[]
     ) => {
       try {
         let finalContent = content;
@@ -51,8 +55,10 @@ export function useAdrasteaChat(roomId: string) {
           message_type: messageType === 'dice' ? 'dice' : messageType,
           sender_uid: senderUid,
           sender_avatar: senderAvatar,
+          channel,
+          allowed_user_ids: allowedUserIds,
         });
-        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: messageType, created_at: Date.now() } as ChatMessage;
+        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: messageType, channel, allowed_user_ids: allowedUserIds, created_at: Date.now() } as ChatMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;
