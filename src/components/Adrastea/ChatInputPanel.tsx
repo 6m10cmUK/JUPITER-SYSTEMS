@@ -17,6 +17,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const [senderName, setSenderName] = useState('noname');
   const [selectedCharacterForIcon, setSelectedCharacterForIcon] = useState<Character | null>(null);
   const [showCharacterList, setShowCharacterList] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const charListRef = useRef<HTMLDivElement>(null);
   const charIconRef = useRef<HTMLButtonElement>(null);
 
@@ -46,6 +47,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         charIconRef.current && !charIconRef.current.contains(e.target as Node)
       ) {
         setShowCharacterList(false);
+        setDropdownPos(null);
       }
     };
     document.addEventListener('mousedown', handleMouseDown);
@@ -79,7 +81,18 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           {/* 丸アイコンボタン */}
           <button
             ref={charIconRef}
-            onClick={() => setShowCharacterList(!showCharacterList)}
+            onClick={() => {
+              if (showCharacterList) {
+                setShowCharacterList(false);
+                setDropdownPos(null);
+              } else {
+                const rect = charIconRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                }
+                setShowCharacterList(true);
+              }
+            }}
             style={{
               width: '24px',
               height: '24px',
@@ -129,10 +142,10 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             <div
               ref={charListRef}
               style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                right: 0,
+                position: 'fixed',
+                top: dropdownPos?.top ?? 0,
+                left: dropdownPos?.left ?? 0,
+                width: '200px',
                 background: theme.bgSurface,
                 border: `1px solid ${theme.border}`,
                 zIndex: 100,
@@ -140,30 +153,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 overflowY: 'auto',
               }}
             >
-              {/* 「地の文」選択肢 */}
-              <div
-                onClick={() => {
-                  setSenderName('');
-                  setSelectedCharacterForIcon(null);
-                  setShowCharacterList(false);
-                }}
-                style={{
-                  padding: '6px 8px',
-                  cursor: 'pointer',
-                  color: theme.textSecondary,
-                  fontSize: '12px',
-                  borderBottom: `1px solid ${theme.border}`,
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.background = theme.bgInput;
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLDivElement).style.background = 'transparent';
-                }}
-              >
-                地の文
-              </div>
 
               {/* キャラクターリスト */}
               {characters.map((c) => (
@@ -173,6 +162,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                     setSenderName(c.name);
                     setSelectedCharacterForIcon(c);
                     setShowCharacterList(false);
+                    setDropdownPos(null);
                   }}
                   style={{
                     padding: '6px 8px',
