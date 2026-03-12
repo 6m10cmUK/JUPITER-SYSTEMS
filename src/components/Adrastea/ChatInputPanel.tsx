@@ -7,15 +7,6 @@ interface ChatInputPanelProps {
   onSendMessage: (content: string, messageType: 'chat' | 'dice' | 'system', characterName?: string, characterAvatar?: string | null) => void;
 }
 
-const DICE_BUTTONS = [
-  { label: 'd4', faces: 4 },
-  { label: 'd6', faces: 6 },
-  { label: 'd8', faces: 8 },
-  { label: 'd10', faces: 10 },
-  { label: 'd12', faces: 12 },
-  { label: 'd20', faces: 20 },
-  { label: 'd100', faces: 100 },
-];
 
 const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   characters = [],
@@ -117,43 +108,13 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         </div>
       )}
 
-      {/* ダイスボタンバー */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '2px',
-          overflowX: 'auto',
-        }}
-      >
-        {DICE_BUTTONS.map((dice) => (
-          <button
-            key={dice.label}
-            onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter?.images[selectedCharacter.active_image_index]?.url)}
-            style={{
-              padding: '2px 6px',
-              borderRadius: 0,
-              border: 'none',
-              background: theme.bgInput,
-              color: theme.textSecondary,
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-            }}
-          >
-            {dice.label}
-          </button>
-        ))}
-      </div>
 
       {/* テキスト入力 + 送信 */}
       <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
-        <input
-          type="text"
+        <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !e.nativeEvent.isComposing && handleSend()}
+          onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && handleSend()}
           placeholder="メッセージ（/2d6 でダイス）"
           style={{
             flex: 1,
@@ -163,8 +124,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             borderRadius: 0,
             color: theme.textPrimary,
             fontSize: '12px',
-            height: '24px',
             boxSizing: 'border-box',
+            resize: 'none',
             outline: 'none',
           }}
         />
@@ -173,7 +134,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           disabled={!input.trim()}
           style={{
             padding: '0 10px',
-            height: '24px',
             background: input.trim() ? theme.accent : theme.bgInput,
             color: input.trim() ? theme.textOnAccent : theme.textMuted,
             border: 'none',
@@ -181,6 +141,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             fontSize: '11px',
             fontWeight: 600,
             cursor: input.trim() ? 'pointer' : 'not-allowed',
+            alignSelf: 'flex-end',
           }}
         >
           送信
