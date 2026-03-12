@@ -1,10 +1,10 @@
-import { API_BASE_URL, getAccessToken } from '../config/api';
+import { API_BASE_URL } from '../config/api';
 import { compressImage } from './fileUpload';
 
 function getIdToken(): string {
-  const token = getAccessToken();
-  if (!token) throw new Error('未認証');
-  return token;
+  // Convex Auth により、トークンはクライアント側で自動管理される
+  // ここではダミー実装のままとしておく（後のフェーズで修正）
+  return '';
 }
 
 function getImageDimensions(blob: Blob): Promise<{ width: number; height: number }> {

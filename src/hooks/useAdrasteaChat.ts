@@ -1,13 +1,8 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { ChatMessage } from '../types/adrastea.types';
-import {
-  getCachedMessages,
-  cacheMessages,
-  clearCachedMessages,
-} from '../services/adrasteaCache';
 import { rollDice } from '../services/diceRoller';
-
-const PAGE_SIZE = 50;
 
 const genId = () =>
   globalThis.crypto?.randomUUID?.() ??
@@ -15,43 +10,25 @@ const genId = () =>
     b.toString(16).padStart(2, '0')
   ).join('');
 
-export function useAdrasteaChat(
-  roomId: string,
-  initialMessages?: ChatMessage[]
-) {
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages ?? []);
-  const [loading, setLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  const oldestTimestampRef = useRef<number>(Infinity);
+export function useAdrasteaChat(roomId: string) {
+  const messagesData = useQuery(api.messages.list, { room_id: roomId });
+  const sendMutation = useMutation(api.messages.send);
 
-  // 初回: initialMessages または IndexedDBキャッシュから読み込み
-  useEffect(() => {
-    const init = async () => {
-      if (!roomId) {
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
+  const loading = messagesData === undefined;
 
-      if (initialMessages && initialMessages.length > 0) {
-        setMessages(initialMessages);
-        oldestTimestampRef.current = initialMessages[0].created_at;
-        // キャッシュにも保存
-        await cacheMessages(initialMessages);
-      } else {
-        // IndexedDBキャッシュから取得
-        const cached = await getCachedMessages(roomId, PAGE_SIZE);
-        if (cached.length > 0) {
-          setMessages(cached);
-          oldestTimestampRef.current = cached[0].created_at;
-        }
-      }
-
-      setLoading(false);
-    };
-
-    init();
-  }, [roomId, initialMessages]);
+  const messages: ChatMessage[] = useMemo(() => {
+    if (!messagesData) return [];
+    return [...messagesData].reverse().map((m) => ({
+      id: m._id,
+      room_id: m.room_id,
+      sender_name: m.sender_name,
+      sender_uid: (m as any).sender_uid ?? undefined,
+      sender_avatar: (m as any).sender_avatar ?? null,
+      content: m.content,
+      message_type: m.message_type as ChatMessage['message_type'],
+      created_at: m._creationTime,
+    }));
+  }, [messagesData]);
 
   const sendMessage = useCallback(
     async (
@@ -63,74 +40,41 @@ export function useAdrasteaChat(
       diceSystem?: string
     ) => {
       try {
-        const now = Date.now();
         let finalContent = content;
-
         if (messageType === 'dice') {
           const result = await rollDice(content, diceSystem || 'DiceBot');
           finalContent = result
             ? `${content} → ${result.text}`
             : `${content} → (無効なコマンド)`;
         }
-
-        const newMessage: ChatMessage = {
-          id: genId(),
+        const id = genId();
+        await sendMutation({
+          id,
           room_id: roomId,
           sender_name: senderName,
-          sender_uid: senderUid ?? undefined,
-          sender_avatar: senderAvatar ?? null,
           content: finalContent,
           message_type: messageType === 'dice' ? 'dice' : messageType,
-          created_at: now,
-        };
-
-        setMessages((prev) => [...prev, newMessage]);
-        await cacheMessages([newMessage]);
-        return newMessage;
+          sender_uid: senderUid,
+          sender_avatar: senderAvatar,
+        });
+        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: messageType, created_at: Date.now() } as ChatMessage;
       } catch (error) {
-        console.error('メッセージの送信に失敗:', error);
+        console.error('メッセージ送信失敗:', error);
         return null;
       }
     },
-    [roomId]
+    [roomId, sendMutation]
   );
 
-  const loadMore = useCallback(async () => {
-    if (!hasMore) return;
+  const loadMore = useCallback(async () => {}, []);
+  const clearMessages = useCallback(async () => {}, []);
 
-    // IndexedDBキャッシュから古いメッセージを読み込む
-    const older = await getCachedMessages(roomId, PAGE_SIZE);
-
-    if (older.length < PAGE_SIZE) {
-      setHasMore(false);
-    }
-
-    if (older.length > 0) {
-      oldestTimestampRef.current = older[0].created_at;
-      setMessages((prev) => {
-        const ids = new Set(prev.map((m) => m.id));
-        const unique = older.filter((m) => !ids.has(m.id));
-        return [...unique, ...prev];
-      });
-    }
-  }, [roomId, hasMore]);
-
-  const clearMessages = useCallback(async () => {
-    await clearCachedMessages(roomId);
-    setMessages([]);
-    oldestTimestampRef.current = Infinity;
-    setHasMore(false);
-  }, [roomId]);
-
-  const _addMessage = useCallback((msg: ChatMessage) => {
-    setMessages((prev) => [...prev, msg]);
-    cacheMessages([msg]).catch(() => {});
-  }, []);
-
-  const _setAll = useCallback((msgs: ChatMessage[]) => {
-    setMessages(msgs);
-    setLoading(false);
-  }, []);
-
-  return { messages, loading, hasMore, sendMessage, loadMore, clearMessages, _addMessage, _setAll };
+  return {
+    messages,
+    loading,
+    hasMore: false,
+    sendMessage,
+    loadMore,
+    clearMessages,
+  };
 }

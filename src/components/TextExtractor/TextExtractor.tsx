@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PDFApiService, type ExtractResponse } from '../../services/api';
-import { AuthService } from '../../services/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { EncryptionKeyService } from '../../services/encryptionKey';
 import { EncryptionService } from '../../services/encryption';
 import styles from './TextExtractor.module.css';
@@ -16,6 +16,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
   numPages,
   currentPage,
 }) => {
+  const { user } = useAuth();
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +35,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     setExtractedData(null);
 
     // ログインチェック
-    const currentUser = AuthService.restoreUser();
-    if (!currentUser) {
+    if (!user) {
       setError('ログインが必要です');
       setIsExtracting(false);
       return;
