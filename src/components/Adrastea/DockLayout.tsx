@@ -209,11 +209,11 @@ const DockviewInner = memo(function DockviewInner({
         // owner / sub_owner: 全パネル構成（Board | ChatLog/ChatInput, Scene | BGM | Board, Property, Layer）
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
         api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'ログ',
+          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
           position: { referencePanel: 'board', direction: 'right' },
         });
         api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: '入力',
+          id: 'chatInput', component: 'chatInput', title: 'チャット',
           position: { referencePanel: 'chatLog', direction: 'below' },
         });
         api.addPanel({
@@ -245,11 +245,11 @@ const DockviewInner = memo(function DockviewInner({
         // user: シーン・キャラクター・チャット・ボード
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
         api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'ログ',
+          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
           position: { referencePanel: 'board', direction: 'right' },
         });
         api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: '入力',
+          id: 'chatInput', component: 'chatInput', title: 'チャット',
           position: { referencePanel: 'chatLog', direction: 'below' },
         });
         api.addPanel({
@@ -271,11 +271,11 @@ const DockviewInner = memo(function DockviewInner({
         // guest: ボード・チャットのみ
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
         api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'ログ',
+          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
           position: { referencePanel: 'board', direction: 'right' },
         });
         api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: '入力',
+          id: 'chatInput', component: 'chatInput', title: 'チャット',
           position: { referencePanel: 'chatLog', direction: 'below' },
         });
 
