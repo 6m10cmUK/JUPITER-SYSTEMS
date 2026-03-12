@@ -3,6 +3,7 @@ import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
+const ROOM_TAGS_PREFIX = 'adrastea-room-tags-';
 
 export interface Room {
   id: string;
@@ -25,6 +26,19 @@ function loadOrder(): string[] {
 
 function saveOrder(ids: string[]) {
   localStorage.setItem(ROOM_ORDER_KEY, JSON.stringify(ids));
+}
+
+function loadRoomTags(roomId: string): string[] {
+  try {
+    const raw = localStorage.getItem(ROOM_TAGS_PREFIX + roomId);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRoomTags(roomId: string, tags: string[]) {
+  localStorage.setItem(ROOM_TAGS_PREFIX + roomId, JSON.stringify(tags));
 }
 
 function sortByOrder(rooms: Room[]): Room[] {
@@ -53,7 +67,7 @@ export function useRooms(_uid?: string) {
         id: r.id,
         name: r.name ?? '',
         dice_system: r.dice_system ?? 'DiceBot',
-        tags: [],
+        tags: loadRoomTags(r.id),
         thumbnail_url: null,
         created_at: r.created_at ?? r._creationTime ?? 0,
         updated_at: r.updated_at ?? r._creationTime ?? 0,
@@ -71,10 +85,20 @@ export function useRooms(_uid?: string) {
   );
 
   const updateRoom = useCallback(
-    (roomId: string, data: Partial<Pick<Room, 'name' | 'dice_system'>>) => {
-      updateMutation({ id: roomId, ...data }).catch((err) =>
-        console.error('ルーム更新に失敗:', err)
-      );
+    (roomId: string, data: Partial<Pick<Room, 'name' | 'dice_system' | 'tags'>>) => {
+      // tags は localStorage に保存（Convex同期なし）
+      if (data.tags !== undefined) {
+        saveRoomTags(roomId, data.tags);
+      }
+      // name/dice_system は Convex に保存
+      const convexData: Partial<Pick<Room, 'name' | 'dice_system'>> = {};
+      if (data.name !== undefined) convexData.name = data.name;
+      if (data.dice_system !== undefined) convexData.dice_system = data.dice_system;
+      if (Object.keys(convexData).length > 0) {
+        updateMutation({ id: roomId, ...convexData }).catch((err) =>
+          console.error('ルーム更新に失敗:', err)
+        );
+      }
     },
     [updateMutation]
   );
