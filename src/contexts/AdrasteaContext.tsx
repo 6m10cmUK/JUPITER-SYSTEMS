@@ -68,6 +68,10 @@ export interface AdrasteaContextValue {
     characterAvatar?: string | null,
   ) => void;
 
+  // --- Active speaker character ---
+  activeSpeakerCharId: string | null;
+  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
+
   // --- useScenes ---
   scenes: Scene[];
   addScene: ReturnType<typeof useScenes>['addScene'];
