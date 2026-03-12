@@ -32,13 +32,23 @@ export const list = query({
       throw new Error("Not authenticated");
     }
 
+    const userId = getUserId(identity);
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_room_time", (q) => q.eq("room_id", args.room_id))
       .order("desc")
       .take(100);
 
-    return messages;
+    // Filter messages based on allowed_user_ids
+    return messages.filter(msg => {
+      const allowedUserIds = (msg as any).allowed_user_ids;
+      // If allowed_user_ids is set and non-empty, only include if user is in the list
+      if (allowedUserIds && allowedUserIds.length > 0) {
+        return allowedUserIds.includes(userId);
+      }
+      // If not set or empty, include for all users
+      return true;
+    });
   },
 });
 
@@ -54,6 +64,8 @@ export const send = mutation({
     message_type: v.union(v.literal("chat"), v.literal("dice"), v.literal("system")),
     sender_uid: v.optional(v.string()),
     sender_avatar: v.optional(v.union(v.string(), v.null())),
+    channel: v.optional(v.string()),
+    allowed_user_ids: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -72,6 +84,8 @@ export const send = mutation({
       sender_avatar: args.sender_avatar ?? null,
       content: args.content,
       message_type: args.message_type,
+      channel: args.channel,
+      allowed_user_ids: args.allowed_user_ids,
       created_at: Date.now(),
     };
 

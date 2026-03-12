@@ -242,6 +242,8 @@ export default defineSchema({
       v.literal("dice"),
       v.literal("system")
     ),
+    channel: v.optional(v.string()),
+    allowed_user_ids: v.optional(v.array(v.string())),
     created_at: v.number(),
   })
     .index("by_room", ["room_id"])

@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { ConfirmModal } from './ui';
 
 /**
@@ -12,6 +13,13 @@ import { ConfirmModal } from './ui';
  * - ~~テキスト~~ → <span style="text-decoration: line-through">
  * - [color=#ff0000]テキスト[/color] → <span style="color: #ff0000">
  */
+// チャンネルラベルマッピング
+const CHANNEL_LABELS: Record<string, string> = {
+  main: 'メイン',
+  info: '情報',
+  other: '雑談',
+};
+
 const parseMarkup = (text: string): React.ReactNode[] => {
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -228,6 +236,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   onLoadMore,
   onClearMessages,
 }) => {
+  const { activeChatChannel, setActiveChatChannel } = useAdrasteaContext();
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
@@ -236,6 +245,19 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(messages.length);
   const isLoadingMoreRef = useRef(false);
+
+  // チャンネル一覧を動的に収集
+  const channels = useMemo(() => {
+    const set = new Set<string>(['main']); // main は常に表示
+    messages.forEach(m => set.add(m.channel ?? 'main'));
+    return Array.from(set); // 登場順を保持
+  }, [messages]);
+
+  // アクティブチャンネルでメッセージをフィルタ
+  const filteredMessages = useMemo(
+    () => messages.filter(m => (m.channel ?? 'main') === activeChatChannel),
+    [messages, activeChatChannel]
+  );
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -249,15 +271,15 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   }, []);
 
   useEffect(() => {
-    if (messages.length > prevMessageCountRef.current) {
+    if (filteredMessages.length > prevMessageCountRef.current) {
       if (!isLoadingMoreRef.current) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         setHasNewMessage(false);
       }
       isLoadingMoreRef.current = false;
     }
-    prevMessageCountRef.current = messages.length;
-  }, [messages.length]);
+    prevMessageCountRef.current = filteredMessages.length;
+  }, [filteredMessages.length]);
 
   useEffect(() => {
     if (!loading) {
@@ -396,6 +418,41 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         )}
       </div>
 
+      {/* チャンネルタブ */}
+      {channels.length > 1 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: '2px',
+            padding: '4px 8px',
+            borderBottom: `1px solid ${theme.border}`,
+            overflowX: 'auto',
+          }}
+        >
+          {channels.map((channel) => (
+            <button
+              key={channel}
+              onClick={() => setActiveChatChannel(channel)}
+              style={{
+                padding: '4px 10px',
+                background: activeChatChannel === channel ? theme.bgInput : 'transparent',
+                color: activeChatChannel === channel ? theme.textPrimary : theme.textSecondary,
+                border: 'none',
+                borderBottom: activeChatChannel === channel ? `2px solid ${theme.accent}` : 'none',
+                cursor: 'pointer',
+                fontSize: '11px',
+                fontWeight: activeChatChannel === channel ? 600 : 400,
+                whiteSpace: 'nowrap',
+                transition: 'background 0.2s, color 0.2s',
+              }}
+              title={channel}
+            >
+              {CHANNEL_LABELS[channel] || channel}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* メッセージ一覧 */}
       <div
         ref={scrollContainerRef}
@@ -431,7 +488,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           </button>
         )}
 
-        {messages.map(renderMessage)}
+        {filteredMessages.map(renderMessage)}
         <div ref={messagesEndRef} />
       </div>
 

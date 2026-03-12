@@ -219,6 +219,8 @@ export interface ChatMessage {
   sender_avatar?: string | null;
   content: string;
   message_type: 'chat' | 'dice' | 'system';
+  channel?: string;
+  allowed_user_ids?: string[];
   created_at: number;
 }
 
