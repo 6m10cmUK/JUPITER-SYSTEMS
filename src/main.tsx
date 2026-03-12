@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { HelmetProvider } from 'react-helmet-async'
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import './index.css'
+import 'prosemirror-view/style/prosemirror.css'
 import App from './App.tsx'
 import { convex } from './convex'
 

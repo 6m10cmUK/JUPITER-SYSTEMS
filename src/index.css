@@ -101,3 +101,59 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;  /* Safari and Chrome */
 }
+
+/* Milkdown ダークテーマオーバーライド */
+.milkdown {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.milkdown .ProseMirror {
+  color: #e0e0e0 !important;
+  background: transparent !important;
+  outline: none !important;
+  padding: 4px 6px !important;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 12px !important;
+  font-family: inherit !important;
+  line-height: 1.5 !important;
+  flex: 1;
+  min-height: 0;
+}
+
+.milkdown .ProseMirror p {
+  margin: 0 !important;
+  color: #e0e0e0 !important;
+}
+
+.milkdown .ProseMirror strong {
+  color: #e0e0e0 !important;
+}
+
+.milkdown .ProseMirror em {
+  color: #e0e0e0 !important;
+}
+
+.milkdown .ProseMirror h1,
+.milkdown .ProseMirror h2,
+.milkdown .ProseMirror h3 {
+  color: #e0e0e0 !important;
+  margin: 0 !important;
+}
+
+.milkdown .ProseMirror .ProseMirror-selectednode {
+  outline: none !important;
+}
+
+/* Milkdownのツールチップ・メニューを非表示 */
+.milkdown-menu {
+  display: none !important;
+}

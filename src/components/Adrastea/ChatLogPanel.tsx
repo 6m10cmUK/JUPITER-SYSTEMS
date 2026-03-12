@@ -1,14 +1,167 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
-import type { ChatMessage } from '../../types/adrastea.types';
+import type { ChatMessage, Character } from '../../types/adrastea.types';
 import { ConfirmModal } from './ui';
+
+/**
+ * インラインマークアップをパースしてReact要素の配列を返す
+ * サポート構文:
+ * - **テキスト** → <strong>
+ * - *テキスト* → <em>
+ * - ~~テキスト~~ → <span style="text-decoration: line-through">
+ * - [color=#ff0000]テキスト[/color] → <span style="color: #ff0000">
+ */
+const parseMarkup = (text: string): React.ReactNode[] => {
+  const elements: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let keyCounter = 0;
+
+  // 全マークアップに対する正規表現（優先度順）
+  // <color=#...>...</color>, **...**, ~~...~~, *...*
+  const markupRegex = /(<color=#[a-fA-F0-9]{6}>.*?<\/color>|\*\*.*?\*\*|~~.*?~~|\*.*?\*)/g;
+
+  let match: RegExpExecArray | null;
+  const regex = new RegExp(markupRegex);
+
+  while ((match = regex.exec(text)) !== null) {
+    const matchText = match[0];
+    const matchIndex = match.index;
+
+    // マッチ前のプレーンテキストを追加
+    if (matchIndex > lastIndex) {
+      elements.push(
+        <React.Fragment key={`text-${keyCounter++}`}>
+          {text.slice(lastIndex, matchIndex)}
+        </React.Fragment>
+      );
+    }
+
+    // マークアップをパース
+    let element: React.ReactNode | null = null;
+
+    // <color=#...>...</color>
+    if (matchText.startsWith('<color=')) {
+      const colorMatch = matchText.match(/<color=(#[a-fA-F0-9]{6})>(.*?)<\/color>/);
+      if (colorMatch) {
+        const [, colorValue, content] = colorMatch;
+        element = (
+          <span key={`markup-${keyCounter++}`} style={{ color: colorValue }}>
+            {content}
+          </span>
+        );
+      }
+    }
+    // **テキスト**
+    else if (matchText.startsWith('**') && matchText.endsWith('**')) {
+      const content = matchText.slice(2, -2);
+      element = (
+        <strong key={`markup-${keyCounter++}`}>
+          {content}
+        </strong>
+      );
+    }
+    // ~~テキスト~~
+    else if (matchText.startsWith('~~') && matchText.endsWith('~~')) {
+      const content = matchText.slice(2, -2);
+      element = (
+        <span key={`markup-${keyCounter++}`} style={{ textDecoration: 'line-through' }}>
+          {content}
+        </span>
+      );
+    }
+    // *テキスト*
+    else if (matchText.startsWith('*') && matchText.endsWith('*')) {
+      const content = matchText.slice(1, -1);
+      element = (
+        <em key={`markup-${keyCounter++}`}>
+          {content}
+        </em>
+      );
+    }
+
+    if (element) {
+      elements.push(element);
+    }
+
+    lastIndex = matchIndex + matchText.length;
+  }
+
+  // 末尾のプレーンテキストを追加
+  if (lastIndex < text.length) {
+    elements.push(
+      <React.Fragment key={`text-${keyCounter++}`}>
+        {text.slice(lastIndex)}
+      </React.Fragment>
+    );
+  }
+
+  // テキストが空の場合は元のテキストを返す
+  return elements.length === 0 ? [text] : elements;
+};
+
+/**
+ * 行頭の # でフォントサイズを変える構文に対応したパーサー
+ * サポート構文:
+ * - # テキスト → 18px
+ * - ## テキスト → 15px
+ * - ### テキスト → 13px
+ * 各行のインラインマークアップも parseMarkup で処理される
+ */
+const parseContent = (text: string): React.ReactNode => {
+  const lines = text.split('\n');
+
+  return (
+    <>
+      {lines.map((line, lineIndex) => {
+        // 行頭の # 数を確認
+        let hashCount = 0;
+        let i = 0;
+        while (i < line.length && line[i] === '#') {
+          hashCount++;
+          i++;
+        }
+
+        // フォントサイズを決定
+        let fontSize = '12px'; // デフォルト
+        if (hashCount === 1) {
+          fontSize = '18px';
+        } else if (hashCount === 2) {
+          fontSize = '15px';
+        } else if (hashCount === 3) {
+          fontSize = '13px';
+        }
+
+        // # を除いたテキスト（先頭のスペースも削除）
+        const contentText = hashCount > 0 ? line.slice(hashCount).trimStart() : line;
+
+        // # がない場合は hashCount = 0 なので contentText = line のままになる
+        if (hashCount === 0) {
+          // 通常の行
+          return (
+            <div key={lineIndex} style={{ fontSize: '12px' }}>
+              {parseMarkup(line)}
+            </div>
+          );
+        } else {
+          // ヘッダー行
+          return (
+            <div key={lineIndex} style={{ fontSize }}>
+              {parseMarkup(contentText)}
+            </div>
+          );
+        }
+      })}
+    </>
+  );
+};
 
 interface ChatLogPanelProps {
   messages: ChatMessage[];
   loading: boolean;
   hasMore: boolean;
   roomName?: string;
+  characters?: Character[];
   onLoadMore: () => void;
   onClearMessages?: () => void;
 }
@@ -26,43 +179,44 @@ const getDiceAccentColor = (content: string): string => {
   return theme.accent;
 };
 
-const FallbackAvatar: React.FC<{ name: string }> = ({ name }) => (
+const FallbackAvatar: React.FC<{ name: string; color?: string | null }> = ({ name, color }) => (
   <div
     style={{
       width: 24,
       height: 24,
       borderRadius: '50%',
-      background: theme.bgInput,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '10px',
-      fontWeight: 700,
-      color: theme.textPrimary,
+      background: color ?? theme.bgInput,
       flexShrink: 0,
     }}
-  >
-    {name.charAt(0).toUpperCase()}
-  </div>
+  />
 );
 
-const Avatar: React.FC<{ src?: string | null; name: string }> = ({ src, name }) => {
+const Avatar: React.FC<{ src?: string | null; name: string; color?: string | null }> = ({ src, name, color }) => {
   if (src) {
     return (
-      <img
-        src={src}
-        alt={name}
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: '50%',
-          objectFit: 'cover',
-          flexShrink: 0,
-        }}
-      />
+      <div style={{
+        width: 24,
+        height: 24,
+        borderRadius: '50%',
+        background: color ?? undefined,
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}>
+        <img
+          src={src}
+          alt={name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'top',
+            display: 'block',
+          }}
+        />
+      </div>
     );
   }
-  return <FallbackAvatar name={name} />;
+  return <FallbackAvatar name={name} color={color} />;
 };
 
 const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
@@ -70,6 +224,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   loading,
   hasMore,
   roomName,
+  characters,
   onLoadMore,
   onClearMessages,
 }) => {
@@ -95,15 +250,20 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
 
   useEffect(() => {
     if (messages.length > prevMessageCountRef.current) {
-      if (isNearBottomRef.current) {
+      if (!isLoadingMoreRef.current) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-      } else if (!isLoadingMoreRef.current) {
-        setHasNewMessage(true);
+        setHasNewMessage(false);
       }
       isLoadingMoreRef.current = false;
     }
     prevMessageCountRef.current = messages.length;
   }, [messages.length]);
+
+  useEffect(() => {
+    if (!loading) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }
+  }, [loading]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -111,6 +271,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   };
 
   const renderMessage = (msg: ChatMessage) => {
+    const charColor = characters?.find(c => c.name === msg.sender_name)?.color ?? null;
     if (msg.message_type === 'system') {
       return (
         <div
@@ -140,10 +301,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             borderBottom: `1px solid ${theme.borderSubtle}`,
           }}
         >
-          <Avatar src={msg.sender_avatar} name={msg.sender_name} />
+          <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: accent, fontSize: '11px', fontWeight: 600 }}>
+              <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600 }}>
                 🎲 {msg.sender_name}
               </span>
               <span style={{ color: theme.textMuted, fontSize: '10px' }}>
@@ -151,7 +312,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               </span>
             </div>
             <div style={{ color: accent, fontSize: '12px', marginTop: '1px' }}>
-              {msg.content}
+              {parseContent(msg.content)}
             </div>
           </div>
         </div>
@@ -169,10 +330,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           borderBottom: `1px solid ${theme.borderSubtle}`,
         }}
       >
-        <Avatar src={msg.sender_avatar} name={msg.sender_name} />
+        <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: theme.textSecondary, fontSize: '11px', fontWeight: 600 }}>
+            <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600 }}>
               {msg.sender_name}
             </span>
             <span style={{ color: theme.textMuted, fontSize: '10px' }}>
@@ -180,7 +341,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             </span>
           </div>
           <div style={{ color: theme.textPrimary, fontSize: '12px', marginTop: '1px' }}>
-            {msg.content}
+            {parseContent(msg.content)}
           </div>
         </div>
       </div>
