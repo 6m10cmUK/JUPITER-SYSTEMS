@@ -61,6 +61,17 @@ export default {
       return new Response(null, { status: 204, headers });
     }
 
+    try {
+      return await handleRequest(request, url, env, headers);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+    }
+  },
+};
+
+async function handleRequest(request: Request, url: URL, env: Env, headers: Record<string, string>): Promise<Response> {
+
     // 使用量制御（GET /file/* は除外）
     if (!url.pathname.startsWith('/file/')) {
       const rateLimitResult = await checkRateLimit(env.DB);
@@ -116,5 +127,4 @@ export default {
     }
 
     return new Response('Not Found', { status: 404, headers });
-  },
-};
+}

@@ -123,13 +123,19 @@ export function useAssets() {
   const addAssetByUrl = useCallback(
     async (url: string, assetType: 'image' | 'audio'): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const filename = decodeURIComponent(url.split('/').pop() || url).replace(/[?#].*$/, '');
+      // Dropbox共有URL（dl=0）を直接ダウンロードURL（dl=1）に変換
+      // 新形式(scl): dl=0 → dl=1 のみでOK
+      // 旧形式(/s/): www.dropbox.com → dl.dropboxusercontent.com でも可
+      const normalizedUrl = url.includes('dropbox.com')
+        ? url.replace(/([?&])dl=0(&|$)/, '$1dl=1$2').replace(/www\.dropbox\.com\/s\//, 'dl.dropboxusercontent.com/s/')
+        : url;
+      const filename = decodeURIComponent(normalizedUrl.split('/').pop() || normalizedUrl).replace(/[?#].*$/, '');
       const title = filename;
       const res = await apiFetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
+          url: normalizedUrl,
           r2_key: '',
           filename,
           title,

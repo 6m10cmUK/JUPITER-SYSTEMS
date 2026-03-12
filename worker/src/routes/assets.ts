@@ -49,7 +49,7 @@ export async function handleAssets(
       asset_type?: string;
     };
 
-    if (!body.url || !body.r2_key || !body.filename) {
+    if (!body.url || body.r2_key === undefined || body.r2_key === null || !body.filename) {
       return json({ error: 'url, r2_key, filename required' }, headers, 400);
     }
 
