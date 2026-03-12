@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../config/api';
+import { useQuery } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
@@ -152,32 +153,26 @@ const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut } = useAuth();
-  const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
-  const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
+
+  // Convex から room データを取得
+  const roomData = useQuery(
+    api.rooms.get,
+    roomId && user ? { id: roomId } : 'skip'
+  );
 
   useEffect(() => {
     document.title = 'Adrastea';
   }, []);
 
-  // ルーム存在チェック & オーナーUID取得
-  useEffect(() => {
-    if (!roomId || !user) {
-      setOwnerCheck('loading');
-      return;
-    }
-    apiFetch(`/api/rooms/${roomId}`).then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setRoomOwnerUid(data.owner_id ?? null);
-        setOwnerCheck('ok');
-      } else {
-        setOwnerCheck('denied');
-      }
-    }).catch((err) => {
-      console.error('ルーム確認に失敗:', err);
-      setOwnerCheck('denied');
-    });
-  }, [roomId, user]);
+  // オーナー UID を抽出
+  const roomOwnerUid = (roomData && 'owner_id' in roomData) ? roomData.owner_id : null;
+
+  // owner check 状態を算出
+  const ownerCheck: 'loading' | 'ok' | 'denied' =
+    !roomId ? 'ok'
+    : roomData === undefined ? 'loading'
+    : roomData === null ? 'denied'
+    : 'ok';
 
   // ロール判定: guest > owner > user
   const roomRole = isGuest ? 'guest' as const

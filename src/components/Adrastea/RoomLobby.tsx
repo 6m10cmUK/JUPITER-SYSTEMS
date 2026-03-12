@@ -447,7 +447,7 @@ function SortableRoomCard({
 // ── メイン ──
 const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   const { user, signOut } = useAuth();
-  const { rooms, loading, deleteRoom, updateRoom, reorderRooms } = useRooms(user?.uid);
+  const { rooms, loading, deleteRoom, updateRoom, reorderRooms, addRoom } = useRooms(user?.uid);
   const [diceSystems, setDiceSystems] = useState<{ id: string; name: string }[]>(cachedSystems ?? []);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
@@ -508,18 +508,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
     creatingRef.current = true;
     setIsCreating(true);
     try {
-      const res = await apiFetch('/api/rooms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          dice_system: createDice,
-          tags: createTags,
-        }),
-      });
-      if (!res.ok) throw new Error(`ルーム作成に失敗: ${res.status}`);
-      const { id } = await res.json();
-
+      const id = await addRoom(name, createDice, createTags);
       onRoomCreated(id);
     } catch (error) {
       console.error('ルーム作成に失敗しました:', error);

@@ -19,6 +19,7 @@ import type * as pieces from "../pieces.js";
 import type * as rooms from "../rooms.js";
 import type * as scenario_texts from "../scenario_texts.js";
 import type * as scenes from "../scenes.js";
+import type * as users from "../users.js";
 
 import type {
   ApiFromModules,
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   rooms: typeof rooms;
   scenario_texts: typeof scenario_texts;
   scenes: typeof scenes;
+  users: typeof users;
 }>;
 
 /**

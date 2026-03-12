@@ -62,6 +62,7 @@ export function useScenes(
           createdObjects.push({
             ...obj,
             id: genId(),
+            room_id: roomId,
             scene_ids: [id],
             created_at: now,
             updated_at: now,
@@ -70,6 +71,7 @@ export function useScenes(
       } else {
         createdObjects.push({
           id: genId(),
+          room_id: roomId,
           type: 'background',
           name: '背景',
           global: false,
@@ -86,6 +88,7 @@ export function useScenes(
         });
         createdObjects.push({
           id: genId(),
+          room_id: roomId,
           type: 'foreground',
           name: '前景',
           global: false,

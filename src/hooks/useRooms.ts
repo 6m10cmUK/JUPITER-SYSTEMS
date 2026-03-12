@@ -42,6 +42,7 @@ export function useRooms(_uid?: string) {
   const roomsData = useQuery(api.rooms.list);
   const deleteMutation = useMutation(api.rooms.remove);
   const updateMutation = useMutation(api.rooms.update);
+  const createMutation = useMutation(api.rooms.create);
 
   const loading = roomsData === undefined;
 
@@ -49,13 +50,13 @@ export function useRooms(_uid?: string) {
     if (!roomsData) return [];
     return sortByOrder(
       roomsData.map((r) => ({
-        id: r._id,
+        id: r.id,
         name: r.name ?? '',
         dice_system: r.dice_system ?? 'DiceBot',
         tags: [],
         thumbnail_url: null,
-        created_at: r._creationTime ?? 0,
-        updated_at: r._creationTime ?? 0,
+        created_at: r.created_at ?? r._creationTime ?? 0,
+        updated_at: r.updated_at ?? r._creationTime ?? 0,
       }))
     );
   }, [roomsData]);
@@ -86,5 +87,14 @@ export function useRooms(_uid?: string) {
     // Convex useQuery が自動で最新データを返すため no-op
   }, []);
 
-  return { rooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms };
+  const addRoom = useCallback(
+    async (name: string, dice_system: string, tags: string[]): Promise<string> => {
+      const id = crypto.randomUUID();
+      await createMutation({ id, name, dice_system, gm_can_see_secret_memo: false });
+      return id;
+    },
+    [createMutation]
+  );
+
+  return { rooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms, addRoom };
 }

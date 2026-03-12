@@ -39,7 +39,7 @@ export const get = query({
       .first();
 
     if (!room) {
-      throw new Error("Room not found");
+      return null;
     }
 
     return room;

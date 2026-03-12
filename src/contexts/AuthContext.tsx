@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
+import { api } from '../../convex/_generated/api';
 import type { UserProfile } from '../types/adrastea.types';
 
 export interface AuthUser {
@@ -26,6 +27,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signIn: convexSignIn, signOut: convexSignOut } = useAuthActions();
+  const viewerData = useQuery(api.users.viewer);
 
   const signIn = async () => {
     await convexSignIn("google");
@@ -39,14 +41,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await convexSignOut();
   };
 
-  // ユーザー情報は isAuthenticated を基に最小限で構築（後フェーズで拡充）
-  const user: AuthUser | null = isAuthenticated
-    ? { uid: "pending", displayName: "ユーザー", avatarUrl: null, isGuest: false }
+  const uid = viewerData?.id ?? null;
+
+  const user: AuthUser | null = (isAuthenticated && uid)
+    ? { uid, displayName: "ユーザー", avatarUrl: null, isGuest: false }
     : null;
 
-  const profile: UserProfile | null = isAuthenticated
+  const profile: UserProfile | null = (isAuthenticated && uid)
     ? {
-        uid: "pending",
+        uid,
         display_name: "ユーザー",
         avatar_url: null,
         created_at: Date.now(),
@@ -55,13 +58,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     : null;
 
   const isGuest = user?.isGuest ?? false;
+  // viewerData が undefined = ロード中。null = 未認証
+  const loading = isLoading || (isAuthenticated && viewerData === undefined);
 
   return (
     <AuthContext.Provider value={{
       user,
       profile,
       isGuest,
-      loading: isLoading,
+      loading,
       signIn,
       signInAsGuest,
       signOut,
