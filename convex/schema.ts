@@ -69,22 +69,13 @@ export default defineSchema({
   })
     .index("by_room", ["room_id"]),
 
-  characters: defineTable({
+  characters_stats: defineTable({
     id: v.string(),
     room_id: v.string(),
     owner_id: v.string(),
     name: v.string(),
-    images: v.array(
-      v.object({
-        url: v.string(),
-        label: v.string(),
-      })
-    ),
-    active_image_index: v.number(),
     color: v.string(),
-    sheet_url: v.union(v.string(), v.null()),
-    initiative: v.number(),
-    size: v.number(),
+    active_image_index: v.number(),
     statuses: v.array(
       v.object({
         label: v.string(),
@@ -99,18 +90,32 @@ export default defineSchema({
         value: v.union(v.number(), v.string()),
       })
     ),
-    memo: v.string(),
-    secret_memo: v.string(),
-    chat_palette: v.string(),
-    is_status_private: v.boolean(),
     is_hidden_on_board: v.boolean(),
     is_speech_hidden: v.boolean(),
     sort_order: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"])
-    .index("by_room_owner", ["room_id", "owner_id"]),
+    .index("by_room", ["room_id"]),
+
+  characters_base: defineTable({
+    id: v.string(),
+    room_id: v.string(),
+    images: v.array(
+      v.object({
+        url: v.string(),
+        label: v.string(),
+      })
+    ),
+    memo: v.string(),
+    secret_memo: v.string(),
+    chat_palette: v.string(),
+    sheet_url: v.union(v.string(), v.null()),
+    initiative: v.number(),
+    size: v.number(),
+    is_status_private: v.boolean(),
+  })
+    .index("by_room", ["room_id"]),
 
   objects: defineTable({
     id: v.string(),
