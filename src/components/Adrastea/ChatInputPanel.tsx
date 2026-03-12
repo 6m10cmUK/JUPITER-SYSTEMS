@@ -14,7 +14,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   onSendMessage,
 }) => {
   const [input, setInput] = useState('');
-  const [senderName, setSenderName] = useState('');
+  const [senderName, setSenderName] = useState('noname');
   const [selectedCharacterForIcon, setSelectedCharacterForIcon] = useState<Character | null>(null);
   const [showCharacterList, setShowCharacterList] = useState(false);
   const charListRef = useRef<HTMLDivElement>(null);
@@ -72,10 +72,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            padding: '4px 6px',
-            background: theme.bgInput,
-            borderRadius: 0,
-            border: `1px solid ${theme.border}`,
+            padding: '4px 0',
             position: 'relative',
           }}
         >
@@ -91,7 +88,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
                   ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) center/cover`
                   : selectedCharacterForIcon.color
-                : theme.bgInput,
+                : theme.border,
               border: `1px solid ${theme.border}`,
               flexShrink: 0,
               cursor: 'pointer',
@@ -113,7 +110,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             type="text"
             value={senderName}
             onChange={(e) => setSenderName(e.target.value)}
-            placeholder="名前（空欄で地の文）"
+            placeholder="noname"
             style={{
               flex: 1,
               padding: '4px 6px',
