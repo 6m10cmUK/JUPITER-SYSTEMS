@@ -41,19 +41,22 @@ export const join = mutation({
       .withIndex("by_room_user", (q) => q.eq("room_id", args.room_id).eq("user_id", userId))
       .first();
 
+    const room = await ctx.db
+      .query("rooms")
+      .filter((q) => q.eq(q.field("id"), args.room_id))
+      .first();
+    const correctRole = (room?.owner_id === userId) ? 'owner' : 'user';
+
     if (!existing) {
-      // オーナーなら 'owner'、それ以外は 'user' で登録
-      const room = await ctx.db
-        .query("rooms")
-        .filter((q) => q.eq(q.field("id"), args.room_id))
-        .first();
-      const role = (room?.owner_id === userId) ? 'owner' : 'user';
       await ctx.db.insert("room_members", {
         room_id: args.room_id,
         user_id: userId,
-        role,
+        role: correctRole,
         joined_at: Date.now(),
       });
+    } else if (existing.role !== 'owner' && correctRole === 'owner') {
+      // 既存エントリがあるがオーナーが user になってしまっている場合に修正
+      await ctx.db.patch(existing._id, { role: 'owner' });
     }
   },
 });
