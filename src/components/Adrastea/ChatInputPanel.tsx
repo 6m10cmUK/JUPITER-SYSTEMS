@@ -14,7 +14,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   onSendMessage,
 }) => {
   const [input, setInput] = useState('');
-  const [senderName, setSenderName] = useState('noname');
+  const [senderName, setSenderName] = useState('');
   const [selectedCharacterForIcon, setSelectedCharacterForIcon] = useState<Character | null>(null);
   const [showCharacterList, setShowCharacterList] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
@@ -25,7 +25,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     const text = input.trim();
     if (!text) return;
 
-    const charName = senderName.trim() || undefined;
+    const charName = senderName.trim() || 'noname';
     const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.url ?? null;
 
     if (text.startsWith('/')) {
