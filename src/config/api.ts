@@ -5,9 +5,12 @@ if (!API_BASE_URL) {
   console.error('VITE_R2_WORKER_URL が設定されていません。.envファイルを確認してください。');
 }
 
-/** JWT付きfetch（Convex がセッション管理するため、Authorizationヘッダーは不要） */
-export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+/** JWT付きfetch（Convex トークンを Authorizationヘッダーで Worker に送信） */
+export async function apiFetch(path: string, init?: RequestInit, token?: string): Promise<Response> {
   const headers = new Headers(init?.headers);
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   const res = await fetch(`${API_BASE_URL}${path}`, { ...init, headers });
 

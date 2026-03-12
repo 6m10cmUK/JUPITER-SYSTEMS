@@ -87,7 +87,7 @@ export default {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7), env.JWT_SECRET);
+    const user = await verifyJwt(authHeader.slice(7));
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
