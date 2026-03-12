@@ -52,18 +52,19 @@ export function useCharacters(roomId: string) {
     // Load sort order from localStorage
     const storageKey = `adrastea-char-order-${roomId}`;
     const savedOrder = localStorage.getItem(storageKey);
+    let sorted = merged;
     if (savedOrder) {
       try {
         const orderedIds = JSON.parse(savedOrder) as string[];
         const idToChar = new Map(merged.map(c => [c.id, c]));
-        const sorted: Character[] = [];
+        const sortedArray: Character[] = [];
         const seenIds = new Set<string>();
 
         // Add characters in saved order
         for (const id of orderedIds) {
           const char = idToChar.get(id);
           if (char) {
-            sorted.push(char);
+            sortedArray.push(char);
             seenIds.add(id);
           }
         }
@@ -71,18 +72,27 @@ export function useCharacters(roomId: string) {
         // Add remaining characters not in saved order at the end
         for (const char of merged) {
           if (!seenIds.has(char.id)) {
-            sorted.push(char);
+            sortedArray.push(char);
           }
         }
 
-        return sorted;
+        sorted = sortedArray;
       } catch {
         // If JSON parsing fails, return unsorted
-        return merged;
+        sorted = merged;
       }
     }
 
-    return merged;
+    // Overlay chat_palette from localStorage cache
+    const overlaidCharacters = sorted.map((char) => {
+      const cachedPalette = localStorage.getItem(`adrastea-chat-palette-${char.id}`);
+      if (cachedPalette !== null) {
+        return { ...char, chat_palette: cachedPalette };
+      }
+      return char;
+    });
+
+    return overlaidCharacters;
   }, [statsData, baseData, roomId]);
 
   const addCharacter = useCallback(
@@ -145,6 +155,11 @@ export function useCharacters(roomId: string) {
           baseUpdates[key] = value;
         }
       });
+
+      // Cache chat_palette in localStorage before mutation
+      if ('chat_palette' in baseUpdates) {
+        localStorage.setItem(`adrastea-chat-palette-${charId}`, baseUpdates.chat_palette ?? '');
+      }
 
       // Only call mutations if there are updates for each
       if (Object.keys(statsUpdates).length > 1) {
