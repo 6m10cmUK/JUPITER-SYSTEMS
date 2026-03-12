@@ -45,11 +45,11 @@ export function AdInput({ label, fullWidth = true, inputWidth, style, id, ...pro
 }
 
 // ── AdTextArea ──
-interface AdTextAreaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'style'> {
+interface AdTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
 }
 
-export function AdTextArea({ label, ...props }: AdTextAreaProps) {
+export function AdTextArea({ label, style, ...props }: AdTextAreaProps) {
   const autoId = useId();
   const textareaId = props.id || autoId;
   return (
@@ -70,6 +70,7 @@ export function AdTextArea({ label, ...props }: AdTextAreaProps) {
           width: '100%',
           minHeight: '60px',
           resize: 'vertical',
+          ...style,
         }}
       />
     </div>
@@ -1094,6 +1095,7 @@ export function AdToggleButtons<T extends string | null>({ label, value, options
               height: HEIGHT,
               padding: '0 8px',
               fontSize: '11px',
+              whiteSpace: 'nowrap',
               background: value === opt.value ? theme.accent : theme.bgInput,
               color: value === opt.value ? theme.textOnAccent : theme.textPrimary,
               border: 'none',

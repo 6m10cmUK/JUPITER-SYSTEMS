@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
-import { ConfirmModal, AdComboBox } from './ui';
+import { ConfirmModal } from './ui';
 
 interface ChatPanelProps {
   messages: ChatMessage[];
@@ -70,6 +70,16 @@ const Avatar: React.FC<{ src?: string | null; name: string }> = ({ src, name }) 
   return <FallbackAvatar name={name} />;
 };
 
+const DICE_BUTTONS = [
+  { label: 'd4', faces: 4 },
+  { label: 'd6', faces: 6 },
+  { label: 'd8', faces: 8 },
+  { label: 'd10', faces: 10 },
+  { label: 'd12', faces: 12 },
+  { label: 'd20', faces: 20 },
+  { label: 'd100', faces: 100 },
+];
+
 const ChatPanel: React.FC<ChatPanelProps> = ({
   messages,
   loading,
@@ -82,8 +92,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const [input, setInput] = useState('');
   const [hasNewMessage, setHasNewMessage] = useState(false);
-  const [speakerName, setSpeakerName] = useState('');
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const selectedCharacter = selectedCharacterId
+    ? characters.find(c => c.id === selectedCharacterId)
+    : null;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -122,13 +136,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-    const matchedChar = speakerName.trim()
-      ? characters.find(c => c.name === speakerName.trim())
-      : null;
-    const charName = speakerName.trim() || undefined;
-    const charAvatar = matchedChar
-      ? (matchedChar.images[matchedChar.active_image_index]?.url ?? null)
-      : null;
+
+    const charName = selectedCharacter?.name;
+    const charAvatar = selectedCharacter?.images[selectedCharacter.active_image_index]?.url;
+
     if (text.startsWith('/')) {
       const command = text.slice(1);
       if (command) {
@@ -340,33 +351,92 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           gap: '4px',
         }}
       >
-        {/* 発言者名 */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {/* マッチキャラのアイコン */}
-          {(() => {
-            const matched = speakerName.trim()
-              ? characters.find(c => c.name === speakerName.trim())
-              : null;
-            return (
-              <div style={{
-                width: '20px', height: '20px', flexShrink: 0,
-                background: matched
-                  ? (matched.images[matched.active_image_index]?.url
-                      ? `url(${matched.images[matched.active_image_index].url}) center/cover`
-                      : matched.color)
-                  : theme.bgInput,
+        {/* 発言キャラクター選択（アクティブキャラ情報表示） */}
+        {characters.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 6px',
+              background: theme.bgInput,
+              borderRadius: 0,
+              border: `1px solid ${theme.border}`,
+            }}
+          >
+            {selectedCharacter ? (
+              <>
+                <div
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: selectedCharacter.images[selectedCharacter.active_image_index]?.url
+                      ? `url(${selectedCharacter.images[selectedCharacter.active_image_index]?.url}) center/cover`
+                      : selectedCharacter.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600, flex: 1 }}>
+                  {selectedCharacter.name}
+                </span>
+              </>
+            ) : (
+              <span style={{ color: theme.textMuted, fontSize: '12px', flex: 1 }}>
+                地の文で発言
+              </span>
+            )}
+            <select
+              value={selectedCharacterId ?? ''}
+              onChange={(e) => setSelectedCharacterId(e.target.value || null)}
+              style={{
+                padding: '2px 4px',
+                background: theme.bgBase,
                 border: `1px solid ${theme.border}`,
-              }} />
-            );
-          })()}
-          <AdComboBox
-            mode="single"
-            value={speakerName}
-            onChange={setSpeakerName}
-            suggestions={characters.map(c => c.name)}
-            placeholder="発言者名（省略可）"
-            style={{ flex: 1 }}
-          />
+                borderRadius: 0,
+                color: theme.textSecondary,
+                fontSize: '11px',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+              title="発言キャラクターを選択"
+            >
+              <option value="">変更</option>
+              {characters.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* ダイスボタンバー */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '2px',
+            overflowX: 'auto',
+          }}
+        >
+          {DICE_BUTTONS.map((dice) => (
+            <button
+              key={dice.label}
+              onClick={() => onSendMessage(`1d${dice.faces}`, 'dice', selectedCharacter?.name, selectedCharacter?.images[selectedCharacter.active_image_index]?.url)}
+              style={{
+                padding: '2px 6px',
+                borderRadius: 0,
+                border: 'none',
+                background: theme.bgInput,
+                color: theme.textSecondary,
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0,
+              }}
+            >
+              {dice.label}
+            </button>
+          ))}
         </div>
 
         <div style={{ display: 'flex', gap: '4px' }}>

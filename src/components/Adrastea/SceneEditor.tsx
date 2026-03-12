@@ -40,7 +40,7 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
         bg_blur: bgBlur,
       },
     });
-  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, bgBlur, ctx.setPendingEdit, scene?.id]);
+  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, bgBlur, scene?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,

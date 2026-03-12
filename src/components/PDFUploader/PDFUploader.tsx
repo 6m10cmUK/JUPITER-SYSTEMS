@@ -1,6 +1,5 @@
-import React, { useState, useRef, useEffect, type DragEvent } from 'react';
-import { AuthService } from '../../services/auth';
-import type { AuthUser } from '../../services/auth';
+import React, { useState, useRef, type DragEvent } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import styles from './PDFUploader.module.css';
 
 interface PDFUploaderProps {
@@ -8,19 +7,14 @@ interface PDFUploaderProps {
   maxSize?: number; // in MB
 }
 
-export const PDFUploader: React.FC<PDFUploaderProps> = ({ 
-  onFileSelect, 
-  maxSize = 50 
+export const PDFUploader: React.FC<PDFUploaderProps> = ({
+  onFileSelect,
+  maxSize = 50
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const restored = AuthService.restoreUser();
-    setUser(restored);
-  }, []);
 
   const validateFile = (file: File): boolean => {
     setError(null);
@@ -41,8 +35,7 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
 
   const handleFile = (file: File) => {
     // ログインチェック
-    const currentUser = AuthService.restoreUser();
-    if (!currentUser) {
+    if (!user) {
       setError('この機能を使用するにはログインが必要です');
       return;
     }

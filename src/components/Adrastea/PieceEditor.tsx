@@ -44,14 +44,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
         setLabel(char.name);
         setColor(char.color);
         setImageUrl(char.images[char.active_image_index]?.url ?? '');
-        setStatuses(
-          char.statuses.length > 0
-            ? char.statuses.map((s) => ({
-                ...s,
-                color: STATUS_COLORS[0],
-              }))
-            : statuses
-        );
+        setStatuses(char.statuses.length > 0 ? [...char.statuses] : statuses);
       }
     }
   };
@@ -149,7 +142,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
               <AdInput type="number" fullWidth={false} value={s.max}
                 onChange={(e) => updateStatus(i, 'max', Number(e.target.value))}
                 style={{ width: '60px' }} />
-              <AdColorPicker value={s.color} onChange={(v) => updateStatus(i, 'color', v)} />
+              <AdColorPicker value={s.color ?? STATUS_COLORS[i % STATUS_COLORS.length]} onChange={(v) => updateStatus(i, 'color', v)} />
               <button onClick={() => removeStatus(i)} style={{
                 background: 'transparent', border: `1px solid ${theme.danger}`, color: theme.danger,
                 borderRadius: 0, cursor: 'pointer', display: 'flex', alignItems: 'center',

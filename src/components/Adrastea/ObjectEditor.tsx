@@ -53,7 +53,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const [posY, setPosY] = useState(object?.y ?? 50);
   const [width, setWidth] = useState(object?.width ?? 4);
   const [height, setHeight] = useState(object?.height ?? 4);
-  const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'cover');
+  const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'contain');
   const [positionLocked, setPositionLocked] = useState(object?.position_locked ?? false);
   const [sizeLocked, setSizeLocked] = useState(object?.size_locked ?? false);
   const [opacity, _setOpacity] = useState(object?.opacity ?? 1);
@@ -227,10 +227,14 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               {imageUrl && (
                 <AdSection label="画像表示">
-                  <AdCheckbox
-                    checked={imageFit === 'cover'}
-                    onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
-                    label="トリミング"
+                  <AdToggleButtons
+                    value={imageFit}
+                    options={[
+                      { value: 'contain', label: '全体表示' },
+                      { value: 'cover', label: 'トリミング' },
+                      { value: 'stretch', label: '引き伸ばし' },
+                    ]}
+                    onChange={(v) => setImageFit(v as 'contain' | 'cover' | 'stretch')}
                   />
                 </AdSection>
               )}
@@ -493,10 +497,14 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               {imageUrl && (
                 <AdSection label="画像表示">
-                  <AdCheckbox
-                    checked={imageFit === 'cover'}
-                    onChange={(v) => setImageFit(v ? 'cover' : 'stretch')}
-                    label="トリミング"
+                  <AdToggleButtons
+                    value={imageFit}
+                    options={[
+                      { value: 'contain', label: '全体表示' },
+                      { value: 'cover', label: 'トリミング' },
+                      { value: 'stretch', label: '引き伸ばし' },
+                    ]}
+                    onChange={(v) => setImageFit(v as 'contain' | 'cover' | 'stretch')}
                   />
                 </AdSection>
               )}

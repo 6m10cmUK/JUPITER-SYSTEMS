@@ -1,23 +1,36 @@
 import type { AuthUser } from '../types';
 
-const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-async function getKey(secret: string): Promise<CryptoKey> {
-  return crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify'],
-  );
-}
+// Convex JWKS endpoint
+const JWKS_URL = 'https://useful-jay-379.convex.site/.well-known/jwks.json';
 
-function base64url(data: ArrayBuffer | Uint8Array): string {
-  const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
-  let binary = '';
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+let cachedKeys: CryptoKey[] | null = null;
+let cacheExpiry = 0;
+
+async function getPublicKeys(): Promise<CryptoKey[]> {
+  const now = Date.now();
+  if (cachedKeys && now < cacheExpiry) return cachedKeys;
+
+  const res = await fetch(JWKS_URL);
+  if (!res.ok) throw new Error('Failed to fetch JWKS');
+  const data = (await res.json()) as { keys: JsonWebKey[] };
+  const keys = data.keys || [];
+
+  const cryptoKeys = await Promise.all(
+    keys.map((k) =>
+      crypto.subtle.importKey(
+        'jwk',
+        k,
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+        false,
+        ['verify'],
+      ),
+    ),
+  );
+  cachedKeys = cryptoKeys;
+  cacheExpiry = now + 5 * 60 * 1000; // 5分キャッシュ
+  return cryptoKeys;
 }
 
 function base64urlDecode(str: string): Uint8Array {
@@ -28,44 +41,35 @@ function base64urlDecode(str: string): Uint8Array {
   return bytes;
 }
 
-export async function signJwt(
-  payload: Record<string, unknown>,
-  secret: string,
-  expiresInSec = 3600,
-): Promise<string> {
-  const key = await getKey(secret);
-  const header = base64url(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
-  const now = Math.floor(Date.now() / 1000);
-  const body = base64url(
-    encoder.encode(JSON.stringify({ ...payload, iat: now, exp: now + expiresInSec })),
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(`${header}.${body}`));
-  return `${header}.${body}.${base64url(signature)}`;
-}
-
-export async function verifyJwt(token: string, secret: string): Promise<AuthUser | null> {
+export async function verifyJwt(token: string): Promise<AuthUser | null> {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const key = await getKey(secret);
-    const signatureBytes = base64urlDecode(parts[2]);
-    const valid = await crypto.subtle.verify(
-      'HMAC',
-      key,
-      signatureBytes,
-      encoder.encode(`${parts[0]}.${parts[1]}`),
-    );
-    if (!valid) return null;
-
-    const payload = JSON.parse(decoder.decode(base64urlDecode(parts[1])));
+    const decoder_text = new TextDecoder();
+    const payload = JSON.parse(decoder_text.decode(base64urlDecode(parts[1])));
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
+
+    const keys = await getPublicKeys();
+    const data = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
+    const sig = base64urlDecode(parts[2]);
+
+    const valid = await Promise.any(
+      keys.map((k) =>
+        crypto.subtle.verify('RSASSA-PKCS1-v1_5', k, sig, data).then((v) => {
+          if (!v) throw new Error();
+          return true;
+        }),
+      ),
+    ).catch(() => false);
+
+    if (!valid) return null;
 
     return {
       uid: payload.sub,
       displayName: payload.name ?? '',
       avatarUrl: payload.avatar ?? null,
-      isGuest: payload.guest ?? false,
+      isGuest: payload.isAnonymous ?? false,
     };
   } catch {
     return null;

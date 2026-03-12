@@ -14,6 +14,7 @@ import '../../styles/dockview-catppuccin.css';
 import { PictureInPicture2, Minus, Maximize2, ArrowDownToLine } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { usePermission } from '../../hooks/usePermission';
 import { panelComponents } from './dock-panels/sharedComponents';
 import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
@@ -26,8 +27,11 @@ const catppuccinTheme: DockviewTheme = {
   className: 'dockview-theme-catppuccin',
 };
 
-const LAYOUT_STORAGE_KEY = 'adrastea-dock-layout';
 const LAYOUT_VERSION = 3;
+
+function layoutKey(role: string): string {
+  return `adrastea-dock-layout-${role}`;
+}
 
 /* ── Board 専用タブ（閉じるボタンなし） ── */
 
@@ -35,10 +39,10 @@ const BoardTab: React.FunctionComponent<IDockviewPanelHeaderProps> = (props) => 
   return <DockviewDefaultTab {...props} hideClose />;
 };
 
-function saveLayout(api: DockviewApi) {
+function saveLayout(api: DockviewApi, role: string) {
   try {
     localStorage.setItem(
-      LAYOUT_STORAGE_KEY,
+      layoutKey(role),
       JSON.stringify({
         _version: LAYOUT_VERSION,
         layout: api.toJSON(),
@@ -47,8 +51,8 @@ function saveLayout(api: DockviewApi) {
   } catch { /* ignore */ }
 }
 
-function loadLayout(): object | null {
-  const saved = localStorage.getItem(LAYOUT_STORAGE_KEY);
+function loadLayout(role: string): object | null {
+  const saved = localStorage.getItem(layoutKey(role));
   if (!saved) return null;
   try {
     const wrapper = JSON.parse(saved);
@@ -166,8 +170,10 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
 
 const DockviewInner = memo(function DockviewInner({
   onApiReady,
+  role,
 }: {
   onApiReady: (api: DockviewApi) => void;
+  role: string;
 }) {
   const dockviewComponents = useMemo(() => {
     const comps: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {};
@@ -190,7 +196,7 @@ const DockviewInner = memo(function DockviewInner({
       onApiReady(api);
 
       // 保存済みレイアウトの復元を試みる
-      const saved = loadLayout();
+      const saved = loadLayout(role);
       if (saved) {
         try {
           api.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]);
@@ -198,48 +204,85 @@ const DockviewInner = memo(function DockviewInner({
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
 
-      // デフォルトレイアウト構築
-      // 1) まず横方向の骨格を作る: Board → 右にチャット → 左にシーン
-      api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-      api.addPanel({
-        id: 'chat', component: 'chat', title: 'チャット',
-        position: { referencePanel: 'board', direction: 'right' },
-      });
-      const scenePanel = api.addPanel({
-        id: 'scene', component: 'scene', title: 'シーン',
-        position: { referencePanel: 'board', direction: 'left' },
-      });
+      // ロール別デフォルトレイアウト構築
+      if (role === 'owner' || role === 'sub_owner') {
+        // owner / sub_owner: 全パネル構成（Board | Chat, Scene | BGM | Board, Property, Layer）
+        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
+        api.addPanel({
+          id: 'chat', component: 'chat', title: 'チャット',
+          position: { referencePanel: 'board', direction: 'right' },
+        });
+        api.addPanel({
+          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
+          position: { referencePanel: 'chat', direction: 'below' },
+        });
+        const scenePanel = api.addPanel({
+          id: 'scene', component: 'scene', title: 'シーン',
+          position: { referencePanel: 'board', direction: 'left' },
+        });
 
-      // 2) シーンの右隣に BGM 列を挿入（Board との間）
-      const bgmPanel = api.addPanel({
-        id: 'bgm', component: 'bgm', title: 'BGM',
-        position: { referencePanel: 'scene', direction: 'right' },
-      });
-      api.addPanel({
-        id: 'property', component: 'property', title: 'プロパティ',
-        position: { referencePanel: bgmPanel.id, direction: 'below' },
-      });
-      api.addPanel({
-        id: 'layer', component: 'layer', title: 'レイヤー',
-        position: { referencePanel: 'property', direction: 'below' },
-      });
+        const bgmPanel = api.addPanel({
+          id: 'bgm', component: 'bgm', title: 'BGM',
+          position: { referencePanel: 'scene', direction: 'right' },
+        });
+        api.addPanel({
+          id: 'property', component: 'property', title: 'プロパティ',
+          position: { referencePanel: bgmPanel.id, direction: 'below' },
+        });
+        api.addPanel({
+          id: 'layer', component: 'layer', title: 'レイヤー',
+          position: { referencePanel: 'property', direction: 'below' },
+        });
 
-      // 3) 幅の調整
-      scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
-      bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
-      api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
+        scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
+        bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
+        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
+      } else if (role === 'user') {
+        // user: シーン・キャラクター・チャット・ボード
+        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
+        api.addPanel({
+          id: 'chat', component: 'chat', title: 'チャット',
+          position: { referencePanel: 'board', direction: 'right' },
+        });
+        api.addPanel({
+          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
+          position: { referencePanel: 'chat', direction: 'below' },
+        });
+        const scenePanel = api.addPanel({
+          id: 'scene', component: 'scene', title: 'シーン',
+          position: { referencePanel: 'board', direction: 'left' },
+        });
+        api.addPanel({
+          id: 'character', component: 'character', title: 'キャラクター',
+          position: { referencePanel: 'scene', direction: 'below' },
+        });
+
+        scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
+        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
+      } else if (role === 'guest') {
+        // guest: ボード・チャットのみ
+        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
+        api.addPanel({
+          id: 'chat', component: 'chat', title: 'チャット',
+          position: { referencePanel: 'board', direction: 'right' },
+        });
+
+        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
+      }
     },
-    [onApiReady],
+    [onApiReady, role],
   );
 
   // レイアウト変更時に自動保存（debounce で連続変更をまとめる）
+  const roleRef = useRef(role);
+  roleRef.current = role;
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
     let timer: ReturnType<typeof setTimeout>;
     const disposable = api.onDidLayoutChange(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => saveLayout(api), 300);
+      timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
     });
     return () => { clearTimeout(timer); disposable.dispose(); };
   }, []);
@@ -259,11 +302,12 @@ const DockviewInner = memo(function DockviewInner({
 
 export function DockLayout() {
   const { setDockviewApi } = useAdrasteaContext();
+  const { roomRole } = usePermission();
 
   return (
     <div style={{ position: 'absolute', inset: 0 }}>
       <BgmEngine />
-      <DockviewInner onApiReady={setDockviewApi} />
+      <DockviewInner onApiReady={setDockviewApi} role={roomRole} />
     </div>
   );
 }

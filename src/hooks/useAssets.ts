@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuthToken } from '@convex-dev/auth/react';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';
@@ -9,6 +10,7 @@ let assetCache: { uid: string; assets: Asset[] } | null = null;
 
 export function useAssets() {
   const { user, isGuest } = useAuth();
+  const token = useAuthToken();
   const uid = user?.uid;
   const cached = uid && assetCache?.uid === uid ? assetCache.assets : null;
   const [assets, setAssetsRaw] = useState<Asset[]>(cached ?? []);
@@ -31,7 +33,7 @@ export function useAssets() {
     }
     setLoading(true);
     try {
-      const res = await apiFetch('/api/assets');
+      const res = await apiFetch('/api/assets', undefined, token ?? undefined);
       const data: Asset[] = await res.json();
       setAssets(data);
     } catch (error) {
@@ -39,7 +41,7 @@ export function useAssets() {
     } finally {
       setLoading(false);
     }
-  }, [uid, isGuest]);
+  }, [uid, isGuest, token]);
 
   // キャッシュがあればフェッチをスキップ
   useEffect(() => {
@@ -50,7 +52,7 @@ export function useAssets() {
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const result = await uploadAssetToR2(file, uid);
+      const result = await uploadAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
       try {
@@ -68,10 +70,10 @@ export function useAssets() {
             tags: [],
             asset_type: 'image',
           }),
-        });
+        }, token ?? undefined);
       } catch (e) {
         // D1登録失敗 → R2ファイルを削除してロールバック
-        await deleteR2File(result.r2_key).catch((err) => {
+        await deleteR2File(result.r2_key, token ?? '').catch((err) => {
           console.error('R2削除失敗（アセット登録ロールバック中）:', err);
         });
         throw e;
@@ -80,13 +82,13 @@ export function useAssets() {
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   const uploadAudioAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const result = await uploadAudioAssetToR2(file, uid);
+      const result = await uploadAudioAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
       try {
@@ -104,9 +106,9 @@ export function useAssets() {
             tags: [],
             asset_type: 'audio',
           }),
-        });
+        }, token ?? undefined);
       } catch (e) {
-        await deleteR2File(result.r2_key).catch((err) => {
+        await deleteR2File(result.r2_key, token ?? '').catch((err) => {
           console.error('R2削除失敗（オーディオアセット登録ロールバック中）:', err);
         });
         throw e;
@@ -115,19 +117,25 @@ export function useAssets() {
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   const addAssetByUrl = useCallback(
     async (url: string, assetType: 'image' | 'audio'): Promise<Asset | null> => {
       if (!uid || isGuest) return null;
-      const filename = decodeURIComponent(url.split('/').pop() || url).replace(/[?#].*$/, '');
+      // Dropbox共有URL（dl=0）を直接ダウンロードURL（dl=1）に変換
+      // 新形式(scl): dl=0 → dl=1 のみでOK
+      // 旧形式(/s/): www.dropbox.com → dl.dropboxusercontent.com でも可
+      const normalizedUrl = url.includes('dropbox.com')
+        ? url.replace(/([?&])dl=0(&|$)/, '$1dl=1$2').replace(/www\.dropbox\.com\/s\//, 'dl.dropboxusercontent.com/s/')
+        : url;
+      const filename = decodeURIComponent(normalizedUrl.split('/').pop() || normalizedUrl).replace(/[?#].*$/, '');
       const title = filename;
       const res = await apiFetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          url,
+          url: normalizedUrl,
           r2_key: '',
           filename,
           title,
@@ -137,21 +145,21 @@ export function useAssets() {
           tags: [],
           asset_type: assetType,
         }),
-      });
+      }, token ?? undefined);
       const created: Asset = await res.json();
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   const deleteAsset = useCallback(
     async (assetId: string, _r2Key?: string) => {
       if (!uid || isGuest) return;
-      await apiFetch(`/api/assets/${assetId}`, { method: 'DELETE' });
+      await apiFetch(`/api/assets/${assetId}`, { method: 'DELETE' }, token ?? undefined);
       setAssets((prev) => prev.filter((a) => a.id !== assetId));
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   const updateAssetTags = useCallback(
@@ -161,10 +169,10 @@ export function useAssets() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tags }),
-      });
+      }, token ?? undefined);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   const updateAssetTitle = useCallback(
@@ -174,10 +182,10 @@ export function useAssets() {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title }),
-      });
+      }, token ?? undefined);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, title } : a)));
     },
-    [uid, isGuest]
+    [uid, isGuest, token]
   );
 
   return { assets, loading, fetchAssets, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle };

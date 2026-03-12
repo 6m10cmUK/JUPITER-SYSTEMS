@@ -1,101 +1,74 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { ScenarioText } from '../types/adrastea.types';
+import { genId } from '../utils/id';
 
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
-
-export function useScenarioTexts(
-  roomId: string,
-  _enabled = true,
-  initialScenarioTexts?: ScenarioText[]
-) {
-  const [scenarioTexts, setScenarioTexts] = useState<ScenarioText[]>(
-    initialScenarioTexts ?? []
-  );
-  const scenarioTextsRef = useRef(scenarioTexts);
-  scenarioTextsRef.current = scenarioTexts;
-  const [loading, setLoading] = useState(!initialScenarioTexts);
-
-  useEffect(() => {
-    if (initialScenarioTexts) {
-      setScenarioTexts(initialScenarioTexts);
-      setLoading(false);
+export function useScenarioTexts(roomId: string, _enabled = true) {
+  const textsData = useQuery(api.scenario_texts.list, { room_id: roomId });
+  const createMutation = useMutation(api.scenario_texts.create);
+  const updateMutation = useMutation(api.scenario_texts.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.scenario_texts.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.scenario_texts.list,
+          { room_id: roomId },
+          current.map((t) => t.id === args.id ? { ...t, ...args } : t),
+        );
+      }
     }
-  }, [initialScenarioTexts]);
+  );
+  const removeMutation = useMutation(api.scenario_texts.remove);
+  const reorderMutation = useMutation(api.scenario_texts.reorder);
+
+  const loading = textsData === undefined;
+  const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
+    id: t.id, room_id: t.room_id, title: t.title, content: t.content,
+    visible: t.visible, sort_order: t.sort_order,
+    created_at: t._creationTime, updated_at: t._creationTime,
+  } as ScenarioText)), [textsData]);
 
   const addScenarioText = useCallback(
-    (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>) => {
+    async (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>): Promise<ScenarioText> => {
+      const id = (data as { id?: string }).id ?? genId();
       const now = Date.now();
-      const newId = (data as { id?: string }).id ?? genId();
       const newText: ScenarioText = {
-        id: newId,
-        room_id: roomId,
+        id, room_id: roomId,
         title: data.title ?? '新規テキスト',
         content: data.content ?? '',
         visible: data.visible ?? false,
-        sort_order: data.sort_order ?? scenarioTextsRef.current.length,
-        created_at: now,
-        updated_at: now,
+        sort_order: data.sort_order ?? scenarioTexts.length,
+        created_at: now, updated_at: now,
       };
-      setScenarioTexts((prev) => [...prev, newText]);
+      await createMutation(newText);
       return newText;
     },
-    [roomId]
+    [roomId, scenarioTexts.length, createMutation]
   );
 
   const updateScenarioText = useCallback(
-    (textId: string, updates: Partial<ScenarioText>) => {
-      setScenarioTexts((prev) =>
-        prev.map((t) =>
-          t.id === textId ? { ...t, ...updates, updated_at: Date.now() } : t
-        )
-      );
+    async (textId: string, updates: Partial<ScenarioText>): Promise<void> => {
+      const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as ScenarioText;
+      await updateMutation({ id: textId, ...rest } as any);
     },
-    []
+    [updateMutation]
   );
 
-  const removeScenarioText = useCallback((textId: string) => {
-    setScenarioTexts((prev) => prev.filter((t) => t.id !== textId));
-  }, []);
+  const removeScenarioText = useCallback(
+    async (textId: string): Promise<void> => {
+      await removeMutation({ id: textId });
+    },
+    [removeMutation]
+  );
 
   const reorderScenarioTexts = useCallback(
-    (orderedIds: string[]) => {
-      if (!roomId) return;
-      setScenarioTexts((prev) => {
-        const now = Date.now();
-        const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
-        return prev.map((t) => {
-          const newSort = orderMap.get(t.id);
-          return newSort !== undefined
-            ? { ...t, sort_order: newSort, updated_at: now }
-            : t;
-        });
-      });
+    async (orderedIds: string[]): Promise<void> => {
+      const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
+      await reorderMutation({ updates });
     },
-    [roomId]
+    [reorderMutation]
   );
 
-  const _setAll = useCallback((items: ScenarioText[]) => {
-    setScenarioTexts(items);
-    setLoading(false);
-  }, []);
-
-  // P2P: add single item without Firestore write
-  const _addOne = useCallback((item: ScenarioText) => {
-    setScenarioTexts(prev => [...prev, item]);
-  }, []);
-
-  return {
-    scenarioTexts,
-    loading,
-    addScenarioText,
-    updateScenarioText,
-    removeScenarioText,
-    reorderScenarioTexts,
-    _setAll,
-    _addOne,
-  };
+  return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts };
 }
