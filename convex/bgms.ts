@@ -1,6 +1,25 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
+type RoomRole = typeof ROLE_HIERARCHY[number];
+
+async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return 'guest';
+  const member = await ctx.db
+    .query("room_members")
+    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", identity.subject))
+    .first();
+  return (member?.role ?? 'guest') as RoomRole;
+}
+
+function assertMinRole(role: RoomRole, required: RoomRole): void {
+  if (ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf(required)) {
+    throw new Error(`Permission denied: requires ${required}, got ${role}`);
+  }
+}
+
 export const list = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
@@ -36,6 +55,8 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+    const role = await getRole(ctx, args.room_id);
+    assertMinRole(role, 'sub_owner');
     await ctx.db.insert("bgms", args);
   },
 });
@@ -66,6 +87,8 @@ export const update = mutation({
       .filter((q) => q.eq(q.field("id"), id))
       .first();
     if (!doc) throw new Error("BGM not found");
+    const role = await getRole(ctx, doc.room_id);
+    assertMinRole(role, 'sub_owner');
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
 });
@@ -79,7 +102,11 @@ export const remove = mutation({
       .query("bgms")
       .filter((q) => q.eq(q.field("id"), args.id))
       .first();
-    if (doc) await ctx.db.delete(doc._id);
+    if (doc) {
+      const role = await getRole(ctx, doc.room_id);
+      assertMinRole(role, 'sub_owner');
+      await ctx.db.delete(doc._id);
+    }
   },
 });
 

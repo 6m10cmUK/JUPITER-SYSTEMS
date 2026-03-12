@@ -1,6 +1,25 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
+type RoomRole = typeof ROLE_HIERARCHY[number];
+
+async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return 'guest';
+  const member = await ctx.db
+    .query("room_members")
+    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", identity.subject))
+    .first();
+  return (member?.role ?? 'guest') as RoomRole;
+}
+
+function assertMinRole(role: RoomRole, required: RoomRole): void {
+  if (ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf(required)) {
+    throw new Error(`Permission denied: requires ${required}, got ${role}`);
+  }
+}
+
 export const listStats = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
@@ -73,6 +92,9 @@ export const create = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
+    const role = await getRole(ctx, args.room_id);
+    assertMinRole(role, 'user');
+
     const now = Date.now();
 
     // Insert into characters_stats
@@ -139,6 +161,17 @@ export const updateStats = mutation({
       .first();
     if (!doc) throw new Error("Character stats not found");
 
+    const userId = identity.subject;
+    const role = await getRole(ctx, doc.room_id);
+
+    // sub_owner以上は常に編集可、user は自分のキャラのみ
+    if (ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf('sub_owner')) {
+      assertMinRole(role, 'user');
+      if (doc.owner_id !== userId) {
+        throw new Error("Permission denied: can only edit own character");
+      }
+    }
+
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
 });
@@ -166,6 +199,23 @@ export const updateBase = mutation({
       .first();
     if (!doc) throw new Error("Character base not found");
 
+    // 対応する characters_stats を取得してオーナーを確認
+    const statDoc = await ctx.db
+      .query("characters_stats")
+      .filter((q) => q.eq(q.field("id"), id))
+      .first();
+
+    const userId = identity.subject;
+    const role = await getRole(ctx, doc.room_id);
+
+    // sub_owner以上は常に編集可、user は自分のキャラのみ
+    if (statDoc && ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf('sub_owner')) {
+      assertMinRole(role, 'user');
+      if (statDoc.owner_id !== userId) {
+        throw new Error("Permission denied: can only edit own character");
+      }
+    }
+
     await ctx.db.patch(doc._id, updates);
   },
 });
@@ -181,7 +231,20 @@ export const remove = mutation({
       .query("characters_stats")
       .filter((q) => q.eq(q.field("id"), args.id))
       .first();
-    if (statDoc) await ctx.db.delete(statDoc._id);
+    if (statDoc) {
+      const userId = identity.subject;
+      const role = await getRole(ctx, statDoc.room_id);
+
+      // sub_owner以上は常に削除可、user は自分のキャラのみ
+      if (ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf('sub_owner')) {
+        assertMinRole(role, 'user');
+        if (statDoc.owner_id !== userId) {
+          throw new Error("Permission denied: can only remove own character");
+        }
+      }
+
+      await ctx.db.delete(statDoc._id);
+    }
 
     // Delete from characters_base
     const baseDoc = await ctx.db

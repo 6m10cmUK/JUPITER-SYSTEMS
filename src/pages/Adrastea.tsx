@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from 'convex/react';
+import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
@@ -164,8 +164,30 @@ const Adrastea: React.FC = () => {
     document.title = 'Adrastea';
   }, []);
 
-  // オーナー UID を抽出
-  const roomOwnerUid = (roomData && 'owner_id' in roomData) ? roomData.owner_id : null;
+  // ログイン後に元のURLへ復帰
+  useEffect(() => {
+    if (!user) return;
+    const saved = sessionStorage.getItem('adrastea_redirect');
+    if (saved) {
+      sessionStorage.removeItem('adrastea_redirect');
+      navigate(saved, { replace: true });
+    }
+  }, [user?.uid]);
+
+  // room_members からロール取得
+  const memberRole = useQuery(
+    api.room_members.getMyRole,
+    (roomId && user && !isGuest) ? { room_id: roomId } : 'skip'
+  );
+
+  const joinMutation = useMutation(api.room_members.join);
+
+  // ルーム入室時に join を呼ぶ
+  useEffect(() => {
+    if (roomId && user && !isGuest) {
+      joinMutation({ room_id: roomId }).catch(() => {});
+    }
+  }, [roomId, user?.uid, isGuest]);
 
   // owner check 状態を算出
   const ownerCheck: 'loading' | 'ok' | 'denied' =
@@ -174,10 +196,8 @@ const Adrastea: React.FC = () => {
     : roomData === null ? 'denied'
     : 'ok';
 
-  // ロール判定: guest > owner > user
-  const roomRole = isGuest ? 'guest' as const
-    : (user && roomOwnerUid === user.uid) ? 'owner' as const
-    : 'user' as const;
+  // ロール判定（ロード中は安全側の 'guest' にフォールバック）
+  const roomRole = (isGuest ? 'guest' : (memberRole ?? 'guest')) as 'owner' | 'sub_owner' | 'user' | 'guest';
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
@@ -205,7 +225,10 @@ const Adrastea: React.FC = () => {
             TRPG盤面共有ツール
           </p>
           <button
-            onClick={signIn}
+            onClick={() => {
+              sessionStorage.setItem('adrastea_redirect', window.location.pathname);
+              signIn();
+            }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               padding: '10px 20px', background: '#fff', color: '#333',

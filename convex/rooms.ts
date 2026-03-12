@@ -79,6 +79,15 @@ export const create = mutation({
     };
 
     await ctx.db.insert("rooms", room);
+
+    // 作成者を owner として room_members に登録
+    await ctx.db.insert("room_members", {
+      room_id: args.id,
+      user_id: userId,
+      role: 'owner',
+      joined_at: now,
+    });
+
     return room;
   },
 });

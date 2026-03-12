@@ -16,6 +16,7 @@ import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as objects from "../objects.js";
 import type * as pieces from "../pieces.js";
+import type * as room_members from "../room_members.js";
 import type * as rooms from "../rooms.js";
 import type * as scenario_texts from "../scenario_texts.js";
 import type * as scenes from "../scenes.js";
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   messages: typeof messages;
   objects: typeof objects;
   pieces: typeof pieces;
+  room_members: typeof room_members;
   rooms: typeof rooms;
   scenario_texts: typeof scenario_texts;
   scenes: typeof scenes;

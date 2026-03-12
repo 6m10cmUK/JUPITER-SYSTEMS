@@ -1,6 +1,25 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
+const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
+type RoomRole = typeof ROLE_HIERARCHY[number];
+
+async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return 'guest';
+  const member = await ctx.db
+    .query("room_members")
+    .withIndex("by_room_user", (q: any) => q.eq("room_id", roomId).eq("user_id", identity.subject))
+    .first();
+  return (member?.role ?? 'guest') as RoomRole;
+}
+
+function assertMinRole(role: RoomRole, required: RoomRole): void {
+  if (ROLE_HIERARCHY.indexOf(role) < ROLE_HIERARCHY.indexOf(required)) {
+    throw new Error(`Permission denied: requires ${required}, got ${role}`);
+  }
+}
+
 const objectFields = {
   id: v.string(),
   room_id: v.string(),
@@ -59,6 +78,8 @@ export const create = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+    const role = await getRole(ctx, args.room_id);
+    assertMinRole(role, 'sub_owner');
     await ctx.db.insert("objects", args);
   },
 });
@@ -68,6 +89,11 @@ export const createBatch = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
+    const roomId = args.objects[0]?.room_id;
+    if (roomId) {
+      const role = await getRole(ctx, roomId);
+      assertMinRole(role, 'sub_owner');
+    }
     for (const obj of args.objects) {
       await ctx.db.insert("objects", obj);
     }
@@ -115,6 +141,8 @@ export const update = mutation({
       .filter((q) => q.eq(q.field("id"), id))
       .first();
     if (!doc) throw new Error("Object not found");
+    const role = await getRole(ctx, doc.room_id);
+    assertMinRole(role, 'user');
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
 });
@@ -128,7 +156,11 @@ export const remove = mutation({
       .query("objects")
       .filter((q) => q.eq(q.field("id"), args.id))
       .first();
-    if (doc) await ctx.db.delete(doc._id);
+    if (doc) {
+      const role = await getRole(ctx, doc.room_id);
+      assertMinRole(role, 'sub_owner');
+      await ctx.db.delete(doc._id);
+    }
   },
 });
 
@@ -140,12 +172,20 @@ export const reorder = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     const now = Date.now();
+    let roomId: string | null = null;
     for (const u of args.updates) {
       const doc = await ctx.db
         .query("objects")
         .filter((q) => q.eq(q.field("id"), u.id))
         .first();
-      if (doc) await ctx.db.patch(doc._id, { sort_order: u.sort_order, updated_at: now });
+      if (doc) {
+        if (!roomId) roomId = doc.room_id;
+        await ctx.db.patch(doc._id, { sort_order: u.sort_order, updated_at: now });
+      }
+    }
+    if (roomId) {
+      const role = await getRole(ctx, roomId);
+      assertMinRole(role, 'sub_owner');
     }
   },
 });
@@ -158,12 +198,20 @@ export const batchUpdateSort = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
     const now = Date.now();
+    let roomId: string | null = null;
     for (const u of args.updates) {
       const doc = await ctx.db
         .query("objects")
         .filter((q) => q.eq(q.field("id"), u.id))
         .first();
-      if (doc) await ctx.db.patch(doc._id, { sort_order: u.sort, updated_at: now });
+      if (doc) {
+        if (!roomId) roomId = doc.room_id;
+        await ctx.db.patch(doc._id, { sort_order: u.sort, updated_at: now });
+      }
+    }
+    if (roomId) {
+      const role = await getRole(ctx, roomId);
+      assertMinRole(role, 'sub_owner');
     }
   },
 });

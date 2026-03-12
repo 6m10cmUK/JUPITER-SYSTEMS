@@ -245,4 +245,14 @@ export default defineSchema({
   })
     .index("by_room", ["room_id"])
     .index("by_room_time", ["room_id", "created_at"]),
+
+  room_members: defineTable({
+    room_id: v.string(),
+    user_id: v.string(),
+    role: v.union(v.literal('owner'), v.literal('sub_owner'), v.literal('user')),
+    joined_at: v.number(),
+  })
+    .index("by_room", ["room_id"])
+    .index("by_room_user", ["room_id", "user_id"])
+    .index("by_user", ["user_id"]),
 });
