@@ -8,12 +8,14 @@
  * @module
  */
 
+import type * as _helpers from "../_helpers.js";
 import type * as auth from "../auth.js";
 import type * as bgms from "../bgms.js";
 import type * as characters from "../characters.js";
 import type * as cutins from "../cutins.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
+import type * as migrations from "../migrations.js";
 import type * as objects from "../objects.js";
 import type * as pieces from "../pieces.js";
 import type * as room_members from "../room_members.js";
@@ -29,12 +31,14 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  _helpers: typeof _helpers;
   auth: typeof auth;
   bgms: typeof bgms;
   characters: typeof characters;
   cutins: typeof cutins;
   http: typeof http;
   messages: typeof messages;
+  migrations: typeof migrations;
   objects: typeof objects;
   pieces: typeof pieces;
   room_members: typeof room_members;
