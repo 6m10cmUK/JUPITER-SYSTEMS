@@ -19,7 +19,7 @@ export function useAdrasteaChat(roomId: string) {
   const messages: ChatMessage[] = useMemo(() => {
     if (!messagesData) return [];
     return [...messagesData].reverse().map((m) => ({
-      id: m._id,
+      id: m.id,
       room_id: m.room_id,
       sender_name: m.sender_name,
       sender_uid: (m as any).sender_uid ?? undefined,

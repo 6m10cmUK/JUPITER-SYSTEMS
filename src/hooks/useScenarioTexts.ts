@@ -18,7 +18,7 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
 
   const loading = textsData === undefined;
   const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
-    id: t._id, room_id: t.room_id, title: t.title, content: t.content,
+    id: t.id, room_id: t.room_id, title: t.title, content: t.content,
     visible: t.visible, sort_order: t.sort_order,
     created_at: t._creationTime, updated_at: t._creationTime,
   } as ScenarioText)), [textsData]);

@@ -18,7 +18,7 @@ export function useCharacters(roomId: string) {
 
   const loading = charsData === undefined;
   const characters: Character[] = useMemo(() => (charsData ?? []).map((c) => ({
-    id: c._id, room_id: c.room_id, owner_id: (c as any).owner_id ?? '',
+    id: c.id, room_id: c.room_id, owner_id: (c as any).owner_id ?? '',
     name: c.name, images: c.images, active_image_index: c.active_image_index,
     color: c.color, sheet_url: (c as any).sheet_url ?? null,
     initiative: (c as any).initiative, size: (c as any).size,

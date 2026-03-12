@@ -18,7 +18,7 @@ export function useBgms(roomId: string) {
 
   const loading = bgmsData === undefined;
   const bgms: BgmTrack[] = useMemo(() => (bgmsData ?? []).map((b) => ({
-    id: b._id, name: b.name,
+    id: b.id, name: b.name,
     bgm_type: b.bgm_type as BgmTrack['bgm_type'],
     bgm_source: (b as any).bgm_source ?? null,
     bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,

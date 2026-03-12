@@ -24,7 +24,7 @@ export function useCutins(
 
   const loading = cutinsData === undefined;
   const cutins: Cutin[] = useMemo(() => (cutinsData ?? []).map((c) => ({
-    id: c._id, room_id: c.room_id, name: c.name,
+    id: c.id, room_id: c.room_id, name: c.name,
     image_url: (c as any).image_url ?? null, text: c.text,
     animation: c.animation as Cutin['animation'],
     duration: c.duration, text_color: c.text_color,

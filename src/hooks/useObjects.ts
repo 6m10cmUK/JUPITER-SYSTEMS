@@ -26,7 +26,7 @@ export function useObjects(
 
   const allObjects: BoardObject[] = useMemo(() => {
     const serverObjs = (objectsData ?? []).map((o) => ({
-      id: o._id,
+      id: o.id,
       room_id: o.room_id,
       type: o.type as BoardObject['type'],
       name: o.name,

@@ -22,7 +22,7 @@ export function useAdrastea(roomId: string) {
 
   const room: Room | null = roomData
     ? {
-        id: roomData._id,
+        id: roomData.id,
         name: roomData.name ?? '',
         dice_system: roomData.dice_system ?? 'DiceBot',
         created_at: roomData._creationTime ?? 0,
@@ -36,7 +36,7 @@ export function useAdrastea(roomId: string) {
     : null;
 
   const pieces: Piece[] = (piecesData ?? []).map((p) => ({
-    id: p._id,
+    id: p.id,
     room_id: p.room_id,
     x: p.x,
     y: p.y,
