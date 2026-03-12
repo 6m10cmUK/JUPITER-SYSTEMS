@@ -1,5 +1,6 @@
 export { BoardDockPanel } from './BoardDockPanel';
-export { ChatDockPanel } from './ChatDockPanel';
+export { ChatLogDockPanel } from './ChatLogDockPanel';
+export { ChatInputDockPanel } from './ChatInputDockPanel';
 export { SceneDockPanel } from './SceneDockPanel';
 export { CharacterDockPanel } from './CharacterDockPanel';
 export { ScenarioTextDockPanel } from './ScenarioTextDockPanel';

@@ -1,18 +1,14 @@
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
-import ChatPanel from '../ChatPanel';
+import ChatLogPanel from '../ChatLogPanel';
 
-export function ChatDockPanel() {
+export function ChatLogDockPanel() {
   const ctx = useAdrasteaContext();
   return (
-    <ChatPanel
+    <ChatLogPanel
       messages={ctx.messages}
       loading={ctx.chatLoading}
       hasMore={ctx.hasMore}
-      senderName={ctx.profile?.display_name ?? 'ユーザー'}
-      senderAvatar={ctx.profile?.avatar_url}
       roomName={ctx.room?.name}
-      characters={ctx.characters}
-      onSendMessage={ctx.handleSendMessage}
       onLoadMore={ctx.loadMore}
       onClearMessages={ctx.clearMessages}
     />
