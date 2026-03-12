@@ -66,7 +66,7 @@ export async function verifyJwt(token: string): Promise<AuthUser | null> {
     if (!valid) return null;
 
     return {
-      uid: payload.sub,
+      uid: payload.sub.split('|')[0],
       displayName: payload.name ?? '',
       avatarUrl: payload.avatar ?? null,
       isGuest: payload.isAnonymous ?? false,
