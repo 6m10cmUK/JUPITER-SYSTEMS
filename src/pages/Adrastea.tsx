@@ -1,6 +1,7 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../config/api';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
@@ -152,37 +153,51 @@ const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
   const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut } = useAuth();
-  const [ownerCheck, setOwnerCheck] = useState<'loading' | 'ok' | 'denied'>('loading');
-  const [roomOwnerUid, setRoomOwnerUid] = useState<string | null>(null);
+
+  // Convex から room データを取得
+  const roomData = useQuery(
+    api.rooms.get,
+    roomId && user ? { id: roomId } : 'skip'
+  );
 
   useEffect(() => {
     document.title = 'Adrastea';
   }, []);
 
-  // ルーム存在チェック & オーナーUID取得
+  // ログイン後に元のURLへ復帰
   useEffect(() => {
-    if (!roomId || !user) {
-      setOwnerCheck('loading');
-      return;
+    if (!user) return;
+    const saved = sessionStorage.getItem('adrastea_redirect');
+    if (saved) {
+      sessionStorage.removeItem('adrastea_redirect');
+      navigate(saved, { replace: true });
     }
-    apiFetch(`/api/rooms/${roomId}`).then(async (res) => {
-      if (res.ok) {
-        const data = await res.json();
-        setRoomOwnerUid(data.owner_id ?? null);
-        setOwnerCheck('ok');
-      } else {
-        setOwnerCheck('denied');
-      }
-    }).catch((err) => {
-      console.error('ルーム確認に失敗:', err);
-      setOwnerCheck('denied');
-    });
-  }, [roomId, user]);
+  }, [user?.uid]);
 
-  // ロール判定: guest > owner > user
-  const roomRole = isGuest ? 'guest' as const
-    : (user && roomOwnerUid === user.uid) ? 'owner' as const
-    : 'user' as const;
+  // room_members からロール取得
+  const memberRole = useQuery(
+    api.room_members.getMyRole,
+    (roomId && user && !isGuest) ? { room_id: roomId } : 'skip'
+  );
+
+  const joinMutation = useMutation(api.room_members.join);
+
+  // ルーム入室時に join を呼ぶ
+  useEffect(() => {
+    if (roomId && user && !isGuest) {
+      joinMutation({ room_id: roomId }).catch(() => {});
+    }
+  }, [roomId, user?.uid, isGuest]);
+
+  // owner check 状態を算出
+  const ownerCheck: 'loading' | 'ok' | 'denied' =
+    !roomId ? 'ok'
+    : roomData === undefined ? 'loading'
+    : roomData === null ? 'denied'
+    : 'ok';
+
+  // ロール判定（ロード中は安全側の 'guest' にフォールバック）
+  const roomRole = (isGuest ? 'guest' : (memberRole ?? 'guest')) as 'owner' | 'sub_owner' | 'user' | 'guest';
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
@@ -210,7 +225,10 @@ const Adrastea: React.FC = () => {
             TRPG盤面共有ツール
           </p>
           <button
-            onClick={signIn}
+            onClick={() => {
+              sessionStorage.setItem('adrastea_redirect', window.location.pathname);
+              signIn();
+            }}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '8px',
               padding: '10px 20px', background: '#fff', color: '#333',

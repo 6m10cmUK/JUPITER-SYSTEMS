@@ -1,36 +1,76 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { Piece, Room } from '../types/adrastea.types';
 
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+export function useAdrastea(roomId: string) {
+  const roomData = useQuery(api.rooms.get, { id: roomId });
+  const piecesData = useQuery(api.pieces.list, { room_id: roomId });
 
-export function useAdrastea(
-  roomId: string,
-  initialData?: { room: Room | null; pieces: Piece[] }
-) {
-  const [pieces, setPieces] = useState<Piece[]>(initialData?.pieces ?? []);
-  const [room, setRoom] = useState<Room | null>(initialData?.room ?? null);
-  const [loading, setLoading] = useState(!initialData);
-
-  // 初期データが後から届いた場合に反映（一度だけ）
-  const initializedRef = useRef(false);
-  useEffect(() => {
-    if (initialData && !initializedRef.current) {
-      initializedRef.current = true;
-      setRoom(initialData.room);
-      setPieces(initialData.pieces);
-      setLoading(false);
+  const updateRoomMutation = useMutation(api.rooms.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.rooms.get, { id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(api.rooms.get, { id: roomId }, { ...current, ...args } as any);
+      }
     }
-  }, [initialData]);
+  );
+  const createPieceMutation = useMutation(api.pieces.create);
+  const updatePieceMutation = useMutation(api.pieces.update).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.pieces.list, { room_id: roomId });
+      if (current !== undefined) {
+        localStore.setQuery(
+          api.pieces.list,
+          { room_id: roomId },
+          current.map((p) => p.id === args.id ? { ...p, ...args } : p),
+        );
+      }
+    }
+  );
+  const removePieceMutation = useMutation(api.pieces.remove);
 
-  const movePiece = useCallback((pieceId: string, x: number, y: number) => {
-    setPieces((prev) =>
-      prev.map((p) => (p.id === pieceId ? { ...p, x, y } : p))
-    );
-  }, []);
+  const loading = roomData === undefined || piecesData === undefined;
+
+  const room: Room | null = roomData
+    ? {
+        id: roomData.id,
+        name: roomData.name ?? '',
+        dice_system: roomData.dice_system ?? 'DiceBot',
+        created_at: roomData._creationTime ?? 0,
+        updated_at: roomData._creationTime ?? 0,
+        active_scene_id: (roomData as any).active_scene_id ?? null,
+        active_cutin: (roomData as any).active_cutin ?? null,
+        foreground_url: (roomData as any).foreground_url ?? null,
+        gm_can_see_secret_memo: (roomData as any).gm_can_see_secret_memo ?? false,
+        owner_id: (roomData as any).owner_id ?? '',
+      }
+    : null;
+
+  const pieces: Piece[] = (piecesData ?? []).map((p) => ({
+    id: p.id,
+    room_id: p.room_id,
+    x: p.x,
+    y: p.y,
+    width: p.width,
+    height: p.height,
+    image_url: (p as any).image_url ?? null,
+    label: p.label,
+    color: p.color,
+    z_index: p.z_index,
+    statuses: (p as any).statuses ?? [],
+    initiative: (p as any).initiative,
+    memo: (p as any).memo,
+    character_id: (p as any).character_id ?? null,
+    created_at: p._creationTime,
+  }));
+
+  const movePiece = useCallback(
+    (pieceId: string, x: number, y: number) => {
+      updatePieceMutation({ id: pieceId, x, y }).catch(console.error);
+    },
+    [updatePieceMutation]
+  );
 
   const addPiece = useCallback(
     (label: string, color: string, centerX?: number, centerY?: number) => {
@@ -38,53 +78,42 @@ export function useAdrastea(
       const baseY = centerY ?? 2500;
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
-      setPieces((prev) => {
-        const newPiece: Piece = {
-          id: genId(),
-          room_id: roomId,
-          x: baseX + offsetX,
-          y: baseY + offsetY,
-          width: 60,
-          height: 60,
-          image_url: null,
-          label,
-          color,
-          z_index: prev.length,
-          statuses: [],
-          initiative: 0,
-          memo: '',
-          character_id: null,
-          created_at: Date.now(),
-        };
-        return [...prev, newPiece];
-      });
+      createPieceMutation({
+        room_id: roomId,
+        x: baseX + offsetX,
+        y: baseY + offsetY,
+        width: 60,
+        height: 60,
+        label,
+        color,
+        z_index: pieces.length,
+      } as any).catch(console.error);
     },
-    [roomId]
+    [roomId, pieces.length, createPieceMutation]
   );
 
-  const removePiece = useCallback((pieceId: string) => {
-    setPieces((prev) => prev.filter((p) => p.id !== pieceId));
-  }, []);
+  const removePiece = useCallback(
+    (pieceId: string) => {
+      removePieceMutation({ id: pieceId }).catch(console.error);
+    },
+    [removePieceMutation]
+  );
 
-  const updatePiece = useCallback((pieceId: string, updates: Partial<Piece>) => {
-    setPieces((prev) =>
-      prev.map((p) => (p.id === pieceId ? { ...p, ...updates } : p))
-    );
-  }, []);
+  const updatePiece = useCallback(
+    (pieceId: string, updates: Partial<Piece>) => {
+      const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Piece;
+      updatePieceMutation({ id: pieceId, ...rest } as any).catch(console.error);
+    },
+    [updatePieceMutation]
+  );
 
-  const updateRoom = useCallback((updates: Partial<Room>) => {
-    setRoom((prev) => (prev ? { ...prev, ...updates, updated_at: Date.now() } : prev));
-  }, []);
+  const updateRoom = useCallback(
+    (updates: Partial<Room>) => {
+      const { id: _id, owner_id: _oid, created_at: _ca, ...rest } = updates as Room;
+      updateRoomMutation({ id: roomId, ...rest } as any).catch(console.error);
+    },
+    [roomId, updateRoomMutation]
+  );
 
-  const _setPieces = useCallback((items: Piece[]) => {
-    setPieces(items);
-    setLoading(false);
-  }, []);
-
-  const _setRoom = useCallback((r: Room | null) => {
-    setRoom(r);
-    setLoading(false);
-  }, []);
-
-  return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom, _setPieces, _setRoom };
+  return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom };
 }

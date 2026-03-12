@@ -612,7 +612,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                     <CachedThumbnail
                       src={asset.url}
                       alt={asset.filename}
-                      style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }}
+                      style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', display: 'block' }}
                     />
                     <div style={{ padding: '4px' }}>
                       <div style={{

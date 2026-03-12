@@ -8,7 +8,7 @@ import { SortableListPanel, SortableListItem, Tooltip } from './ui';
 
 interface CharacterPanelProps {
   characters: Character[];
-  selectedCharId?: string;
+  currentUserId: string;
   onAddCharacter: () => void;
   onSelectCharacter: (char: Character) => void;
   onDoubleClickCharacter?: (char: Character) => void;
@@ -18,13 +18,15 @@ interface CharacterPanelProps {
 
 export function CharacterPanel({
   characters,
-  selectedCharId,
+  currentUserId,
   onAddCharacter,
   onSelectCharacter,
   onDoubleClickCharacter,
   onRemoveCharacter,
   onReorderCharacters,
 }: CharacterPanelProps) {
+  const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
+
   const iconBtnStyle: React.CSSProperties = {
     background: 'transparent',
     border: 'none',
@@ -38,12 +40,12 @@ export function CharacterPanel({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !onReorderCharacters) return;
-    const oldIndex = characters.findIndex(c => c.id === active.id);
-    const newIndex = characters.findIndex(c => c.id === over.id);
+    const oldIndex = filteredCharacters.findIndex(c => c.id === active.id);
+    const newIndex = filteredCharacters.findIndex(c => c.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(characters, oldIndex, newIndex);
+    const reordered = arrayMove(filteredCharacters, oldIndex, newIndex);
     onReorderCharacters(reordered.map(c => c.id));
-  }, [characters, onReorderCharacters]);
+  }, [filteredCharacters, onReorderCharacters]);
 
   return (
     <SortableListPanel
@@ -60,53 +62,52 @@ export function CharacterPanel({
           </Tooltip>
         </div>
       }
-      items={characters}
+      items={filteredCharacters}
       onDragEnd={handleDragEnd}
       emptyMessage="キャラクターがありません"
     >
-      {characters.map((char) => (
+      {filteredCharacters.map((char) => (
         <SortableListItem
           key={char.id}
           id={char.id}
-          isSelected={char.id === selectedCharId}
           onClick={() => onSelectCharacter(char)}
           onDoubleClick={() => onDoubleClickCharacter?.(char)}
         >
-          {/* サムネイル */}
-            {char.images?.[char.active_image_index]?.url ? (
-              <img
-                src={char.images[char.active_image_index].url}
-                alt={char.name}
-                style={{
-                  flexShrink: 0,
-                  width: '20px',
-                  height: '20px',
-                  objectFit: 'cover',
-                  borderRadius: '2px',
-                  border: `1px solid ${theme.border}`,
-                }}
-              />
-            ) : (
-              <div
-                style={{
-                  flexShrink: 0,
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '2px',
-                  background: char.color,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#fff',
-                  fontWeight: 700,
-                  fontSize: '10px',
-                }}
-              >
-                {char.name.charAt(0)}
-              </div>
-            )}
+          {/* アバター */}
+          {char.images[char.active_image_index]?.url ? (
+            <img
+              src={char.images[char.active_image_index].url}
+              alt={char.name}
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 0,
+                objectFit: 'cover',
+                flexShrink: 0,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: 0,
+                background: char.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: '1rem',
+                flexShrink: 0,
+              }}
+            >
+              {char.name.charAt(0)}
+            </div>
+          )}
 
-            {/* 名前 */}
+          {/* コンテンツ */}
+          <div style={{ flex: 1, minWidth: 0 }}>
             <span
               style={{
                 flex: 1,
@@ -115,28 +116,39 @@ export function CharacterPanel({
                 whiteSpace: 'nowrap',
                 fontSize: '12px',
                 color: theme.textPrimary,
+                display: 'block',
               }}
             >
               {char.name}
             </span>
+            {char.statuses.length > 0 && (
+              <div style={{ display: 'flex', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
+                {char.statuses.slice(0, 3).map((s, i) => (
+                  <span key={i} style={{ color: theme.textSecondary, fontSize: '0.7rem' }}>
+                    {s.label}: {s.value}/{s.max}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
 
-            {/* 操作 */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
-              <button
-                onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: theme.danger,
-                  cursor: 'pointer',
-                  padding: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+          {/* 操作 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.danger,
+                cursor: 'pointer',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
         </SortableListItem>
       ))}
     </SortableListPanel>

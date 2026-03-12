@@ -61,6 +61,17 @@ export default {
       return new Response(null, { status: 204, headers });
     }
 
+    try {
+      return await handleRequest(request, url, env, headers);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+    }
+  },
+};
+
+async function handleRequest(request: Request, url: URL, env: Env, headers: Record<string, string>): Promise<Response> {
+
     // 使用量制御（GET /file/* は除外）
     if (!url.pathname.startsWith('/file/')) {
       const rateLimitResult = await checkRateLimit(env.DB);
@@ -87,7 +98,7 @@ export default {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7), env.JWT_SECRET);
+    const user = await verifyJwt(authHeader.slice(7));
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
@@ -116,5 +127,4 @@ export default {
     }
 
     return new Response('Not Found', { status: 404, headers });
-  },
-};
+}

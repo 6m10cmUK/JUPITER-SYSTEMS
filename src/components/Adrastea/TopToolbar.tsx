@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal, Wifi, WifiOff, Loader } from 'lucide-react';
+import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -31,29 +31,6 @@ const PANEL_DEFS: PanelDef[] = [
   { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
 ];
 
-function P2PIndicator() {
-  const { p2pConnectionState } = useAdrasteaContext();
-
-  const config = {
-    connected: { icon: <Wifi size={14} />, color: theme.success, label: 'Connected' },
-    connecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Connecting...' },
-    reconnecting: { icon: <Loader size={14} />, color: theme.warning, label: 'Waiting...' },
-    disconnected: { icon: <WifiOff size={14} />, color: theme.textSecondary, label: 'Disconnected' },
-  }[p2pConnectionState];
-
-  return (
-    <div
-      title={config.label}
-      style={{
-        display: 'flex', alignItems: 'center', gap: '4px',
-        color: config.color, fontSize: '11px', padding: '0 6px',
-      }}
-    >
-      {config.icon}
-      <span>{config.label}</span>
-    </div>
-  );
-}
 
 interface TopToolbarProps {
   onAddPiece: (label: string, color: string) => void;
@@ -229,9 +206,6 @@ export function TopToolbar({
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
-
-      {/* P2P接続状態 */}
-      <P2PIndicator />
 
       {/* BGMプレイヤー */}
       <BgmMiniPlayer />

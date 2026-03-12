@@ -20,7 +20,6 @@ import type { useScenes } from '../hooks/useScenes';
 import type { useCharacters } from '../hooks/useCharacters';
 import type { useScenarioTexts } from '../hooks/useScenarioTexts';
 import type { useCutins } from '../hooks/useCutins';
-import type { ConnectionState } from '../services/rtc/types';
 
 // ============================================================================
 // CONTEXT 1: RoomDataContext
@@ -160,13 +159,3 @@ export interface PendingEdit {
 
 export const UIStateContext = createContext<UIStateContextValue | null>(null);
 
-// ============================================================================
-// CONTEXT 3: P2PContext
-// ============================================================================
-
-export interface P2PContextValue {
-  // --- P2P ---
-  p2pConnectionState: ConnectionState;
-}
-
-export const P2PContext = createContext<P2PContextValue | null>(null);

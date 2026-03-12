@@ -1,5 +1,5 @@
 import { encode as encodeWebP } from '@jsquash/webp';
-import { API_BASE_URL, getAccessToken, BACKEND_URL } from '../config/api';
+import { API_BASE_URL, BACKEND_URL } from '../config/api';
 
 if (!API_BASE_URL) {
   throw new Error('API_BASE_URL が設定されていません。.env.local に VITE_API_BASE_URL を設定してください。');
@@ -129,9 +129,9 @@ function resizeToImageData(file: File, maxWidth: number): Promise<ImageData> {
 }
 
 function getIdToken(): string {
-  const token = getAccessToken();
-  if (!token) throw new Error('未認証');
-  return token;
+  // Convex Auth により、トークンはクライアント側で自動管理される
+  // ここではダミー実装のままとしておく（後のフェーズで修正）
+  return '';
 }
 
 /**

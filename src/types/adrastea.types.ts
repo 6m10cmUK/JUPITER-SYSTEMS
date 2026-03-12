@@ -20,11 +20,13 @@ export interface ActiveCutin {
 
 export interface Room {
   id: string;
+  owner_id: string;
   name: string;
   active_scene_id: string | null;
   foreground_url: string | null;
   active_cutin: ActiveCutin | null;
   dice_system: string;
+  gm_can_see_secret_memo: boolean;
   created_at: number;
   updated_at: number;
 }
@@ -50,7 +52,17 @@ export interface PieceStatus {
   label: string;
   value: number;
   max: number;
-  color: string;
+  color?: string;
+}
+
+export interface CharacterImage {
+  url: string;
+  label: string;
+}
+
+export interface CharacterParameter {
+  label: string;
+  value: number | string;
 }
 
 export interface Piece {
@@ -76,14 +88,14 @@ export interface Character {
   room_id: string;
   owner_id: string;
   name: string;
-  images: { url: string; label: string }[];
+  images: CharacterImage[];
   active_image_index: number;
   color: string;
   sheet_url: string | null;
   initiative: number;
   size: number;
-  statuses: { label: string; value: number; max: number }[];
-  parameters: { label: string; value: number | string }[];
+  statuses: PieceStatus[];
+  parameters: CharacterParameter[];
   memo: string;
   secret_memo: string;
   chat_palette: string;
@@ -101,6 +113,7 @@ export type BoardObjectType = 'panel' | 'text' | 'foreground' | 'background';
 
 export interface BoardObject {
   id: string;
+  room_id: string;
   type: BoardObjectType;
   name: string;
 

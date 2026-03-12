@@ -45,42 +45,39 @@ export function BgmEngine() {
         t => !t.is_playing && t.auto_play_scene_ids.includes(currentSceneId)
       );
 
+      // 新シーンのBGMを即座に開始（旧シーンのフェードアウトと並行）
+      tracksToStart.forEach(t => {
+        newFadeStates.set(t.id, t.fade_in ? 'in' : 'none');
+      });
       setFadeStates(newFadeStates);
 
+      tracksToStart.forEach(t => {
+        updateBgm(t.id, { is_playing: true, is_paused: false });
+      });
+
+      // 新シーンBGMのフェードイン完了タイマー
+      const maxInDuration = Math.max(
+        ...tracksToStart.filter(t => t.fade_in).map(t => t.fade_duration),
+        0
+      );
+      const inTimer = setTimeout(() => {
+        setFadeStates(prev => {
+          const next = new Map(prev);
+          tracksToStart.forEach(t => next.delete(t.id));
+          return next;
+        });
+      }, maxInDuration + 100);
+      sceneTimersRef.current.push(inTimer);
+
+      // 旧シーンBGMのフェードアウト完了タイマー
       const maxOutDuration = Math.max(
         ...tracksToStop.filter(t => t.fade_out).map(t => t.fade_duration),
         0
       );
-
       const outTimer = setTimeout(() => {
-        // フェードアウト完了 → 停止をFirestoreに書き込み
         tracksToStop.forEach(t => {
           updateBgm(t.id, { is_playing: false, is_paused: false });
         });
-
-        // 新シーンの自動再生トラックを開始
-        tracksToStart.forEach(t => {
-          updateBgm(t.id, { is_playing: true, is_paused: false });
-        });
-
-        // フェードイン設定
-        setFadeStates(_prev => {
-          const next = new Map<string, 'none' | 'in' | 'out'>();
-          // 停止済みトラックのフェード状態をクリア
-          tracksToStart.forEach(t => {
-            next.set(t.id, t.fade_in ? 'in' : 'none');
-          });
-          return next;
-        });
-
-        const maxInDuration = Math.max(
-          ...tracksToStart.filter(t => t.fade_in).map(t => t.fade_duration),
-          0
-        );
-        const inTimer = setTimeout(() => {
-          setFadeStates(new Map());
-        }, maxInDuration + 100);
-        sceneTimersRef.current.push(inTimer);
       }, maxOutDuration + 100);
       sceneTimersRef.current.push(outTimer);
     } else {

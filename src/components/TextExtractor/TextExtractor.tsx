@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PDFApiService, type ExtractResponse } from '../../services/api';
-import { AuthService } from '../../services/auth';
+import { useAuth } from '../../contexts/AuthContext';
 import { EncryptionKeyService } from '../../services/encryptionKey';
 import { EncryptionService } from '../../services/encryption';
 import styles from './TextExtractor.module.css';
@@ -16,6 +16,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
   numPages,
   currentPage,
 }) => {
+  const { user } = useAuth();
   const [isExtracting, setIsExtracting] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +35,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     setExtractedData(null);
 
     // ログインチェック
-    const currentUser = AuthService.restoreUser();
-    if (!currentUser) {
+    if (!user) {
       setError('ログインが必要です');
       setIsExtracting(false);
       return;
@@ -50,7 +50,7 @@ export const TextExtractor: React.FC<TextExtractorProps> = ({
     try {
       // 暗号化は絶対要件 - ユーザーの暗号化キーを取得
       console.log('暗号化キーを取得中...');
-      const encryptionKey = await EncryptionKeyService.getUserKey(currentUser.uid);
+      const encryptionKey = await EncryptionKeyService.getUserKey(user.uid);
       console.log('暗号化キー取得完了');
 
       // 暗号化APIを使用してテキストを抽出（成形オプション有効）

@@ -1,29 +1,96 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useQuery, useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { Character } from '../types/adrastea.types';
+import { genId } from '../utils/id';
 
-const genId = () =>
-  globalThis.crypto?.randomUUID?.() ??
-  Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) =>
-    b.toString(16).padStart(2, '0')
-  ).join('');
+export function useCharacters(roomId: string) {
+  const statsData = useQuery(api.characters.listStats, { room_id: roomId });
+  const baseData = useQuery(api.characters.listBase, { room_id: roomId });
 
-export function useCharacters(roomId: string, initialCharacters?: Character[]) {
-  const [characters, setCharacters] = useState<Character[]>(initialCharacters ?? []);
-  const [loading, setLoading] = useState(!initialCharacters);
+  const createMutation = useMutation(api.characters.create);
+  const updateStatsMutation = useMutation(api.characters.updateStats);
+  const updateBaseMutation = useMutation(api.characters.updateBase);
+  const removeMutation = useMutation(api.characters.remove);
 
-  useEffect(() => {
-    if (initialCharacters) {
-      setCharacters(initialCharacters);
-      setLoading(false);
+  const loading = statsData === undefined || baseData === undefined;
+
+  const characters: Character[] = useMemo(() => {
+    if (!statsData || !baseData) return [];
+
+    // Create map of base data for quick lookup
+    const baseMap = new Map(baseData.map(b => [b.id, b]));
+
+    const merged = statsData.map((stat) => {
+      const base = baseMap.get(stat.id);
+      return {
+        id: stat.id,
+        room_id: stat.room_id,
+        owner_id: stat.owner_id,
+        name: stat.name,
+        color: stat.color,
+        active_image_index: stat.active_image_index,
+        statuses: stat.statuses ?? [],
+        parameters: stat.parameters ?? [],
+        is_hidden_on_board: stat.is_hidden_on_board,
+        is_speech_hidden: stat.is_speech_hidden,
+        sort_order: stat.sort_order ?? 0,
+        created_at: stat.created_at,
+        updated_at: stat.updated_at,
+        // From base table
+        images: base?.images ?? [],
+        memo: base?.memo ?? '',
+        secret_memo: base?.secret_memo ?? '',
+        chat_palette: base?.chat_palette ?? '',
+        sheet_url: base?.sheet_url ?? null,
+        initiative: base?.initiative ?? 0,
+        size: base?.size ?? 1,
+        is_status_private: base?.is_status_private ?? false,
+      } as Character;
+    });
+
+    // Load sort order from localStorage
+    const storageKey = `adrastea-char-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (savedOrder) {
+      try {
+        const orderedIds = JSON.parse(savedOrder) as string[];
+        const idToChar = new Map(merged.map(c => [c.id, c]));
+        const sorted: Character[] = [];
+        const seenIds = new Set<string>();
+
+        // Add characters in saved order
+        for (const id of orderedIds) {
+          const char = idToChar.get(id);
+          if (char) {
+            sorted.push(char);
+            seenIds.add(id);
+          }
+        }
+
+        // Add remaining characters not in saved order at the end
+        for (const char of merged) {
+          if (!seenIds.has(char.id)) {
+            sorted.push(char);
+          }
+        }
+
+        return sorted;
+      } catch {
+        // If JSON parsing fails, return unsorted
+        return merged;
+      }
     }
-  }, [initialCharacters]);
+
+    return merged;
+  }, [statsData, baseData, roomId]);
 
   const addCharacter = useCallback(
-    (data: Partial<Omit<Character, 'id' | 'room_id'>>) => {
+    async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
       const now = Date.now();
-      const newId = (data as { id?: string }).id ?? genId();
+      const id = (data as { id?: string }).id ?? genId();
       const newChar: Character = {
-        id: newId,
+        id,
         room_id: roomId,
         owner_id: data.owner_id ?? '',
         name: data.name ?? '新規キャラクター',
@@ -45,49 +112,66 @@ export function useCharacters(roomId: string, initialCharacters?: Character[]) {
         created_at: now,
         updated_at: now,
       };
-      setCharacters((prev) => [...prev, newChar]);
+      await createMutation(newChar);
       return newChar;
     },
-    [roomId, characters.length]
+    [roomId, characters.length, createMutation]
   );
 
   const updateCharacter = useCallback(
-    (charId: string, updates: Partial<Character>) => {
-      setCharacters((prev) =>
-        prev.map((c) =>
-          c.id === charId ? { ...c, ...updates, updated_at: Date.now() } : c
-        )
-      );
+    async (charId: string, updates: Partial<Character>): Promise<void> => {
+      // Fields that belong in characters_stats
+      const statsFields = [
+        'name', 'color', 'active_image_index',
+        'statuses', 'parameters',
+        'is_hidden_on_board', 'is_speech_hidden',
+        'sort_order'
+      ];
+
+      // Fields that belong in characters_base
+      const baseFields = [
+        'images', 'memo', 'secret_memo', 'chat_palette',
+        'sheet_url', 'initiative', 'size', 'is_status_private'
+      ];
+
+      // Separate updates
+      const statsUpdates: Record<string, any> = { id: charId };
+      const baseUpdates: Record<string, any> = { id: charId };
+
+      Object.entries(updates).forEach(([key, value]) => {
+        if (statsFields.includes(key)) {
+          statsUpdates[key] = value;
+        } else if (baseFields.includes(key)) {
+          baseUpdates[key] = value;
+        }
+      });
+
+      // Only call mutations if there are updates for each
+      if (Object.keys(statsUpdates).length > 1) {
+        await updateStatsMutation(statsUpdates as any);
+      }
+
+      if (Object.keys(baseUpdates).length > 1) {
+        await updateBaseMutation(baseUpdates as any);
+      }
     },
-    []
+    [updateStatsMutation, updateBaseMutation]
   );
 
-  const removeCharacter = useCallback((charId: string) => {
-    setCharacters((prev) => prev.filter((c) => c.id !== charId));
-  }, []);
+  const removeCharacter = useCallback(
+    async (charId: string): Promise<void> => {
+      await removeMutation({ id: charId });
+    },
+    [removeMutation]
+  );
 
-  const reorderCharacters = useCallback((orderedIds: string[]) => {
-    setCharacters((prev) => {
-      const now = Date.now();
-      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
-      return prev.map((c) => {
-        const newSort = orderMap.get(c.id);
-        return newSort !== undefined
-          ? { ...c, sort_order: newSort, updated_at: now }
-          : c;
-      });
-    });
-  }, []);
+  const reorderCharacters = useCallback(
+    async (orderedIds: string[]): Promise<void> => {
+      const storageKey = `adrastea-char-order-${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+    },
+    [roomId]
+  );
 
-  const _setAll = useCallback((items: Character[]) => {
-    setCharacters(items);
-    setLoading(false);
-  }, []);
-
-  // P2P: add single item without Firestore write
-  const _addOne = useCallback((item: Character) => {
-    setCharacters(prev => [...prev, item]);
-  }, []);
-
-  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, _setAll, _addOne };
+  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters };
 }
