@@ -693,12 +693,10 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
 
 // --- CharacterLayer (DOM版) ---
 const DomCharacterLayer = memo(function DomCharacterLayer({
-  _obj,
   characters,
   onUpdatePosition,
   stageRef,
 }: {
-  _obj: BoardObject;
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
@@ -993,7 +991,6 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                 return (
                   <DomCharacterLayer
                     key={stableKey}
-                    obj={obj}
                     characters={characters}
                     onUpdatePosition={onUpdateCharacterBoardPosition}
                     stageRef={stageRef}
