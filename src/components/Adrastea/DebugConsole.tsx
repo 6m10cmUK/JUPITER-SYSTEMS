@@ -22,7 +22,8 @@ function pushLog(level: LogEntry['level'], args: unknown[]) {
   }).join(' ');
   logBuffer.push({ level, args: str, timestamp: Date.now() });
   if (logBuffer.length > MAX_LOGS) logBuffer.splice(0, logBuffer.length - MAX_LOGS);
-  listeners.forEach(fn => fn());
+  // レンダー中に setState が走らないよう遅延（React「Cannot update while rendering」対策）
+  listeners.forEach(fn => queueMicrotask(fn));
 }
 
 // console をフック

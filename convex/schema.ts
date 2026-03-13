@@ -7,6 +7,7 @@ export default defineSchema({
   rooms: defineTable({
     id: v.string(),
     name: v.string(),
+    description: v.optional(v.string()),
     owner_id: v.string(),
     active_scene_id: v.union(v.string(), v.null()),
     foreground_url: v.union(v.string(), v.null()),

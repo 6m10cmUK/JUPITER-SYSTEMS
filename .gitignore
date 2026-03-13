@@ -63,3 +63,6 @@ public/pdf.js/
 *.temp.env
 
 .playwright-cli/
+
+# Playwright auth state
+e2e/.auth/

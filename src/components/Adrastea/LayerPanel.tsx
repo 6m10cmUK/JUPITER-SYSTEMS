@@ -275,7 +275,6 @@ export function LayerPanel() {
   }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId]);
 
   const iconBtnStyle: React.CSSProperties = {
-    background: 'transparent',
     border: 'none',
     color: theme.textSecondary,
     cursor: 'pointer',
@@ -292,29 +291,31 @@ export function LayerPanel() {
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="シーン画像追加">
-            <button onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
           <Tooltip label="シーンテキスト追加">
-            <button onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
               <Type size={13} />
             </button>
           </Tooltip>
           <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
           <Tooltip label="ルーム画像追加">
-            <button onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
           <Tooltip label="ルームテキスト追加">
-            <button onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
               <Type size={13} />
             </button>
           </Tooltip>
           <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
           <Tooltip label="複製">
             <button
+              type="button"
+              className="ad-btn ad-btn--ghost"
               onClick={handleDuplicate}
               disabled={!hasDuplicateTargets}
               style={{
@@ -330,6 +331,8 @@ export function LayerPanel() {
           </Tooltip>
           <Tooltip label="削除">
             <button
+              type="button"
+              className="ad-btn ad-btn--ghost"
               onClick={() => {
                 const target = selectedObjectIds.length > 0
                   ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground')
@@ -471,13 +474,16 @@ export function LayerPanel() {
               </span>
             )}
             {obj.type !== 'background' && (
-              <button
-                style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
-                onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
-                title={obj.visible ? '非表示にする' : '表示する'}
-              >
-                {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-              </button>
+              <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
+                <button
+                  type="button"
+                  className="ad-btn ad-btn--ghost ad-btn--ghost-on-bg"
+                  style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
+                  onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
+                >
+                  {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
+                </button>
+              </Tooltip>
             )}
           </SortableListItem>
         );

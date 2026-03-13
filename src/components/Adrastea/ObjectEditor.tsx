@@ -5,6 +5,11 @@ import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { AdInput, AdTextArea, AdButton, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
 
+function safeFontSize(v: unknown): number {
+  const n = typeof v === 'number' && !Number.isNaN(v) && v > 0 ? v : 16;
+  return n;
+}
+
 const FONT_OPTIONS = [
   { value: 'sans-serif', label: 'ゴシック体' },
   { value: 'serif', label: '明朝体' },
@@ -39,7 +44,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
     !!object?.background_color && object.background_color !== 'transparent'
   );
   const [textContent, setTextContent] = useState(object?.text_content ?? '');
-  const [fontSize, setFontSize] = useState(object?.font_size ?? 16);
+  const [fontSize, setFontSize] = useState(() => safeFontSize(object?.font_size));
   const [fontFamily, setFontFamily] = useState(object?.font_family ?? 'sans-serif');
   const [letterSpacing, setLetterSpacing] = useState(object?.letter_spacing ?? 0);
   const [lineHeight, setLineHeight] = useState(object?.line_height ?? 1.2);
@@ -72,7 +77,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   }, [object?.image_url]);
   useEffect(() => {
     if (object && object.font_size !== undefined) {
-      setFontSize(object.font_size);
+      setFontSize(safeFontSize(object.font_size));
     }
   }, [object?.font_size]);
   useEffect(() => {
@@ -338,7 +343,10 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <AdInput
                     type="number"
                     value={String(fontSize)}
-                    onChange={(e) => setFontSize(Math.max(1, Number(e.target.value)))}
+                    onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setFontSize(Number.isNaN(n) || n < 1 ? 16 : Math.max(1, n));
+                }}
                     fullWidth={false}
                     inputWidth="64px"
                   />

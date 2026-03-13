@@ -9,10 +9,12 @@
 /** セマンティックトークン名 → CSS変数参照 */
 export const theme = {
   // ── 背景 ──
+  bgDeep: 'var(--ad-bg-deep)',           // 最奥（ロビー等）
   bgBase: 'var(--ad-bg-base)',           // メイン背景
   bgSurface: 'var(--ad-bg-surface)',     // カード・パネル背景
   bgToolbar: 'var(--ad-bg-toolbar)',     // ツールバー背景
-  bgInput: 'var(--ad-bg-input)',         // 入力フィールド背景
+  bgInput: 'var(--ad-bg-input)',         // 入力フィールド背景（凹み用）
+  bgElevated: 'var(--ad-bg-elevated)',   // ドロップダウン・モーダル・ポップアップ
   bgOverlay: 'var(--ad-bg-overlay)',     // モーダルオーバーレイ背景
   bgHover: 'var(--ad-bg-hover)',         // ホバー背景
 
@@ -39,6 +41,7 @@ export const theme = {
   // ── セマンティック ──
   danger: 'var(--ad-danger)',               // 削除・エラー
   dangerHover: 'var(--ad-danger-hover)',     // 削除ホバー
+  dangerBgSubtle: 'var(--ad-danger-bg-subtle)', // 危険操作ボタン背景（誤操作防止）
   success: 'var(--ad-success)',             // 成功・有効
   warning: 'var(--ad-warning)',             // 警告・ハイライト
 
@@ -56,6 +59,7 @@ export const theme = {
   // ── シャドウ ──
   shadowSm: 'var(--ad-shadow-sm)',             // 小さいシャドウ
   shadowMd: 'var(--ad-shadow-md)',             // 中シャドウ
+  shadowLg: 'var(--ad-shadow-lg)',             // モーダル・フローティング
 } as const;
 
 export type ThemeTokens = typeof theme;

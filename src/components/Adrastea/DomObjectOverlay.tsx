@@ -582,7 +582,7 @@ const DomTextObject = memo(function DomTextObject({
         backgroundColor: obj.background_color,
         display: 'flex',
         alignItems,
-        fontSize: obj.font_size,
+        fontSize: (typeof obj.font_size === 'number' && !Number.isNaN(obj.font_size) && obj.font_size > 0) ? obj.font_size : 16,
         fontFamily,
         letterSpacing,
         lineHeight,

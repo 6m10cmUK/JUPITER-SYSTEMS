@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { Eye, FolderOpen, Settings, LogOut, Volume2, VolumeX, Terminal } from 'lucide-react';
+import { useState } from 'react';
+import { Eye, FolderOpen, Volume2, VolumeX, Pencil } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -7,31 +7,7 @@ import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import { theme } from '../../styles/theme';
-import { usePermission } from '../../hooks/usePermission';
-import type { PermissionKey } from '../../config/permissions';
 import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
-
-interface PanelDef {
-  id: string;
-  component: string;
-  title: string;
-  permission: PermissionKey;
-}
-
-const PANEL_DEFS: PanelDef[] = [
-  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
-  { id: 'character', component: 'character', title: 'キャラクター', permission: 'panel_character' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト', permission: 'panel_scenarioText' },
-  { id: 'cutin', component: 'cutin', title: 'カットイン', permission: 'panel_cutin' },
-  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
-  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
-  { id: 'chatLog', component: 'chatLog', title: 'チャットログ', permission: 'panel_chat' },
-  { id: 'chatInput', component: 'chatInput', title: 'チャット入力', permission: 'panel_chat' },
-  { id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット', permission: 'panel_chat' },
-  { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
-  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
-  { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
-];
 
 
 interface TopToolbarProps {
@@ -39,9 +15,11 @@ interface TopToolbarProps {
   onOpenSettings: () => void;
   onOpenProfile: () => void;
   onSignOut: () => void;
+  onOpenLayout: () => void;
   activeScene?: Scene | null;
   profile: { display_name?: string; avatar_url?: string | null } | null;
   dockviewApi: DockviewApi | null;
+  roomName?: string;
 }
 
 function IconButton({ onClick, title, children, active }: {
@@ -78,49 +56,16 @@ export function TopToolbar({
   onOpenSettings,
   onOpenProfile,
   onSignOut,
+  onOpenLayout,
   activeScene: _activeScene,
   profile,
   dockviewApi,
+  roomName,
 }: TopToolbarProps) {
-  const [showPanelMenu, setShowPanelMenu] = useState(false);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const { isGuest } = useAuth();
-  const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
-  const { can } = usePermission();
 
-  const togglePanel = useCallback(
-    (panelId: string, component: string, title: string) => {
-      if (!dockviewApi) return;
-      const existing = dockviewApi.getPanel(panelId);
-      if (existing) {
-        existing.api.setActive();
-      } else {
-        // board 以外のグループを探す
-        let targetGroup = dockviewApi.activeGroup;
-        if (targetGroup?.panels.some(p => p.id === 'board')) {
-          targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
-        }
-        if (targetGroup) {
-          dockviewApi.addPanel({
-            id: panelId,
-            component,
-            title,
-            position: { referenceGroup: targetGroup, direction: 'within' },
-          });
-        } else {
-          // フォールバック: board の右に新グループ作成
-          dockviewApi.addPanel({
-            id: panelId,
-            component,
-            title,
-            position: { referencePanel: 'board', direction: 'right' },
-          });
-        }
-      }
-      setShowPanelMenu(false);
-    },
-    [dockviewApi],
-  );
+  const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
 
   return (
     <div
@@ -154,57 +99,48 @@ export function TopToolbar({
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
-      {/* パネル表示メニュー */}
-      <div style={{ position: 'relative' }}>
-        <IconButton onClick={() => setShowPanelMenu(!showPanelMenu)} title="パネル表示" active={showPanelMenu}>
-          <Eye size={14} />
-        </IconButton>
-        {showPanelMenu && (
-          <>
-            <div
-              style={{ position: 'fixed', inset: 0, zIndex: 99 }}
-              onClick={() => setShowPanelMenu(false)}
-            />
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                marginTop: 4,
-                background: theme.bgBase,
-                border: `1px solid ${theme.border}`,
-                borderRadius: 0,
-                padding: '4px 0',
-                zIndex: 100,
-                minWidth: 160,
-              }}
-            >
-              {PANEL_DEFS.filter(p => can(p.permission)).map((p) => {
-                const exists = !!dockviewApi?.getPanel(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => togglePanel(p.id, p.component, p.title)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '4px 8px',
-                      background: 'transparent',
-                      color: exists ? theme.textSecondary : theme.textPrimary,
-                      border: 'none',
-                      textAlign: 'left',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {p.title} {exists ? '(表示中)' : ''}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+      {/* ルーム名 + 編集ボタン */}
+      {roomName && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <span style={{
+            fontSize: '11px',
+            color: theme.textSecondary,
+            maxWidth: 160,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {roomName}
+          </span>
+          <button
+            type="button"
+            className="ad-btn ad-btn--ghost"
+            onClick={onOpenSettings}
+            title="ルーム設定"
+            style={{
+              width: 20,
+              height: 20,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              border: 'none',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+          >
+            <Pencil size={11} />
+          </button>
+        </div>
+      )}
+
+      {/* セパレータ */}
+      <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
+
+      {/* パネルレイアウト切替 */}
+      <IconButton onClick={onOpenLayout} title="パネルレイアウト">
+        <Eye size={14} />
+      </IconButton>
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
@@ -249,29 +185,20 @@ export function TopToolbar({
         </IconButton>
       )}
 
-      {/* デバッグコンソール */}
-      <IconButton onClick={() => togglePanel('debugConsole', 'debugConsole', 'Debug Console')} title="デバッグコンソール">
-        <Terminal size={14} />
-      </IconButton>
-
-      {/* 設定 */}
-      <IconButton onClick={onOpenSettings} title="設定">
-        <Settings size={14} />
-      </IconButton>
-
-      {/* プロフィール */}
+      {/* プロフィール設定 */}
       <button
+        type="button"
         onClick={onOpenProfile}
-        title="プロフィール"
+        title="ユーザー設定"
+        className="ad-btn ad-btn--ghost"
         style={{
-          width: 24,
-          height: 24,
+          width: 28,
+          height: 28,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'transparent',
           border: 'none',
-          borderRadius: 0,
+          borderRadius: '50%',
           cursor: 'pointer',
           padding: 0,
         }}
@@ -280,25 +207,20 @@ export function TopToolbar({
           <img
             src={profile.avatar_url}
             alt=""
-            style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
             referrerPolicy="no-referrer"
           />
         ) : (
           <div style={{
-            width: 20, height: 20, borderRadius: '50%',
+            width: 22, height: 22, borderRadius: '50%',
             background: theme.accent, color: theme.bgBase,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.65rem', fontWeight: 700,
+            fontSize: '0.7rem', fontWeight: 700,
           }}>
             {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
           </div>
         )}
       </button>
-
-      {/* ログアウト */}
-      <IconButton onClick={onSignOut} title="ログアウト">
-        <LogOut size={14} />
-      </IconButton>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}
     </div>

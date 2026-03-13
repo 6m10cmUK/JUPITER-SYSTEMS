@@ -5,11 +5,11 @@ import { api } from '../../convex/_generated/api';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
-import { RoomSettingsModal } from '../components/Adrastea/RoomSettingsModal';
-import { ProfileEditModal } from '../components/Adrastea/ProfileEditModal';
+import { SettingsModal } from '../components/Adrastea/SettingsModal';
 import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermission } from '../hooks/usePermission';
 import { theme } from '../styles/theme';
 
 /** 共通ローディング画面 */
@@ -47,6 +47,8 @@ function LoadingScreen({ progress, statusText }: { progress: number; statusText:
 /** Dockview + オーバーレイ */
 function AdrasteaRoom() {
   const ctx = useAdrasteaContext();
+  const { can } = usePermission();
+  const { isGuest } = useAuth();
 
   const handleAddPiece = useCallback((label: string, color: string) => {
     const center = ctx.getBoardCenter();
@@ -77,12 +79,14 @@ function AdrasteaRoom() {
       {/* TopToolbar（Dockview外、常時表示） */}
       <TopToolbar
         onAddPiece={handleAddPiece}
-        onOpenSettings={() => ctx.setShowRoomSettings(true)}
-        onOpenProfile={() => ctx.setShowProfileEdit(true)}
+        onOpenSettings={() => ctx.setShowSettings(true, 'room')}
+        onOpenProfile={() => ctx.setShowSettings(true, 'user')}
+        onOpenLayout={() => ctx.setShowSettings(true, 'layout')}
         onSignOut={ctx.signOut}
         activeScene={ctx.activeScene}
         profile={ctx.profile}
         dockviewApi={ctx.dockviewApi}
+        roomName={ctx.room?.name}
       />
 
       {/* Dockviewエリア */}
@@ -128,21 +132,22 @@ function AdrasteaRoom() {
         onCutinEnd={ctx.clearCutin}
       />
 
-      {/* ルーム設定モーダル */}
-      {ctx.showRoomSettings && ctx.room && (
-        <RoomSettingsModal
+      {/* 統合設定モーダル */}
+      {ctx.showSettings && ctx.room && (
+        <SettingsModal
+          initialSection={ctx.settingsSection}
           room={ctx.room}
-          onSave={ctx.updateRoom}
-          onClose={() => ctx.setShowRoomSettings(false)}
-        />
-      )}
-
-      {/* プロフィール編集モーダル */}
-      {ctx.showProfileEdit && ctx.profile && (
-        <ProfileEditModal
+          onSaveRoom={(updates) => ctx.updateRoom(updates)}
+          onDeleteRoom={ctx.deleteRoom}
+          dockviewApi={ctx.dockviewApi}
+          can={can}
           profile={ctx.profile}
-          onSave={ctx.updateProfile}
-          onClose={() => ctx.setShowProfileEdit(false)}
+          onSaveProfile={async (data) => {
+            await ctx.updateProfile(data);
+          }}
+          isGuest={isGuest}
+          onSignOut={ctx.signOut}
+          onClose={() => ctx.setShowSettings(false)}
         />
       )}
     </div>
