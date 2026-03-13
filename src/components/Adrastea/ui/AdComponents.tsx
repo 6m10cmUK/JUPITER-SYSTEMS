@@ -354,10 +354,16 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(loadPalette);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  const [textInput, setTextInput] = useState(value);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
   const [popPos, setPopPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const rgba = cssToRgba(value);
+
+  // value が変わったら textInput を同期
+  useEffect(() => {
+    setTextInput(value);
+  }, [value]);
 
   // ポップオーバー位置計算
   useEffect(() => {
@@ -456,8 +462,18 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
             </button>
             <input
               type="text"
-              value={value}
-              onChange={(e) => onChange(e.target.value)}
+              value={textInput}
+              onChange={(e) => setTextInput(e.target.value)}
+              onBlur={() => {
+                const v = textInput.trim();
+                const isValid = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)
+                  || /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/.test(v);
+                if (isValid) {
+                  onChange(v);
+                } else {
+                  setTextInput(value);
+                }
+              }}
               style={{
                 flex: 1, height: HEIGHT, padding: PADDING, fontSize: FONT_SIZE,
                 background: theme.bgInput, border: `1px solid ${theme.borderInput}`,

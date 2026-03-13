@@ -260,12 +260,11 @@ function SortableChannelTab({
     <button
       ref={setNodeRef}
       type="button"
-      className="ad-btn ad-btn--ghost"
+      className={`ad-btn ad-tab${isActive ? ' ad-tab--active' : ''}`}
       onClick={onSelect}
       style={{
         padding: '6px 12px',
         background: isActive ? theme.bgSurface : undefined,
-        color: isActive ? theme.textPrimary : theme.textSecondary,
         border: 'none',
         borderBottom: isActive ? `2px solid ${theme.accent}` : '2px solid transparent',
         cursor: isDragging ? 'grabbing' : 'grab',
@@ -575,12 +574,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             <button
               key={ch.channel_id}
               type="button"
-              className="ad-btn ad-btn--ghost"
+              className={`ad-btn ad-tab${activeChatChannel === ch.channel_id ? ' ad-tab--active' : ''}`}
               onClick={() => setActiveChatChannel(ch.channel_id)}
               style={{
                 padding: '6px 12px',
                 background: activeChatChannel === ch.channel_id ? theme.bgSurface : undefined,
-                color: activeChatChannel === ch.channel_id ? theme.textPrimary : theme.textSecondary,
                 border: 'none',
                 borderBottom: activeChatChannel === ch.channel_id ? `2px solid ${theme.accent}` : '2px solid transparent',
                 cursor: 'pointer',

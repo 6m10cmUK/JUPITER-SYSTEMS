@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Room } from '../../types/adrastea.types';
-import { AdInput, AdButton, AdModal } from './ui';
+import { AdInput, AdButton, AdModal, AdTextArea } from './ui';
 
 interface RoomSettingsModalProps {
   room: Room;
@@ -55,11 +55,12 @@ export function RoomSettingsModal({ room, onSave, onDelete, onClose }: RoomSetti
           onChange={(e) => setName(e.target.value)}
           placeholder="ルーム名を入力"
         />
-        <AdInput
+        <AdTextArea
           label="説明"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="セッションの説明など（任意）"
+          rows={3}
         />
         <AdInput
           label="ダイスシステム"
