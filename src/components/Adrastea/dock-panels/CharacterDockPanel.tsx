@@ -56,15 +56,11 @@ export function CharacterDockPanel() {
     if (char.on_board) {
       ctx.updateCharacter(charId, { on_board: false });
     } else {
-      const activeSceneId = ctx.activeScene?.id ?? null;
       ctx.updateCharacter(charId, {
         on_board: true,
         board_x: char.board_x ?? 0,
         board_y: char.board_y ?? 0,
         board_height: char.board_height ?? 10,
-        board_scene_ids: char.board_scene_ids && char.board_scene_ids.length > 0
-          ? char.board_scene_ids
-          : (activeSceneId ? [activeSceneId] : []),
       });
     }
   };

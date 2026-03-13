@@ -108,7 +108,6 @@ export interface Character {
   board_x?: number;
   board_y?: number;
   board_height?: number;
-  board_scene_ids?: string[];
   board_visible?: boolean;
   created_at: number;
   updated_at: number;
