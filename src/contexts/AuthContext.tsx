@@ -19,7 +19,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>;
   signInAsGuest: (displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
+  updateProfile: (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -42,9 +42,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await convexSignOut();
   };
 
-  const updateProfile = async (data: { display_name: string; avatar_url: string | null }) => {
+  const updateProfile = async (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => {
     await updateMeMutation({
-      name: data.display_name,
+      name: data.display_name ?? '',
       image: data.avatar_url ?? undefined,
     });
   };

@@ -3,6 +3,7 @@ import { Eye, FolderOpen, Volume2, VolumeX, Pencil } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { usePermission } from '../../hooks/usePermission';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
 import type { Scene } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
@@ -21,6 +22,13 @@ interface TopToolbarProps {
   dockviewApi: DockviewApi | null;
   roomName?: string;
 }
+
+const ROLE_BADGE: Record<string, { label: string; color: string }> = {
+  owner:     { label: 'owner',     color: theme.accent },
+  sub_owner: { label: 'sub_owner', color: theme.warning ?? '#f5a623' },
+  user:      { label: 'user',      color: theme.textSecondary },
+  guest:     { label: 'guest',     color: theme.textMuted },
+};
 
 function IconButton({ onClick, title, children, active }: {
   onClick: () => void;
@@ -55,15 +63,16 @@ export function TopToolbar({
   onAddPiece: _onAddPiece,
   onOpenSettings,
   onOpenProfile,
-  onSignOut,
+  onSignOut: _onSignOut,
   onOpenLayout,
   activeScene: _activeScene,
   profile,
-  dockviewApi,
+  dockviewApi: _dockviewApi,
   roomName,
 }: TopToolbarProps) {
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const { isGuest } = useAuth();
+  const { roomRole } = usePermission();
 
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
 
@@ -144,6 +153,26 @@ export function TopToolbar({
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
+
+      {/* ロールバッジ */}
+      {(() => {
+        const badge = ROLE_BADGE[roomRole] ?? { label: roomRole, color: theme.textMuted };
+        return (
+          <span style={{
+            fontSize: '9px',
+            fontWeight: 600,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+            color: badge.color,
+            border: `1px solid ${badge.color}`,
+            borderRadius: 2,
+            padding: '1px 4px',
+            opacity: 0.8,
+          }}>
+            {badge.label}
+          </span>
+        );
+      })()}
 
       {/* BGMプレイヤー */}
       <BgmMiniPlayer />

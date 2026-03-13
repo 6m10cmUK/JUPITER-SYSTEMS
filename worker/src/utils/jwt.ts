@@ -1,18 +1,16 @@
 import type { AuthUser } from '../types';
 
-const decoder = new TextDecoder();
+// JWKS URL → { keys, expiry } のキャッシュ
+const jwksCache = new Map<string, { keys: CryptoKey[]; expiry: number }>();
 
-// Convex JWKS endpoint
-const JWKS_URL = 'https://useful-jay-379.convex.site/.well-known/jwks.json';
+const FALLBACK_JWKS_URL = 'https://useful-jay-379.convex.site/.well-known/jwks.json';
 
-let cachedKeys: CryptoKey[] | null = null;
-let cacheExpiry = 0;
-
-async function getPublicKeys(): Promise<CryptoKey[]> {
+async function getPublicKeys(jwksUrl: string): Promise<CryptoKey[]> {
   const now = Date.now();
-  if (cachedKeys && now < cacheExpiry) return cachedKeys;
+  const cached = jwksCache.get(jwksUrl);
+  if (cached && now < cached.expiry) return cached.keys;
 
-  const res = await fetch(JWKS_URL);
+  const res = await fetch(jwksUrl);
   if (!res.ok) throw new Error('Failed to fetch JWKS');
   const data = (await res.json()) as { keys: JsonWebKey[] };
   const keys = data.keys || [];
@@ -28,8 +26,7 @@ async function getPublicKeys(): Promise<CryptoKey[]> {
       ),
     ),
   );
-  cachedKeys = cryptoKeys;
-  cacheExpiry = now + 5 * 60 * 1000; // 5分キャッシュ
+  jwksCache.set(jwksUrl, { keys: cryptoKeys, expiry: now + 5 * 60 * 1000 });
   return cryptoKeys;
 }
 
@@ -41,16 +38,20 @@ function base64urlDecode(str: string): Uint8Array {
   return bytes;
 }
 
-export async function verifyJwt(token: string): Promise<AuthUser | null> {
+export async function verifyJwt(token: string, convexSiteUrl?: string): Promise<AuthUser | null> {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
 
-    const decoder_text = new TextDecoder();
-    const payload = JSON.parse(decoder_text.decode(base64urlDecode(parts[1])));
+    const decoder = new TextDecoder();
+    const payload = JSON.parse(decoder.decode(base64urlDecode(parts[1])));
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
 
-    const keys = await getPublicKeys();
+    const jwksUrl = convexSiteUrl
+      ? `${convexSiteUrl}/.well-known/jwks.json`
+      : FALLBACK_JWKS_URL;
+
+    const keys = await getPublicKeys(jwksUrl);
     const data = new TextEncoder().encode(`${parts[0]}.${parts[1]}`);
     const sig = base64urlDecode(parts[2]);
 

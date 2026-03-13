@@ -6,6 +6,7 @@ import { PDF2MD } from './pages/PDF2MD'
 import CharacterDisplayGenerator from './pages/CharacterDisplayGenerator'
 import DiscordObs from './pages/DiscordObs'
 import Adrastea from './pages/Adrastea'
+import AdrasteaAdmin from './pages/AdrasteaAdmin'
 import { AuthProvider } from './contexts/AuthContext'
 
 function NotFound() {
@@ -25,6 +26,7 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
+          <Route path="adrastea/admin" element={<AdrasteaAdmin />} />
           <Route path="adrastea" element={<Adrastea />} />
           <Route path="adrastea/:roomId" element={<Adrastea />} />
           <Route path="/" element={<Layout />} errorElement={<div>エラーが発生しました</div>}>

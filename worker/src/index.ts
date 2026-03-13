@@ -12,6 +12,7 @@ import { handleAuth } from './routes/auth';
 import { handleRooms } from './routes/rooms';
 import { handleAssets } from './routes/assets';
 import { handleR2 } from './routes/r2';
+import { handleAdmin } from './routes/admin';
 import { corsHeaders } from './utils/cors';
 import { checkRateLimit } from './utils/rateLimit';
 import { verifyJwt } from './utils/jwt';
@@ -98,7 +99,7 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7));
+    const user = await verifyJwt(authHeader.slice(7), env.CONVEX_SITE_URL);
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
@@ -119,6 +120,11 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     // --- Rooms API ---
     if (url.pathname.startsWith('/api/rooms')) {
       return handleRooms(request, url, env, headers, user);
+    }
+
+    // --- Admin API ---
+    if (url.pathname.startsWith('/api/admin')) {
+      return handleAdmin(request, url, env, headers, user);
     }
 
     // --- Assets API ---

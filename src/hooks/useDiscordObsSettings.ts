@@ -48,7 +48,7 @@ function generateCSS(
   css += '[class*="Voice_avatarSpeaking__"] {\n';
   css += '  position: relative;\n';
 
-  let filters = ['brightness(100%)'];
+  const filters = ['brightness(100%)'];
   if (animationSettings.border.enabled) {
     const borderSize = Math.max(1, Math.round(animationSettings.border.thickness / 10));
     filters.push(`drop-shadow(-${borderSize}px -${borderSize}px 0 white)`);

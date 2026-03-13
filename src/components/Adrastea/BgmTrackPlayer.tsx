@@ -114,16 +114,16 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: Bgm
     return raw.split(/[?&#]/)[0];
   };
 
-  if (!track.bgm_type || !track.bgm_source) return null;
-
-  const videoId = track.bgm_type === 'youtube' ? extractVideoId(track.bgm_source) : '';
+  const videoId = track.bgm_type === 'youtube' && track.bgm_source ? extractVideoId(track.bgm_source) : '';
 
   // デバッグ: マウント時にソース情報をログ
   useEffect(() => {
-    if (track.bgm_type === 'youtube') {
+    if (track.bgm_type === 'youtube' && track.bgm_source) {
       debugLog?.(`YT mount: "${track.name}" source="${track.bgm_source}" → videoId="${videoId}"`);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!track.bgm_type || !track.bgm_source) return null;
 
   return (
     <>
