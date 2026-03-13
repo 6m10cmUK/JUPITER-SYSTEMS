@@ -10,6 +10,7 @@ export function CharacterDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
   const [modalChar, setModalChar] = useState<Character | null | undefined>(undefined);
+  const [selectedCharIds, setSelectedCharIds] = useState<string[]>([]);
 
   const handleAddCharacter = () => {
     ctx.clearAllEditing();
@@ -44,16 +45,23 @@ export function CharacterDockPanel() {
     }
   };
 
+  const handleRemoveCharacters = (ids: string[]) => {
+    ids.forEach(id => ctx.removeCharacter(id));
+    setSelectedCharIds([]);
+  };
+
   return (
     <>
       <CharacterPanel
         characters={ctx.characters}
         currentUserId={user?.uid ?? ''}
         selectedCharId={ctx.editingCharacter?.id ?? null}
+        selectedCharIds={selectedCharIds}
         onAddCharacter={handleAddCharacter}
         onSelectCharacter={handleSelectCharacter}
         onDoubleClickCharacter={(char) => setModalChar(char)}
-        onRemoveCharacter={ctx.removeCharacter}
+        onSelectedCharIdsChange={setSelectedCharIds}
+        onRemoveCharacters={handleRemoveCharacters}
         onReorderCharacters={ctx.reorderCharacters}
       />
       {modalChar !== undefined && ctx.roomId && (
