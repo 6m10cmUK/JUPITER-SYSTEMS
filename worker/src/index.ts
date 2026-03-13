@@ -99,7 +99,7 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7));
+    const user = await verifyJwt(authHeader.slice(7), env.CONVEX_SITE_URL);
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
