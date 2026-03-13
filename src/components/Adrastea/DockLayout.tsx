@@ -110,8 +110,6 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
   const [isMinimized, setIsMinimized] = React.useState(() => minimizedGroups.has(group.id));
 
   const activePanel = group.activePanel;
-  if (!activePanel) return null;
-
   const hasBoardPanel = group.panels.some((p) => p.id === 'board');
   const isFloating = group.api.location.type === 'floating';
 
@@ -166,7 +164,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
     setIsMinimized(false);
   }, [group]);
 
-  return (
+  return activePanel ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: '100%', paddingRight: 4 }}>
       {/* board がアクティブなら ZoomBar */}
       {hasBoardPanel && activePanel.id === 'board' && (
@@ -229,7 +227,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
         </Tooltip>
       )}
     </div>
-  );
+  ) : null;
 }
 
 /* ── DockviewInner（memo で Context 変更による再レンダリングを防止） ── */
