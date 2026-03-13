@@ -160,9 +160,9 @@ export interface AdrasteaContextValue {
   selectedObjectIds: string[];
   setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>>;
   showRoomSettings: boolean;
-  setShowRoomSettings: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowRoomSettings: (v: boolean) => void;
   showProfileEdit: boolean;
-  setShowProfileEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowProfileEdit: (v: boolean) => void;
   showSettings: boolean;
   settingsSection: 'room' | 'layout' | 'user';
   setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'user') => void;
@@ -346,8 +346,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
-  const [showRoomSettings, setShowRoomSettings] = useState(false);
-  const [showProfileEdit, setShowProfileEdit] = useState(false);
   const [showSettings, setShowSettingsState] = useState(false);
   const [settingsSection, setSettingsSection] = useState<'room' | 'layout' | 'user'>('room');
 
@@ -669,7 +667,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const deleteRoom = useCallback(async () => {
     if (!room) return;
-    await removeRoom({ _id: room._id });
+    await removeRoom({ id: room.id });
     // ルーム一覧に戻る
     window.location.href = '/adrastea/';
   }, [room, removeRoom]);

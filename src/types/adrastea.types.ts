@@ -22,6 +22,7 @@ export interface Room {
   id: string;
   owner_id: string;
   name: string;
+  description?: string;
   active_scene_id: string | null;
   foreground_url: string | null;
   active_cutin: ActiveCutin | null;

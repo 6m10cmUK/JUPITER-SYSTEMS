@@ -9,6 +9,7 @@
  */
 
 import type * as _helpers from "../_helpers.js";
+import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as bgms from "../bgms.js";
 import type * as channels from "../channels.js";
@@ -33,6 +34,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   _helpers: typeof _helpers;
+  admin: typeof admin;
   auth: typeof auth;
   bgms: typeof bgms;
   channels: typeof channels;

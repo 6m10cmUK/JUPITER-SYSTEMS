@@ -210,8 +210,8 @@ function setCursorOffset(el: HTMLElement, offset: number) {
         const r = document.createRange();
         r.setStart(node, remaining);
         r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        sel!.removeAllRanges();
+        sel!.addRange(r);
         return true;
       }
       remaining -= len;
@@ -220,8 +220,8 @@ function setCursorOffset(el: HTMLElement, offset: number) {
         const r = document.createRange();
         r.setStartBefore(node);
         r.collapse(true);
-        sel.removeAllRanges();
-        sel.addRange(r);
+        sel!.removeAllRanges();
+        sel!.addRange(r);
         return true;
       }
       remaining -= 1;

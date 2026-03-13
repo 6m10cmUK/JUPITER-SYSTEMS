@@ -199,7 +199,7 @@ const getDiceAccentColor = (content: string): string => {
   return theme.accent;
 };
 
-const FallbackAvatar: React.FC<{ name: string; color?: string | null }> = ({ name, color }) => (
+const FallbackAvatar: React.FC<{ name: string; color?: string | null }> = ({ name: _name, color }) => (
   <div
     style={{
       width: 24,
@@ -287,7 +287,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   messages,
   loading,
   hasMore,
-  roomName,
+  roomName: _roomName,
   characters,
   onLoadMore,
   onClearMessages,

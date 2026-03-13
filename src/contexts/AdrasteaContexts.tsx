@@ -126,9 +126,9 @@ export interface UIStateContextValue {
   selectedObjectIds: string[];
   setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>>;
   showRoomSettings: boolean;
-  setShowRoomSettings: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowRoomSettings: (v: boolean) => void;
   showProfileEdit: boolean;
-  setShowProfileEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowProfileEdit: (v: boolean) => void;
   showSettings: boolean;
   settingsSection: 'room' | 'layout' | 'user';
   setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'user') => void;
