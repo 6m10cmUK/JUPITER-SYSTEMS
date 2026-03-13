@@ -286,37 +286,6 @@ function UserSection({
             </AdButton>
           </div>
           <div style={{ height: 1, background: theme.border }} />
-
-          {/* 開発者モード */}
-          <div>
-            <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-              開発者
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 12, color: theme.textPrimary }}>デバッグコンソール</span>
-              <AdButton
-                onClick={() => {
-                  if (!dockviewApi) return;
-                  const existing = dockviewApi.getPanel('debugConsole');
-                  if (existing) {
-                    existing.api.setActive();
-                  } else {
-                    let targetGroup = dockviewApi.activeGroup;
-                    if (targetGroup?.panels.some(p => p.id === 'board')) {
-                      targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
-                    }
-                    if (targetGroup) {
-                      dockviewApi.addPanel({ id: 'debugConsole', component: 'debugConsole', title: 'Debug Console', position: { referenceGroup: targetGroup, direction: 'within' } });
-                    }
-                  }
-                }}
-              >
-                {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
-              </AdButton>
-            </div>
-          </div>
-
-          <div style={{ height: 1, background: theme.border }} />
           <AdButton
             variant="danger"
             onClick={() => { onSignOut(); onClose(); }}
@@ -325,6 +294,35 @@ function UserSection({
           </AdButton>
         </div>
       )}
+
+      {/* 開発者モード */}
+      <div>
+        <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, marginTop: isGuest ? 16 : 0 }}>
+          開発者
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: theme.textPrimary }}>デバッグコンソール</span>
+          <AdButton
+            onClick={() => {
+              if (!dockviewApi) return;
+              const existing = dockviewApi.getPanel('debugConsole');
+              if (existing) {
+                existing.api.setActive();
+              } else {
+                let targetGroup = dockviewApi.activeGroup;
+                if (targetGroup?.panels.some(p => p.id === 'board')) {
+                  targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
+                }
+                if (targetGroup) {
+                  dockviewApi.addPanel({ id: 'debugConsole', component: 'debugConsole', title: 'Debug Console', position: { referenceGroup: targetGroup, direction: 'within' } });
+                }
+              }
+            }}
+          >
+            {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
+          </AdButton>
+        </div>
+      </div>
     </div>
   );
 }
