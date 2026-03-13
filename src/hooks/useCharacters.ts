@@ -106,7 +106,7 @@ export function useCharacters(roomId: string) {
         name: data.name ?? '新規キャラクター',
         images: data.images ?? [],
         active_image_index: data.active_image_index ?? 0,
-        color: data.color ?? '#89b4fa',
+        color: data.color ?? '#555555',
         sheet_url: data.sheet_url ?? null,
         initiative: data.initiative ?? 0,
         size: data.size ?? 1,

@@ -11,6 +11,7 @@
 import type * as _helpers from "../_helpers.js";
 import type * as auth from "../auth.js";
 import type * as bgms from "../bgms.js";
+import type * as channels from "../channels.js";
 import type * as characters from "../characters.js";
 import type * as cutins from "../cutins.js";
 import type * as http from "../http.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   _helpers: typeof _helpers;
   auth: typeof auth;
   bgms: typeof bgms;
+  channels: typeof channels;
   characters: typeof characters;
   cutins: typeof cutins;
   http: typeof http;

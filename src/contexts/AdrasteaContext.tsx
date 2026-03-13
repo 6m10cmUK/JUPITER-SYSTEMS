@@ -78,6 +78,10 @@ export interface AdrasteaContextValue {
   activeChatChannel: string;
   setActiveChatChannel: (channel: string) => void;
 
+  // --- Chat input inject ---
+  chatInjectText: string | null;
+  setChatInjectText: (text: string | null) => void;
+
   // --- useChannels ---
   channels: ChatChannel[];
   upsertChannel: (channel: ChatChannel) => Promise<void>;
@@ -342,6 +346,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
   const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
   const [activeChatChannel, setActiveChatChannel] = useState<string>('main');
+  const [chatInjectText, setChatInjectText] = useState<string | null>(null);
 
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
@@ -693,6 +698,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
+      chatInjectText, setChatInjectText,
 
       // useChannels
       channels, upsertChannel,
@@ -777,6 +783,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
+      chatInjectText, setChatInjectText,
       channels, upsertChannel,
       effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
       characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,

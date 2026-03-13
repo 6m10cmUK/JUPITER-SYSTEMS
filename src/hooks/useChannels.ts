@@ -12,19 +12,26 @@ export function useChannels(roomId: string) {
   const channelsData = useQuery(api.channels.list, { room_id: roomId ?? '' });
   const upsertMutation = useMutation(api.channels.upsert);
 
-  // DBにデータがなければデフォルトを使う
-  const channels: ChatChannel[] = channelsData && channelsData.length > 0
-    ? channelsData
-        .filter((c: any) => !c.is_archived)
-        .sort((a: any, b: any) => a.order - b.order)
-        .map((c: any) => ({
-          channel_id: c.channel_id,
-          label: c.label,
-          order: c.order,
-          is_archived: c.is_archived,
-          allowed_user_ids: c.allowed_user_ids,
-        }))
-    : DEFAULT_CHANNELS;
+  // DEFAULT_CHANNELSは常にUI定数として表示
+  // DBのカスタムチャンネル（DEFAULT_CHANNELSと被らないもの）を後ろに追加
+  const channels: ChatChannel[] = DEFAULT_CHANNELS.concat(
+    (channelsData ?? [])
+      .filter((c: any) => {
+        // is_archived: true は除外
+        if (c.is_archived) return false;
+        // DEFAULT_CHANNELSのchannel_idと被らないもののみ
+        const isDefault = DEFAULT_CHANNELS.some((dc) => dc.channel_id === c.channel_id);
+        return !isDefault;
+      })
+      .sort((a: any, b: any) => a.order - b.order)
+      .map((c: any) => ({
+        channel_id: c.channel_id,
+        label: c.label,
+        order: c.order,
+        is_archived: c.is_archived,
+        allowed_user_ids: c.allowed_user_ids,
+      }))
+  );
 
   const upsertChannel = async (channel: ChatChannel) => {
     await upsertMutation({

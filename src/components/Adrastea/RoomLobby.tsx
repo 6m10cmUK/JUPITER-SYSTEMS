@@ -5,6 +5,7 @@ import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
+import { calcPopupPos } from '../../utils/calcPopupPos';
 import { AdModal, AdInput, AdButton, AdComboBox } from './ui/AdComponents';
 import {
   DndContext,
@@ -23,7 +24,8 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, X, Share2, Copy, LogOut } from 'lucide-react';
+import { Plus, Pencil, X, Share2, Copy, LogOut, User } from 'lucide-react';
+import { ProfileEditModal } from './ProfileEditModal';
 
 interface RoomLobbyProps {
   onRoomCreated: (roomId: string) => void;
@@ -163,14 +165,15 @@ function DiceSystemPicker({
       </button>
       {open && (() => {
         const pos = getDropdownPos();
+        const popPos = calcPopupPos(new DOMRect(pos.left, 0, pos.width, 0), pos.width, 240, 'down');
         return createPortal(
         <div
           ref={dropRef}
           className="adrastea-root"
           style={{
             position: 'fixed',
-            top: pos.top,
-            left: pos.left,
+            top: popPos.top,
+            left: popPos.left,
             width: pos.width,
             zIndex: 9999,
             background: theme.bgSurface,
@@ -445,7 +448,7 @@ function SortableRoomCard({
 
 // ── メイン ──
 const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut, updateProfile } = useAuth();
   const { rooms, loading, deleteRoom, updateRoom, reorderRooms, addRoom } = useRooms(user?.uid);
   const [diceSystems, setDiceSystems] = useState<{ id: string; name: string }[]>(cachedSystems ?? []);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -453,6 +456,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [shareRoom, setShareRoom] = useState<Room | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // マウント時にダイスシステム一覧を先行ロード
   useEffect(() => {
@@ -608,28 +612,55 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: theme.textMuted }}>
           TRPG盤面共有ツール
         </p>
-        <button
-          className="ad-btn"
-          onClick={signOut}
-          title="ログアウト"
-          style={{
-            position: 'absolute',
-            top: '24px',
-            right: '32px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 12px',
-            fontSize: '12px',
-            background: 'transparent',
-            border: `1px solid ${theme.border}`,
-            color: theme.textSecondary,
-            cursor: 'pointer',
-          }}
-        >
-          <LogOut size={14} />
-          ログアウト
-        </button>
+        <div style={{ position: 'absolute', top: '24px', right: '32px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <button
+            className="ad-btn-icon"
+            onClick={() => setShowProfileEdit(true)}
+            title="プロフィール"
+            style={{
+              width: '24px',
+              height: '24px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              background: 'transparent',
+              border: `1px solid ${theme.border}`,
+              color: theme.textSecondary,
+              cursor: 'pointer',
+              borderRadius: '50%',
+            }}
+          >
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt="プロフィール"
+                style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover' }}
+              />
+            ) : (
+              <User size={12} />
+            )}
+          </button>
+          <button
+            className="ad-btn"
+            onClick={signOut}
+            title="ログアウト"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              background: 'transparent',
+              border: `1px solid ${theme.border}`,
+              color: theme.textSecondary,
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={14} />
+            ログアウト
+          </button>
+        </div>
       </div>
 
       {/* 検索 */}
@@ -838,6 +869,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
             </AdButton>
           </div>
         </AdModal>
+      )}
+
+      {/* プロフィール編集モーダル */}
+      {showProfileEdit && profile && (
+        <ProfileEditModal
+          profile={profile}
+          onSave={updateProfile}
+          onClose={() => setShowProfileEdit(false)}
+        />
       )}
     </div>
   );
