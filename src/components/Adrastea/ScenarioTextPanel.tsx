@@ -112,10 +112,16 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onReorderT
                   placeholder="本文"
                 />
                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                  <button onClick={() => setEditingId(null)} style={{
-                    padding: '4px 8px', background: theme.bgInput, color: theme.textPrimary,
-                    border: 'none', borderRadius: 0, fontSize: '0.75rem', cursor: 'pointer',
-                  }}>キャンセル</button>
+                  <button
+                    className="ad-btn ad-btn--ghost"
+                    onClick={() => setEditingId(null)}
+                    style={{
+                      padding: '4px 8px', background: 'transparent', color: theme.textPrimary,
+                      border: 'none', borderRadius: 0, fontSize: '0.75rem', cursor: 'pointer',
+                    }}
+                  >
+                    キャンセル
+                  </button>
                   <button onClick={saveEdit} style={{
                     padding: '4px 8px', background: theme.accent, color: theme.textOnAccent,
                     border: 'none', borderRadius: 0, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer',

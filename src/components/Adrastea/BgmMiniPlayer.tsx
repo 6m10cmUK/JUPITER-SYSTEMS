@@ -44,7 +44,7 @@ export function BgmMiniPlayer() {
           padding: '6px 10px',
           whiteSpace: 'nowrap',
           zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+          boxShadow: theme.shadowMd,
         }}>
           {playingTracks.map(t => (
             <div key={t.id} style={{

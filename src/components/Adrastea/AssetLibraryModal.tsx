@@ -277,10 +277,11 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               保存
             </button>
             <button
+              className="ad-btn ad-btn--ghost"
               onClick={() => { setEditingTagsId(null); setTagInput(''); }}
               style={{
                 flex: 1, padding: '2px 6px', fontSize: '0.7rem',
-                background: theme.bgInput, color: theme.textPrimary,
+                background: 'transparent', color: theme.textPrimary,
                 border: 'none', borderRadius: 0, cursor: 'pointer',
               }}
             >
@@ -334,10 +335,11 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             削除する
           </button>
           <button
+            className="ad-btn ad-btn--ghost"
             onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
             style={{
               flex: 1, padding: '4px', fontSize: '0.7rem',
-              background: theme.bgInput, color: theme.textPrimary,
+              background: 'transparent', color: theme.textPrimary,
               border: 'none', borderRadius: 0, cursor: 'pointer',
             }}
           >
@@ -383,9 +385,8 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
     display: 'flex', alignItems: 'center', gap: '8px',
     padding: '10px 14px', fontSize: '0.85rem',
     background: 'transparent', color: theme.textPrimary,
-    border: `1px solid ${theme.border}`, borderRadius: 0,
+    border: 'none', borderRadius: 0,
     cursor: 'pointer', width: '100%',
-    transition: 'background 0.15s',
   };
 
   const renderAddSubModal = () => {
@@ -419,11 +420,12 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
+                className="ad-btn ad-btn--ghost"
                 onClick={() => { setAddMode(null); setUrlInput(''); }}
                 style={{
                   padding: '6px 14px', fontSize: '0.8rem',
                   background: 'transparent', color: theme.textSecondary,
-                  border: `1px solid ${theme.border}`, borderRadius: 0, cursor: 'pointer',
+                  border: 'none', borderRadius: 0, cursor: 'pointer',
                 }}
               >
                 キャンセル
@@ -463,6 +465,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           </div>
           {activeTab !== 'audio' && (
             <button
+              className="ad-btn ad-btn--ghost"
               style={menuBtnStyle}
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
@@ -471,7 +474,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               {uploading ? 'アップロード中...' : 'ファイルを選択'}
             </button>
           )}
-          <button style={menuBtnStyle} onClick={() => setAddMode('url')}>
+          <button className="ad-btn ad-btn--ghost" style={menuBtnStyle} onClick={() => setAddMode('url')}>
             <Link size={14} />
             URLから追加
           </button>

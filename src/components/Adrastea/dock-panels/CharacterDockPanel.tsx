@@ -49,6 +49,7 @@ export function CharacterDockPanel() {
       <CharacterPanel
         characters={ctx.characters}
         currentUserId={user?.uid ?? ''}
+        selectedCharId={ctx.editingCharacter?.id ?? null}
         onAddCharacter={handleAddCharacter}
         onSelectCharacter={handleSelectCharacter}
         onDoubleClickCharacter={(char) => setModalChar(char)}

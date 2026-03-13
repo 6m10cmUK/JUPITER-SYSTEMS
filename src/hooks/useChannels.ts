@@ -11,6 +11,7 @@ export const DEFAULT_CHANNELS: ChatChannel[] = [
 export function useChannels(roomId: string) {
   const channelsData = useQuery(api.channels.list, { room_id: roomId ?? '' });
   const upsertMutation = useMutation(api.channels.upsert);
+  const removeMutation = useMutation(api.channels.remove);
 
   // DEFAULT_CHANNELSは常にUI定数として表示
   // DBのカスタムチャンネル（DEFAULT_CHANNELSと被らないもの）を後ろに追加
@@ -44,5 +45,9 @@ export function useChannels(roomId: string) {
     });
   };
 
-  return { channels, upsertChannel, loading: channelsData === undefined };
+  const deleteChannel = async (channelId: string) => {
+    await removeMutation({ room_id: roomId, channel_id: channelId });
+  };
+
+  return { channels, upsertChannel, deleteChannel, loading: channelsData === undefined };
 }

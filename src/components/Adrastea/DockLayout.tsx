@@ -8,12 +8,14 @@ import {
   type DockviewApi,
   type IDockviewHeaderActionsProps,
   type DockviewTheme,
+  type DockviewGroupPanel,
 } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import '../../styles/dockview-catppuccin.css';
 import { PictureInPicture2, Minus, Maximize2, ArrowDownToLine } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { Tooltip } from './ui';
 import { usePermission } from '../../hooks/usePermission';
 import { panelComponents } from './dock-panels/sharedComponents';
 import { BgmEngine } from './BgmEngine';
@@ -63,13 +65,40 @@ function loadLayout(role: string): object | null {
   return null;
 }
 
+/** board 以外のグループの最大幅を現在値に固定する（広がり防止。縮小は許容） */
+function fixGroupWidth(group: DockviewGroupPanel) {
+  const w = group.width;
+  if (w > 0) {
+    (group.api as any).setConstraints({ maximumWidth: w });
+  }
+}
+
+/** 幅制約を解除する（ユーザーによるリサイズ時） */
+function relaxGroupWidth(group: DockviewGroupPanel) {
+  (group.api as any).setConstraints({ minimumWidth: 50, maximumWidth: Number.MAX_SAFE_INTEGER });
+}
+
+/** すべての非board グループの幅を固定する */
+function fixAllNonBoardWidths(api: DockviewApi) {
+  api.groups.forEach((g) => {
+    if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
+      fixGroupWidth(g);
+    }
+  });
+}
+
 /* ── タブヘッダー右側アクション ── */
 
 const iconBtnStyle: React.CSSProperties = {
-  width: 20, height: 20,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'transparent', border: 'none',
-  color: theme.textSecondary, cursor: 'pointer', padding: 0,
+  width: 24,
+  height: 24,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  color: theme.textSecondary,
+  cursor: 'pointer',
+  padding: 0,
 };
 
 // 最小化状態の管理（グループID → 元の高さ）
@@ -96,6 +125,24 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
       el.classList.remove('dv-floating-translucent');
     }
   }, [isFloating, (group.header as any)?.element]);
+
+  // フロート/ドック時に幅制約を管理
+  useEffect(() => {
+    const disposable = group.api.onDidLocationChange((event) => {
+      if (event.location.type !== 'floating') {
+        // ドックに戻った → 幅を現在値で固定
+        requestAnimationFrame(() => {
+          if (!group.panels.some((p) => p.id === 'board')) {
+            fixGroupWidth(group);
+          }
+        });
+      } else {
+        // フロートになった → 制約解除
+        relaxGroupWidth(group);
+      }
+    });
+    return () => disposable.dispose();
+  }, [group]);
 
   const handleMinimize = useCallback(() => {
     const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
@@ -129,38 +176,57 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
       {/* フローティング時: ドックに戻す / 最小化/復元 */}
       {isFloating && (
         <>
-          <button title="ドックに戻す" onClick={() => {
-            // 最小化状態をリセットしてからドックに移動
-            if (minimizedGroups.has(group.id)) {
-              const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
-              if (container) {
-                container.style.height = '';
-                container.style.minHeight = '';
-                container.style.overflow = '';
-              }
-              minimizedGroups.delete(group.id);
-            }
-            group.api.moveTo({});
-          }} style={iconBtnStyle}>
-            <ArrowDownToLine size={11} />
-          </button>
+          <Tooltip label="ドックに戻す">
+            <button
+              type="button"
+              className="ad-btn ad-btn--ghost"
+              onClick={() => {
+                if (minimizedGroups.has(group.id)) {
+                  const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
+                  if (container) {
+                    container.style.height = '';
+                    container.style.minHeight = '';
+                    container.style.overflow = '';
+                  }
+                  minimizedGroups.delete(group.id);
+                }
+                group.api.moveTo({ position: 'right' });
+              }}
+              style={iconBtnStyle}
+            >
+              <ArrowDownToLine size={12} />
+            </button>
+          </Tooltip>
           {isMinimized ? (
-            <button title="復元" onClick={handleRestore} style={iconBtnStyle}>
-              <Maximize2 size={11} />
-            </button>
+            <Tooltip label="復元">
+              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleRestore} style={iconBtnStyle}>
+                <Maximize2 size={12} />
+              </button>
+            </Tooltip>
           ) : (
-            <button title="最小化" onClick={handleMinimize} style={iconBtnStyle}>
-              <Minus size={11} />
-            </button>
+            <Tooltip label="最小化">
+              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleMinimize} style={iconBtnStyle}>
+                <Minus size={12} />
+              </button>
+            </Tooltip>
           )}
         </>
       )}
 
       {/* フロート（既にフロート中なら非表示） */}
       {!isFloating && (
-        <button title="フロートにする" onClick={() => containerApi.addFloatingGroup(activePanel)} style={iconBtnStyle}>
-          <PictureInPicture2 size={11} />
-        </button>
+        <Tooltip label="フロートにする">
+          <button
+            type="button"
+            className="ad-btn ad-btn--ghost"
+            onClick={() => {
+              containerApi.addFloatingGroup(activePanel);
+            }}
+            style={iconBtnStyle}
+          >
+            <PictureInPicture2 size={12} />
+          </button>
+        </Tooltip>
       )}
     </div>
   );
@@ -202,6 +268,7 @@ const DockviewInner = memo(function DockviewInner({
       if (saved) {
         try {
           api.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]);
+          requestAnimationFrame(() => fixAllNonBoardWidths(api));
           return;
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
@@ -243,6 +310,7 @@ const DockviewInner = memo(function DockviewInner({
         scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
         bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       } else if (role === 'user') {
         // user: シーン・キャラクター・チャット・ボード
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -269,6 +337,7 @@ const DockviewInner = memo(function DockviewInner({
 
         scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       } else if (role === 'guest') {
         // guest: ボード・チャットのみ
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -282,23 +351,51 @@ const DockviewInner = memo(function DockviewInner({
         });
 
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       }
     },
     [onApiReady, role],
   );
 
   // レイアウト変更時に自動保存（debounce で連続変更をまとめる）
+  // ユーザーが sash をドラッグ中のみ制約を解除し、離したら再固定
   const roleRef = useRef(role);
   roleRef.current = role;
   useEffect(() => {
     const api = apiRef.current;
     if (!api) return;
     let timer: ReturnType<typeof setTimeout>;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if ((e.target as HTMLElement).closest('.dv-sash')) {
+        api.groups.forEach((g) => {
+          if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
+            relaxGroupWidth(g);
+          }
+        });
+      }
+    };
+    const onPointerUp = () => {
+      api.groups.forEach((g) => {
+        if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
+          fixGroupWidth(g);
+        }
+      });
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerup', onPointerUp);
+
     const disposable = api.onDidLayoutChange(() => {
       clearTimeout(timer);
       timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
     });
-    return () => { clearTimeout(timer); disposable.dispose(); };
+
+    return () => {
+      clearTimeout(timer);
+      disposable.dispose();
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
   }, []);
 
   return (
