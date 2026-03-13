@@ -65,4 +65,4 @@ public/pdf.js/
 .playwright-cli/
 
 # Playwright auth state
-e2e/.auth/
+e2e/.auth/.env.prod
