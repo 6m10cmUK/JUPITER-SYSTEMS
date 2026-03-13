@@ -48,6 +48,7 @@ function LoadingScreen({ progress, statusText }: { progress: number; statusText:
 function AdrasteaRoom() {
   const ctx = useAdrasteaContext();
   const { can } = usePermission();
+  const { isGuest } = useAuth();
 
   const handleAddPiece = useCallback((label: string, color: string) => {
     const center = ctx.getBoardCenter();
@@ -141,7 +142,10 @@ function AdrasteaRoom() {
           dockviewApi={ctx.dockviewApi}
           can={can}
           profile={ctx.profile}
-          onOpenProfile={() => ctx.setShowSettings(true, 'user')}
+          onSaveProfile={async (data) => {
+            await ctx.updateProfile(data);
+          }}
+          isGuest={isGuest}
           onSignOut={ctx.signOut}
           onClose={() => ctx.setShowSettings(false)}
         />
