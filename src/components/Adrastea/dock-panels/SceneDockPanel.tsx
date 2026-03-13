@@ -22,17 +22,21 @@ export function SceneDockPanel() {
     return refScene ? refScene.sort_order + 0.5 : ctx.scenes.length;
   };
 
-  const handleAddScene = async () => {
-    const nextSortOrder = getInsertSortOrder();
-    const result = await ctx.addScene({
-      name: '新しいシーン',
-      sort_order: nextSortOrder,
-    });
-    if (!result) return;
-    const newSceneId = result.scene.id;
-    rebalanceSortOrder(newSceneId, nextSortOrder);
-    await ctx.activateScene(newSceneId);
-    setSelectedSceneIds([newSceneId]);
+  const handleAddScene = async (count: number = 1) => {
+    for (let i = 0; i < count; i++) {
+      const nextSortOrder = getInsertSortOrder();
+      const result = await ctx.addScene({
+        name: '新しいシーン',
+        sort_order: nextSortOrder,
+      });
+      if (!result) continue;
+      const newSceneId = result.scene.id;
+      rebalanceSortOrder(newSceneId, nextSortOrder);
+      if (i === count - 1) {
+        await ctx.activateScene(newSceneId);
+        setSelectedSceneIds([newSceneId]);
+      }
+    }
   };
 
   const handleDuplicateScenes = useCallback(async (sceneIds: string[]) => {
