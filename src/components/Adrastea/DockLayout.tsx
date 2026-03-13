@@ -65,17 +65,17 @@ function loadLayout(role: string): object | null {
   return null;
 }
 
-/** board 以外のグループの幅を現在値で固定する */
+/** board 以外のグループの最大幅を現在値に固定する（広がり防止。縮小は許容） */
 function fixGroupWidth(group: DockviewGroupPanel) {
   const w = group.width;
   if (w > 0) {
-    (group.api as any).setConstraints({ minimumWidth: w, maximumWidth: w });
+    (group.api as any).setConstraints({ maximumWidth: w });
   }
 }
 
 /** 幅制約を解除する（ユーザーによるリサイズ時） */
 function relaxGroupWidth(group: DockviewGroupPanel) {
-  (group.api as any).setConstraints({ minimumWidth: undefined, maximumWidth: undefined });
+  (group.api as any).setConstraints({ minimumWidth: 50, maximumWidth: Number.MAX_SAFE_INTEGER });
 }
 
 /** すべての非board グループの幅を固定する */
