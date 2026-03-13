@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
 import { ChevronRight, ChevronDown, X, Palette } from 'lucide-react';
+import { calcPopupPos } from '../../../utils/calcPopupPos';
 
 // ── Shared compact styles ──
 const FONT_SIZE = '12px';
@@ -924,7 +925,7 @@ export function AdComboBox(props: AdComboBoxProps) {
             className="adrastea-root"
             style={{
               position: 'fixed',
-              bottom: window.innerHeight - getDropPos().top,
+              top: calcPopupPos(new DOMRect(getDropPos().left, getDropPos().top, getDropPos().width, 0), getDropPos().width, 150, 'down').top,
               left: getDropPos().left,
               width: getDropPos().width,
               zIndex: 9999,
@@ -1053,7 +1054,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           className="adrastea-root"
           style={{
             position: 'fixed',
-            top: getDropPos().top,
+            top: calcPopupPos(new DOMRect(getDropPos().left, getDropPos().top, getDropPos().width, 0), getDropPos().width, 150, 'down').top,
             left: getDropPos().left,
             width: getDropPos().width,
             zIndex: 9999,

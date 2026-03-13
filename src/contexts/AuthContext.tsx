@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { useConvexAuth, useQuery } from "convex/react";
+import { useConvexAuth, useQuery, useMutation } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { api } from '../../convex/_generated/api';
 import type { UserProfile } from '../types/adrastea.types';
@@ -19,7 +19,7 @@ interface AuthContextValue {
   signIn: () => Promise<void>;
   signInAsGuest: (displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
-  updateProfile?: (data: Partial<Pick<UserProfile, 'display_name' | 'avatar_url'>>) => Promise<void>;
+  updateProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -27,7 +27,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { signIn: convexSignIn, signOut: convexSignOut } = useAuthActions();
-  const viewerData = useQuery(api.users.viewer);
+  const viewerData = useQuery(api.users.getMe);
+  const updateMeMutation = useMutation(api.users.updateMe);
 
   const signIn = async () => {
     await convexSignIn("google", { redirectTo: window.location.pathname + window.location.search });
@@ -41,17 +42,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await convexSignOut();
   };
 
+  const updateProfile = async (data: { display_name: string; avatar_url: string | null }) => {
+    await updateMeMutation({
+      name: data.display_name,
+      image: data.avatar_url ?? undefined,
+    });
+  };
+
   const uid = viewerData?.id ?? null;
 
   const user: AuthUser | null = (isAuthenticated && uid)
-    ? { uid, displayName: "ユーザー", avatarUrl: null, isGuest: false }
+    ? { uid, displayName: viewerData?.name ?? "ユーザー", avatarUrl: viewerData?.image ?? null, isGuest: false }
     : null;
 
   const profile: UserProfile | null = (isAuthenticated && uid)
     ? {
         uid,
-        display_name: "ユーザー",
-        avatar_url: null,
+        display_name: viewerData?.name ?? "ユーザー",
+        avatar_url: viewerData?.image ?? null,
         created_at: Date.now(),
         updated_at: Date.now(),
       }
@@ -70,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn,
       signInAsGuest,
       signOut,
+      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

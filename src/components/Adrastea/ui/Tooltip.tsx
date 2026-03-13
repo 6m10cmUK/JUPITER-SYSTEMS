@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { theme } from '../../../styles/theme';
+import { calcPopupPos } from '../../../utils/calcPopupPos';
 
 interface TooltipProps {
   label: string;
@@ -14,7 +15,9 @@ export function Tooltip({ label, delay = 0, children }: TooltipProps) {
 
   const show = useCallback((e: React.MouseEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    setPos({ x: rect.left + rect.width / 2, y: rect.bottom + 4 });
+    const calcPos = calcPopupPos(rect, 200, 40, 'down');
+    const left = Math.min(Math.max(rect.left + rect.width / 2, 0), window.innerWidth - 100);
+    setPos({ x: left, y: calcPos.top });
     timerRef.current = setTimeout(() => setVisible(true), delay);
   }, [delay]);
 

@@ -337,10 +337,10 @@ const Adrastea: React.FC = () => {
         }}
       >
         <div style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '16px' }}>
-          アクセス拒否
+          ルームが見つかりません
         </div>
         <div style={{ fontSize: '0.9rem', color: theme.textSecondary, marginBottom: '24px' }}>
-          このルームにアクセスする権限がありません
+          このルームは存在しないか、削除された可能性があります
         </div>
         <button
           onClick={() => navigate('/adrastea')}

@@ -5,6 +5,7 @@ import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { calcPopupPos } from '../../utils/calcPopupPos';
 
 const COLOR_TEXT_PRIMARY = '#e0e0e0';
 const COLOR_TEXT_MUTED = '#707070';
@@ -272,6 +273,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const [senderName, setSenderName] = useState(() => localStorage.getItem('adrastea-last-sender') ?? '');
   const [showCharacterList, setShowCharacterList] = useState(false);
   const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
+  const [showChannelList, setShowChannelList] = useState(false);
+  const [channelDropdownPos, setChannelDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -282,6 +285,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const compositionJustEnded = useRef(false);
   const charListRef = useRef<HTMLDivElement>(null);
   const charIconRef = useRef<HTMLButtonElement>(null);
+  const channelBtnRef = useRef<HTMLButtonElement>(null);
+  const channelListRef = useRef<HTMLDivElement>(null);
   const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const [suggestionPos, setSuggestionPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -310,6 +315,22 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     ctx.setActiveSpeakerCharId(found?.id ?? null);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [characters]);
+
+  // チャットパレットからのテキスト注入
+  useEffect(() => {
+    if (ctx.chatInjectText === null) return;
+    const el = editorRef.current;
+    if (!el) return;
+    // 現在のテキストの末尾に追加（空なら置き換え）
+    const current = el.innerText.replace(/\n$/, '');
+    const newText = current ? current + '\n' + ctx.chatInjectText : ctx.chatInjectText;
+    isUpdating.current = true;
+    el.innerHTML = highlightMarkup(newText) || '';
+    setCursorOffset(el, newText.length);
+    isUpdating.current = false;
+    setIsEmpty(false);
+    ctx.setChatInjectText(null);
+  }, [ctx.chatInjectText, ctx.setChatInjectText]);
 
   const updateSuggestions = useCallback((text: string) => {
     if (!text.trim()) {
@@ -529,7 +550,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     const el = editorContainerRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    setSuggestionPos({ top: rect.top, left: rect.left, width: rect.width });
+    const { top } = calcPopupPos(rect, rect.width, 160, 'up');
+    setSuggestionPos({ top, left: rect.left, width: rect.width });
   }, [suggestions.length]);
 
   useEffect(() => {
@@ -546,6 +568,21 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [showCharacterList]);
+
+  useEffect(() => {
+    if (!showChannelList) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        channelListRef.current && !channelListRef.current.contains(e.target as Node) &&
+        channelBtnRef.current && !channelBtnRef.current.contains(e.target as Node)
+      ) {
+        setShowChannelList(false);
+        setChannelDropdownPos(null);
+      }
+    };
+    document.addEventListener('mousedown', handleMouseDown);
+    return () => document.removeEventListener('mousedown', handleMouseDown);
+  }, [showChannelList]);
 
 
   return (
@@ -579,7 +616,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 setDropdownPos(null);
               } else {
                 const rect = charIconRef.current?.getBoundingClientRect();
-                if (rect) setDropdownPos({ top: rect.bottom + 4, left: rect.left });
+                if (rect) setDropdownPos(calcPopupPos(rect, 200, 240, 'down'));
                 setShowCharacterList(true);
               }
             }}
@@ -668,6 +705,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                   key={c.id}
                   onClick={() => {
                     setSenderName(c.name);
+                    ctx.setActiveSpeakerCharId(c.id);
                     setShowCharacterList(false);
                     setDropdownPos(null);
                   }}
@@ -769,26 +807,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           position: 'relative',
         }}
       >
-        {/* チャンネル選択 */}
-        <select
-          value={ctx.activeChatChannel}
-          onChange={(e) => ctx.setActiveChatChannel(e.target.value)}
-          style={{
-            background: theme.bgInput,
-            border: `1px solid ${theme.border}`,
-            color: theme.textSecondary,
-            fontSize: '10px',
-            padding: '2px 4px',
-            borderRadius: 0,
-            cursor: 'pointer',
-            outline: 'none',
-          }}
-        >
-          {ctx.channels.map(ch => (
-            <option key={ch.channel_id} value={ch.channel_id}>{ch.label}</option>
-          ))}
-        </select>
-
         {([
           { icon: Bold, prefix: '**', suffix: '**' },
           { icon: Italic, prefix: '*', suffix: '*' },
@@ -877,6 +895,84 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             }}
           />
         </div>
+
+        {/* スペーサー */}
+        <div style={{ flex: 1 }} />
+
+        {/* チャンネル選択 */}
+        <button
+          ref={channelBtnRef}
+          onClick={() => {
+            if (showChannelList) {
+              setShowChannelList(false);
+              setChannelDropdownPos(null);
+            } else {
+              const rect = channelBtnRef.current?.getBoundingClientRect();
+              if (rect) setChannelDropdownPos(calcPopupPos(rect, 160, 120, 'up'));
+              setShowChannelList(true);
+            }
+          }}
+          style={{
+            padding: '2px 6px',
+            background: theme.bgInput,
+            border: `1px solid ${theme.border}`,
+            color: theme.textSecondary,
+            fontSize: '10px',
+            cursor: 'pointer',
+            outline: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            flexShrink: 0,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {ctx.channels.find(ch => ch.channel_id === ctx.activeChatChannel)?.label ?? 'ch'}
+        </button>
+
+        {/* チャンネル選択ドロップダウン */}
+        {showChannelList && channelDropdownPos &&
+          createPortal(
+            <div
+              ref={channelListRef}
+              style={{
+                position: 'fixed',
+                top: channelDropdownPos.top,
+                left: channelDropdownPos.left,
+                minWidth: '120px',
+                background: theme.bgSurface,
+                border: `1px solid ${theme.border}`,
+                zIndex: 100,
+              }}
+            >
+              {ctx.channels.map((ch) => (
+                <div
+                  key={ch.channel_id}
+                  onClick={() => {
+                    ctx.setActiveChatChannel(ch.channel_id);
+                    setShowChannelList(false);
+                    setChannelDropdownPos(null);
+                  }}
+                  style={{
+                    padding: '6px 8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                    color: theme.textPrimary,
+                    fontSize: '12px',
+                    borderBottom: `1px solid ${theme.border}`,
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = theme.bgInput; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                >
+                  <span>{ch.label}</span>
+                </div>
+              ))}
+            </div>,
+            document.body
+          )}
       </div>
 
       {suggestions.length > 0 && suggestionPos && createPortal(
@@ -887,7 +983,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             top: suggestionPos.top,
             left: suggestionPos.left,
             width: suggestionPos.width,
-            transform: 'translateY(-100%)',
             background: theme.bgSurface,
             border: `1px solid ${theme.border}`,
             boxShadow: '0 -4px 12px rgba(0,0,0,0.3)',

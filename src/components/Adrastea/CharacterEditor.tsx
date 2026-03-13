@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Character, CharacterImage, PieceStatus, CharacterParameter } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
@@ -13,6 +13,7 @@ interface CharacterEditorProps {
   onDuplicate?: (data: Partial<Character>) => void;
   onDelete?: () => void;
   onClose: () => void;
+  initialSection?: string;
 }
 
 export function CharacterEditor({
@@ -23,10 +24,11 @@ export function CharacterEditor({
   onDuplicate,
   onDelete,
   onClose: _onClose,
+  initialSection,
 }: CharacterEditorProps) {
   // 基本情報
   const [name, setName] = useState(character?.name ?? '');
-  const [color, setColor] = useState(character?.color ?? theme.accent);
+  const [color, setColor] = useState(character?.color ?? '#555555');
   const [sheetUrl, setSheetUrl] = useState(character?.sheet_url ?? '');
 
   // 立ち絵・差分
@@ -47,6 +49,16 @@ export function CharacterEditor({
   const [memo, setMemo] = useState(character?.memo ?? '');
   const [secretMemo, setSecretMemo] = useState(character?.secret_memo ?? '');
   const [chatPalette, setChatPalette] = useState(character?.chat_palette ?? '');
+
+  // チャットパレットセクション用ref
+  const chatPaletteRef = useRef<HTMLDivElement>(null);
+
+  // 初期セクションにスクロール
+  useEffect(() => {
+    if (initialSection === 'chat_palette' && chatPaletteRef.current) {
+      chatPaletteRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [initialSection]);
 
   // 設定
   const [isStatusPrivate, setIsStatusPrivate] = useState(character?.is_status_private ?? false);
@@ -385,7 +397,7 @@ export function CharacterEditor({
         </div>
 
         {/* 8. チャットパレット */}
-        <div style={sectionStyle}>
+        <div style={sectionStyle} ref={chatPaletteRef}>
           <div style={labelStyle}>チャットパレット</div>
           <div style={{ fontSize: '11px', color: theme.textMuted, marginBottom: '4px' }}>
             改行区切りでコマンドや定型文を登録

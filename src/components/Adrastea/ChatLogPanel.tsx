@@ -4,6 +4,7 @@ import { Trash2 } from 'lucide-react';
 import type { ChatMessage, Character } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { ConfirmModal } from './ui';
+import { genId } from '../../utils/id';
 
 /**
  * インラインマークアップをパースしてReact要素の配列を返す
@@ -230,9 +231,12 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   onLoadMore,
   onClearMessages,
 }) => {
-  const { activeChatChannel, setActiveChatChannel, channels } = useAdrasteaContext();
+  const { activeChatChannel, setActiveChatChannel, channels, upsertChannel } = useAdrasteaContext();
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showCreateChannel, setShowCreateChannel] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const createInputRef = useRef<HTMLInputElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -277,6 +281,45 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     setHasNewMessage(false);
+  };
+
+  // フォーカス時に入力欄にフォーカス
+  useEffect(() => {
+    if (showCreateChannel) {
+      setTimeout(() => createInputRef.current?.focus(), 0);
+    }
+  }, [showCreateChannel]);
+
+  const handleCreateChannel = async () => {
+    const trimmed = newChannelName.trim();
+    if (!trimmed) {
+      setShowCreateChannel(false);
+      setNewChannelName('');
+      return;
+    }
+
+    const newChannelId = genId();
+    await upsertChannel({
+      channel_id: newChannelId,
+      label: trimmed,
+      order: channels.length,
+      is_archived: false,
+      allowed_user_ids: [],
+    });
+
+    setActiveChatChannel(newChannelId);
+    setShowCreateChannel(false);
+    setNewChannelName('');
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCreateChannel();
+    } else if (e.key === 'Escape') {
+      setShowCreateChannel(false);
+      setNewChannelName('');
+    }
   };
 
   const renderMessage = (msg: ChatMessage) => {
@@ -414,6 +457,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             padding: '4px 8px',
             borderBottom: `1px solid ${theme.border}`,
             overflowX: 'auto',
+            alignItems: 'center',
           }}
         >
           {channels.map((ch) => (
@@ -437,6 +481,56 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               {ch.label}
             </button>
           ))}
+
+          {/* チャンネル作成フォーム（展開時） */}
+          {showCreateChannel && (
+            <input
+              ref={createInputRef}
+              type="text"
+              value={newChannelName}
+              onChange={(e) => setNewChannelName(e.target.value)}
+              onBlur={handleCreateChannel}
+              onKeyDown={handleKeyDown}
+              placeholder="チャンネル名"
+              style={{
+                padding: '4px 6px',
+                background: theme.bgInput,
+                border: `1px solid ${theme.border}`,
+                color: theme.textPrimary,
+                fontSize: '11px',
+                flex: 1,
+                minWidth: '80px',
+                maxWidth: '150px',
+                outline: 'none',
+              }}
+            />
+          )}
+
+          {/* 「+」ボタン */}
+          {!showCreateChannel && (
+            <button
+              onClick={() => setShowCreateChannel(true)}
+              title="チャンネルを作成"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.textMuted,
+                cursor: 'pointer',
+                padding: '2px 6px',
+                fontSize: '14px',
+                marginLeft: 'auto',
+                transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = theme.textSecondary;
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.color = theme.textMuted;
+              }}
+            >
+              +
+            </button>
+          )}
         </div>
       )}
 
