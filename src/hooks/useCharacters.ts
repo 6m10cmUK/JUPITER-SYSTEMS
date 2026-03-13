@@ -35,6 +35,12 @@ export function useCharacters(roomId: string) {
         is_hidden_on_board: stat.is_hidden_on_board,
         is_speech_hidden: stat.is_speech_hidden,
         sort_order: stat.sort_order ?? 0,
+        on_board: stat.on_board ?? false,
+        board_x: stat.board_x ?? 0,
+        board_y: stat.board_y ?? 0,
+        board_height: stat.board_height ?? 10,
+        board_scene_ids: stat.board_scene_ids ?? [],
+        board_visible: stat.board_visible ?? true,
         created_at: stat.created_at,
         updated_at: stat.updated_at,
         // From base table
@@ -119,6 +125,12 @@ export function useCharacters(roomId: string) {
         is_hidden_on_board: data.is_hidden_on_board ?? false,
         is_speech_hidden: data.is_speech_hidden ?? false,
         sort_order: data.sort_order ?? characters.length,
+        on_board: data.on_board ?? false,
+        board_x: data.board_x ?? 0,
+        board_y: data.board_y ?? 0,
+        board_height: data.board_height ?? 10,
+        board_scene_ids: data.board_scene_ids ?? [],
+        board_visible: data.board_visible ?? true,
         created_at: now,
         updated_at: now,
       };
@@ -135,7 +147,8 @@ export function useCharacters(roomId: string) {
         'name', 'color', 'active_image_index',
         'statuses', 'parameters',
         'is_hidden_on_board', 'is_speech_hidden',
-        'sort_order'
+        'sort_order',
+        'on_board', 'board_x', 'board_y', 'board_height', 'board_scene_ids', 'board_visible'
       ];
 
       // Fields that belong in characters_base

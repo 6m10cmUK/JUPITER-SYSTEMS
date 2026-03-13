@@ -6,7 +6,7 @@ import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
-  Trash2, Copy,
+  Trash2, Copy, Users,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -16,6 +16,7 @@ const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>>
   text: ({ size = 14 }) => <Type size={size} />,
   foreground: ({ size = 14 }) => <Layers size={size} />,
   background: ({ size = 14 }) => <Mountain size={size} />,
+  characters_layer: ({ size = 14 }) => <Users size={size} />,
 };
 
 export function LayerPanel() {
@@ -50,27 +51,28 @@ export function LayerPanel() {
     }
   }, [activeObjects]);
 
-  // 複数選択時に削除可能なIDリストを返す（bg/fg除外）
+  // 複数選択時に削除可能なIDリストを返す（bg/fg/characters_layer除外）
   const getDeletableIds = useCallback((triggerObjId: string): string[] => {
     if (selectedObjectIds.length > 1 && selectedObjectIds.includes(triggerObjId)) {
       return selectedObjectIds.filter(id => {
         const o = activeObjects.find(o => o.id === id);
-        return o && o.type !== 'background' && o.type !== 'foreground';
+        return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
       });
     }
     return [triggerObjId];
   }, [selectedObjectIds, activeObjects]);
 
-  // 背景を末尾に固定。それ以外はsort_order降順
+  // 背景とキャラクターレイヤーを末尾に固定。それ以外はsort_order降順
   const sortedObjects = useMemo(() => {
     const bg = activeObjects.filter(o => o.type === 'background');
-    const rest = activeObjects.filter(o => o.type !== 'background').map(o => {
+    const fixed = activeObjects.filter(o => o.type === 'characters_layer');
+    const rest = activeObjects.filter(o => o.type !== 'background' && o.type !== 'characters_layer').map(o => {
       if (localOrderOverride?.has(o.id)) {
         return { ...o, sort_order: localOrderOverride.get(o.id)! };
       }
       return o;
     });
-    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
+    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...fixed, ...bg];
   }, [activeObjects, localOrderOverride]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -97,15 +99,15 @@ export function LayerPanel() {
 
     if (dragSet.has(overId)) return;
 
-    const nonBg = sortedObjects.filter(o => o.type !== 'background');
-    const draggedItems = nonBg.filter(o => dragSet.has(o.id));
-    const rest = nonBg.filter(o => !dragSet.has(o.id));
+    const nonFixed = sortedObjects.filter(o => o.type !== 'background' && o.type !== 'characters_layer');
+    const draggedItems = nonFixed.filter(o => dragSet.has(o.id));
+    const rest = nonFixed.filter(o => !dragSet.has(o.id));
 
     const overIdx = rest.findIndex(o => o.id === overId);
     if (overIdx < 0) return;
 
-    const activeOrigIdx = nonBg.findIndex(o => o.id === activeId);
-    const overOrigIdx = nonBg.findIndex(o => o.id === overId);
+    const activeOrigIdx = nonFixed.findIndex(o => o.id === activeId);
+    const overOrigIdx = nonFixed.findIndex(o => o.id === overId);
     const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
 
     rest.splice(insertIdx, 0, ...draggedItems);
@@ -240,7 +242,7 @@ export function LayerPanel() {
 
   const canDuplicate = (id: string) => {
     const o = activeObjects.find(o => o.id === id);
-    return o && o.type !== 'background' && o.type !== 'foreground';
+    return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
   };
 
   const hasDuplicateTargets = selectedObjectIds.length > 0
@@ -253,9 +255,9 @@ export function LayerPanel() {
 
   const handleDuplicate = useCallback(async () => {
     const targets = selectedObjectIds.length > 0
-      ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground')
+      ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
       : editingObjectId
-        ? activeObjects.filter(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground')
+        ? activeObjects.filter(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
         : [];
     if (targets.length === 0) return;
     const newIds: string[] = [];
@@ -335,9 +337,9 @@ export function LayerPanel() {
               className="ad-btn ad-btn--ghost"
               onClick={() => {
                 const target = selectedObjectIds.length > 0
-                  ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground')
+                  ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
                   : editingObjectId
-                    ? activeObjects.find(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground')
+                    ? activeObjects.find(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
                     : null;
                 if (target) handleRemoveObject(target);
               }}
@@ -372,12 +374,12 @@ export function LayerPanel() {
           <SortableListItem
             key={obj.id}
             id={obj.id}
-            disabled={obj.type === 'background'}
+            disabled={obj.type === 'background' || obj.type === 'foreground' || obj.type === 'characters_layer'}
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && (
+            {obj.type !== 'background' && obj.type !== 'foreground' && obj.type !== 'characters_layer' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
@@ -464,7 +466,7 @@ export function LayerPanel() {
                   opacity: obj.visible ? 1 : 0.4,
                 }}
                 onDoubleClick={(e) => {
-                  if (obj.type === 'foreground' || obj.type === 'background') return;
+                  if (obj.type === 'foreground' || obj.type === 'background' || obj.type === 'characters_layer') return;
                   e.stopPropagation();
                   setRenamingId(obj.id);
                   setRenameValue(obj.name);
@@ -473,7 +475,7 @@ export function LayerPanel() {
                 {obj.name}
               </span>
             )}
-            {obj.type !== 'background' && (
+            {obj.type !== 'background' && obj.type !== 'foreground' && obj.type !== 'characters_layer' && (
               <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
                 <button
                   type="button"
