@@ -330,6 +330,11 @@ const Adrastea: React.FC = () => {
     return <LoadingScreen progress={0.5} statusText="ルームを確認中..." />;
   }
 
+  // ロール取得中（DockLayout を guest で誤初期化しないよう待つ）
+  if (!isGuest && roomId && memberRole === undefined) {
+    return <LoadingScreen progress={0.6} statusText="ルームを準備中..." />;
+  }
+
   // オーナーでない → アクセス拒否
   if (ownerCheck === 'denied') {
     return (
