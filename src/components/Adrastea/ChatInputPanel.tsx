@@ -460,12 +460,16 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   }, [getInputText, senderName, selectedCharacterForIcon, onSendMessage]);
 
   const handleInput = useCallback(() => {
-    if (isUpdating.current || isComposing.current || compositionJustEnded.current) return;
-    applyHighlight();
+    // isEmpty チェックは composing 中でも更新する（プレースホルダー消去のため）
     const el = editorRef.current;
     if (el) {
       const text = el.innerText.replace(/\n$/, '');
       setIsEmpty(text.length === 0);
+    }
+    if (isUpdating.current || isComposing.current || compositionJustEnded.current) return;
+    applyHighlight();
+    if (el) {
+      const text = el.innerText.replace(/\n$/, '');
       if (!isComposing.current) {
         updateSuggestions(text);
       }
@@ -919,7 +923,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         <Tooltip label="チャンネル選択">
           <button
             ref={channelBtnRef}
-            className="ad-btn ad-btn--ghost"
+            className="ad-btn ad-tab"
             onClick={() => {
               if (showChannelList) {
                 setShowChannelList(false);
@@ -933,7 +937,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             style={{
               padding: '6px 10px',
               border: `1px solid ${theme.borderSubtle}`,
-              color: theme.textSecondary,
               fontSize: '11px',
               cursor: 'pointer',
               outline: 'none',

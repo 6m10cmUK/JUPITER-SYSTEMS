@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
-import { AdButton, AdInput } from './ui';
+import { AdButton, AdInput, AdTextArea } from './ui';
 import { theme } from '../../styles/theme';
 import { X } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
@@ -89,11 +89,12 @@ function RoomSettingsSection({
         value={roomName}
         onChange={(e) => setRoomName(e.target.value)}
       />
-      <AdInput
+      <AdTextArea
         label="説明"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="セッションの説明など（任意）"
+        rows={3}
       />
       <AdInput
         label="ダイスシステム"

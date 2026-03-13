@@ -9,6 +9,7 @@ import { SortableListPanel, SortableListItem, Tooltip } from './ui';
 interface CharacterPanelProps {
   characters: Character[];
   currentUserId: string;
+  selectedCharId?: string | null;
   onAddCharacter: () => void;
   onSelectCharacter: (char: Character) => void;
   onDoubleClickCharacter?: (char: Character) => void;
@@ -19,6 +20,7 @@ interface CharacterPanelProps {
 export function CharacterPanel({
   characters,
   currentUserId,
+  selectedCharId,
   onAddCharacter,
   onSelectCharacter,
   onDoubleClickCharacter,
@@ -72,6 +74,7 @@ export function CharacterPanel({
           id={char.id}
           onClick={() => onSelectCharacter(char)}
           onDoubleClick={() => onDoubleClickCharacter?.(char)}
+          isSelected={char.id === selectedCharId}
         >
           {/* アバター */}
           {char.images[char.active_image_index]?.url ? (

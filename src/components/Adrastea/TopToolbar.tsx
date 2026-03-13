@@ -1,6 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { Eye, FolderOpen, LogOut, Volume2, VolumeX, Terminal, User, Pencil } from 'lucide-react';
+import { useState } from 'react';
+import { Eye, FolderOpen, Volume2, VolumeX, Pencil } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -63,66 +62,10 @@ export function TopToolbar({
   dockviewApi,
   roomName,
 }: TopToolbarProps) {
-  const [showUserMenu, setShowUserMenu] = useState(false);
-  const [userMenuPos, setUserMenuPos] = useState({ top: 0, left: 0 });
-  const userMenuBtnRef = useRef<HTMLButtonElement>(null);
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
   const { isGuest } = useAuth();
 
-  const openUserMenu = useCallback(() => {
-    const rect = userMenuBtnRef.current?.getBoundingClientRect();
-    if (rect) {
-      setUserMenuPos({ top: rect.bottom + 4, left: rect.right - 180 });
-      setShowUserMenu(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!showUserMenu) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (userMenuBtnRef.current?.contains(target)) return;
-      const menuEl = document.querySelector('[data-user-menu]');
-      if (menuEl?.contains(target)) return;
-      setShowUserMenu(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showUserMenu]);
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
-
-  const togglePanel = useCallback(
-    (panelId: string, component: string, title: string) => {
-      if (!dockviewApi) return;
-      const existing = dockviewApi.getPanel(panelId);
-      if (existing) {
-        existing.api.setActive();
-      } else {
-        // board 以外のグループを探す
-        let targetGroup = dockviewApi.activeGroup;
-        if (targetGroup?.panels.some(p => p.id === 'board')) {
-          targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
-        }
-        if (targetGroup) {
-          dockviewApi.addPanel({
-            id: panelId,
-            component,
-            title,
-            position: { referenceGroup: targetGroup, direction: 'within' },
-          });
-        } else {
-          // フォールバック: board の右に新グループ作成
-          dockviewApi.addPanel({
-            id: panelId,
-            component,
-            title,
-            position: { referencePanel: 'board', direction: 'right' },
-          });
-        }
-      }
-    },
-    [dockviewApi],
-  );
 
   return (
     <div
@@ -242,135 +185,42 @@ export function TopToolbar({
         </IconButton>
       )}
 
-      {/* ユーザーメニュー（プロフィール編集・設定・開発者モード・ログアウト） */}
-      <div style={{ position: 'relative' }}>
-        <button
-          ref={userMenuBtnRef}
-          type="button"
-          onClick={() => (showUserMenu ? setShowUserMenu(false) : openUserMenu())}
-          title="メニュー"
-          className="ad-btn ad-btn--ghost"
-          style={{
-            width: 28,
-            height: 28,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: 'none',
-            borderRadius: '50%',
-            cursor: 'pointer',
-            padding: 0,
-          }}
-        >
-          {profile?.avatar_url ? (
-            <img
-              src={profile.avatar_url}
-              alt=""
-              style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div style={{
-              width: 22, height: 22, borderRadius: '50%',
-              background: theme.accent, color: theme.bgBase,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.7rem', fontWeight: 700,
-            }}>
-              {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
-            </div>
-          )}
-        </button>
-        {showUserMenu &&
-          createPortal(
-            <div
-              data-user-menu
-              className="adrastea-root"
-              onMouseDown={(e) => e.stopPropagation()}
-              style={{
-                position: 'fixed',
-                top: userMenuPos.top,
-                left: userMenuPos.left,
-                minWidth: 200,
-                background: theme.bgElevated,
-                border: `1px solid ${theme.border}`,
-                boxShadow: theme.shadowMd,
-                zIndex: 10000,
-                padding: '4px 0',
-              }}
-            >
-              <button
-                type="button"
-                className="ad-list-item"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: 'none',
-                  color: theme.textPrimary,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-                onClick={() => {
-                  onOpenProfile();
-                  setShowUserMenu(false);
-                }}
-              >
-                <User size={14} />
-                プロフィール編集
-              </button>
-              <button
-                type="button"
-                className="ad-list-item"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: 'none',
-                  color: theme.textPrimary,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-                onClick={() => {
-                  togglePanel('debugConsole', 'debugConsole', 'Debug Console');
-                  setShowUserMenu(false);
-                }}
-              >
-                <Terminal size={14} />
-                開発者モード（デバッグログ表示）
-              </button>
-              <button
-                type="button"
-                className="ad-list-item"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  width: '100%',
-                  padding: '8px 12px',
-                  border: 'none',
-                  color: theme.danger,
-                  fontSize: '12px',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-                onClick={() => {
-                  onSignOut();
-                  setShowUserMenu(false);
-                }}
-              >
-                <LogOut size={14} />
-                ログアウト
-              </button>
-            </div>,
-            document.body
-          )}
-      </div>
+      {/* プロフィール設定 */}
+      <button
+        type="button"
+        onClick={onOpenProfile}
+        title="ユーザー設定"
+        className="ad-btn ad-btn--ghost"
+        style={{
+          width: 28,
+          height: 28,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          border: 'none',
+          borderRadius: '50%',
+          cursor: 'pointer',
+          padding: 0,
+        }}
+      >
+        {profile?.avatar_url ? (
+          <img
+            src={profile.avatar_url}
+            alt=""
+            style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
+            referrerPolicy="no-referrer"
+          />
+        ) : (
+          <div style={{
+            width: 22, height: 22, borderRadius: '50%',
+            background: theme.accent, color: theme.bgBase,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '0.7rem', fontWeight: 700,
+          }}>
+            {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
+          </div>
+        )}
+      </button>
 
       {showAssetLibrary && <AssetLibraryModal onClose={() => setShowAssetLibrary(false)} />}
     </div>
