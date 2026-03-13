@@ -4,6 +4,11 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   server: {
     port: 6100,
     strictPort: true, // 6100が使用中なら起動失敗（他ポートへのフォールバック禁止）

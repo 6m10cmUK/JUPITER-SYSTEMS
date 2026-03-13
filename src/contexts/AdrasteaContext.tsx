@@ -85,6 +85,7 @@ export interface AdrasteaContextValue {
   // --- useChannels ---
   channels: ChatChannel[];
   upsertChannel: (channel: ChatChannel) => Promise<void>;
+  deleteChannel: (channelId: string) => Promise<void>;
 
   // --- useScenes ---
   scenes: Scene[];
@@ -159,6 +160,9 @@ export interface AdrasteaContextValue {
   setShowRoomSettings: React.Dispatch<React.SetStateAction<boolean>>;
   showProfileEdit: boolean;
   setShowProfileEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  showSettings: boolean;
+  settingsSection: 'room' | 'layout' | 'user';
+  setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'user') => void;
 
   // --- Derived values ---
   activeScene: Scene | null;
@@ -245,7 +249,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   } = useAdrasteaChat(roomId);
 
   const {
-    channels, upsertChannel, loading: channelsLoading,
+    channels, upsertChannel, deleteChannel, loading: channelsLoading,
   } = useChannels(room?.id ?? '');
 
   // onRoomUpdate コールバック（useCutins → useAdrastea）
@@ -338,6 +342,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
   const [showRoomSettings, setShowRoomSettings] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [showSettings, setShowSettingsState] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<'room' | 'layout' | 'user'>('room');
+
+  const setShowSettings = useCallback((show: boolean, section: 'room' | 'layout' | 'user' = 'room') => {
+    setShowSettingsState(show);
+    if (show) setSettingsSection(section);
+  }, []);
+
   const [editingScene, setEditingScene] = useState<Scene | null | undefined>(undefined);
   const [editingCharacter, setEditingCharacter] = useState<Character | null | undefined>(undefined);
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
@@ -701,7 +713,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       chatInjectText, setChatInjectText,
 
       // useChannels
-      channels, upsertChannel,
+      channels, upsertChannel, deleteChannel,
 
       // useScenes
       scenes: effectiveScenes, addScene: guardedAddScene,
@@ -746,8 +758,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       editingPieceId, setEditingPieceId,
       editingObjectId, setEditingObjectId,
       selectedObjectIds, setSelectedObjectIds,
-      showRoomSettings, setShowRoomSettings,
-      showProfileEdit, setShowProfileEdit,
+      showRoomSettings: showSettings && settingsSection === 'room',
+      setShowRoomSettings: (v: boolean) => setShowSettings(v, 'room'),
+      showProfileEdit: showSettings && settingsSection === 'user',
+      setShowProfileEdit: (v: boolean) => setShowSettings(v, 'user'),
+      showSettings,
+      settingsSection,
+      setShowSettings,
 
       // Derived
       activeScene,
@@ -784,7 +801,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
       chatInjectText, setChatInjectText,
-      channels, upsertChannel,
+      channels, upsertChannel, deleteChannel,
       effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
       characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
@@ -795,7 +812,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
-      showRoomSettings, showProfileEdit, activeSpeakerCharId, setActiveSpeakerCharId,
+      showSettings, settingsSection, setShowSettings, activeSpeakerCharId, setActiveSpeakerCharId,
       activeScene,
       profile, user, signOut, updateProfile,
       onAddObject,
@@ -848,7 +865,14 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // UI editing state
     editingScene, setEditingScene, editingCharacter, setEditingCharacter, editingCutin, setEditingCutin,
     editingBgmId, setEditingBgmId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
-    selectedObjectIds, setSelectedObjectIds, showRoomSettings, setShowRoomSettings, showProfileEdit, setShowProfileEdit,
+    selectedObjectIds, setSelectedObjectIds,
+    showRoomSettings: showSettings && settingsSection === 'room',
+    setShowRoomSettings: (v: boolean) => setShowSettings(v, 'room'),
+    showProfileEdit: showSettings && settingsSection === 'user',
+    setShowProfileEdit: (v: boolean) => setShowSettings(v, 'user'),
+    showSettings,
+    settingsSection,
+    setShowSettings,
     // BGM master volume
     masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
     // Grid
@@ -860,7 +884,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // 排他編集リセット
     clearAllEditing,
   }), [
-    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, selectedObjectIds, showRoomSettings, showProfileEdit,
+    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, selectedObjectIds,
+    showSettings, settingsSection, setShowSettings,
     masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing,
   ]);
 

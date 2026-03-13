@@ -100,6 +100,7 @@ export const update = mutation({
   args: {
     id: v.string(),
     name: v.optional(v.string()),
+    description: v.optional(v.string()),
     active_scene_id: v.optional(v.union(v.string(), v.null())),
     foreground_url: v.optional(v.union(v.string(), v.null())),
     active_cutin: v.optional(
@@ -140,6 +141,7 @@ export const update = mutation({
     };
 
     if (args.name !== undefined) updates.name = args.name;
+    if (args.description !== undefined) updates.description = args.description;
     if (args.active_scene_id !== undefined)
       updates.active_scene_id = args.active_scene_id;
     if (args.foreground_url !== undefined)

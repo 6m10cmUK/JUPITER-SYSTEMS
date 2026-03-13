@@ -1,8 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { theme } from '../../styles/theme';
-import { Trash2 } from 'lucide-react';
-import type { ChatMessage, Character } from '../../types/adrastea.types';
+import { Trash2, MoreVertical, Plus } from 'lucide-react';
+import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
 import { ConfirmModal } from './ui';
 import { genId } from '../../utils/id';
 
@@ -222,6 +239,51 @@ const Avatar: React.FC<{ src?: string | null; name: string; color?: string | nul
   return <FallbackAvatar name={name} color={color} />;
 };
 
+function SortableChannelTab({
+  channel,
+  isActive,
+  onSelect,
+}: {
+  channel: ChatChannel;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: channel.channel_id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.6 : 1,
+  };
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      className="ad-btn ad-btn--ghost"
+      onClick={onSelect}
+      style={{
+        padding: '6px 12px',
+        background: isActive ? theme.bgSurface : undefined,
+        color: isActive ? theme.textPrimary : theme.textSecondary,
+        border: 'none',
+        borderBottom: isActive ? `2px solid ${theme.accent}` : '2px solid transparent',
+        cursor: isDragging ? 'grabbing' : 'grab',
+        fontSize: '11px',
+        fontWeight: isActive ? 600 : 400,
+        whiteSpace: 'nowrap',
+        flexShrink: 0,
+        ...style,
+      }}
+      title={channel.label}
+      {...attributes}
+      {...listeners}
+    >
+      {channel.label}
+    </button>
+  );
+}
+
 const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   messages,
   loading,
@@ -231,12 +293,74 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   onLoadMore,
   onClearMessages,
 }) => {
-  const { activeChatChannel, setActiveChatChannel, channels, upsertChannel } = useAdrasteaContext();
+  const { activeChatChannel, setActiveChatChannel, channels, upsertChannel, deleteChannel } = useAdrasteaContext();
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+  const [pendingDeleteChannel, setPendingDeleteChannel] = useState<ChatChannel | null>(null);
+
+  const canDeleteActiveChannel = useMemo(
+    () => !DEFAULT_CHANNELS.some((dc) => dc.channel_id === activeChatChannel),
+    [activeChatChannel]
+  );
+  const activeChannel = useMemo(
+    () => channels.find((ch) => ch.channel_id === activeChatChannel) ?? null,
+    [channels, activeChatChannel]
+  );
+
+  const fixedChannels = useMemo(
+    () => channels.filter((ch) => DEFAULT_CHANNELS.some((dc) => dc.channel_id === ch.channel_id)),
+    [channels]
+  );
+  const customChannels = useMemo(
+    () => channels.filter((ch) => !DEFAULT_CHANNELS.some((dc) => dc.channel_id === ch.channel_id)),
+    [channels]
+  );
+
+  const [optimisticCustomOrder, setOptimisticCustomOrder] = useState<string[] | null>(null);
+  const displayCustomChannels = useMemo(() => {
+    if (!optimisticCustomOrder?.length) return customChannels;
+    return optimisticCustomOrder
+      .map((id) => customChannels.find((c) => c.channel_id === id))
+      .filter(Boolean) as ChatChannel[];
+  }, [customChannels, optimisticCustomOrder]);
+
+  useEffect(() => {
+    if (
+      optimisticCustomOrder &&
+      customChannels.length === optimisticCustomOrder.length &&
+      customChannels.every((c, i) => c.channel_id === optimisticCustomOrder[i])
+    ) {
+      setOptimisticCustomOrder(null);
+    }
+  }, [customChannels, optimisticCustomOrder]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
+  const handleChannelDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+      const oldIndex = customChannels.findIndex((ch) => ch.channel_id === active.id);
+      const newIndex = customChannels.findIndex((ch) => ch.channel_id === over.id);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(customChannels, oldIndex, newIndex);
+      setOptimisticCustomOrder(reordered.map((c) => c.channel_id));
+      const baseOrder = DEFAULT_CHANNELS.length;
+      reordered.forEach((ch, i) => {
+        upsertChannel({ ...ch, order: baseOrder + i });
+      });
+    },
+    [customChannels, upsertChannel]
+  );
+
   const createInputRef = useRef<HTMLInputElement>(null);
+  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -320,6 +444,23 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       setShowCreateChannel(false);
       setNewChannelName('');
     }
+  };
+
+  useEffect(() => {
+    if (!showMenu) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (menuBtnRef.current?.contains(target)) return;
+      setShowMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu]);
+
+  const openMenu = () => {
+    const rect = menuBtnRef.current?.getBoundingClientRect();
+    if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 });
+    setShowMenu(true);
   };
 
   const renderMessage = (msg: ChatMessage) => {
@@ -411,70 +552,42 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         flexDirection: 'column',
       }}
     >
-      {/* ヘッダー */}
+      {/* チャンネルタブ（スクロール）＋ 右端に常時表示のメニュー */}
       <div
         style={{
-          padding: '6px 8px',
+          position: 'relative',
+          flexShrink: 0,
           borderBottom: `1px solid ${theme.border}`,
-          display: 'flex',
-          alignItems: 'baseline',
-          gap: '6px',
         }}
       >
-        <span style={{ color: theme.textPrimary, fontSize: '12px', fontWeight: 600, flex: 1 }}>
-          ログ
-        </span>
-        {roomName && (
-          <span style={{ color: theme.textMuted, fontSize: '11px' }}>
-            {roomName}
-          </span>
-        )}
-        {onClearMessages && (
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            title="チャットクリア"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: theme.textMuted,
-              cursor: 'pointer',
-              padding: '2px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-
-      {/* チャンネルタブ */}
-      {channels.length >= 1 && (
         <div
           style={{
             display: 'flex',
             gap: '2px',
             padding: '4px 8px',
-            borderBottom: `1px solid ${theme.border}`,
+            paddingRight: 40,
             overflowX: 'auto',
             alignItems: 'center',
           }}
         >
-          {channels.map((ch) => (
+          {/* メイン・情報・雑談は固定（並び替え不可） */}
+          {fixedChannels.map((ch) => (
             <button
               key={ch.channel_id}
+              type="button"
+              className="ad-btn ad-btn--ghost"
               onClick={() => setActiveChatChannel(ch.channel_id)}
               style={{
-                padding: '4px 10px',
-                background: activeChatChannel === ch.channel_id ? theme.bgInput : 'transparent',
+                padding: '6px 12px',
+                background: activeChatChannel === ch.channel_id ? theme.bgSurface : undefined,
                 color: activeChatChannel === ch.channel_id ? theme.textPrimary : theme.textSecondary,
                 border: 'none',
-                borderBottom: activeChatChannel === ch.channel_id ? `2px solid ${theme.accent}` : 'none',
+                borderBottom: activeChatChannel === ch.channel_id ? `2px solid ${theme.accent}` : '2px solid transparent',
                 cursor: 'pointer',
                 fontSize: '11px',
                 fontWeight: activeChatChannel === ch.channel_id ? 600 : 400,
                 whiteSpace: 'nowrap',
-                transition: 'background 0.2s, color 0.2s',
+                flexShrink: 0,
               }}
               title={ch.label}
             >
@@ -482,7 +595,29 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             </button>
           ))}
 
-          {/* チャンネル作成フォーム（展開時） */}
+          {/* カスタムチャンネルのみ DnD で並び替え（楽観的更新で一瞬戻るのを防ぐ） */}
+          {displayCustomChannels.length > 0 && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleChannelDragEnd}
+            >
+              <SortableContext
+                items={displayCustomChannels.map((c) => c.channel_id)}
+                strategy={horizontalListSortingStrategy}
+              >
+                {displayCustomChannels.map((ch) => (
+                  <SortableChannelTab
+                    key={ch.channel_id}
+                    channel={ch}
+                    isActive={activeChatChannel === ch.channel_id}
+                    onSelect={() => setActiveChatChannel(ch.channel_id)}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          )}
+
           {showCreateChannel && (
             <input
               ref={createInputRef}
@@ -505,33 +640,154 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               }}
             />
           )}
+        </div>
 
-          {/* 「+」ボタン */}
+        {/* 右端に常時表示（タブのスクロールはこの背後に隠れる） */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            paddingRight: '4px',
+            background: theme.bgSurface,
+            boxShadow: '-4px 0 8px rgba(0,0,0,0.2)',
+            zIndex: 1,
+          }}
+        >
           {!showCreateChannel && (
             <button
-              onClick={() => setShowCreateChannel(true)}
-              title="チャンネルを作成"
+              ref={menuBtnRef}
+              type="button"
+              className="ad-btn ad-btn--ghost"
+              onClick={() => (showMenu ? setShowMenu(false) : openMenu())}
+              title="メニュー"
               style={{
-                background: 'transparent',
                 border: 'none',
-                color: theme.textMuted,
+                color: theme.textSecondary,
                 cursor: 'pointer',
-                padding: '2px 6px',
-                fontSize: '14px',
-                marginLeft: 'auto',
-                transition: 'color 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = theme.textSecondary;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.color = theme.textMuted;
+                padding: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              +
+              <MoreVertical size={16} />
             </button>
           )}
         </div>
+      </div>
+
+      {/* メニュードロップダウン */}
+      {showMenu && createPortal(
+        <div
+          className="adrastea-root"
+          style={{
+            position: 'fixed',
+            top: menuPos.top,
+            left: menuPos.left,
+            minWidth: '160px',
+            background: theme.bgElevated,
+            border: `1px solid ${theme.border}`,
+            boxShadow: theme.shadowMd,
+            zIndex: 10000,
+            padding: '4px 0',
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="ad-list-item"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '8px 12px',
+              border: 'none',
+              color: theme.textPrimary,
+              fontSize: '12px',
+              cursor: 'pointer',
+              textAlign: 'left',
+            }}
+            onClick={() => {
+              setShowCreateChannel(true);
+              setShowMenu(false);
+            }}
+          >
+            <Plus size={14} />
+            チャンネルを追加
+          </button>
+          <button
+            type="button"
+            className="ad-list-item"
+            disabled={!canDeleteActiveChannel}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '8px 12px',
+              border: 'none',
+              color: canDeleteActiveChannel ? theme.textPrimary : theme.textMuted,
+              fontSize: '12px',
+              cursor: canDeleteActiveChannel ? 'pointer' : 'not-allowed',
+              textAlign: 'left',
+              opacity: canDeleteActiveChannel ? 1 : 0.6,
+            }}
+            onClick={() => {
+              if (!canDeleteActiveChannel || !activeChannel) return;
+              setPendingDeleteChannel(activeChannel);
+              setShowMenu(false);
+            }}
+          >
+            <Trash2 size={14} />
+            チャンネルを削除
+          </button>
+          {onClearMessages && (
+            <button
+              type="button"
+              className="ad-list-item"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '8px 12px',
+                border: 'none',
+                color: theme.danger,
+                fontSize: '12px',
+                cursor: 'pointer',
+                textAlign: 'left',
+              }}
+              onClick={() => {
+                setShowClearConfirm(true);
+                setShowMenu(false);
+              }}
+            >
+              <Trash2 size={14} />
+              チャットをクリア
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {pendingDeleteChannel && (
+        <ConfirmModal
+          message={`「${pendingDeleteChannel.label}」を削除しますか？`}
+          confirmLabel="削除"
+          danger
+          onConfirm={() => {
+            const id = pendingDeleteChannel.channel_id;
+            deleteChannel(id);
+            if (activeChatChannel === id) setActiveChatChannel('main');
+            setPendingDeleteChannel(null);
+          }}
+          onCancel={() => setPendingDeleteChannel(null)}
+        />
       )}
 
       {/* メッセージ一覧 */}
@@ -547,6 +803,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       >
         {hasMore && (
           <button
+            className="ad-btn ad-btn--ghost"
             onClick={() => {
               isLoadingMoreRef.current = true;
               onLoadMore();
@@ -557,7 +814,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               width: '100%',
               padding: '4px',
               marginBottom: '4px',
-              background: theme.bgInput,
+              background: 'transparent',
               border: 'none',
               borderRadius: 0,
               color: theme.textSecondary,

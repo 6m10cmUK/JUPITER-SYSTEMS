@@ -55,22 +55,7 @@ export function ChatPaletteDockPanel() {
         >
           キャラクターが登録されていません
         </div>
-      ) : !activeCharacter ? (
-        <div
-          style={{
-            flex: 1,
-            padding: '12px 8px',
-            color: theme.textMuted,
-            fontSize: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            textAlign: 'center',
-          }}
-        >
-          キャラクターを選択してください
-        </div>
-      ) : paletteItems.length === 0 ? (
+      ) : !activeCharacter ? null : paletteItems.length === 0 ? (
         <div
           style={{
             flex: 1,
@@ -99,8 +84,8 @@ export function ChatPaletteDockPanel() {
           {paletteItems.map((item, idx) => (
             <button
               key={idx}
+              className="ad-btn ad-btn--ghost"
               onClick={(e) => {
-                // ダブルクリックの場合は onClick を無視（onDoubleClick で処理）
                 if (e.detail >= 2) return;
                 ctx.setChatInjectText(item);
               }}
@@ -109,23 +94,16 @@ export function ChatPaletteDockPanel() {
               }}
               style={{
                 padding: '6px 8px',
-                background: theme.bgInput,
-                border: `1px solid ${theme.border}`,
                 borderRadius: 0,
                 color: theme.textPrimary,
                 fontSize: '12px',
                 textAlign: 'left',
                 cursor: 'pointer',
-                transition: 'background-color 0.2s',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput;
+                width: '100%',
+                display: 'block',
               }}
               title={item}
             >
@@ -139,14 +117,13 @@ export function ChatPaletteDockPanel() {
       {activeCharacter && (
         <div style={{ padding: '4px 8px', display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.border}` }}>
           <button
+            className="ad-btn ad-btn--ghost"
             onClick={() => setShowEditor(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
-              padding: '3px 8px',
-              background: theme.bgInput,
-              border: `1px solid ${theme.border}`,
+              padding: '4px 8px',
               borderRadius: 0,
-              color: theme.textMuted,
+              color: theme.textSecondary,
               fontSize: '11px',
               cursor: 'pointer',
             }}

@@ -83,6 +83,7 @@ function AdrasteaRoom() {
         activeScene={ctx.activeScene}
         profile={ctx.profile}
         dockviewApi={ctx.dockviewApi}
+        roomName={ctx.room?.name}
       />
 
       {/* Dockviewエリア */}

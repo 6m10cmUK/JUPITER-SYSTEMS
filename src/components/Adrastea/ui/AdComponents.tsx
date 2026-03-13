@@ -85,21 +85,23 @@ interface AdButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export function AdButton({ variant = 'default', fullWidth, children, style, className, ...props }: AdButtonProps) {
+  const isGhost = variant === 'default';
   const bg = variant === 'primary' ? theme.accent
-    : variant === 'danger' ? 'transparent'
-    : theme.bgInput;
+    : variant === 'danger' ? theme.dangerBgSubtle
+    : undefined;
   const color = variant === 'primary' ? theme.textOnAccent
     : variant === 'danger' ? theme.danger
     : theme.textPrimary;
-  const border = variant === 'danger' ? `1px solid ${theme.danger}` : 'none';
+  const border = 'none';
 
   return (
     <button
       {...props}
-      className={`ad-btn ${className ?? ''}`}
+      className={`ad-btn ${isGhost ? 'ad-btn--ghost' : ''} ${className ?? ''}`.trim()}
       style={{
         height: HEIGHT,
-        padding: '0 10px',
+        padding: isGhost ? '8px 12px' : '0 10px',
+        minWidth: isGhost ? undefined : 0,
         fontSize: FONT_SIZE,
         fontWeight: variant === 'primary' ? 600 : 400,
         background: bg,
@@ -423,19 +425,17 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         {compact ? (
           <button
             ref={btnRef}
+            className="ad-btn-icon"
             onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
             style={{
               width: '24px', height: '24px',
-              background: theme.bgInput,
               border: 'none',
-              borderRadius: '2px',
+              borderRadius: 0,
               color: theme.textSecondary,
               cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               padding: 0,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
             title="カラー"
           >
             <Palette size={14} />
@@ -474,9 +474,9 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
           ref={popRef}
           style={{
             position: 'fixed', top: popPos.top, left: popPos.left, zIndex: 10000,
-            background: theme.bgSurface, border: `1px solid ${theme.border}`,
+            background: theme.bgElevated, border: `1px solid ${theme.border}`,
             padding: '8px', display: 'flex', flexDirection: 'row', gap: '8px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            boxShadow: theme.shadowMd,
           }}
         >
           {/* 左: カラーピッカー */}
@@ -558,8 +558,8 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         <div
           style={{
             position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 10001,
-            background: theme.bgSurface, border: `1px solid ${theme.border}`,
-            boxShadow: '0 2px 8px rgba(0,0,0,0.4)', padding: '2px 0',
+            background: theme.bgElevated, border: `1px solid ${theme.border}`,
+            boxShadow: theme.shadowMd, padding: '2px 0',
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
@@ -648,9 +648,10 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
       <div
         ref={modalRef}
         style={{
-          background: theme.bgSurface,
+          background: theme.bgElevated,
           border: `1px solid ${theme.border}`,
           borderRadius: 0,
+          boxShadow: theme.shadowLg,
           padding: '12px',
           width,
           maxHeight,
@@ -929,11 +930,11 @@ export function AdComboBox(props: AdComboBoxProps) {
               left: getDropPos().left,
               width: getDropPos().width,
               zIndex: 9999,
-              background: theme.bgSurface,
+              background: theme.bgElevated,
               border: `1px solid ${theme.border}`,
               maxHeight: '150px',
               overflowY: 'auto',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+              boxShadow: theme.shadowMd,
             }}
           >
             <div ref={listRef}>
@@ -1058,11 +1059,11 @@ export function AdComboBox(props: AdComboBoxProps) {
             left: getDropPos().left,
             width: getDropPos().width,
             zIndex: 9999,
-            background: theme.bgSurface,
+            background: theme.bgElevated,
             border: `1px solid ${theme.border}`,
             maxHeight: '150px',
             overflowY: 'auto',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            boxShadow: theme.shadowMd,
           }}
         >
           <div ref={listRef}>

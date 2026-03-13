@@ -181,7 +181,7 @@ function DiceSystemPicker({
             maxHeight: '200px',
             display: 'flex',
             flexDirection: 'column',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            boxShadow: theme.shadowMd,
           }}
         >
           <input
@@ -263,11 +263,7 @@ function SortableRoomCard({
     transform: CSS.Transform.toString(transform),
     transition: transition ?? 'border-color 0.15s, box-shadow 0.15s',
     opacity: isDragging ? 0.5 : 1,
-    boxShadow: isDragging
-      ? '0 4px 16px rgba(0,0,0,0.4)'
-      : hovered
-        ? '0 4px 16px rgba(0,0,0,0.35)'
-        : '0 2px 8px rgba(0,0,0,0.2)',
+    boxShadow: isDragging || hovered ? theme.shadowMd : theme.shadowSm,
     zIndex: isDragging ? 10 : undefined,
   };
 
@@ -277,13 +273,15 @@ function SortableRoomCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: theme.bgSurface,
+        background: hovered ? theme.bgElevated : theme.bgSurface,
         border: `1px solid ${hovered ? theme.accentHover : theme.border}`,
+        borderTop: hovered ? `2px solid ${theme.accent}` : `2px solid transparent`,
         display: 'flex',
         flexDirection: 'column',
         cursor: 'grab',
         overflow: 'hidden',
         position: 'relative',
+        transition: 'background 0.15s, border-color 0.15s',
         ...style,
       }}
       {...attributes}
@@ -596,7 +594,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       style={{
         position: 'fixed',
         inset: 0,
-        background: theme.bgBase,
+        background: theme.bgDeep,
         color: theme.textPrimary,
         overflow: 'auto',
       }}
