@@ -1,5 +1,5 @@
 import { forwardRef, memo, useCallback, useRef, useEffect, useState } from 'react';
-import type { BoardObject, Scene } from '../../types/adrastea.types';
+import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
 
 // --- 定数 ---
@@ -20,6 +20,9 @@ interface DomObjectOverlayProps {
   onEditObject: (id: string) => void;
   onResizeObject?: (id: string, width: number, height: number) => void;
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
+  characters?: Character[];
+  activeSceneId?: string | null;
+  onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
 }
 
 // --- ユーティリティ ---
@@ -689,6 +692,154 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
   );
 });
 
+// --- CharacterLayer (DOM版) ---
+const DomCharacterLayer = memo(function DomCharacterLayer({
+  obj,
+  characters,
+  activeSceneId,
+  onUpdatePosition,
+  stageRef,
+}: {
+  obj: BoardObject;
+  characters: Character[];
+  activeSceneId: string | null;
+  onUpdatePosition?: (charId: string, x: number, y: number) => void;
+  stageRef: React.RefObject<any>;
+}) {
+  // ボード上に表示するキャラをフィルタ: on_board=true, board_visible!=false
+  // board_scene_ids が空 = 全シーン表示、それ以外はアクティブシーンに含まれる場合のみ
+  const visibleChars = characters.filter(c => {
+    if (!c.on_board) return false;
+    if (c.board_visible === false) return false;
+    if (c.board_scene_ids && c.board_scene_ids.length > 0 && activeSceneId) {
+      return c.board_scene_ids.includes(activeSceneId);
+    }
+    return true;
+  });
+
+  // initiative 昇順（低い値 = 奥に描画）
+  const sorted = [...visibleChars].sort((a, b) => (a.initiative ?? 0) - (b.initiative ?? 0));
+
+  return (
+    <>
+      {sorted.map((char) => (
+        <DomCharacterItem
+          key={char.id}
+          char={char}
+          onUpdatePosition={onUpdatePosition}
+          stageRef={stageRef}
+        />
+      ))}
+    </>
+  );
+});
+
+// --- CharacterItem (個別キャラクター表示) ---
+const DomCharacterItem = memo(function DomCharacterItem({
+  char,
+  onUpdatePosition,
+  stageRef,
+}: {
+  char: Character;
+  onUpdatePosition?: (charId: string, x: number, y: number) => void;
+  stageRef: React.RefObject<any>;
+}) {
+  const imageUrl = char.images[char.active_image_index]?.url ?? null;
+  const blobSrc = useAnimatedBlobSrc(imageUrl);
+  const elRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);
+
+  const pxX = (char.board_x ?? 0) * GRID_SIZE;
+  const pxY = (char.board_y ?? 0) * GRID_SIZE;
+  const pxH = (char.board_height ?? 10) * GRID_SIZE;
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    const el = elRef.current;
+    if (!el) return;
+    e.stopPropagation();
+
+    const stage = stageRef.current;
+    const scale = stage?.scaleX?.() ?? 1;
+
+    dragRef.current = {
+      startPointerX: e.clientX / scale,
+      startPointerY: e.clientY / scale,
+      origPxX: pxX,
+      origPxY: pxY,
+    };
+
+    const onPointerMove = (me: PointerEvent) => {
+      const ds = dragRef.current;
+      if (!ds || !el) return;
+      const currentScale = stage?.scaleX?.() ?? 1;
+      const dx = me.clientX / currentScale - ds.startPointerX;
+      const dy = me.clientY / currentScale - ds.startPointerY;
+      el.style.left = `${ds.origPxX + dx}px`;
+      el.style.top = `${ds.origPxY + dy}px`;
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      const ds = dragRef.current;
+      dragRef.current = null;
+      if (!ds || !el) return;
+      const finalX = snapToGrid(parseFloat(el.style.left));
+      const finalY = snapToGrid(parseFloat(el.style.top));
+      el.style.left = `${finalX}px`;
+      el.style.top = `${finalY}px`;
+      onUpdatePosition?.(char.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  }, [char.id, pxX, pxY, stageRef, onUpdatePosition]);
+
+  return (
+    <div
+      ref={elRef}
+      style={{
+        position: 'absolute',
+        left: pxX,
+        top: pxY,
+        height: pxH,
+        width: 'auto',
+        cursor: 'move',
+        pointerEvents: 'auto',
+        userSelect: 'none',
+      }}
+      onPointerDown={handlePointerDown}
+    >
+      {blobSrc ? (
+        <img
+          src={blobSrc}
+          style={{
+            height: '100%',
+            width: 'auto',
+            display: 'block',
+            objectFit: 'contain',
+          }}
+          draggable={false}
+        />
+      ) : (
+        <div style={{
+          height: pxH,
+          width: pxH * 0.6,
+          background: char.color,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontSize: 24,
+          fontWeight: 700,
+        }}>
+          {char.name.charAt(0)}
+        </div>
+      )}
+    </div>
+  );
+});
+
 // --- 安定 key 生成 ---
 // シーン間で DOM を使い回すため、obj.id ではなく type + image_url + 座標近接性で key を割り当てる。
 // 同じ type & 同じ image_url のオブジェクト同士を優先マッチし、GIF アニメーションを継続させる。
@@ -776,6 +927,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
+    characters = [], activeSceneId, onUpdateCharacterBoardPosition,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible);
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -846,6 +998,17 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     fadeInDuration={activeScene?.fg_transition === 'fade'
                       ? activeScene.fg_transition_duration
                       : undefined}
+                  />
+                );
+              case 'characters_layer':
+                return (
+                  <DomCharacterLayer
+                    key={stableKey}
+                    obj={obj}
+                    characters={characters}
+                    activeSceneId={activeSceneId ?? null}
+                    onUpdatePosition={onUpdateCharacterBoardPosition}
+                    stageRef={stageRef}
                   />
                 );
               default:
