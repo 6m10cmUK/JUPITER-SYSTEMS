@@ -6,22 +6,24 @@
 /* :root にも定義 — Portal で .adrastea-root 外に飛ぶ要素でも CSS 変数が解決できるように */
 :root,
 .adrastea-root {
-  /* 背景 */
-  --ad-bg-base: #2d2d2d;
-  --ad-bg-surface: #3a3a3a;
-  --ad-bg-toolbar: #333333;
-  --ad-bg-input: #252525;
+  /* 背景（5層 + elevated） */
+  --ad-bg-deep: #1e1e1e;
+  --ad-bg-input: #222222;
+  --ad-bg-base: #282828;
+  --ad-bg-surface: #313131;
+  --ad-bg-toolbar: #383838;
+  --ad-bg-elevated: #414141;
   --ad-bg-overlay: rgba(0, 0, 0, 0.6);
 
   /* テキスト */
-  --ad-text-primary: #e0e0e0;
+  --ad-text-primary: #e8e8e8;
   --ad-text-secondary: #a0a0a0;
-  --ad-text-muted: #707070;
+  --ad-text-muted: #888888;
   --ad-text-on-accent: #ffffff;
 
   /* ボーダー */
-  --ad-border: #505050;
-  --ad-border-input: #555555;
+  --ad-border: #444444;
+  --ad-border-input: #505050;
   --ad-border-subtle: rgba(255, 255, 255, 0.06);
 
   /* アクセント */
@@ -36,6 +38,7 @@
   /* セマンティック */
   --ad-danger: #e05555;
   --ad-danger-hover: #f06565;
+  --ad-danger-bg-subtle: rgba(224, 85, 85, 0.1);
   --ad-success: #4caf50;
   --ad-warning: #e0a020;
 
@@ -45,11 +48,13 @@
   --ad-green-border-subtle: rgba(166,227,161,0.25);
 
   /* 背景（追加） */
-  --ad-bg-hover: rgba(255, 255, 255, 0.05);
+  --ad-bg-hover: rgba(255, 255, 255, 0.12);
+  --ad-bg-selected: rgba(255, 255, 255, 0.18);
 
   /* シャドウ */
-  --ad-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-  --ad-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --ad-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.4);
+  --ad-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --ad-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
 
   /* ステータス */
   --ad-status-red: #e05555;
@@ -63,26 +68,66 @@
   color: var(--ad-text-primary);
 }
 
-/* --- ボタンホバー --- */
+/* --- ボタン（Phase 7: ゴースト / primary / danger） --- */
 .adrastea-root .ad-btn {
-  transition: filter 0.12s, box-shadow 0.12s;
+  transition: background-color 0.1s, color 0.1s, box-shadow 0.1s;
 }
-.adrastea-root .ad-btn:not(:disabled):hover {
+.adrastea-root .ad-btn--ghost {
+  background: transparent;
+  border: none;
+}
+.adrastea-root .ad-btn--ghost:not(:disabled):hover {
+  background: var(--ad-bg-hover);
+}
+/* リスト行など既に背景がある上に乗るボタン用：ホバーをはっきり見せる */
+.adrastea-root .ad-btn--ghost.ad-btn--ghost-on-bg:not(:disabled):hover {
+  background: var(--ad-bg-selected);
+  box-shadow: 0 0 0 1px var(--ad-border);
+}
+.adrastea-root .ad-btn--ghost:not(:disabled):active {
+  background: rgba(255, 255, 255, 0.18);
+}
+.adrastea-root .ad-btn:not(.ad-btn--ghost):not(:disabled):hover {
+  filter: brightness(1.1);
+}
+/* もともと背景色付きのボタン（追加系）：ホバーをはっきり見せる */
+.adrastea-root .ad-btn.ad-btn--on-bg:not(:disabled):hover {
   filter: brightness(1.2);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  box-shadow: 0 0 0 1px var(--ad-border);
 }
-.adrastea-root .ad-btn:not(:disabled):active {
-  filter: brightness(0.95);
+.adrastea-root .ad-btn:not(:disabled):focus-visible {
+  box-shadow: 0 0 0 1px var(--ad-accent);
+  outline: none;
 }
 .adrastea-root .ad-btn-icon {
-  transition: color 0.12s;
+  transition: color 0.1s, background-color 0.1s;
 }
-.adrastea-root .ad-btn-icon:not(:disabled):hover {
+.adrastea-root .ad-btn-icon:not([data-avatar]):not(:disabled):hover {
   color: var(--ad-accent) !important;
+  background: var(--ad-bg-hover);
 }
 .adrastea-root .ad-btn-icon.ad-btn-icon--danger:not(:disabled):hover {
   color: var(--ad-danger-hover) !important;
 }
+/* アバター表示時はホバーでアイコンを少し白っぽく＋明るいシャドウ */
+.adrastea-root .ad-btn-icon[data-avatar="true"]:not(:disabled):hover {
+  filter: brightness(1.15);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
+}
+/* ドロップダウン・リスト項目のホバー / 選択中 */
+.adrastea-root .ad-list-item {
+  transition: background-color 0.1s;
+}
+.adrastea-root .ad-list-item:hover {
+  background: var(--ad-bg-hover);
+}
+.adrastea-root .ad-list-item.ad-list-item--selected {
+  background: var(--ad-bg-selected);
+}
+.adrastea-root .ad-list-item.ad-list-item--selected:hover {
+  background: var(--ad-bg-hover);
+}
+
 .adrastea-root .ad-card-create {
   transition: border-color 0.15s, color 0.15s;
 }
@@ -242,7 +287,7 @@
   --dv-drag-over-border-color: var(--ad-accent);
 
   /* フローティング */
-  --dv-floating-box-shadow: 0 8px 32px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.5);
+  --dv-floating-box-shadow: var(--ad-shadow-lg);
   --dv-tab-divider-color: transparent; /* resize-container border用 → 下で border: none に上書き */
 }
 

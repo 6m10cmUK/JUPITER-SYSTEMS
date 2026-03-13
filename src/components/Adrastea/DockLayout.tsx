@@ -14,6 +14,7 @@ import '../../styles/dockview-catppuccin.css';
 import { PictureInPicture2, Minus, Maximize2, ArrowDownToLine } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { Tooltip } from './ui';
 import { usePermission } from '../../hooks/usePermission';
 import { panelComponents } from './dock-panels/sharedComponents';
 import { BgmEngine } from './BgmEngine';
@@ -66,10 +67,15 @@ function loadLayout(role: string): object | null {
 /* ── タブヘッダー右側アクション ── */
 
 const iconBtnStyle: React.CSSProperties = {
-  width: 20, height: 20,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'transparent', border: 'none',
-  color: theme.textSecondary, cursor: 'pointer', padding: 0,
+  width: 24,
+  height: 24,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  color: theme.textSecondary,
+  cursor: 'pointer',
+  padding: 0,
 };
 
 // 最小化状態の管理（グループID → 元の高さ）
@@ -129,38 +135,55 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
       {/* フローティング時: ドックに戻す / 最小化/復元 */}
       {isFloating && (
         <>
-          <button title="ドックに戻す" onClick={() => {
-            // 最小化状態をリセットしてからドックに移動
-            if (minimizedGroups.has(group.id)) {
-              const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
-              if (container) {
-                container.style.height = '';
-                container.style.minHeight = '';
-                container.style.overflow = '';
-              }
-              minimizedGroups.delete(group.id);
-            }
-            group.api.moveTo({});
-          }} style={iconBtnStyle}>
-            <ArrowDownToLine size={11} />
-          </button>
+          <Tooltip label="ドックに戻す">
+            <button
+              type="button"
+              className="ad-btn ad-btn--ghost"
+              onClick={() => {
+                if (minimizedGroups.has(group.id)) {
+                  const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
+                  if (container) {
+                    container.style.height = '';
+                    container.style.minHeight = '';
+                    container.style.overflow = '';
+                  }
+                  minimizedGroups.delete(group.id);
+                }
+                group.api.moveTo({});
+              }}
+              style={iconBtnStyle}
+            >
+              <ArrowDownToLine size={12} />
+            </button>
+          </Tooltip>
           {isMinimized ? (
-            <button title="復元" onClick={handleRestore} style={iconBtnStyle}>
-              <Maximize2 size={11} />
-            </button>
+            <Tooltip label="復元">
+              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleRestore} style={iconBtnStyle}>
+                <Maximize2 size={12} />
+              </button>
+            </Tooltip>
           ) : (
-            <button title="最小化" onClick={handleMinimize} style={iconBtnStyle}>
-              <Minus size={11} />
-            </button>
+            <Tooltip label="最小化">
+              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleMinimize} style={iconBtnStyle}>
+                <Minus size={12} />
+              </button>
+            </Tooltip>
           )}
         </>
       )}
 
       {/* フロート（既にフロート中なら非表示） */}
       {!isFloating && (
-        <button title="フロートにする" onClick={() => containerApi.addFloatingGroup(activePanel)} style={iconBtnStyle}>
-          <PictureInPicture2 size={11} />
-        </button>
+        <Tooltip label="フロートにする">
+          <button
+            type="button"
+            className="ad-btn ad-btn--ghost"
+            onClick={() => containerApi.addFloatingGroup(activePanel)}
+            style={iconBtnStyle}
+          >
+            <PictureInPicture2 size={12} />
+          </button>
+        </Tooltip>
       )}
     </div>
   );

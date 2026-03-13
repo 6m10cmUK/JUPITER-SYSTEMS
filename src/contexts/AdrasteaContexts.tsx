@@ -129,6 +129,9 @@ export interface UIStateContextValue {
   setShowRoomSettings: React.Dispatch<React.SetStateAction<boolean>>;
   showProfileEdit: boolean;
   setShowProfileEdit: React.Dispatch<React.SetStateAction<boolean>>;
+  showSettings: boolean;
+  settingsSection: 'room' | 'layout' | 'user';
+  setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'user') => void;
 
   // --- BGM master volume ---
   masterVolume: number;

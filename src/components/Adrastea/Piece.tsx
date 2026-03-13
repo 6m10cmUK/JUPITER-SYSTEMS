@@ -34,7 +34,7 @@ export function Piece({ piece, onRemove }: PieceProps) {
     justifyContent: 'center',
     userSelect: 'none',
     border: '2px solid rgba(255,255,255,0.3)',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+    boxShadow: theme.shadowSm,
   };
 
   return (

@@ -1,9 +1,10 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { User, Bold, Italic, Strikethrough, Heading1 } from 'lucide-react';
+import { User, Bold, Italic, Strikethrough, Heading1, SendHorizonal } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
+import { Tooltip } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { calcPopupPos } from '../../utils/calcPopupPos';
 
@@ -608,8 +609,11 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           position: 'relative',
         }}
       >
-        <button
+        <Tooltip label="キャラクター選択">
+          <button
             ref={charIconRef}
+            className="ad-btn-icon"
+            data-avatar={selectedCharacterForIcon ? 'true' : undefined}
             onClick={() => {
               if (showCharacterList) {
                 setShowCharacterList(false);
@@ -621,14 +625,14 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               }
             }}
             style={{
-              width: '24px',
-              height: '24px',
+              width: '28px',
+              height: '28px',
               borderRadius: '50%',
               background: selectedCharacterForIcon
                 ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
-                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top/cover ${selectedCharacterForIcon.color}`
+                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top center/cover ${selectedCharacterForIcon.color}`
                   : selectedCharacterForIcon.color
-                : theme.bgInput,
+                : undefined,
               border: `1px solid ${theme.border}`,
               flexShrink: 0,
               cursor: 'pointer',
@@ -641,9 +645,10 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             title="キャラクター選択"
           >
             {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url ? (
-              <User size={12} color={theme.textMuted} />
+              <User size={14} color={theme.textSecondary} />
             ) : null}
           </button>
+        </Tooltip>
 
         <input
             type="text"
@@ -668,23 +673,30 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             }}
           />
 
-        <button
-          onClick={handleSend}
-          style={{
-            padding: '0 10px',
-            background: theme.accent,
-            color: theme.textOnAccent,
-            border: 'none',
-            borderRadius: 0,
-            fontSize: '11px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          送信
-        </button>
+        <Tooltip label="送信">
+          <button
+            className="ad-btn"
+            onClick={handleSend}
+            title="送信"
+            style={{
+              width: '32px',
+              height: '32px',
+              minWidth: '32px',
+              padding: 0,
+              background: theme.accent,
+              color: theme.textOnAccent,
+              border: 'none',
+              borderRadius: 0,
+              cursor: 'pointer',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SendHorizonal size={16} />
+          </button>
+        </Tooltip>
 
         {showCharacterList &&
           createPortal(
@@ -695,8 +707,9 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 top: dropdownPos?.top ?? 0,
                 left: dropdownPos?.left ?? 0,
                 width: '200px',
-                background: theme.bgSurface,
+                background: theme.bgElevated,
                 border: `1px solid ${theme.border}`,
+                boxShadow: theme.shadowMd,
                 zIndex: 100,
               }}
             >
@@ -801,8 +814,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '2px',
-          padding: '2px 4px',
+          gap: '4px',
+          padding: '4px 6px',
           flexShrink: 0,
           position: 'relative',
         }}
@@ -812,18 +825,44 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           { icon: Italic, prefix: '*', suffix: '*' },
           { icon: Strikethrough, prefix: '~~', suffix: '~~' },
         ] as const).map(({ icon: Icon, prefix, suffix }) => (
+          <Tooltip key={prefix} label={prefix === '**' ? '太字' : prefix === '*' ? '斜体' : '打消し'}>
+            <button
+              onMouseDown={(e) => {
+                e.preventDefault();
+                wrapSelection(prefix, suffix);
+              }}
+              className="ad-btn-icon"
+              style={{
+                width: '28px',
+                height: '28px',
+                border: 'none',
+                borderRadius: 0,
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+              }}
+              title={prefix === '**' ? '太字' : prefix === '*' ? '斜体' : '打消し'}
+            >
+              <Icon size={14} />
+            </button>
+          </Tooltip>
+        ))}
+        {/* 見出しボタン */}
+        <Tooltip label="見出し">
           <button
-            key={prefix}
             onMouseDown={(e) => {
               e.preventDefault();
-              wrapSelection(prefix, suffix);
+              toggleHeading();
             }}
+            className="ad-btn-icon"
             style={{
-              width: '24px',
-              height: '24px',
-              background: theme.bgInput,
+              width: '28px',
+              height: '28px',
               border: 'none',
-              borderRadius: '2px',
+              borderRadius: 0,
               color: theme.textSecondary,
               cursor: 'pointer',
               display: 'flex',
@@ -831,41 +870,16 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               justifyContent: 'center',
               padding: 0,
             }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
-            title={prefix === '**' ? '太字' : prefix === '*' ? '斜体' : '打消し'}
+            title="見出し"
           >
-            <Icon size={14} />
+            <Heading1 size={14} />
           </button>
-        ))}
-        {/* 見出しボタン */}
-        <button
-          onMouseDown={(e) => {
-            e.preventDefault();
-            toggleHeading();
-          }}
-          style={{
-            width: '24px',
-            height: '24px',
-            background: theme.bgInput,
-            border: 'none',
-            borderRadius: '2px',
-            color: theme.textSecondary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-          }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput; }}
-          title="見出し"
-        >
-          <Heading1 size={14} />
-        </button>
+        </Tooltip>
         {/* 色ボタン */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <AdColorPicker
+          <Tooltip label="文字色">
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+              <AdColorPicker
             compact
             enableAlpha={false}
             value="#ff0000"
@@ -894,60 +908,67 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               savedSelectionRef.current = null;
             }}
           />
+            </span>
+          </Tooltip>
         </div>
 
         {/* スペーサー */}
         <div style={{ flex: 1 }} />
 
         {/* チャンネル選択 */}
-        <button
-          ref={channelBtnRef}
-          onClick={() => {
-            if (showChannelList) {
-              setShowChannelList(false);
-              setChannelDropdownPos(null);
-            } else {
-              const rect = channelBtnRef.current?.getBoundingClientRect();
-              if (rect) setChannelDropdownPos(calcPopupPos(rect, 160, 120, 'up'));
-              setShowChannelList(true);
-            }
-          }}
-          style={{
-            padding: '2px 6px',
-            background: theme.bgInput,
-            border: `1px solid ${theme.border}`,
-            color: theme.textSecondary,
-            fontSize: '10px',
-            cursor: 'pointer',
-            outline: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            flexShrink: 0,
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {ctx.channels.find(ch => ch.channel_id === ctx.activeChatChannel)?.label ?? 'ch'}
-        </button>
+        <Tooltip label="チャンネル選択">
+          <button
+            ref={channelBtnRef}
+            className="ad-btn ad-btn--ghost"
+            onClick={() => {
+              if (showChannelList) {
+                setShowChannelList(false);
+                setChannelDropdownPos(null);
+              } else {
+                const rect = channelBtnRef.current?.getBoundingClientRect();
+                if (rect) setChannelDropdownPos(calcPopupPos(rect, 160, 120, 'up'));
+                setShowChannelList(true);
+              }
+            }}
+            style={{
+              padding: '6px 10px',
+              border: `1px solid ${theme.borderSubtle}`,
+              color: theme.textSecondary,
+              fontSize: '11px',
+              cursor: 'pointer',
+              outline: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              flexShrink: 0,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {ctx.channels.find(ch => ch.channel_id === ctx.activeChatChannel)?.label ?? 'ch'}
+          </button>
+        </Tooltip>
 
         {/* チャンネル選択ドロップダウン */}
         {showChannelList && channelDropdownPos &&
           createPortal(
             <div
               ref={channelListRef}
+              className="adrastea-root"
               style={{
                 position: 'fixed',
                 top: channelDropdownPos.top,
                 left: channelDropdownPos.left,
                 minWidth: '120px',
-                background: theme.bgSurface,
+                background: theme.bgElevated,
                 border: `1px solid ${theme.border}`,
+                boxShadow: theme.shadowMd,
                 zIndex: 100,
               }}
             >
               {ctx.channels.map((ch) => (
                 <div
                   key={ch.channel_id}
+                  className={`ad-list-item${ch.channel_id === ctx.activeChatChannel ? ' ad-list-item--selected' : ''}`}
                   onClick={() => {
                     ctx.setActiveChatChannel(ch.channel_id);
                     setShowChannelList(false);
@@ -961,11 +982,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                     cursor: 'pointer',
                     color: theme.textPrimary,
                     fontSize: '12px',
-                    borderBottom: `1px solid ${theme.border}`,
-                    transition: 'background 0.15s',
+                    borderBottom: `1px solid ${theme.borderSubtle}`,
                   }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = theme.bgInput; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
                 >
                   <span>{ch.label}</span>
                 </div>
@@ -983,9 +1001,9 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             top: suggestionPos.top,
             left: suggestionPos.left,
             width: suggestionPos.width,
-            background: theme.bgSurface,
+            background: theme.bgElevated,
             border: `1px solid ${theme.border}`,
-            boxShadow: '0 -4px 12px rgba(0,0,0,0.3)',
+            boxShadow: theme.shadowMd,
             zIndex: 10000,
             maxHeight: '160px',
             overflowY: 'auto',

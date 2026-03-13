@@ -483,11 +483,12 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             padding: '4px 0',
             zIndex: 100,
             minWidth: '120px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+            boxShadow: theme.shadowMd,
           }}
           onClick={(e) => e.stopPropagation()}
         >
           <button
+            className="ad-list-item"
             onClick={() => {
               onEditPiece(contextMenu.pieceId!);
               closeContextMenu();
@@ -496,19 +497,17 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               display: 'block',
               width: '100%',
               padding: '8px 16px',
-              background: 'transparent',
               border: 'none',
               color: theme.textPrimary,
               fontSize: '0.85rem',
               textAlign: 'left',
               cursor: 'pointer',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = theme.bgInput)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             編集
           </button>
           <button
+            className="ad-list-item"
             onClick={() => {
               onRemovePiece(contextMenu.pieceId!);
               closeContextMenu();
@@ -517,15 +516,12 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               display: 'block',
               width: '100%',
               padding: '8px 16px',
-              background: 'transparent',
               border: 'none',
               color: theme.danger,
               fontSize: '0.85rem',
               textAlign: 'left',
               cursor: 'pointer',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = theme.bgInput)}
-            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
           >
             削除
           </button>

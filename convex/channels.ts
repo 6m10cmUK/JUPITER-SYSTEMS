@@ -72,3 +72,30 @@ export const upsert = mutation({
     }
   },
 });
+
+const RESERVED_CHANNEL_IDS = ['main', 'info', 'other'];
+
+export const remove = mutation({
+  args: {
+    room_id: v.string(),
+    channel_id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error('認証が必要です');
+    }
+    if (RESERVED_CHANNEL_IDS.includes(args.channel_id)) {
+      throw new Error('既定チャンネルは削除できません');
+    }
+    const existing = await ctx.db
+      .query('channels')
+      .withIndex('by_room_channel', (q) =>
+        q.eq('room_id', args.room_id).eq('channel_id', args.channel_id)
+      )
+      .first();
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
+  },
+});
