@@ -20,7 +20,6 @@ interface BoardProps {
   activeScene?: Scene | null;
   gridVisible?: boolean;
   characters?: Character[];
-  activeSceneId?: string | null;
   onMovePiece: (id: string, x: number, y: number) => void;
   onRemovePiece: (id: string) => void;
   onEditPiece: (id: string) => void;
@@ -175,7 +174,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, activeSceneId, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, selectedObjectId, selectedObjectIds, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, selectedObjectId, selectedObjectIds, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -473,7 +472,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onResizeObject={onResizeObject}
         onSyncObjectSize={onSyncObjectSize}
         characters={characters}
-        activeSceneId={activeSceneId}
         onUpdateCharacterBoardPosition={onUpdateCharacterBoardPosition}
       />
       {/* 右クリックメニュー（HTML DOM） */}

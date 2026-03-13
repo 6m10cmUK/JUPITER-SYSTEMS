@@ -98,7 +98,6 @@ export default defineSchema({
     board_x: v.optional(v.number()),
     board_y: v.optional(v.number()),
     board_height: v.optional(v.number()),
-    board_scene_ids: v.optional(v.array(v.string())),
     board_visible: v.optional(v.boolean()),
     created_at: v.number(),
     updated_at: v.number(),

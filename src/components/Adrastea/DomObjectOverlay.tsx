@@ -21,7 +21,6 @@ interface DomObjectOverlayProps {
   onResizeObject?: (id: string, width: number, height: number) => void;
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
   characters?: Character[];
-  activeSceneId?: string | null;
   onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
 }
 
@@ -696,26 +695,16 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
 const DomCharacterLayer = memo(function DomCharacterLayer({
   obj,
   characters,
-  activeSceneId,
   onUpdatePosition,
   stageRef,
 }: {
   obj: BoardObject;
   characters: Character[];
-  activeSceneId: string | null;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
 }) {
   // ボード上に表示するキャラをフィルタ: on_board=true, board_visible!=false
-  // board_scene_ids が空 = 全シーン表示、それ以外はアクティブシーンに含まれる場合のみ
-  const visibleChars = characters.filter(c => {
-    if (!c.on_board) return false;
-    if (c.board_visible === false) return false;
-    if (c.board_scene_ids && c.board_scene_ids.length > 0 && activeSceneId) {
-      return c.board_scene_ids.includes(activeSceneId);
-    }
-    return true;
-  });
+  const visibleChars = characters.filter(c => c.on_board && c.board_visible !== false);
 
   // initiative 昇順（低い値 = 奥に描画）
   const sorted = [...visibleChars].sort((a, b) => (a.initiative ?? 0) - (b.initiative ?? 0));
@@ -927,7 +916,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
-    characters = [], activeSceneId, onUpdateCharacterBoardPosition,
+    characters = [], onUpdateCharacterBoardPosition,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible);
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -1006,7 +995,6 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     key={stableKey}
                     obj={obj}
                     characters={characters}
-                    activeSceneId={activeSceneId ?? null}
                     onUpdatePosition={onUpdateCharacterBoardPosition}
                     stageRef={stageRef}
                   />
