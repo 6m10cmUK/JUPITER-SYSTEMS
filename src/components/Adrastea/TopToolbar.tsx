@@ -55,11 +55,11 @@ export function TopToolbar({
   onAddPiece: _onAddPiece,
   onOpenSettings,
   onOpenProfile,
-  onSignOut,
+  onSignOut: _onSignOut,
   onOpenLayout,
   activeScene: _activeScene,
   profile,
-  dockviewApi,
+  dockviewApi: _dockviewApi,
   roomName,
 }: TopToolbarProps) {
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);

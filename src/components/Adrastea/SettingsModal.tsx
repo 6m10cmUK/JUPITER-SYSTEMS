@@ -117,7 +117,7 @@ function RoomSettingsSection({
 function LayoutSection({
   dockviewApi,
   can,
-  onClose,
+  onClose: _onClose,
 }: {
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
