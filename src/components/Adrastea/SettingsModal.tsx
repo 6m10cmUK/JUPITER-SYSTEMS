@@ -5,6 +5,7 @@ import type { PermissionKey } from '../../config/permissions';
 import { AdButton, AdInput } from './ui';
 import { theme } from '../../styles/theme';
 import { X } from 'lucide-react';
+import { AssetPicker } from './AssetPicker';
 
 type SettingsSection = 'room' | 'layout' | 'user';
 
@@ -16,7 +17,8 @@ interface SettingsModalProps {
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
   profile: { display_name?: string; avatar_url?: string | null } | null;
-  onOpenProfile: () => void;
+  onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
+  isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
 }
@@ -216,108 +218,112 @@ function LayoutSection({
 
 function UserSection({
   profile,
-  onOpenProfile,
+  onSaveProfile,
+  isGuest,
   onSignOut,
   onClose,
+  dockviewApi,
 }: {
   profile: { display_name?: string; avatar_url?: string | null } | null;
-  onOpenProfile: () => void;
+  onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
+  isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
+  dockviewApi: DockviewApi | null;
 }) {
-  const handleProfileClick = () => {
-    onOpenProfile();
-    onClose();
-  };
-
-  const handleSignOut = () => {
-    onSignOut();
-    onClose();
-  };
+  const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
+  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '');
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   return (
     <div>
-      <div
-        style={{
-          fontSize: '11px',
-          color: theme.textMuted,
-          marginBottom: '12px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-        }}
-      >
-        アカウント
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          marginBottom: '12px',
-        }}
-      >
-        {profile?.avatar_url ? (
-          <img
-            src={profile.avatar_url}
-            alt=""
-            style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '50%',
-              objectFit: 'cover',
-            }}
-            referrerPolicy="no-referrer"
+      {isGuest ? (
+        <div style={{ color: theme.textMuted, fontSize: 12 }}>
+          ゲストユーザーはプロフィールを編集できません
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {profileError && (
+            <div style={{ padding: '6px 10px', background: theme.danger, color: theme.textOnAccent, fontSize: 12 }}>
+              {profileError}
+            </div>
+          )}
+          <AdInput
+            label="表示名"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            placeholder="表示名を入力"
           />
-        ) : (
-          <div
-            style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '50%',
-              background: theme.accent,
-              color: theme.bgBase,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 600,
-            }}
-          >
-            {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
+          <AssetPicker
+            label="アイコン画像"
+            currentUrl={avatarUrl || null}
+            onSelect={(url) => setAvatarUrl(url)}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <div /> {/* spacer */}
+            <AdButton
+              variant="primary"
+              disabled={profileSaving || !displayName.trim()}
+              onClick={async () => {
+                if (!displayName.trim()) return;
+                setProfileSaving(true);
+                setProfileError(null);
+                try {
+                  await onSaveProfile({
+                    display_name: displayName.trim(),
+                    avatar_url: avatarUrl.trim() || null,
+                  });
+                } catch {
+                  setProfileError('プロフィールの保存に失敗しました');
+                } finally {
+                  setProfileSaving(false);
+                }
+              }}
+            >
+              {profileSaving ? '保存中...' : '保存'}
+            </AdButton>
           </div>
-        )}
-        <span style={{ fontSize: '12px', color: theme.textPrimary }}>
-          {profile?.display_name ?? 'ユーザー'}
-        </span>
-      </div>
-      <AdButton onClick={handleProfileClick} fullWidth>
-        プロフィール編集
-      </AdButton>
+          <div style={{ height: 1, background: theme.border }} />
 
-      <div
-        style={{
-          height: '1px',
-          background: theme.border,
-          margin: '12px 0',
-        }}
-      />
+          {/* 開発者モード */}
+          <div>
+            <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+              開発者
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: 12, color: theme.textPrimary }}>デバッグコンソール</span>
+              <AdButton
+                onClick={() => {
+                  if (!dockviewApi) return;
+                  const existing = dockviewApi.getPanel('debugConsole');
+                  if (existing) {
+                    existing.api.setActive();
+                  } else {
+                    let targetGroup = dockviewApi.activeGroup;
+                    if (targetGroup?.panels.some(p => p.id === 'board')) {
+                      targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
+                    }
+                    if (targetGroup) {
+                      dockviewApi.addPanel({ id: 'debugConsole', component: 'debugConsole', title: 'Debug Console', position: { referenceGroup: targetGroup, direction: 'within' } });
+                    }
+                  }
+                }}
+              >
+                {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
+              </AdButton>
+            </div>
+          </div>
 
-      <div
-        style={{
-          fontSize: '11px',
-          color: theme.textMuted,
-          marginBottom: '12px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
-        }}
-      >
-        操作
-      </div>
-      <AdButton variant="danger" onClick={handleSignOut} fullWidth>
-        ログアウト
-      </AdButton>
+          <div style={{ height: 1, background: theme.border }} />
+          <AdButton
+            variant="danger"
+            onClick={() => { onSignOut(); onClose(); }}
+          >
+            ログアウト
+          </AdButton>
+        </div>
+      )}
     </div>
   );
 }
@@ -330,7 +336,8 @@ export function SettingsModal({
   dockviewApi,
   can,
   profile,
-  onOpenProfile,
+  onSaveProfile,
+  isGuest,
   onSignOut,
   onClose,
 }: SettingsModalProps) {
@@ -465,9 +472,11 @@ export function SettingsModal({
           {section === 'user' && (
             <UserSection
               profile={profile}
-              onOpenProfile={onOpenProfile}
+              onSaveProfile={onSaveProfile}
+              isGuest={isGuest}
               onSignOut={onSignOut}
               onClose={onClose}
+              dockviewApi={dockviewApi}
             />
           )}
         </div>
