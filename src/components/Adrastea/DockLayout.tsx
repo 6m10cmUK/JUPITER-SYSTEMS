@@ -8,6 +8,7 @@ import {
   type DockviewApi,
   type IDockviewHeaderActionsProps,
   type DockviewTheme,
+  type DockviewGroupPanel,
 } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import '../../styles/dockview-catppuccin.css';
@@ -64,10 +65,24 @@ function loadLayout(role: string): object | null {
   return null;
 }
 
-function syncDesiredWidths(api: DockviewApi) {
+/** board 以外のグループの幅を現在値で固定する */
+function fixGroupWidth(group: DockviewGroupPanel) {
+  const w = group.width;
+  if (w > 0) {
+    (group.api as any).setConstraints({ minimumWidth: w, maximumWidth: w });
+  }
+}
+
+/** 幅制約を解除する（ユーザーによるリサイズ時） */
+function relaxGroupWidth(group: DockviewGroupPanel) {
+  (group.api as any).setConstraints({ minimumWidth: undefined, maximumWidth: undefined });
+}
+
+/** すべての非board グループの幅を固定する */
+function fixAllNonBoardWidths(api: DockviewApi) {
   api.groups.forEach((g) => {
     if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
-      desiredWidths.set(g.id, g.width);
+      fixGroupWidth(g);
     }
   });
 }
@@ -90,10 +105,6 @@ const iconBtnStyle: React.CSSProperties = {
 const minimizedGroups = new Map<string, number>();
 const TAB_BAR_HEIGHT = 35;
 
-// board 以外のグループの「意図した幅」を保持
-const desiredWidths = new Map<string, number>();
-let isUserResizing = false;
-
 function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps) {
   const { boardRef } = useAdrasteaContext();
   const [isMinimized, setIsMinimized] = React.useState(() => minimizedGroups.has(group.id));
@@ -114,6 +125,24 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
       el.classList.remove('dv-floating-translucent');
     }
   }, [isFloating, (group.header as any)?.element]);
+
+  // フロート/ドック時に幅制約を管理
+  useEffect(() => {
+    const disposable = group.api.onDidLocationChange((event) => {
+      if (event.location.type !== 'floating') {
+        // ドックに戻った → 幅を現在値で固定
+        requestAnimationFrame(() => {
+          if (!group.panels.some((p) => p.id === 'board')) {
+            fixGroupWidth(group);
+          }
+        });
+      } else {
+        // フロートになった → 制約解除
+        relaxGroupWidth(group);
+      }
+    });
+    return () => disposable.dispose();
+  }, [group]);
 
   const handleMinimize = useCallback(() => {
     const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
@@ -239,7 +268,7 @@ const DockviewInner = memo(function DockviewInner({
       if (saved) {
         try {
           api.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]);
-          requestAnimationFrame(() => syncDesiredWidths(api));
+          requestAnimationFrame(() => fixAllNonBoardWidths(api));
           return;
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
@@ -281,7 +310,7 @@ const DockviewInner = memo(function DockviewInner({
         scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
         bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
-        requestAnimationFrame(() => syncDesiredWidths(api));
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       } else if (role === 'user') {
         // user: シーン・キャラクター・チャット・ボード
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -308,7 +337,7 @@ const DockviewInner = memo(function DockviewInner({
 
         scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
-        requestAnimationFrame(() => syncDesiredWidths(api));
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       } else if (role === 'guest') {
         // guest: ボード・チャットのみ
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -322,14 +351,14 @@ const DockviewInner = memo(function DockviewInner({
         });
 
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
-        requestAnimationFrame(() => syncDesiredWidths(api));
+        requestAnimationFrame(() => fixAllNonBoardWidths(api));
       }
     },
     [onApiReady, role],
   );
 
   // レイアウト変更時に自動保存（debounce で連続変更をまとめる）
-  // board 以外のグループの幅を自動変更から保護
+  // ユーザーが sash をドラッグ中のみ制約を解除し、離したら再固定
   const roleRef = useRef(role);
   roleRef.current = role;
   useEffect(() => {
@@ -337,45 +366,26 @@ const DockviewInner = memo(function DockviewInner({
     if (!api) return;
     let timer: ReturnType<typeof setTimeout>;
 
-    // sash ドラッグ中のみ isUserResizing = true
     const onPointerDown = (e: PointerEvent) => {
       if ((e.target as HTMLElement).closest('.dv-sash')) {
-        isUserResizing = true;
+        api.groups.forEach((g) => {
+          if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
+            relaxGroupWidth(g);
+          }
+        });
       }
     };
     const onPointerUp = () => {
-      if (isUserResizing) {
-        isUserResizing = false;
-        syncDesiredWidths(api);
-      }
+      api.groups.forEach((g) => {
+        if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
+          fixGroupWidth(g);
+        }
+      });
     };
-    api.element.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointerdown', onPointerDown);
     window.addEventListener('pointerup', onPointerUp);
 
     const disposable = api.onDidLayoutChange(() => {
-      // board 以外の幅が意図せず変わっていたら復元する
-      if (!isUserResizing) {
-        const groupsToRestore = api.groups.filter(
-          (g) =>
-            g.api.location.type !== 'floating' &&
-            !g.panels.some((p) => p.id === 'board'),
-        );
-        const hasDeviation = groupsToRestore.some((g) => {
-          const desired = desiredWidths.get(g.id);
-          return desired !== undefined && Math.abs(g.width - desired) > 2;
-        });
-        if (hasDeviation) {
-          requestAnimationFrame(() => {
-            groupsToRestore.forEach((g) => {
-              const desired = desiredWidths.get(g.id);
-              if (desired !== undefined) {
-                g.api.setSize({ width: desired });
-              }
-            });
-          });
-        }
-      }
-
       clearTimeout(timer);
       timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
     });
@@ -383,7 +393,7 @@ const DockviewInner = memo(function DockviewInner({
     return () => {
       clearTimeout(timer);
       disposable.dispose();
-      api.element.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointerup', onPointerUp);
     };
   }, []);
