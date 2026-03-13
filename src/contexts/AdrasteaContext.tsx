@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useMutation } from 'convex/react';
+import { api } from '../../convex/_generated/api';
 import type { AuthUser } from '../contexts/AuthContext';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
@@ -55,6 +57,7 @@ export interface AdrasteaContextValue {
   removePiece: ReturnType<typeof useAdrastea>['removePiece'];
   updatePiece: ReturnType<typeof useAdrastea>['updatePiece'];
   updateRoom: ReturnType<typeof useAdrastea>['updateRoom'];
+  deleteRoom: () => Promise<void>;
 
   // --- useAdrasteaChat ---
   messages: ChatMessage[];
@@ -222,6 +225,9 @@ interface AdrasteaProviderProps {
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile: updateProfileFromAuth } = useAuth();
   const updateProfile = updateProfileFromAuth ?? (async () => {});
+
+  // --- Convex mutations ---
+  const removeRoom = useMutation(api.rooms.remove);
 
   // --- パネルのマウント状態追跡（遅延リスナー用） ---
   const [activePanels, setActivePanels] = useState<Set<string>>(new Set());
@@ -661,6 +667,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     await syncObjectImageToScene(data, id);
   }, [updateObject, syncObjectImageToScene, effectiveSceneId]);
 
+  const deleteRoom = useCallback(async () => {
+    if (!room) return;
+    await removeRoom({ _id: room._id });
+    // ルーム一覧に戻る
+    window.location.href = '/adrastea/';
+  }, [room, removeRoom]);
+
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
     setEditingObjectId(undefined);
@@ -704,7 +717,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       roomRole,
 
       // useAdrastea
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom, deleteRoom,
 
       // useAdrasteaChat
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
@@ -796,7 +809,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     }),
     [
       roomId, roomRole,
-      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
+      pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom, deleteRoom,
       messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
