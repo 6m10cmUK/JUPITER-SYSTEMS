@@ -4,7 +4,7 @@ import { theme } from '../../styles/theme';
 import { DomObjectOverlay, useAnimatedBlobSrc } from './DomObjectOverlay';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
-import type { Piece as PieceType, BoardObject, Scene } from '../../types/adrastea.types';
+import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
 import type { ReactNode } from 'react';
 
 export interface BoardHandle {
@@ -19,6 +19,8 @@ interface BoardProps {
   objects?: BoardObject[];
   activeScene?: Scene | null;
   gridVisible?: boolean;
+  characters?: Character[];
+  activeSceneId?: string | null;
   onMovePiece: (id: string, x: number, y: number) => void;
   onRemovePiece: (id: string) => void;
   onEditPiece: (id: string) => void;
@@ -27,6 +29,7 @@ interface BoardProps {
   onEditObject?: (id: string) => void;
   onResizeObject?: (id: string, width: number, height: number) => void;
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
+  onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
   children?: ReactNode;
@@ -172,7 +175,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, selectedObjectId, selectedObjectIds, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, activeSceneId, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, selectedObjectId, selectedObjectIds, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -469,6 +472,9 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onEditObject={onEditObject ?? (() => {})}
         onResizeObject={onResizeObject}
         onSyncObjectSize={onSyncObjectSize}
+        characters={characters}
+        activeSceneId={activeSceneId}
+        onUpdateCharacterBoardPosition={onUpdateCharacterBoardPosition}
       />
       {/* 右クリックメニュー（HTML DOM） */}
       {contextMenu.visible && contextMenu.pieceId && (

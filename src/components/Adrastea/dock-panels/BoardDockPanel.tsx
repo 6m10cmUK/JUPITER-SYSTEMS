@@ -57,6 +57,9 @@ export function BoardDockPanel() {
         objects={ctx.activeObjects}
         activeScene={ctx.activeScene}
         gridVisible={ctx.gridVisible}
+        characters={ctx.characters}
+        activeSceneId={ctx.activeScene?.id ?? null}
+        onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
         onMovePiece={ctx.movePiece}
         onRemovePiece={ctx.removePiece}
         onEditPiece={(id) => { ctx.clearAllEditing(); ctx.setEditingPieceId(id); }}

@@ -28,7 +28,8 @@ const objectFields = {
     v.literal("panel"),
     v.literal("text"),
     v.literal("foreground"),
-    v.literal("background")
+    v.literal("background"),
+    v.literal("characters_layer")
   ),
   name: v.string(),
   global: v.boolean(),

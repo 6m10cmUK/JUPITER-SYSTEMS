@@ -104,13 +104,19 @@ export interface Character {
   is_hidden_on_board: boolean;
   is_speech_hidden: boolean;
   sort_order: number;
+  on_board?: boolean;
+  board_x?: number;
+  board_y?: number;
+  board_height?: number;
+  board_scene_ids?: string[];
+  board_visible?: boolean;
   created_at: number;
   updated_at: number;
 }
 
 // --- BoardObject (統合オブジェクト) ---
 
-export type BoardObjectType = 'panel' | 'text' | 'foreground' | 'background';
+export type BoardObjectType = 'panel' | 'text' | 'foreground' | 'background' | 'characters_layer';
 
 export interface BoardObject {
   id: string;

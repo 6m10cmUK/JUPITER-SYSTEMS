@@ -94,6 +94,12 @@ export default defineSchema({
     is_hidden_on_board: v.boolean(),
     is_speech_hidden: v.boolean(),
     sort_order: v.optional(v.number()),
+    on_board: v.optional(v.boolean()),
+    board_x: v.optional(v.number()),
+    board_y: v.optional(v.number()),
+    board_height: v.optional(v.number()),
+    board_scene_ids: v.optional(v.array(v.string())),
+    board_visible: v.optional(v.boolean()),
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -125,7 +131,8 @@ export default defineSchema({
       v.literal("panel"),
       v.literal("text"),
       v.literal("foreground"),
-      v.literal("background")
+      v.literal("background"),
+      v.literal("characters_layer")
     ),
     name: v.string(),
     global: v.boolean(),

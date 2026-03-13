@@ -344,6 +344,49 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     if (urls.length > 0) preloadImageBlobs(urls);
   }, [initialLoadDone, scenes, allObjects]);
 
+  // --- characters_layer 自動生成 ---
+  // ルーム入室後、characters_layer オブジェクトがなければ自動作成
+  const charactersLayerCreatedRef = useRef(false);
+  useEffect(() => {
+    if (!initialLoadDone || objectsLoading) return;
+    if (charactersLayerCreatedRef.current) return;
+    const hasCharactersLayer = allObjects.some(o => o.type === 'characters_layer');
+    if (!hasCharactersLayer) {
+      charactersLayerCreatedRef.current = true;
+      addObject({
+        type: 'characters_layer',
+        name: 'キャラクター',
+        global: true,
+        scene_ids: [],
+        x: 0,
+        y: 0,
+        width: 0,
+        height: 0,
+        visible: true,
+        opacity: 1,
+        sort_order: 5,
+        locked: false,
+        position_locked: true,
+        size_locked: true,
+        image_url: null,
+        image_asset_id: null,
+        background_color: 'transparent',
+        image_fit: 'contain',
+        text_content: null,
+        font_size: 16,
+        font_family: 'sans-serif',
+        letter_spacing: 0,
+        line_height: 1.2,
+        auto_size: false,
+        text_align: 'left',
+        text_vertical_align: 'top',
+        text_color: '#ffffff',
+        scale_x: 1,
+        scale_y: 1,
+      });
+    }
+  }, [initialLoadDone, objectsLoading, allObjects, addObject]);
+
   // --- UI state ---
   const [editingPieceId, setEditingPieceId] = useState<string | null>(null);
   const [showSettings, setShowSettingsState] = useState(false);

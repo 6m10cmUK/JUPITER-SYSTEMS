@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, LayoutGrid, Eye, EyeOff } from 'lucide-react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
@@ -17,6 +17,8 @@ interface CharacterPanelProps {
   onSelectedCharIdsChange: (ids: string[]) => void;
   onRemoveCharacters: (ids: string[]) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
+  onToggleOnBoard: (charId: string) => void;
+  onToggleBoardVisible: (charId: string) => void;
 }
 
 export function CharacterPanel({
@@ -30,6 +32,8 @@ export function CharacterPanel({
   onSelectedCharIdsChange,
   onRemoveCharacters,
   onReorderCharacters,
+  onToggleOnBoard,
+  onToggleBoardVisible,
 }: CharacterPanelProps) {
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
@@ -185,6 +189,39 @@ export function CharacterPanel({
               </div>
             )}
           </div>
+
+          {/* ボード配置ボタン */}
+          <Tooltip label={char.on_board ? 'ボードから削除' : 'ボードに配置'}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggleOnBoard(char.id); }}
+              style={{
+                ...iconBtnStyle,
+                color: char.on_board ? theme.accent : theme.textMuted,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <LayoutGrid size={13} />
+            </button>
+          </Tooltip>
+
+          {/* 表示/非表示ボタン（on_board=true の場合のみ表示） */}
+          {char.on_board && (
+            <Tooltip label={char.board_visible !== false ? '非表示' : '表示'}>
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleBoardVisible(char.id); }}
+                style={{
+                  ...iconBtnStyle,
+                  color: char.board_visible !== false ? theme.textSecondary : theme.textMuted,
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: char.board_visible !== false ? 1 : 0.4,
+                }}
+              >
+                {char.board_visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+              </button>
+            </Tooltip>
+          )}
         </SortableListItem>
       ))}
     </SortableListPanel>
