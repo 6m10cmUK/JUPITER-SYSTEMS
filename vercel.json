@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "https://YOUR-BACKEND-URL.onrender.com/api/$1"
+      "destination": "https://trpg-pdf2md-api.onrender.com/api/$1"
     },
     {
       "source": "/((?!api/).*)",
