@@ -13,7 +13,7 @@ interface ScenePanelProps {
   selectedSceneIds: string[];
   onSelectedSceneIdsChange: (ids: string[]) => void;
   onActivateScene: (sceneId: string | null) => void;
-  onAddScene: () => void;
+  onAddScene: (count: number) => void;
   onDuplicateScenes?: (sceneIds: string[]) => void;
   onEditScene: (scene: Scene) => void;
   onUpdateSceneName: (sceneId: string, name: string) => void;
@@ -163,9 +163,9 @@ export function ScenePanel({
             <Trash2 size={13} />
           </button>
           <button
-            onClick={onAddScene}
+            onClick={() => onAddScene(Math.max(1, selectedSceneIds.length))}
             aria-label="シーンを追加"
-            title="シーンを追加"
+            title={selectedSceneIds.length > 1 ? `シーンを${selectedSceneIds.length}件追加` : 'シーンを追加'}
             style={{
               background: 'transparent',
               border: 'none',
