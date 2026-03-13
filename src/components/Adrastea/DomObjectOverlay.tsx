@@ -693,12 +693,12 @@ const DomBackgroundObject = memo(function DomBackgroundObject({
 
 // --- CharacterLayer (DOM版) ---
 const DomCharacterLayer = memo(function DomCharacterLayer({
-  obj,
+  _obj,
   characters,
   onUpdatePosition,
   stageRef,
 }: {
-  obj: BoardObject;
+  _obj: BoardObject;
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
