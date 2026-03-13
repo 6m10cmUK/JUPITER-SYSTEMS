@@ -1,19 +1,21 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { Trash2, Plus } from 'lucide-react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
-import { SortableListPanel, SortableListItem, Tooltip } from './ui';
+import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal } from './ui';
 
 interface CharacterPanelProps {
   characters: Character[];
   currentUserId: string;
   selectedCharId?: string | null;
+  selectedCharIds: string[];
   onAddCharacter: () => void;
   onSelectCharacter: (char: Character) => void;
   onDoubleClickCharacter?: (char: Character) => void;
-  onRemoveCharacter: (charId: string) => void;
+  onSelectedCharIdsChange: (ids: string[]) => void;
+  onRemoveCharacters: (ids: string[]) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
 }
 
@@ -21,13 +23,17 @@ export function CharacterPanel({
   characters,
   currentUserId,
   selectedCharId,
+  selectedCharIds,
   onAddCharacter,
   onSelectCharacter,
   onDoubleClickCharacter,
-  onRemoveCharacter,
+  onSelectedCharIdsChange,
+  onRemoveCharacters,
   onReorderCharacters,
 }: CharacterPanelProps) {
+  const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
+  const canDelete = selectedCharIds.length > 0;
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'transparent',
@@ -50,10 +56,24 @@ export function CharacterPanel({
   }, [filteredCharacters, onReorderCharacters]);
 
   return (
+    <>
     <SortableListPanel
       title="キャラクター"
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+          {canDelete && (
+            <Tooltip label={selectedCharIds.length > 1 ? `${selectedCharIds.length}件削除` : '削除'}>
+              <button
+                onClick={() => setPendingRemove({
+                  ids: selectedCharIds,
+                  msg: selectedCharIds.length > 1 ? `${selectedCharIds.length}件のキャラクターを削除しますか？` : 'このキャラクターを削除しますか？',
+                })}
+                style={{ ...iconBtnStyle, color: theme.danger }}
+              >
+                <Trash2 size={13} />
+              </button>
+            </Tooltip>
+          )}
           <Tooltip label="キャラクター追加">
             <button
               onClick={onAddCharacter}
@@ -74,7 +94,37 @@ export function CharacterPanel({
           id={char.id}
           onClick={() => onSelectCharacter(char)}
           onDoubleClick={() => onDoubleClickCharacter?.(char)}
-          isSelected={char.id === selectedCharId}
+          isSelected={char.id === selectedCharId || selectedCharIds.includes(char.id)}
+          handleExtra={
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                const isSelected = selectedCharIds.includes(char.id);
+                onSelectedCharIdsChange(
+                  isSelected
+                    ? selectedCharIds.filter(id => id !== char.id)
+                    : [...selectedCharIds, char.id]
+                );
+              }}
+              style={{
+                width: '12px',
+                height: '12px',
+                border: `1px solid ${theme.textMuted}`,
+                borderRadius: '2px',
+                background: selectedCharIds.includes(char.id) ? theme.textMuted : 'transparent',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '9px',
+                color: theme.bgBase,
+                lineHeight: 1,
+                flexShrink: 0,
+              }}
+            >
+              {selectedCharIds.includes(char.id) && '✓'}
+            </div>
+          }
         >
           {/* アバター */}
           {char.images[char.active_image_index]?.url ? (
@@ -135,26 +185,19 @@ export function CharacterPanel({
               </div>
             )}
           </div>
-
-          {/* 操作 */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flexShrink: 0 }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); onRemoveCharacter(char.id); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.danger,
-                cursor: 'pointer',
-                padding: '4px',
-                display: 'flex',
-                alignItems: 'center',
-              }}
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
         </SortableListItem>
       ))}
     </SortableListPanel>
+
+    {pendingRemove && (
+      <ConfirmModal
+        message={pendingRemove.msg}
+        confirmLabel="削除"
+        danger
+        onConfirm={() => { onRemoveCharacters(pendingRemove.ids); setPendingRemove(null); }}
+        onCancel={() => setPendingRemove(null)}
+      />
+    )}
+    </>
   );
 }
