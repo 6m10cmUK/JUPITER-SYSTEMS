@@ -364,7 +364,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         height: 0,
         visible: true,
         opacity: 1,
-        sort_order: 5,
+        sort_order: 9999,
         locked: false,
         position_locked: true,
         size_locked: true,

@@ -62,17 +62,16 @@ export function LayerPanel() {
     return [triggerObjId];
   }, [selectedObjectIds, activeObjects]);
 
-  // 背景とキャラクターレイヤーを末尾に固定。それ以外はsort_order降順
+  // 背景を末尾に固定。それ以外はsort_order降順
   const sortedObjects = useMemo(() => {
     const bg = activeObjects.filter(o => o.type === 'background');
-    const fixed = activeObjects.filter(o => o.type === 'characters_layer');
-    const rest = activeObjects.filter(o => o.type !== 'background' && o.type !== 'characters_layer').map(o => {
+    const rest = activeObjects.filter(o => o.type !== 'background').map(o => {
       if (localOrderOverride?.has(o.id)) {
         return { ...o, sort_order: localOrderOverride.get(o.id)! };
       }
       return o;
     });
-    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...fixed, ...bg];
+    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
   }, [activeObjects, localOrderOverride]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -374,12 +373,12 @@ export function LayerPanel() {
           <SortableListItem
             key={obj.id}
             id={obj.id}
-            disabled={obj.type === 'background' || obj.type === 'foreground' || obj.type === 'characters_layer'}
+            disabled={obj.type === 'background'}
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && obj.type !== 'foreground' && obj.type !== 'characters_layer' && (
+            {obj.type !== 'background' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
@@ -466,7 +465,7 @@ export function LayerPanel() {
                   opacity: obj.visible ? 1 : 0.4,
                 }}
                 onDoubleClick={(e) => {
-                  if (obj.type === 'foreground' || obj.type === 'background' || obj.type === 'characters_layer') return;
+                  if (obj.type === 'background') return;
                   e.stopPropagation();
                   setRenamingId(obj.id);
                   setRenameValue(obj.name);
@@ -475,7 +474,7 @@ export function LayerPanel() {
                 {obj.name}
               </span>
             )}
-            {obj.type !== 'background' && obj.type !== 'foreground' && obj.type !== 'characters_layer' && (
+            {obj.type !== 'background' && (
               <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
                 <button
                   type="button"
