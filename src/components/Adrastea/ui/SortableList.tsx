@@ -196,7 +196,7 @@ export function SortableListItem({
     background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : isGroupDrag ? 0.4 : 1,
+    opacity: isDragging ? 0 : isGroupDrag ? 0.4 : 1,
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
