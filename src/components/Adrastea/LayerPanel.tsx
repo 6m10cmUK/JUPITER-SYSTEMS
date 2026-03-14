@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
+  DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
 } from '@dnd-kit/core';
 import {
   SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates, useSortable,
@@ -637,6 +638,11 @@ function CharacterSubList({
   onReorder: (orderedIds: string[]) => void;
 }) {
   const [localChars, setLocalChars] = useState<Character[]>(characters);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
+  const [draggedHtml, setDraggedHtml] = useState<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // 外部から characters が変わった時に同期（新規追加・削除等）
   const prevCharsRef = useRef(characters);
@@ -646,6 +652,18 @@ function CharacterSubList({
       setLocalChars(characters);
     }
   }, [characters]);
+
+  useEffect(() => {
+    if (!activeId) {
+      setCursorPos(null);
+      return;
+    }
+    const handleMove = (e: PointerEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, [activeId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -664,8 +682,35 @@ function CharacterSubList({
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
+    <div ref={containerRef}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(event) => {
+          const id = String(event.active.id);
+          setActiveId(id);
+          const target = (event.activatorEvent as Event)?.target as HTMLElement | null;
+          const sortableEl = target?.closest?.('[aria-roledescription="sortable"]') as HTMLElement | null;
+          if (sortableEl) {
+            setDraggedHtml(sortableEl.outerHTML);
+          }
+          const activatorEvent = event.activatorEvent as PointerEvent | null;
+          const initialRect = event.active.rect.current?.initial;
+          if (activatorEvent && initialRect) {
+            setGrabOffset({
+              x: activatorEvent.clientX - initialRect.left,
+              y: activatorEvent.clientY - initialRect.top,
+            });
+            setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
+          }
+        }}
+        onDragEnd={(event) => {
+          setActiveId(null);
+          setDraggedHtml('');
+          handleDragEnd(event);
+        }}
+      >
+        <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
         {localChars.map((char) => (
           <SortableListItem
             key={char.id}
@@ -722,7 +767,25 @@ function CharacterSubList({
             </Tooltip>
           </SortableListItem>
         ))}
+        <DragOverlay dropAnimation={null}>
+          <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
+        </DragOverlay>
       </SortableContext>
     </DndContext>
+    {activeId && cursorPos && draggedHtml && createPortal(
+      <div style={{
+        position: 'fixed',
+        top: cursorPos.y - grabOffset.y,
+        left: cursorPos.x - grabOffset.x,
+        width: containerRef.current?.closest?.('[style*="overflow"]')?.clientWidth ?? containerRef.current?.offsetWidth ?? 240,
+        zIndex: 9999,
+        pointerEvents: 'none',
+        opacity: 0.85,
+      }}>
+        <div dangerouslySetInnerHTML={{ __html: draggedHtml }} />
+      </div>,
+      document.body
+    )}
+    </div>
   );
 }
