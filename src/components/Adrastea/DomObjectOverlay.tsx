@@ -908,7 +908,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
           transform: 'translateY(-100%)',
           zIndex: 10000,
           pointerEvents: 'none',
-          background: 'rgba(0, 0, 0, 0.88)',
+          background: 'rgba(0, 0, 0, 0.72)',
           color: '#fff',
           padding: '12px 16px',
           fontSize: 15,
