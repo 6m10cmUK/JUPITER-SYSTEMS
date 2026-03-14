@@ -66,3 +66,5 @@ public/pdf.js/
 
 # Playwright auth state
 e2e/.auth/.env.prod
+.env.prod
+e2e/.auth/
