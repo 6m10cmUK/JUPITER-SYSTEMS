@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -106,7 +107,8 @@ export function SortableListPanel({
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
-
+          {/* 透明DragOverlay: ビジュアルなし・displacement計算を正確にするためのみ */}
+          <DragOverlay dropAnimation={null}>{null}</DragOverlay>
         </DndContext>
         {!hasItems && emptyMessage && (
           <div style={{
