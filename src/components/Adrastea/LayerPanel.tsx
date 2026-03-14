@@ -132,6 +132,7 @@ export function LayerPanel() {
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
+    if (obj.type === 'characters_layer') return;
     if (e.shiftKey && selectedObjectIds.length > 0) {
       const lastSelected = selectedObjectIds[selectedObjectIds.length - 1];
       const anchorIdx = sortedObjects.findIndex(o => o.id === lastSelected);
@@ -362,7 +363,7 @@ export function LayerPanel() {
       emptyMessage="オブジェクトがありません"
     >
       {sortedObjects.map((obj) => {
-        const isSelected = selectedObjectIds.includes(obj.id);
+        const isSelected = obj.type !== 'characters_layer' && selectedObjectIds.includes(obj.id);
         const isDragGroupMember = activeDragId != null
           && selectedObjectIds.includes(activeDragId)
           && isSelected
@@ -378,7 +379,7 @@ export function LayerPanel() {
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && (
+            {obj.type !== 'background' && obj.type !== 'characters_layer' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
