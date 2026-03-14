@@ -718,14 +718,12 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   selectedCharacterId?: string | null;
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
+  // 配列の順序をそのまま維持（レイヤーパネルの並び順 = z順）
   const visibleChars = characters.filter(c => c.board_visible !== false);
-
-  // initiative 昇順（低い値 = 奥に描画）
-  const sorted = [...visibleChars].sort((a, b) => (a.initiative ?? 0) - (b.initiative ?? 0));
 
   return (
     <>
-      {sorted.map((char, idx) => (
+      {visibleChars.map((char, idx) => (
         <DomCharacterItem
           key={char.id}
           char={char}
