@@ -21,6 +21,8 @@ import { panelComponents } from './dock-panels/sharedComponents';
 import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
+import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
+import { ColumnHeaderBar } from './ColumnHeaderBar';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -65,27 +67,6 @@ function loadLayout(role: string): object | null {
   return null;
 }
 
-/** board 以外のグループの最大幅を現在値に固定する（広がり防止。縮小は許容） */
-function fixGroupWidth(group: DockviewGroupPanel) {
-  const w = group.width;
-  if (w > 0) {
-    (group.api as any).setConstraints({ maximumWidth: w });
-  }
-}
-
-/** 幅制約を解除する（ユーザーによるリサイズ時） */
-function relaxGroupWidth(group: DockviewGroupPanel) {
-  (group.api as any).setConstraints({ minimumWidth: 50, maximumWidth: Number.MAX_SAFE_INTEGER });
-}
-
-/** すべての非board グループの幅を固定する */
-function fixAllNonBoardWidths(api: DockviewApi) {
-  api.groups.forEach((g) => {
-    if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
-      fixGroupWidth(g);
-    }
-  });
-}
 
 /* ── タブヘッダー右側アクション ── */
 
@@ -366,8 +347,10 @@ const DockviewInner = memo(function DockviewInner({
     if (!api) return;
     let timer: ReturnType<typeof setTimeout>;
 
+    let sashDragging = false;
     const onPointerDown = (e: PointerEvent) => {
       if ((e.target as HTMLElement).closest('.dv-sash')) {
+        sashDragging = true;
         api.groups.forEach((g) => {
           if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
             relaxGroupWidth(g);
@@ -376,6 +359,8 @@ const DockviewInner = memo(function DockviewInner({
       }
     };
     const onPointerUp = () => {
+      if (!sashDragging) return;
+      sashDragging = false;
       api.groups.forEach((g) => {
         if (g.api.location.type !== 'floating' && !g.panels.some((p) => p.id === 'board')) {
           fixGroupWidth(g);
@@ -412,13 +397,17 @@ const DockviewInner = memo(function DockviewInner({
 /* ── DockLayout ── */
 
 export function DockLayout() {
-  const { setDockviewApi } = useAdrasteaContext();
+  const { setDockviewApi, dockviewApi } = useAdrasteaContext();
   const { roomRole } = usePermission();
+  const containerRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div style={{ position: 'absolute', inset: 0 }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       <BgmEngine />
-      <DockviewInner onApiReady={setDockviewApi} role={roomRole} />
+      <ColumnHeaderBar api={dockviewApi} containerRef={containerRef} />
+      <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+        <DockviewInner onApiReady={setDockviewApi} role={roomRole} />
+      </div>
     </div>
   );
 }
