@@ -433,7 +433,7 @@ export function LayerPanel() {
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && obj.type !== 'characters_layer' && (
+            {obj.type !== 'background' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
