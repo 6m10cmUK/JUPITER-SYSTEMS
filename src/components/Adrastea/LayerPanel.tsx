@@ -109,9 +109,10 @@ export function LayerPanel() {
 
     if (dragSet.has(overId)) return;
 
-    const nonFixed = sortedObjects.filter(o => o.type !== 'background' && o.type !== 'characters_layer');
-    const draggedItems = nonFixed.filter(o => dragSet.has(o.id));
-    const rest = nonFixed.filter(o => !dragSet.has(o.id));
+    // background 以外はすべて含める（characters_layer も含む）
+    const allMovable = sortedObjects.filter(o => o.type !== 'background');
+    const draggedItems = allMovable.filter(o => dragSet.has(o.id));
+    const rest = allMovable.filter(o => !dragSet.has(o.id));
 
     // characters_layer や background の上にドロップした場合は先頭として扱う
     const overObj = sortedObjects.find(o => o.id === overId);
@@ -122,8 +123,8 @@ export function LayerPanel() {
       overIdx = 0;
     }
 
-    const activeOrigIdx = nonFixed.findIndex(o => o.id === activeId);
-    const overOrigIdx = nonFixed.findIndex(o => o.id === overId);
+    const activeOrigIdx = allMovable.findIndex(o => o.id === activeId);
+    const overOrigIdx = allMovable.findIndex(o => o.id === overId);
     const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
 
     rest.splice(insertIdx, 0, ...draggedItems);

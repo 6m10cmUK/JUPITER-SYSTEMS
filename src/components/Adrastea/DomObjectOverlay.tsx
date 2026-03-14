@@ -488,7 +488,7 @@ export function preloadImageBlobs(urls: string[]): void {
 
 // --- PanelObject (DOM版) ---
 const DomPanelObject = memo(function DomPanelObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -496,6 +496,7 @@ const DomPanelObject = memo(function DomPanelObject({
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
+  baseZIndex?: number;
 }) {
   const blobSrc = useAnimatedBlobSrc(obj.image_url);
 
@@ -504,6 +505,7 @@ const DomPanelObject = memo(function DomPanelObject({
       obj={obj} isSelected={isSelected} isDraggable={!obj.position_locked}
       isResizable={!obj.size_locked} stageRef={stageRef}
       onMove={onMove} onSelect={onSelect} onEdit={onEdit} onResize={onResize}
+      style={{ zIndex: baseZIndex }}
     >
       <div style={{
         width: '100%', height: '100%',
@@ -537,7 +539,7 @@ const DomPanelObject = memo(function DomPanelObject({
 
 // --- TextObject (DOM版) ---
 const DomTextObject = memo(function DomTextObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, onSyncSize,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, onSyncSize, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -546,6 +548,7 @@ const DomTextObject = memo(function DomTextObject({
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
   onSyncSize?: (id: string, w: number, h: number) => void;
+  baseZIndex?: number;
 }) {
   const fontFamily = obj.font_family || 'sans-serif';
   const textStr = obj.text_content || '';
@@ -583,7 +586,7 @@ const DomTextObject = memo(function DomTextObject({
       obj={obj} isSelected={isSelected} isDraggable={!obj.position_locked}
       isResizable={!obj.size_locked} stageRef={stageRef}
       onMove={onMove} onSelect={onSelect} onEdit={onEdit} onResize={onResize}
-      style={autoSizeStyle}
+      style={{ ...autoSizeStyle, zIndex: baseZIndex }}
     >
       <div ref={contentRef} style={{
         width: '100%', height: '100%',
@@ -612,7 +615,7 @@ const DomTextObject = memo(function DomTextObject({
 
 // --- ForegroundObject (DOM版) ---
 const DomForegroundObject = memo(function DomForegroundObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -620,6 +623,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   fadeInDuration?: number;
+  baseZIndex?: number;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const blobSrc = useAnimatedBlobSrc(obj.image_url);
@@ -646,7 +650,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   }, [obj.opacity]);
 
   return (
-    <div ref={elRef}>
+    <div ref={elRef} style={{ zIndex: baseZIndex }}>
       <DomObjectWrapper
         obj={obj} isSelected={isSelected} isDraggable={false}
         isResizable={false} stageRef={stageRef}
@@ -707,6 +711,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onDoubleClickCharacter,
   onContextMenuCharacter,
   selectedCharacterId,
+  baseZIndex,
 }: {
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -716,6 +721,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   selectedCharacterId?: string | null;
+  baseZIndex?: number;
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
   // 配列の順序をそのまま維持（レイヤーパネルの並び順 = z順）
@@ -727,7 +733,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
         <DomCharacterItem
           key={char.id}
           char={char}
-          zIndex={idx + 1}
+          zIndex={baseZIndex != null ? baseZIndex + (visibleChars.length - 1 - idx) : (visibleChars.length - idx)}
           onUpdatePosition={onUpdatePosition}
           stageRef={stageRef}
           currentUserId={currentUserId}
@@ -1102,10 +1108,12 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
       >
         {/* Board.tsx が rAF でこの div の style.transform を直接更新する */}
         <div ref={ref} style={{ transformOrigin: '0 0' }}>
-          {keyedObjects.map(({ obj, stableKey }) => {
+          {keyedObjects.map(({ obj, stableKey }, listIdx) => {
             const isSelected = selectedObjectIds.length > 0
               ? selectedObjectIds.includes(obj.id)
               : obj.id === selectedObjectId;
+
+            const baseZIndex = (listIdx + 1) * 100;
 
             switch (obj.type) {
               case 'background':
@@ -1122,6 +1130,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}
                     onResize={obj.size_locked ? undefined : onResizeObject}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'text':
@@ -1133,6 +1142,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onEdit={onEditObject}
                     onResize={obj.size_locked ? undefined : onResizeObject}
                     onSyncSize={onSyncObjectSize}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'foreground':
@@ -1145,6 +1155,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     fadeInDuration={activeScene?.fg_transition === 'fade'
                       ? activeScene.fg_transition_duration
                       : undefined}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'characters_layer':
@@ -1159,6 +1170,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onDoubleClickCharacter={onDoubleClickCharacter}
                     onContextMenuCharacter={onContextMenuCharacter}
                     selectedCharacterId={selectedCharacterId}
+                    baseZIndex={baseZIndex}
                   />
                 );
               default:
