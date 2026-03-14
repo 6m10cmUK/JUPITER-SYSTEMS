@@ -21,7 +21,6 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
-import { ColumnHeaderBar } from './ColumnHeaderBar';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -396,15 +395,13 @@ const DockviewInner = memo(function DockviewInner({
 /* ── DockLayout ── */
 
 export function DockLayout() {
-  const { setDockviewApi, dockviewApi } = useAdrasteaContext();
+  const { setDockviewApi } = useAdrasteaContext();
   const { roomRole } = usePermission();
-  const containerRef = useRef<HTMLDivElement>(null);
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       <BgmEngine />
-      <ColumnHeaderBar api={dockviewApi} containerRef={containerRef} />
-      <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         <DockviewInner key={roomRole} onApiReady={setDockviewApi} role={roomRole} />
       </div>
     </div>
