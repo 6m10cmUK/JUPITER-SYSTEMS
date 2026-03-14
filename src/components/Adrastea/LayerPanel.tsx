@@ -42,9 +42,9 @@ export function LayerPanel() {
     clearAllEditing,
     getBoardCenter,
     activeScene,
-    characters,
+    layerOrderedCharacters,
     updateCharacter,
-    reorderCharacters,
+    reorderLayerCharacters,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -397,12 +397,12 @@ export function LayerPanel() {
               id={obj.id}
               isOpen={isCharLayerOpen}
               onToggleOpen={() => setIsCharLayerOpen(v => !v)}
-              characters={characters}
+              characters={layerOrderedCharacters}
               onToggleVisible={(charId) => {
-                const char = characters.find(c => c.id === charId);
+                const char = layerOrderedCharacters.find(c => c.id === charId);
                 if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
               }}
-              onReorder={(orderedIds) => reorderCharacters(orderedIds)}
+              onReorder={(orderedIds) => reorderLayerCharacters(orderedIds)}
             />
           );
         }

@@ -143,7 +143,7 @@ export function BoardDockPanel() {
           objects={ctx.activeObjects}
           activeScene={ctx.activeScene}
           gridVisible={ctx.gridVisible}
-          characters={ctx.characters}
+          characters={ctx.layerOrderedCharacters}
           currentUserId={user?.uid ?? ''}
           onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
           onSelectCharacter={(charId) => {

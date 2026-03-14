@@ -105,6 +105,8 @@ export interface AdrasteaContextValue {
   updateCharacter: ReturnType<typeof useCharacters>['updateCharacter'];
   removeCharacter: ReturnType<typeof useCharacters>['removeCharacter'];
   reorderCharacters: ReturnType<typeof useCharacters>['reorderCharacters'];
+  layerOrderedCharacters: Character[];
+  reorderLayerCharacters: ReturnType<typeof useCharacters>['reorderLayerCharacters'];
 
   // --- useObjects ---
   allObjects: BoardObject[];
@@ -267,7 +269,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [updateRoom]);
 
   const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, handleObjectsCreated);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
+  const { characters, layerOrderedCharacters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters } = useCharacters(roomId);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -808,6 +810,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       updateCharacter: guardedUpdateCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters,
+      layerOrderedCharacters,
+      reorderLayerCharacters,
 
       // useObjects
       allObjects, activeObjects: effectiveActiveObjects,
@@ -919,7 +923,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Scenes
     scenes: effectiveScenes, addScene: guardedAddScene as any, updateScene: guardedUpdateScene as any, removeScene: guardedRemoveScene as any, reorderScenes: guardedReorderScenes as any, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any,
+    characters, layerOrderedCharacters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any, reorderLayerCharacters,
     // Objects
     allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
     // ScenarioTexts
