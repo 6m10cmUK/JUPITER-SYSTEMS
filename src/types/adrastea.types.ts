@@ -104,7 +104,6 @@ export interface Character {
   is_hidden_on_board: boolean;
   is_speech_hidden: boolean;
   sort_order: number;
-  on_board?: boolean;
   board_x?: number;
   board_y?: number;
   board_height?: number;
