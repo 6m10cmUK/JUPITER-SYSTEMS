@@ -17,7 +17,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { GripVertical } from 'lucide-react';
 import { theme } from '../../../styles/theme';
 
@@ -31,6 +30,7 @@ interface SortableListPanelProps {
   onDragEnd?: (event: DragEndEvent) => void;
   onDragStart?: (event: DragStartEvent) => void;
   emptyMessage?: string;
+  renderOverlay?: (activeId: string) => React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -43,6 +43,7 @@ export function SortableListPanel({
   onDragEnd,
   onDragStart,
   emptyMessage,
+  renderOverlay,
   children,
 }: SortableListPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -114,22 +115,24 @@ export function SortableListPanel({
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
-          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
+          <DragOverlay dropAnimation={null}>
             {activeId ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 8px',
-                height: '28px',
-                fontSize: '12px',
-                color: theme.textPrimary,
-                background: theme.bgElevated,
-                borderBottom: `1px solid ${theme.border}`,
-                opacity: 0.8,
-                boxShadow: theme.shadowSm,
-                borderRadius: '2px',
-              }} />
+              renderOverlay ? (
+                renderOverlay(activeId)
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 8px',
+                  fontSize: '12px',
+                  color: theme.textPrimary,
+                  background: theme.bgBase,
+                  borderBottom: `1px solid ${theme.border}`,
+                  opacity: 0.85,
+                  boxShadow: theme.shadowSm,
+                }} />
+              )
             ) : null}
           </DragOverlay>
         </DndContext>

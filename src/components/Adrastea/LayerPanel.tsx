@@ -14,7 +14,7 @@ import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
   Trash2, Copy, Users,
-  ChevronRight, ChevronDown,
+  ChevronRight, ChevronDown, GripVertical,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -304,11 +304,58 @@ export function LayerPanel() {
     lineHeight: 1,
   };
 
+  const overlayRowStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '4px 8px',
+    fontSize: '12px',
+    color: theme.textPrimary,
+    background: theme.bgBase,
+    borderBottom: `1px solid ${theme.border}`,
+    opacity: 0.9,
+    boxShadow: theme.shadowSm,
+    width: '100%',
+  };
+
+  const renderOverlayRow = useCallback((id: string) => {
+    if (id === 'characters_layer') {
+      return (
+        <div style={overlayRowStyle}>
+          <GripVertical size={12} color={theme.textMuted} style={{ flexShrink: 0 }} />
+          <div style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Users size={12} />
+          </div>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            キャラクター
+          </span>
+        </div>
+      );
+    }
+
+    const obj = sortedObjects.find(o => o.id === id);
+    if (!obj) return null;
+
+    const IconComponent = TYPE_ICON_COMPONENTS[obj.type];
+
+    return (
+      <div style={overlayRowStyle}>
+        <GripVertical size={12} color={theme.textMuted} style={{ flexShrink: 0 }} />
+        <div style={{ width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {IconComponent && <IconComponent size={12} />}
+        </div>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {obj.name}
+        </span>
+      </div>
+    );
+  }, [sortedObjects]);
 
   return (
     <>
     <SortableListPanel
       title="レイヤー"
+      renderOverlay={renderOverlayRow}
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="シーン画像追加">
