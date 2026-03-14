@@ -50,21 +50,6 @@ export function CharacterDockPanel() {
     setSelectedCharIds([]);
   };
 
-  const handleToggleOnBoard = (charId: string) => {
-    const char = ctx.characters.find(c => c.id === charId);
-    if (!char) return;
-    if (char.on_board) {
-      ctx.updateCharacter(charId, { on_board: false });
-    } else {
-      ctx.updateCharacter(charId, {
-        on_board: true,
-        board_x: char.board_x ?? 0,
-        board_y: char.board_y ?? 0,
-        board_height: char.board_height ?? 10,
-      });
-    }
-  };
-
   const handleToggleBoardVisible = (charId: string) => {
     const char = ctx.characters.find(c => c.id === charId);
     if (!char) return;
@@ -84,7 +69,6 @@ export function CharacterDockPanel() {
         onSelectedCharIdsChange={setSelectedCharIds}
         onRemoveCharacters={handleRemoveCharacters}
         onReorderCharacters={ctx.reorderCharacters}
-        onToggleOnBoard={handleToggleOnBoard}
         onToggleBoardVisible={handleToggleBoardVisible}
       />
       {modalChar !== undefined && ctx.roomId && (

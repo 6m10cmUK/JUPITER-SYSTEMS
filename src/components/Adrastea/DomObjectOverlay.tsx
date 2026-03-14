@@ -701,8 +701,8 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
 }) {
-  // ボード上に表示するキャラをフィルタ: on_board=true, board_visible!=false
-  const visibleChars = characters.filter(c => c.on_board && c.board_visible !== false);
+  // ボード上に表示するキャラをフィルタ: board_visible!=false
+  const visibleChars = characters.filter(c => c.board_visible !== false);
 
   // initiative 昇順（低い値 = 奥に描画）
   const sorted = [...visibleChars].sort((a, b) => (a.initiative ?? 0) - (b.initiative ?? 0));
@@ -792,7 +792,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         height: pxH,
         width: 'auto',
         cursor: 'move',
-        pointerEvents: 'auto',
+        pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
       }}
       onPointerDown={handlePointerDown}
