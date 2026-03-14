@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Character } from '../types/adrastea.types';
@@ -14,6 +14,7 @@ export function useCharacters(roomId: string) {
   const removeMutation = useMutation(api.characters.remove);
 
   const loading = statsData === undefined || baseData === undefined;
+  const [charOrderVersion, setCharOrderVersion] = useState(0);
 
   const characters: Character[] = useMemo(() => {
     if (!statsData || !baseData) return [];
@@ -96,7 +97,7 @@ export function useCharacters(roomId: string) {
     });
 
     return overlaidCharacters;
-  }, [statsData, baseData, roomId]);
+  }, [statsData, baseData, roomId, charOrderVersion]);
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
@@ -191,6 +192,7 @@ export function useCharacters(roomId: string) {
     async (orderedIds: string[]): Promise<void> => {
       const storageKey = `adrastea-char-order-${roomId}`;
       localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+      setCharOrderVersion(v => v + 1);
     },
     [roomId]
   );
