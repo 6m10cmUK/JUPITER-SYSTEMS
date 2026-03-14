@@ -725,10 +725,11 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
 
   return (
     <>
-      {sorted.map((char) => (
+      {sorted.map((char, idx) => (
         <DomCharacterItem
           key={char.id}
           char={char}
+          zIndex={idx + 1}
           onUpdatePosition={onUpdatePosition}
           stageRef={stageRef}
           currentUserId={currentUserId}
@@ -752,6 +753,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onDoubleClickCharacter,
   onContextMenuCharacter,
   isSelected,
+  zIndex,
 }: {
   char: Character;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -761,6 +763,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   isSelected?: boolean;
+  zIndex?: number;
 }) {
   const imageUrl = char.images[char.active_image_index]?.url ?? null;
   const blobSrc = useAnimatedBlobSrc(imageUrl);
@@ -843,6 +846,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         filter: hovered ? 'drop-shadow(0 0 6px rgba(255,255,255,0.7))' : undefined,
         transition: 'filter 0.1s',
         boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
+        zIndex: zIndex,
       }}
       onPointerDown={handlePointerDown}
       onPointerEnter={(e) => {

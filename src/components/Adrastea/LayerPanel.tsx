@@ -1,12 +1,19 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates,
+} from '@dnd-kit/sortable';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
+import type { BoardObject, BoardObjectType, Character } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
   Trash2, Copy, Users,
+  ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -33,6 +40,9 @@ export function LayerPanel() {
     clearAllEditing,
     getBoardCenter,
     activeScene,
+    characters,
+    updateCharacter,
+    reorderCharacters,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -40,6 +50,7 @@ export function LayerPanel() {
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
+  const [isCharLayerOpen, setIsCharLayerOpen] = useState(false);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -370,6 +381,49 @@ export function LayerPanel() {
           && obj.id !== activeDragId;
         const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
 
+        // characters_layer の特別扱い
+        if (obj.type === 'characters_layer') {
+          return (
+            <React.Fragment key={obj.id}>
+              <SortableListItem
+                id={obj.id}
+                disabled={true}
+                onClick={() => setIsCharLayerOpen(v => !v)}
+              >
+                {/* シェブロン */}
+                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: theme.textMuted }}>
+                  {isCharLayerOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </span>
+                {/* アイコン */}
+                <span style={{
+                  flexShrink: 0, width: '20px', height: '20px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  borderRadius: '2px',
+                  background: theme.accentHighlight,
+                }}>
+                  <Users size={12} />
+                </span>
+                {/* ラベル */}
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  キャラクター
+                </span>
+              </SortableListItem>
+
+              {/* キャラサブリスト（展開時） */}
+              {isCharLayerOpen && (
+                <CharacterSubList
+                  characters={characters}
+                  onToggleVisible={(charId) => {
+                    const char = characters.find(c => c.id === charId);
+                    if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+                  }}
+                  onReorder={(orderedIds) => reorderCharacters(orderedIds)}
+                />
+              )}
+            </React.Fragment>
+          );
+        }
+
         return (
           <SortableListItem
             key={obj.id}
@@ -508,5 +562,92 @@ export function LayerPanel() {
       />
     )}
     </>
+  );
+}
+
+/**
+ * キャラクターサブリスト（LayerPanel内で展開時に表示）
+ * 独立した DndContext で並び替えをサポート
+ */
+function CharacterSubList({
+  characters,
+  onToggleVisible,
+  onReorder,
+}: {
+  characters: Character[];
+  onToggleVisible: (charId: string) => void;
+  onReorder: (orderedIds: string[]) => void;
+}) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = characters.findIndex(c => c.id === active.id);
+    const newIndex = characters.findIndex(c => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newOrder = arrayMove(characters, oldIndex, newIndex);
+    onReorder(newOrder.map(c => c.id));
+  };
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={characters.map(c => c.id)} strategy={verticalListSortingStrategy}>
+        {characters.map((char) => (
+          <SortableListItem
+            key={char.id}
+            id={char.id}
+          >
+            {/* インデント */}
+            <span style={{ flexShrink: 0, width: '20px' }} />
+            {/* アバターカラードット */}
+            <span style={{
+              flexShrink: 0,
+              width: '14px', height: '14px',
+              borderRadius: '50%',
+              background: char.color ?? theme.textMuted,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '8px', color: '#fff', fontWeight: 700,
+            }}>
+              {char.name.charAt(0)}
+            </span>
+            {/* 名前 */}
+            <span style={{
+              flex: 1,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              opacity: char.board_visible !== false ? 1 : 0.4,
+            }}>
+              {char.name}
+            </span>
+            {/* 目アイコン */}
+            <Tooltip label={char.board_visible !== false ? '非表示にする' : '表示する'}>
+              <button
+                type="button"
+                className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
+                style={{
+                  border: 'none',
+                  color: theme.textSecondary,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  padding: '2px 4px',
+                  lineHeight: 1,
+                  opacity: char.board_visible !== false ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                onClick={(e) => { e.stopPropagation(); onToggleVisible(char.id); }}
+              >
+                {char.board_visible !== false ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            </Tooltip>
+          </SortableListItem>
+        ))}
+      </SortableContext>
+    </DndContext>
   );
 }
