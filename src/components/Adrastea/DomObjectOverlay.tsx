@@ -650,11 +650,12 @@ const DomForegroundObject = memo(function DomForegroundObject({
   }, [obj.opacity]);
 
   return (
-    <div ref={elRef} style={{ zIndex: baseZIndex }}>
+    <div ref={elRef}>
       <DomObjectWrapper
         obj={obj} isSelected={isSelected} isDraggable={false}
         isResizable={false} stageRef={stageRef}
         onMove={onMove} onSelect={onSelect} onEdit={onEdit}
+        style={{ zIndex: baseZIndex }}
       >
         <div style={{
           width: '100%', height: '100%',
