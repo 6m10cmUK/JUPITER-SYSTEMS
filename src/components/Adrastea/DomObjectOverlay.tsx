@@ -947,7 +947,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
             position: 'fixed',
             left: contextMenuPos.x,
             top: contextMenuPos.y,
-            zIndex: 9999,
+            zIndex: 10001,
             background: '#2a2a2a',
             border: '1px solid rgba(255,255,255,0.12)',
             borderRadius: 6,
