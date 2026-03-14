@@ -572,7 +572,6 @@ function CharacterLayerRow({
 
   return (
     <div
-      ref={setNodeRef}
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -580,8 +579,9 @@ function CharacterLayerRow({
         transition,
       }}
     >
-      {/* ヘッダー行 */}
+      {/* ヘッダー行（setNodeRef をここに → dnd-kit の測定対象はヘッダー高さのみ） */}
       <div
+        ref={setNodeRef}
         style={{
           display: 'flex',
           alignItems: 'center',
