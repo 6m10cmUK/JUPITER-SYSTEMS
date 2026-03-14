@@ -17,6 +17,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { GripVertical } from 'lucide-react';
 import { theme } from '../../../styles/theme';
 
@@ -32,26 +33,6 @@ interface SortableListPanelProps {
   emptyMessage?: string;
   children: React.ReactNode;
 }
-
-// DragOverlay をカーソル中央にスナップする modifier
-const snapCenterToCursor = ({
-  activatorEvent,
-  draggingNodeRect,
-  transform,
-}: {
-  activatorEvent: Event | null;
-  draggingNodeRect: { left: number; top: number; width: number; height: number } | null;
-  transform: { x: number; y: number; scaleX: number; scaleY: number };
-  [key: string]: unknown;
-}) => {
-  if (draggingNodeRect && activatorEvent && 'clientX' in activatorEvent) {
-    const ev = activatorEvent as PointerEvent;
-    const offsetX = ev.clientX - (draggingNodeRect.left + draggingNodeRect.width / 2);
-    const offsetY = ev.clientY - (draggingNodeRect.top + draggingNodeRect.height / 2);
-    return { ...transform, x: transform.x + offsetX, y: transform.y + offsetY };
-  }
-  return transform;
-};
 
 export function SortableListPanel({
   title,
