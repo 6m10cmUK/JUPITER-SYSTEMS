@@ -248,7 +248,7 @@ const DockviewInner = memo(function DockviewInner({
       if (saved) {
         try {
           api.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]);
-          requestAnimationFrame(() => fixAllNonBoardWidths(api));
+          requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
           return;
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
@@ -290,7 +290,7 @@ const DockviewInner = memo(function DockviewInner({
         scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
         bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
-        requestAnimationFrame(() => fixAllNonBoardWidths(api));
+        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       } else if (role === 'user') {
         // user: シーン・キャラクター・チャット・ボード
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -317,7 +317,7 @@ const DockviewInner = memo(function DockviewInner({
 
         scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
-        requestAnimationFrame(() => fixAllNonBoardWidths(api));
+        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       } else if (role === 'guest') {
         // guest: ボード・チャットのみ
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
@@ -331,7 +331,7 @@ const DockviewInner = memo(function DockviewInner({
         });
 
         api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
-        requestAnimationFrame(() => fixAllNonBoardWidths(api));
+        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       }
     },
     [onApiReady, role],

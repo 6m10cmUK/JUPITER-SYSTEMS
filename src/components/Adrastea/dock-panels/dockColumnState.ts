@@ -8,7 +8,7 @@ export const collapsedColumns = new Map<string, number>();
 export function fixGroupWidth(group: DockviewGroupPanel) {
   if (collapsedColumns.has(group.id)) return; // 折り畳み中はスキップ
   const w = group.width;
-  if (w > 0) (group.api as any).setConstraints({ maximumWidth: w });
+  if (w > 50) (group.api as any).setConstraints({ maximumWidth: w });
 }
 
 export function relaxGroupWidth(group: DockviewGroupPanel) {

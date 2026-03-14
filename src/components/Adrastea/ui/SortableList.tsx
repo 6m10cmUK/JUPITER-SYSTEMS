@@ -80,12 +80,16 @@ export function SortableListPanel({
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          minWidth: 0,
+          flexShrink: 1,
         }}>
           {titleIcon}
           {title}
         </span>
         {headerActions && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
             {headerActions}
           </div>
         )}
