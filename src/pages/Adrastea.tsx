@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
@@ -185,12 +185,15 @@ const Adrastea: React.FC = () => {
     (roomId && user && !isGuest) ? { room_id: roomId } : 'skip'
   );
 
+  const [joinDone, setJoinDone] = useState(isGuest || !roomId); // ゲストは join 不要
   const joinMutation = useMutation(api.room_members.join);
 
   // ルーム入室時に join を呼ぶ
   useEffect(() => {
     if (roomId && user && !isGuest) {
-      joinMutation({ room_id: roomId }).catch(() => {});
+      joinMutation({ room_id: roomId })
+        .catch(() => {})
+        .finally(() => setJoinDone(true));
     }
   }, [roomId, user?.uid, isGuest]);
 
@@ -330,8 +333,8 @@ const Adrastea: React.FC = () => {
     return <LoadingScreen progress={0.5} statusText="ルームを確認中..." />;
   }
 
-  // ロール取得中（DockLayout を guest で誤初期化しないよう待つ）
-  if (!isGuest && roomId && memberRole === undefined) {
+  // join 完了 & ロール確定待ち（DockLayout を guest で誤初期化しないよう待つ）
+  if (!isGuest && roomId && (!joinDone || memberRole === undefined)) {
     return <LoadingScreen progress={0.6} statusText="ルームを準備中..." />;
   }
 
