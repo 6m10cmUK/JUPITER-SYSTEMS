@@ -4,8 +4,9 @@ import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
 } from '@dnd-kit/core';
 import {
-  SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates,
+  SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates, useSortable,
 } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType, Character } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
@@ -391,44 +392,18 @@ export function LayerPanel() {
         // characters_layer の特別扱い
         if (obj.type === 'characters_layer') {
           return (
-            <SortableListItem
+            <CharacterLayerRow
               key={obj.id}
               id={obj.id}
-              disabled={true}
-              onClick={() => setIsCharLayerOpen(v => !v)}
-            >
-              {/* シェブロン */}
-              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: theme.textMuted }}>
-                {isCharLayerOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-              </span>
-              {/* アイコン */}
-              <span style={{
-                flexShrink: 0, width: '20px', height: '20px',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: '2px',
-                background: theme.accentHighlight,
-              }}>
-                <Users size={12} />
-              </span>
-              {/* ラベル */}
-              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                キャラクター
-              </span>
-
-              {/* キャラサブリスト（SortableListItem の children 末尾） */}
-              {isCharLayerOpen && (
-                <div style={{ width: '100%', display: 'block' }} onClick={e => e.stopPropagation()}>
-                  <CharacterSubList
-                    characters={characters}
-                    onToggleVisible={(charId) => {
-                      const char = characters.find(c => c.id === charId);
-                      if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-                    }}
-                    onReorder={(orderedIds) => reorderCharacters(orderedIds)}
-                  />
-                </div>
-              )}
-            </SortableListItem>
+              isOpen={isCharLayerOpen}
+              onToggleOpen={() => setIsCharLayerOpen(v => !v)}
+              characters={characters}
+              onToggleVisible={(charId) => {
+                const char = characters.find(c => c.id === charId);
+                if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+              }}
+              onReorder={(orderedIds) => reorderCharacters(orderedIds)}
+            />
           );
         }
 
@@ -570,6 +545,81 @@ export function LayerPanel() {
       />
     )}
     </>
+  );
+}
+
+/**
+ * キャラクターレイヤー行（header + sublist を一体で drag）
+ * useSortable({ disabled: true }) を外側 div に適用して transform を受け取り、
+ * flexDirection: column で子孫すべてを一緒に動かす
+ */
+function CharacterLayerRow({
+  id,
+  isOpen,
+  onToggleOpen,
+  characters,
+  onToggleVisible,
+  onReorder,
+}: {
+  id: string;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  characters: Character[];
+  onToggleVisible: (charId: string) => void;
+  onReorder: (orderedIds: string[]) => void;
+}) {
+  const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      {/* ヘッダー行 */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 8px',
+          paddingLeft: '20px',
+          fontSize: '12px',
+          color: theme.textPrimary,
+          borderBottom: `1px solid ${theme.border}`,
+          cursor: 'pointer',
+        }}
+        onClick={onToggleOpen}
+      >
+        <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: theme.textMuted }}>
+          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span style={{
+          flexShrink: 0, width: '20px', height: '20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: '2px',
+          background: theme.accentHighlight,
+        }}>
+          <Users size={12} />
+        </span>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          キャラクター
+        </span>
+      </div>
+
+      {/* キャラサブリスト */}
+      {isOpen && (
+        <CharacterSubList
+          characters={characters}
+          onToggleVisible={onToggleVisible}
+          onReorder={onReorder}
+        />
+      )}
+    </div>
   );
 }
 
