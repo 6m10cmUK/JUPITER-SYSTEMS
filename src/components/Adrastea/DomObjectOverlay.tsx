@@ -768,6 +768,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
@@ -852,7 +853,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
       }}
       onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
-      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenuCharacter?.(char.id, e); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
     >
       {blobSrc ? (
         <img
@@ -884,11 +885,11 @@ const DomCharacterItem = memo(function DomCharacterItem({
       {/* 名前ラベル */}
       <div style={{
         position: 'absolute',
-        bottom: -20,
+        bottom: -26,
         left: '50%',
         transform: 'translateX(-50%)',
         color: '#000',
-        fontSize: 11,
+        fontSize: 22,
         whiteSpace: 'nowrap',
         textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff',
         userSelect: 'none',
@@ -930,6 +931,53 @@ const DomCharacterItem = memo(function DomCharacterItem({
             </div>
           )}
         </div>,
+        document.body
+      )}
+
+      {/* コンテキストメニュー */}
+      {contextMenuPos && createPortal(
+        <>
+          {/* オーバーレイ: クリックで閉じる */}
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
+            onPointerDown={() => setContextMenuPos(null)}
+          />
+          {/* メニュー本体 */}
+          <div style={{
+            position: 'fixed',
+            left: contextMenuPos.x,
+            top: contextMenuPos.y,
+            zIndex: 9999,
+            background: '#2a2a2a',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 6,
+            padding: '4px 0',
+            minWidth: 160,
+            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          }}>
+            <button
+              style={{
+                display: 'block',
+                width: '100%',
+                padding: '8px 16px',
+                background: 'none',
+                border: 'none',
+                color: '#fff',
+                fontSize: 14,
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+              onPointerEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)'; }}
+              onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
+              onClick={() => {
+                onContextMenuCharacter?.(char.id, {} as React.MouseEvent);
+                setContextMenuPos(null);
+              }}
+            >
+              {char.board_visible !== false ? '非表示にする' : '表示する'}
+            </button>
+          </div>
+        </>,
         document.body
       )}
     </div>
