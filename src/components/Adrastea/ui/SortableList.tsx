@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   DndContext,
-  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -46,8 +45,6 @@ export function SortableListPanel({
   emptyMessage,
   children,
 }: SortableListPanelProps) {
-  const [activeId, setActiveId] = useState<string | null>(null);
-
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -103,29 +100,13 @@ export function SortableListPanel({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={(e) => {
-            setActiveId(e.active.id as string);
-            onDragStart?.(e);
-          }}
-          onDragEnd={(e) => {
-            setActiveId(null);
-            onDragEnd?.(e ?? noop);
-          }}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd ?? noop}
         >
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
-          <DragOverlay dropAnimation={null}>
-            {activeId ? (
-              <div style={{
-                height: '28px',
-                background: theme.accentBgSubtle,
-                opacity: 0.7,
-                borderRadius: '2px',
-                pointerEvents: 'none',
-              }} />
-            ) : null}
-          </DragOverlay>
+
         </DndContext>
         {!hasItems && emptyMessage && (
           <div style={{
@@ -196,7 +177,7 @@ export function SortableListItem({
     background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0 : isGroupDrag ? 0.4 : 1,
+    opacity: isDragging ? 0.5 : isGroupDrag ? 0.4 : 1,
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
