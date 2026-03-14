@@ -738,7 +738,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
-  const pxH = (char.board_height ?? 10) * GRID_SIZE;
+  const pxH = (char.size ?? 5) * GRID_SIZE;
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = elRef.current;

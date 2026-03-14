@@ -37,7 +37,7 @@ export function CharacterEditor({
 
   // 盤面設定
   const [initiative, setInitiative] = useState(character?.initiative ?? 0);
-  const [size, setSize] = useState(character?.size ?? 1);
+  const [size, setSize] = useState(character?.size ?? 5);
 
   // ステータス
   const [statuses, setStatuses] = useState<PieceStatus[]>(character?.statuses ?? []);
