@@ -293,23 +293,23 @@ export function LayerPanel() {
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="シーン画像追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
           <Tooltip label="シーンテキスト追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
               <Type size={13} />
             </button>
           </Tooltip>
           <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
           <Tooltip label="ルーム画像追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
               <Image size={13} />
             </button>
           </Tooltip>
           <Tooltip label="ルームテキスト追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
+            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
               <Type size={13} />
             </button>
           </Tooltip>
@@ -317,7 +317,7 @@ export function LayerPanel() {
           <Tooltip label="複製">
             <button
               type="button"
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={handleDuplicate}
               disabled={!hasDuplicateTargets}
               style={{
@@ -334,7 +334,7 @@ export function LayerPanel() {
           <Tooltip label="削除">
             <button
               type="button"
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={() => {
                 const target = selectedObjectIds.length > 0
                   ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
@@ -479,7 +479,7 @@ export function LayerPanel() {
               <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
                 <button
                   type="button"
-                  className="ad-btn ad-btn--ghost ad-btn--ghost-on-bg"
+                  className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
                   style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
                   onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
                 >

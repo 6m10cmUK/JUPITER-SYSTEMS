@@ -417,7 +417,7 @@ function SortableRoomCard({
           <Pencil size={12} />
         </button>
         <button
-          className="ad-btn-icon ad-btn-icon--danger"
+          className="adra-btn-icon adra-btn-icon--danger"
           onClick={(e) => {
             e.stopPropagation();
             onDelete();

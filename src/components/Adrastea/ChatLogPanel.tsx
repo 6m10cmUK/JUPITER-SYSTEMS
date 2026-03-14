@@ -260,7 +260,7 @@ function SortableChannelTab({
     <button
       ref={setNodeRef}
       type="button"
-      className={`ad-btn ad-tab${isActive ? ' ad-tab--active' : ''}`}
+      className={`adra-btn adra-tab${isActive ? ' adra-tab--active' : ''}`}
       onClick={onSelect}
       style={{
         padding: '6px 12px',
@@ -574,7 +574,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             <button
               key={ch.channel_id}
               type="button"
-              className={`ad-btn ad-tab${activeChatChannel === ch.channel_id ? ' ad-tab--active' : ''}`}
+              className={`adra-btn adra-tab${activeChatChannel === ch.channel_id ? ' adra-tab--active' : ''}`}
               onClick={() => setActiveChatChannel(ch.channel_id)}
               style={{
                 padding: '6px 12px',
@@ -697,7 +697,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         >
           <button
             type="button"
-            className="ad-list-item"
+            className="adra-list-item"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -720,7 +720,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           </button>
           <button
             type="button"
-            className="ad-list-item"
+            className="adra-list-item"
             disabled={!canDeleteActiveChannel}
             style={{
               display: 'flex',
@@ -747,7 +747,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           {onClearMessages && (
             <button
               type="button"
-              className="ad-list-item"
+              className="adra-list-item"
               style={{
                 display: 'flex',
                 alignItems: 'center',

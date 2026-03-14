@@ -616,7 +616,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         <Tooltip label="キャラクター選択">
           <button
             ref={charIconRef}
-            className="ad-btn-icon"
+            className="adra-btn-icon"
             data-avatar={selectedCharacterForIcon ? 'true' : undefined}
             onClick={() => {
               if (showCharacterList) {
@@ -835,7 +835,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 e.preventDefault();
                 wrapSelection(prefix, suffix);
               }}
-              className="ad-btn-icon"
+              className="adra-btn-icon"
               style={{
                 width: '28px',
                 height: '28px',
@@ -861,7 +861,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               e.preventDefault();
               toggleHeading();
             }}
-            className="ad-btn-icon"
+            className="adra-btn-icon"
             style={{
               width: '28px',
               height: '28px',
@@ -923,7 +923,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         <Tooltip label="チャンネル選択">
           <button
             ref={channelBtnRef}
-            className="ad-btn ad-tab"
+            className="adra-btn adra-tab"
             onClick={() => {
               if (showChannelList) {
                 setShowChannelList(false);
@@ -971,7 +971,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               {ctx.channels.map((ch) => (
                 <div
                   key={ch.channel_id}
-                  className={`ad-list-item${ch.channel_id === ctx.activeChatChannel ? ' ad-list-item--selected' : ''}`}
+                  className={`adra-list-item${ch.channel_id === ctx.activeChatChannel ? ' adra-list-item--selected' : ''}`}
                   onClick={() => {
                     ctx.setActiveChatChannel(ch.channel_id);
                     setShowChannelList(false);
