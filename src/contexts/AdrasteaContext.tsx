@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import type { AuthUser } from '../contexts/AuthContext';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
+import { GRID_SIZE } from '../components/Adrastea/Board';
 import type {
   Piece,
   Room,
@@ -421,7 +422,19 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
   const getBoardCenter = useCallback(() => {
-    return { x: 0, y: 0 };
+    const board = boardRef.current;
+    if (!board) return { x: 0, y: 0 };
+    const stage = board.getStage();
+    if (!stage) return { x: 0, y: 0 };
+    const scale = board.getScale();
+    const stagePos = stage.position();
+    const w = stage.width();
+    const h = stage.height();
+    if (!w || !h) return { x: 0, y: 0 };
+    return {
+      x: Math.round(((w / 2) - stagePos.x) / scale / GRID_SIZE),
+      y: Math.round(((h / 2) - stagePos.y) / scale / GRID_SIZE),
+    };
   }, []);
 
   // --- Dockview ---

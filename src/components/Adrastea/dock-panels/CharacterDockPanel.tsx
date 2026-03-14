@@ -5,7 +5,6 @@ import { CharacterPanel } from '../CharacterPanel';
 import { CharacterEditor } from '../CharacterEditor';
 import { AdModal } from '../ui';
 import type { Character } from '../../../types/adrastea.types';
-
 export function CharacterDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
@@ -14,8 +13,9 @@ export function CharacterDockPanel() {
 
   const handleAddCharacter = () => {
     ctx.clearAllEditing();
+    const center = ctx.getBoardCenter();
     ctx.setEditingCharacter(null);
-    setModalChar(null);
+    setModalChar({ _initBoardPos: center } as any);
   };
 
   const handleSelectCharacter = (char: Character) => {
@@ -30,10 +30,16 @@ export function CharacterDockPanel() {
   };
 
   const handleSave = (data: Partial<Character>) => {
-    if (modalChar) {
+    if (modalChar && modalChar.id) {
       ctx.updateCharacter(modalChar.id, data);
     } else {
-      ctx.addCharacter(data);
+      const initPos = (modalChar as any)?._initBoardPos;
+      ctx.addCharacter({
+        ...data,
+        board_visible: true,
+        board_x: initPos?.x ?? 0,
+        board_y: initPos?.y ?? 0,
+      });
     }
     handleModalClose();
   };
@@ -73,7 +79,7 @@ export function CharacterDockPanel() {
       />
       {modalChar !== undefined && ctx.roomId && (
         <AdModal
-          title={modalChar ? 'キャラクター編集' : 'キャラクター追加'}
+          title={modalChar?.id ? 'キャラクター編集' : 'キャラクター追加'}
           width="500px"
           onClose={handleModalClose}
         >
