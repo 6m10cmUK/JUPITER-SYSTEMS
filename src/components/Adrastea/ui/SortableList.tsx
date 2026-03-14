@@ -122,10 +122,11 @@ export function SortableListPanel({
           onDragStart={(event) => {
             const id = String(event.active.id);
             setActiveId(id);
-            // DOM クローンをキャプチャ
-            const node = (event.active as unknown as { node: React.RefObject<HTMLElement> }).node?.current;
-            if (node) {
-              setDraggedHtml(node.outerHTML);
+            // DOM クローンをキャプチャ（activatorEvent.target から sortable 要素を探す）
+            const target = (event.activatorEvent as Event)?.target as HTMLElement | null;
+            const sortableEl = target?.closest?.('[aria-roledescription="sortable"]') as HTMLElement | null;
+            if (sortableEl) {
+              setDraggedHtml(sortableEl.outerHTML);
             }
             // 掴んだ位置を計算
             const activatorEvent = event.activatorEvent as PointerEvent | null;
