@@ -845,12 +845,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
       }}
       onPointerDown={handlePointerDown}
-      onPointerEnter={() => setHovered(true)}
-      onPointerMove={(e) => {
-        if (!dragRef.current) {
-          setCursorPos({ x: e.clientX, y: e.clientY });
-        }
-      }}
+      onPointerEnter={(e) => { setHovered(true); setCursorPos({ x: e.clientX, y: e.clientY }); }}
       onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
