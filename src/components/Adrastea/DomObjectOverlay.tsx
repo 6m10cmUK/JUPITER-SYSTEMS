@@ -916,7 +916,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
     characters = [], onUpdateCharacterBoardPosition,
   }, ref) {
-    const visibleObjects = objects.filter((o) => o.visible);
+    const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
     const keyedObjects = generateStableKeys(visibleObjects, prevSlotsRef);
 
