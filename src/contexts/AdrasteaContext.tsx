@@ -150,6 +150,8 @@ export interface AdrasteaContextValue {
   setEditingScene: React.Dispatch<React.SetStateAction<Scene | null | undefined>>;
   editingCharacter: Character | null | undefined;
   setEditingCharacter: React.Dispatch<React.SetStateAction<Character | null | undefined>>;
+  characterToOpenModal: Character | null;
+  setCharacterToOpenModal: (char: Character | null) => void;
   editingCutin: Cutin | null | undefined;
   setEditingCutin: React.Dispatch<React.SetStateAction<Cutin | null | undefined>>;
   editingBgmId: string | null;
@@ -411,6 +413,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const [editingScene, setEditingScene] = useState<Scene | null | undefined>(undefined);
   const [editingCharacter, setEditingCharacter] = useState<Character | null | undefined>(undefined);
+  const [characterToOpenModal, setCharacterToOpenModal] = useState<Character | null>(null);
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
@@ -831,6 +834,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // UI state
       editingScene, setEditingScene,
       editingCharacter, setEditingCharacter,
+      characterToOpenModal, setCharacterToOpenModal,
       editingCutin, setEditingCutin,
       editingBgmId, setEditingBgmId,
       editingPieceId, setEditingPieceId,
@@ -888,7 +892,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
       bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
-      editingScene, editingCharacter, editingCutin, editingBgmId,
+      editingScene, editingCharacter, characterToOpenModal, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
       showSettings, settingsSection, setShowSettings, activeSpeakerCharId, setActiveSpeakerCharId,
       activeScene,
