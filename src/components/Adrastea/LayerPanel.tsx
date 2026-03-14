@@ -412,11 +412,12 @@ export function LayerPanel() {
             key={obj.id}
             id={obj.id}
             disabled={obj.type === 'background'}
+            hideHandle={obj.type === 'foreground'}
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && (
+            {obj.type !== 'background' && obj.type !== 'foreground' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
@@ -503,7 +504,7 @@ export function LayerPanel() {
                   opacity: obj.visible ? 1 : 0.4,
                 }}
                 onDoubleClick={(e) => {
-                  if (obj.type === 'background') return;
+                  if (obj.type === 'background' || obj.type === 'foreground') return;
                   e.stopPropagation();
                   setRenamingId(obj.id);
                   setRenameValue(obj.name);

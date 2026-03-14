@@ -140,6 +140,7 @@ export function SortableListPanel({
 interface SortableListItemProps {
   id: string;
   disabled?: boolean;
+  hideHandle?: boolean;
   isSelected?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
@@ -151,6 +152,7 @@ interface SortableListItemProps {
 export function SortableListItem({
   id,
   disabled,
+  hideHandle,
   isSelected,
   isGroupDrag,
   onClick,
@@ -194,7 +196,7 @@ export function SortableListItem({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      {!disabled && (
+      {!disabled && !hideHandle && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <span
             ref={setActivatorNodeRef}
