@@ -8,7 +8,6 @@ import {
   type DockviewApi,
   type IDockviewHeaderActionsProps,
   type DockviewTheme,
-  type DockviewGroupPanel,
 } from 'dockview';
 import 'dockview/dist/styles/dockview.css';
 import '../../styles/dockview-catppuccin.css';
