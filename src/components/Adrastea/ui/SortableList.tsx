@@ -123,7 +123,7 @@ export function SortableListPanel({
             const id = String(event.active.id);
             setActiveId(id);
             // DOM クローンをキャプチャ
-            const node = event.active.node.current;
+            const node = (event.active as unknown as { node: React.RefObject<HTMLElement> }).node?.current;
             if (node) {
               setDraggedHtml(node.outerHTML);
             }
