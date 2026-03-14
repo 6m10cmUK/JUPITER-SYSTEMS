@@ -903,9 +903,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
       {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
         <div style={{
           position: 'fixed',
-          left: cursorPos.x,
+          left: Math.max(8, Math.min(cursorPos.x - 200, window.innerWidth - 408)),
           top: cursorPos.y - 10,
-          transform: 'translateX(-50%) translateY(-100%)',
+          transform: 'translateY(-100%)',
           zIndex: 10000,
           pointerEvents: 'none',
           background: 'rgba(0, 0, 0, 0.88)',
