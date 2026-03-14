@@ -106,7 +106,6 @@ export interface Character {
   sort_order: number;
   board_x?: number;
   board_y?: number;
-  board_height?: number;
   board_visible?: boolean;
   created_at: number;
   updated_at: number;

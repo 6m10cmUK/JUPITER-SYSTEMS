@@ -37,7 +37,6 @@ export function useCharacters(roomId: string) {
         sort_order: stat.sort_order ?? 0,
         board_x: stat.board_x ?? 0,
         board_y: stat.board_y ?? 0,
-        board_height: stat.board_height ?? 10,
         board_visible: stat.board_visible ?? true,
         created_at: stat.created_at,
         updated_at: stat.updated_at,
@@ -125,7 +124,6 @@ export function useCharacters(roomId: string) {
         sort_order: data.sort_order ?? characters.length,
         board_x: data.board_x ?? 0,
         board_y: data.board_y ?? 0,
-        board_height: data.board_height ?? 10,
         board_visible: data.board_visible ?? true,
         created_at: now,
         updated_at: now,
@@ -144,7 +142,7 @@ export function useCharacters(roomId: string) {
         'statuses', 'parameters',
         'is_hidden_on_board', 'is_speech_hidden',
         'sort_order',
-        'board_x', 'board_y', 'board_height', 'board_visible'
+        'board_x', 'board_y', 'board_visible'
       ];
 
       // Fields that belong in characters_base
