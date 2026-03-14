@@ -602,7 +602,7 @@ function CharacterLayerRow({
           flexShrink: 0, width: '20px', height: '20px',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderRadius: '2px',
-          background: theme.accentHighlight,
+          background: 'rgba(166,227,161,0.2)',
         }}>
           <Users size={12} />
         </span>
