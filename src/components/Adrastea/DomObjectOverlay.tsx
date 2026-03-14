@@ -1,4 +1,5 @@
 import { forwardRef, memo, useCallback, useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
 
@@ -771,6 +772,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
   const pxH = (char.size ?? 5) * GRID_SIZE;
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = elRef.current;
@@ -843,7 +845,12 @@ const DomCharacterItem = memo(function DomCharacterItem({
       }}
       onPointerDown={handlePointerDown}
       onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
+      onPointerMove={(e) => {
+        if (!dragRef.current) {
+          setCursorPos({ x: e.clientX, y: e.clientY });
+        }
+      }}
+      onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenuCharacter?.(char.id, e); }}
     >
@@ -891,38 +898,39 @@ const DomCharacterItem = memo(function DomCharacterItem({
         {char.name}
       </div>
 
-      {/* ホバーポップアップ */}
-      {hovered && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && (
+      {/* ホバーポップアップ（Portal: Board の transform 外に出してカーソル基準表示） */}
+      {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
         <div style={{
-          position: 'absolute',
-          top: '100%',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          marginTop: 24,
-          zIndex: 100,
+          position: 'fixed',
+          left: cursorPos.x + 14,
+          top: cursorPos.y - 10,
+          transform: 'translateY(-100%)',
+          zIndex: 10000,
           pointerEvents: 'none',
-          background: 'rgba(0, 0, 0, 0.85)',
+          background: 'rgba(0, 0, 0, 0.88)',
           color: '#fff',
-          padding: '6px 8px',
-          fontSize: 11,
-          lineHeight: 1.5,
-          maxWidth: 240,
+          padding: '12px 16px',
+          fontSize: 15,
+          lineHeight: 1.7,
+          maxWidth: 400,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          borderRadius: 3,
+          borderRadius: 6,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
         }}>
           {char.memo && <div>{char.memo}</div>}
           {currentUserId === char.owner_id && char.secret_memo && (
             <div style={{
               borderTop: '1px solid rgba(255,255,255,0.2)',
-              marginTop: char.memo ? 4 : 0,
-              paddingTop: char.memo ? 4 : 0,
+              marginTop: char.memo ? 8 : 0,
+              paddingTop: char.memo ? 8 : 0,
               color: 'rgba(255,200,100,0.9)',
             }}>
               {char.secret_memo}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
