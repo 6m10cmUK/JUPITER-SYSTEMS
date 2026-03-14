@@ -26,6 +26,7 @@ interface DomObjectOverlayProps {
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  selectedCharacterId?: string | null;
 }
 
 // --- ユーティリティ ---
@@ -704,6 +705,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onSelectCharacter,
   onDoubleClickCharacter,
   onContextMenuCharacter,
+  selectedCharacterId,
 }: {
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -712,6 +714,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  selectedCharacterId?: string | null;
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
   const visibleChars = characters.filter(c => c.board_visible !== false);
@@ -731,6 +734,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
           onSelectCharacter={onSelectCharacter}
           onDoubleClickCharacter={onDoubleClickCharacter}
           onContextMenuCharacter={onContextMenuCharacter}
+          isSelected={selectedCharacterId === char.id}
         />
       ))}
     </>
@@ -746,6 +750,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onSelectCharacter,
   onDoubleClickCharacter,
   onContextMenuCharacter,
+  isSelected,
 }: {
   char: Character;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -754,6 +759,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  isSelected?: boolean;
 }) {
   const imageUrl = char.images[char.active_image_index]?.url ?? null;
   const blobSrc = useAnimatedBlobSrc(imageUrl);
@@ -831,6 +837,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
         cursor: 'move',
         pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
+        filter: hovered ? 'drop-shadow(0 0 6px rgba(255,255,255,0.7))' : undefined,
+        transition: 'filter 0.1s',
+        boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
       }}
       onPointerDown={handlePointerDown}
       onPointerEnter={() => setHovered(true)}
@@ -1007,6 +1016,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
     characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter,
+    selectedCharacterId,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -1090,6 +1100,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onSelectCharacter={onSelectCharacter}
                     onDoubleClickCharacter={onDoubleClickCharacter}
                     onContextMenuCharacter={onContextMenuCharacter}
+                    selectedCharacterId={selectedCharacterId}
                   />
                 );
               default:

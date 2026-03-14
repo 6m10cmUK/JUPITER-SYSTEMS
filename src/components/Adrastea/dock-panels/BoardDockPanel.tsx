@@ -175,6 +175,7 @@ export function BoardDockPanel() {
           onSyncObjectSize={handleSyncObjectSize}
           selectedObjectId={ctx.editingObjectId}
           selectedObjectIds={ctx.selectedObjectIds}
+          selectedCharacterId={ctx.editingCharacter?.id ?? null}
         />
         <CharacterStatusPanel
           characters={ctx.characters}
