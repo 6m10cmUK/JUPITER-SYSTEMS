@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -46,6 +46,8 @@ export function SortableListPanel({
   emptyMessage,
   children,
 }: SortableListPanelProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -101,14 +103,36 @@ export function SortableListPanel({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd ?? noop}
+          onDragStart={(event) => {
+            setActiveId(String(event.active.id));
+            onDragStart?.(event);
+          }}
+          onDragEnd={(event) => {
+            setActiveId(null);
+            onDragEnd?.(event);
+          }}
         >
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
-          {/* 透明DragOverlay: ビジュアルなし・displacement計算を正確にするためのみ */}
-          <DragOverlay dropAnimation={null}>{null}</DragOverlay>
+          <DragOverlay dropAnimation={null}>
+            {activeId ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 8px',
+                height: '28px',
+                fontSize: '12px',
+                color: theme.textPrimary,
+                background: theme.bgElevated,
+                borderBottom: `1px solid ${theme.border}`,
+                opacity: 0.8,
+                boxShadow: theme.shadowSm,
+                borderRadius: '2px',
+              }} />
+            ) : null}
+          </DragOverlay>
         </DndContext>
         {!hasItems && emptyMessage && (
           <div style={{
@@ -181,7 +205,7 @@ export function SortableListItem({
     background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : isGroupDrag ? 0.4 : 1,
+    opacity: isDragging ? 0 : isGroupDrag ? 0.4 : 1,
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
