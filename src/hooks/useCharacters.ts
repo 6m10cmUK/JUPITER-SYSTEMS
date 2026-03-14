@@ -15,6 +15,7 @@ export function useCharacters(roomId: string) {
 
   const loading = statsData === undefined || baseData === undefined;
   const [charOrderVersion, setCharOrderVersion] = useState(0);
+  const [layerCharOrderVersion, setLayerCharOrderVersion] = useState(0);
 
   const characters: Character[] = useMemo(() => {
     if (!statsData || !baseData) return [];
@@ -98,6 +99,32 @@ export function useCharacters(roomId: string) {
 
     return overlaidCharacters;
   }, [statsData, baseData, roomId, charOrderVersion]);
+
+  const layerOrderedCharacters: Character[] = useMemo(() => {
+    if (characters.length === 0) return [];
+    const storageKey = `adrastea-layer-char-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (!savedOrder) return characters;
+    try {
+      const orderedIds = JSON.parse(savedOrder) as string[];
+      const idToChar = new Map(characters.map(c => [c.id, c]));
+      const sorted: Character[] = [];
+      const seen = new Set<string>();
+      for (const id of orderedIds) {
+        const char = idToChar.get(id);
+        if (char) {
+          sorted.push(char);
+          seen.add(id);
+        }
+      }
+      for (const char of characters) {
+        if (!seen.has(char.id)) sorted.push(char);
+      }
+      return sorted;
+    } catch {
+      return characters;
+    }
+  }, [characters, roomId, layerCharOrderVersion]);
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
@@ -197,5 +224,14 @@ export function useCharacters(roomId: string) {
     [roomId]
   );
 
-  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters };
+  const reorderLayerCharacters = useCallback(
+    async (orderedIds: string[]): Promise<void> => {
+      const storageKey = `adrastea-layer-char-order-${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+      setLayerCharOrderVersion(v => v + 1);
+    },
+    [roomId]
+  );
+
+  return { characters, layerOrderedCharacters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters };
 }
