@@ -502,7 +502,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="ad-list-item"
+            className="adra-list-item"
             onClick={() => {
               onEditPiece(contextMenu.pieceId!);
               closeContextMenu();
@@ -521,7 +521,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             編集
           </button>
           <button
-            className="ad-list-item"
+            className="adra-list-item"
             onClick={() => {
               onRemovePiece(contextMenu.pieceId!);
               closeContextMenu();

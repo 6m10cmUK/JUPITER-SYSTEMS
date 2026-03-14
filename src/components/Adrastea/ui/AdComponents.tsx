@@ -97,7 +97,7 @@ export function AdButton({ variant = 'default', fullWidth, children, style, clas
   return (
     <button
       {...props}
-      className={`adra-btn ${isGhost ? 'ad-btn--ghost' : ''} ${className ?? ''}`.trim()}
+      className={`adra-btn ${isGhost ? 'adra-btn--ghost' : ''} ${className ?? ''}`.trim()}
       style={{
         height: HEIGHT,
         padding: isGhost ? '8px 12px' : '0 10px',
@@ -1047,7 +1047,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           }}
         />
         <button
-          className="ad-btn"
+          className="adra-btn"
           type="button"
           onClick={() => { if (input.trim()) handleSelect(input); }}
           disabled={!input.trim()}
@@ -1133,7 +1133,7 @@ export function AdToggleButtons<T extends string | null>({ label, value, options
       <div style={{ display: 'flex', gap: '2px' }}>
         {options.map((opt) => (
           <button
-            className="ad-btn"
+            className="adra-btn"
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
             style={{
