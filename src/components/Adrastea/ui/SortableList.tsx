@@ -216,17 +216,19 @@ export function SortableListItem({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={(el) => {
+        setNodeRef(el);
+        setActivatorNodeRef(el);
+      }}
       style={style}
       {...(!disabled ? listeners : {})}
+      {...attributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       {!disabled && !hideHandle && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
           <span
-            ref={setActivatorNodeRef}
-            {...attributes}
             style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
           >
             <GripVertical size={12} color={theme.textMuted} />
