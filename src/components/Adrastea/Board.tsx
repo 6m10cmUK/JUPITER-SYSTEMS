@@ -29,6 +29,10 @@ interface BoardProps {
   onResizeObject?: (id: string, width: number, height: number) => void;
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
   onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  currentUserId?: string;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
   children?: ReactNode;
@@ -174,7 +178,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, selectedObjectId, selectedObjectIds, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter, currentUserId, selectedObjectId, selectedObjectIds, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -472,7 +476,11 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onResizeObject={onResizeObject}
         onSyncObjectSize={onSyncObjectSize}
         characters={characters}
+        currentUserId={currentUserId}
         onUpdateCharacterBoardPosition={onUpdateCharacterBoardPosition}
+        onSelectCharacter={onSelectCharacter}
+        onDoubleClickCharacter={onDoubleClickCharacter}
+        onContextMenuCharacter={onContextMenuCharacter}
       />
       {/* 右クリックメニュー（HTML DOM） */}
       {contextMenu.visible && contextMenu.pieceId && (
