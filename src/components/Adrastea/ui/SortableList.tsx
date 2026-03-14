@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DndContext,
   DragOverlay,
@@ -47,6 +48,9 @@ export function SortableListPanel({
   children,
 }: SortableListPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -56,6 +60,19 @@ export function SortableListPanel({
   );
 
   const hasItems = items.length > 0;
+
+  // ポインター追跡
+  useEffect(() => {
+    if (!activeId) {
+      setCursorPos(null);
+      return;
+    }
+    const handleMove = (e: PointerEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, [activeId]);
 
   return (
     <div style={{
@@ -99,12 +116,26 @@ export function SortableListPanel({
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div ref={containerRef} style={{ flex: 1, overflowY: 'auto' }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragStart={(event) => {
-            setActiveId(String(event.active.id));
+            const id = String(event.active.id);
+            setActiveId(id);
+            // 掴んだ位置を計算
+            const activatorEvent = event.activatorEvent as PointerEvent | null;
+            const initialRect = event.active.rect.current?.initial;
+            if (activatorEvent && initialRect) {
+              setGrabOffset({
+                x: activatorEvent.clientX - initialRect.left,
+                y: activatorEvent.clientY - initialRect.top,
+              });
+              // 初期カーソル位置をセット（pointermove を待たずに overlay 表示）
+              setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
+            } else {
+              setGrabOffset({ x: 16, y: 14 });
+            }
             onDragStart?.(event);
           }}
           onDragEnd={(event) => {
@@ -116,24 +147,7 @@ export function SortableListPanel({
             {children}
           </SortableContext>
           <DragOverlay dropAnimation={null}>
-            {activeId ? (
-              renderOverlay ? (
-                renderOverlay(activeId)
-              ) : (
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 8px',
-                  fontSize: '12px',
-                  color: theme.textPrimary,
-                  background: theme.bgBase,
-                  borderBottom: `1px solid ${theme.border}`,
-                  opacity: 0.85,
-                  boxShadow: theme.shadowSm,
-                }} />
-              )
-            ) : null}
+            <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
           </DragOverlay>
         </DndContext>
         {!hasItems && emptyMessage && (
@@ -147,6 +161,21 @@ export function SortableListPanel({
           </div>
         )}
       </div>
+
+      {/* Portal overlay for cursor tracking */}
+      {activeId && cursorPos && renderOverlay && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: cursorPos.y - grabOffset.y,
+          left: cursorPos.x - grabOffset.x,
+          width: containerRef.current?.offsetWidth ?? 240,
+          zIndex: 9999,
+          pointerEvents: 'none',
+        }}>
+          {renderOverlay(activeId)}
+        </div>,
+        document.body
+      )}
 
       {/* Footer */}
       {footerActions && (
