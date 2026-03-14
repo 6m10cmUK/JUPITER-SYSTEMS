@@ -405,7 +405,7 @@ export function DockLayout() {
       <BgmEngine />
       <ColumnHeaderBar api={dockviewApi} containerRef={containerRef} />
       <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <DockviewInner onApiReady={setDockviewApi} role={roomRole} />
+        <DockviewInner key={roomRole} onApiReady={setDockviewApi} role={roomRole} />
       </div>
     </div>
   );
