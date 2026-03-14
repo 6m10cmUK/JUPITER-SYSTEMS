@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { CharacterPanel } from '../CharacterPanel';
@@ -10,6 +10,13 @@ export function CharacterDockPanel() {
   const { user } = useAuth();
   const [modalChar, setModalChar] = useState<Character | null | undefined>(undefined);
   const [selectedCharIds, setSelectedCharIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (ctx.characterToOpenModal) {
+      setModalChar(ctx.characterToOpenModal);
+      ctx.setCharacterToOpenModal(null);
+    }
+  }, [ctx.characterToOpenModal, ctx]);
 
   const handleAddCharacter = () => {
     ctx.clearAllEditing();

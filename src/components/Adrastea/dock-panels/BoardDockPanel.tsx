@@ -156,7 +156,7 @@ export function BoardDockPanel() {
           onDoubleClickCharacter={(charId) => {
             const char = ctx.characters.find(c => c.id === charId);
             if (char && char.owner_id === user?.uid) {
-              ctx.setEditingCharacter(char);
+              ctx.setCharacterToOpenModal(char);
             }
           }}
           onContextMenuCharacter={(charId, _e) => {
