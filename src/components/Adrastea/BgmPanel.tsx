@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -206,6 +206,17 @@ export function BgmPanel() {
     [bgms, currentSceneId]
   );
 
+  // ローカルstate で楽観的UI更新
+  const [localBgms, setLocalBgms] = useState<BgmTrack[]>([]);
+  const prevFilteredRef = useRef<BgmTrack[]>([]);
+
+  useEffect(() => {
+    if (prevFilteredRef.current !== filteredBgms) {
+      prevFilteredRef.current = filteredBgms;
+      setLocalBgms(filteredBgms);
+    }
+  }, [filteredBgms]);
+
   const handleEdit = useCallback((id: string) => {
     clearAllEditing();
     setEditingBgmId(id);
@@ -214,34 +225,35 @@ export function BgmPanel() {
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = filteredBgms.findIndex(b => b.id === active.id);
-    const newIndex = filteredBgms.findIndex(b => b.id === over.id);
+    const oldIndex = localBgms.findIndex(b => b.id === active.id);
+    const newIndex = localBgms.findIndex(b => b.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(filteredBgms, oldIndex, newIndex);
+    const reordered = arrayMove(localBgms, oldIndex, newIndex);
+    setLocalBgms(reordered);
     reorderBgms(reordered.map(b => b.id));
-  }, [filteredBgms, reorderBgms]);
+  }, [localBgms, reorderBgms]);
 
-  const hasPlaying = filteredBgms.some(b => b.is_playing && !b.is_paused);
-  const hasPaused = filteredBgms.some(b => b.is_playing && b.is_paused);
-  const hasAnyPlaying = filteredBgms.some(b => b.is_playing);
+  const hasPlaying = localBgms.some(b => b.is_playing && !b.is_paused);
+  const hasPaused = localBgms.some(b => b.is_playing && b.is_paused);
+  const hasAnyPlaying = localBgms.some(b => b.is_playing);
 
   const handleBulkPlay = useCallback(() => {
-    filteredBgms.forEach(b => {
+    localBgms.forEach(b => {
       if (!b.is_playing || b.is_paused) updateBgm(b.id, { is_playing: true, is_paused: false });
     });
-  }, [filteredBgms, updateBgm]);
+  }, [localBgms, updateBgm]);
 
   const handleBulkPause = useCallback(() => {
-    filteredBgms.forEach(b => {
+    localBgms.forEach(b => {
       if (b.is_playing && !b.is_paused) updateBgm(b.id, { is_paused: true });
     });
-  }, [filteredBgms, updateBgm]);
+  }, [localBgms, updateBgm]);
 
   const handleBulkStop = useCallback(() => {
-    filteredBgms.forEach(b => {
+    localBgms.forEach(b => {
       if (b.is_playing) updateBgm(b.id, { is_playing: false, is_paused: false });
     });
-  }, [filteredBgms, updateBgm]);
+  }, [localBgms, updateBgm]);
 
   const [showAddPicker, setShowAddPicker] = useState(false);
 
@@ -294,12 +306,12 @@ export function BgmPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <button
               onClick={handleBulkPlay}
-              disabled={filteredBgms.length === 0}
+              disabled={localBgms.length === 0}
               style={{
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', padding: '2px',
                 color: hasPlaying ? theme.accent : theme.textSecondary,
-                opacity: filteredBgms.length === 0 ? 0.3 : 1,
+                opacity: localBgms.length === 0 ? 0.3 : 1,
               }}
               title="全て再生"
             >
@@ -344,11 +356,11 @@ export function BgmPanel() {
             </button>
           </div>
         }
-        items={filteredBgms}
+        items={localBgms}
         onDragEnd={handleDragEnd}
         emptyMessage="トラックがありません"
       >
-        {filteredBgms.map(track => (
+        {localBgms.map(track => (
           <BgmTrackRow
             key={track.id}
             track={track}
