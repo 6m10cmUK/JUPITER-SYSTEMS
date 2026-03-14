@@ -51,7 +51,7 @@ export function LayerPanel() {
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
-  const [isCharLayerOpen, setIsCharLayerOpen] = useState(false);
+  const [isCharLayerOpen, setIsCharLayerOpen] = useState(true);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
