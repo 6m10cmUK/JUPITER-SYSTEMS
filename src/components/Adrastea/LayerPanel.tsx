@@ -391,43 +391,44 @@ export function LayerPanel() {
         // characters_layer の特別扱い
         if (obj.type === 'characters_layer') {
           return (
-            <React.Fragment key={obj.id}>
-              <SortableListItem
-                id={obj.id}
-                disabled={true}
-                onClick={() => setIsCharLayerOpen(v => !v)}
-              >
-                {/* シェブロン */}
-                <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: theme.textMuted }}>
-                  {isCharLayerOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                </span>
-                {/* アイコン */}
-                <span style={{
-                  flexShrink: 0, width: '20px', height: '20px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  borderRadius: '2px',
-                  background: theme.accentHighlight,
-                }}>
-                  <Users size={12} />
-                </span>
-                {/* ラベル */}
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  キャラクター
-                </span>
-              </SortableListItem>
+            <SortableListItem
+              key={obj.id}
+              id={obj.id}
+              disabled={true}
+              onClick={() => setIsCharLayerOpen(v => !v)}
+            >
+              {/* シェブロン */}
+              <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', cursor: 'pointer', color: theme.textMuted }}>
+                {isCharLayerOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </span>
+              {/* アイコン */}
+              <span style={{
+                flexShrink: 0, width: '20px', height: '20px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '2px',
+                background: theme.accentHighlight,
+              }}>
+                <Users size={12} />
+              </span>
+              {/* ラベル */}
+              <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                キャラクター
+              </span>
 
-              {/* キャラサブリスト（展開時・メインリストドラッグ中は非表示） */}
-              {isCharLayerOpen && activeDragId === null && (
-                <CharacterSubList
-                  characters={characters}
-                  onToggleVisible={(charId) => {
-                    const char = characters.find(c => c.id === charId);
-                    if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-                  }}
-                  onReorder={(orderedIds) => reorderCharacters(orderedIds)}
-                />
+              {/* キャラサブリスト（SortableListItem の children 末尾） */}
+              {isCharLayerOpen && (
+                <div style={{ width: '100%', display: 'block' }} onClick={e => e.stopPropagation()}>
+                  <CharacterSubList
+                    characters={characters}
+                    onToggleVisible={(charId) => {
+                      const char = characters.find(c => c.id === charId);
+                      if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+                    }}
+                    onReorder={(orderedIds) => reorderCharacters(orderedIds)}
+                  />
+                </div>
               )}
-            </React.Fragment>
+            </SortableListItem>
           );
         }
 
