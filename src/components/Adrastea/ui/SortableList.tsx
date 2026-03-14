@@ -31,7 +31,6 @@ interface SortableListPanelProps {
   onDragEnd?: (event: DragEndEvent) => void;
   onDragStart?: (event: DragStartEvent) => void;
   emptyMessage?: string;
-  renderOverlay?: (activeId: string) => React.ReactNode;
   children: React.ReactNode;
 }
 
@@ -44,12 +43,12 @@ export function SortableListPanel({
   onDragEnd,
   onDragStart,
   emptyMessage,
-  renderOverlay,
   children,
 }: SortableListPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
   const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
+  const [draggedHtml, setDraggedHtml] = useState<string>('');
   const containerRef = useRef<HTMLDivElement>(null);
 
   const sensors = useSensors(
@@ -123,6 +122,11 @@ export function SortableListPanel({
           onDragStart={(event) => {
             const id = String(event.active.id);
             setActiveId(id);
+            // DOM クローンをキャプチャ
+            const node = event.active.node.current;
+            if (node) {
+              setDraggedHtml(node.outerHTML);
+            }
             // 掴んだ位置を計算
             const activatorEvent = event.activatorEvent as PointerEvent | null;
             const initialRect = event.active.rect.current?.initial;
@@ -140,6 +144,7 @@ export function SortableListPanel({
           }}
           onDragEnd={(event) => {
             setActiveId(null);
+            setDraggedHtml('');
             onDragEnd?.(event);
           }}
         >
@@ -163,7 +168,7 @@ export function SortableListPanel({
       </div>
 
       {/* Portal overlay for cursor tracking */}
-      {activeId && cursorPos && renderOverlay && createPortal(
+      {activeId && cursorPos && draggedHtml && createPortal(
         <div style={{
           position: 'fixed',
           top: cursorPos.y - grabOffset.y,
@@ -171,8 +176,9 @@ export function SortableListPanel({
           width: containerRef.current?.offsetWidth ?? 240,
           zIndex: 9999,
           pointerEvents: 'none',
+          opacity: 0.85,
         }}>
-          {renderOverlay(activeId)}
+          <div dangerouslySetInnerHTML={{ __html: draggedHtml }} />
         </div>,
         document.body
       )}
