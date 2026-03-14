@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -45,6 +46,8 @@ export function SortableListPanel({
   emptyMessage,
   children,
 }: SortableListPanelProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -100,12 +103,29 @@ export function SortableListPanel({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd ?? noop}
+          onDragStart={(e) => {
+            setActiveId(e.active.id as string);
+            onDragStart?.(e);
+          }}
+          onDragEnd={(e) => {
+            setActiveId(null);
+            onDragEnd?.(e ?? noop);
+          }}
         >
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            {activeId ? (
+              <div style={{
+                height: '28px',
+                background: theme.accentBgSubtle,
+                opacity: 0.7,
+                borderRadius: '2px',
+                pointerEvents: 'none',
+              }} />
+            ) : null}
+          </DragOverlay>
         </DndContext>
         {!hasItems && emptyMessage && (
           <div style={{
