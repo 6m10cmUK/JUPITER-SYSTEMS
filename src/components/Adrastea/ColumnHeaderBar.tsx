@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useState } from 'react';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import type { DockviewApi, DockviewGroupPanel } from 'dockview';
 import { COLLAPSED_WIDTH, collapsedColumns } from './dock-panels/dockColumnState';
