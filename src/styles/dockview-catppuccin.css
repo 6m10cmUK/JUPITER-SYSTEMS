@@ -69,87 +69,87 @@
 }
 
 /* --- ボタン（Phase 7: ゴースト / primary / danger） --- */
-.ad-btn {
+.adra-btn {
   transition: background-color 0.1s, color 0.1s, box-shadow 0.1s;
 }
-.ad-btn--ghost {
+.adra-btn--ghost {
   background: transparent;
   border: none;
 }
-.ad-btn--ghost:not(:disabled):hover {
+.adra-btn--ghost:not(:disabled):hover {
   background: var(--ad-bg-hover);
 }
 /* リスト行など既に背景がある上に乗るボタン用：ホバーをはっきり見せる */
-.ad-btn--ghost.ad-btn--ghost-on-bg:not(:disabled):hover {
+.adra-btn--ghost.adra-btn--ghost-on-bg:not(:disabled):hover {
   background: var(--ad-bg-selected);
   box-shadow: 0 0 0 1px var(--ad-border);
 }
-.ad-btn--ghost:not(:disabled):active {
+.adra-btn--ghost:not(:disabled):active {
   background: rgba(255, 255, 255, 0.18);
 }
-.ad-btn:not(.ad-btn--ghost):not(.ad-tab):not(:disabled):hover {
+.adra-btn:not(.adra-btn--ghost):not(.adra-tab):not(:disabled):hover {
   filter: brightness(1.1);
 }
 
 /* チャンネルタブ（ホバーで背景なし・テキスト色だけ変化） */
-.ad-tab {
+.adra-tab {
   background: transparent;
   color: var(--ad-text-secondary);
   transition: color 0.1s;
 }
-.ad-tab:hover {
+.adra-tab:hover {
   background: transparent;
   color: var(--ad-text-primary);
 }
-.ad-tab.ad-tab--active {
+.adra-tab.adra-tab--active {
   color: var(--ad-text-primary);
   font-weight: 600;
 }
-.ad-tab:active {
+.adra-tab:active {
   background: transparent;
 }
 /* もともと背景色付きのボタン（追加系）：ホバーをはっきり見せる */
-.ad-btn.ad-btn--on-bg:not(:disabled):hover {
+.adra-btn.adra-btn--on-bg:not(:disabled):hover {
   filter: brightness(1.2);
   box-shadow: 0 0 0 1px var(--ad-border);
 }
-.ad-btn:not(:disabled):focus-visible {
+.adra-btn:not(:disabled):focus-visible {
   box-shadow: 0 0 0 1px var(--ad-accent);
   outline: none;
 }
-.ad-btn-icon {
+.adra-btn-icon {
   transition: color 0.1s, background-color 0.1s;
 }
-.ad-btn-icon:not([data-avatar]):not(:disabled):hover {
+.adra-btn-icon:not([data-avatar]):not(:disabled):hover {
   color: var(--ad-accent) !important;
   background: var(--ad-bg-hover);
 }
-.ad-btn-icon.ad-btn-icon--danger:not(:disabled):hover {
+.adra-btn-icon.adra-btn-icon--danger:not(:disabled):hover {
   color: var(--ad-danger-hover) !important;
 }
 /* アバター表示時はホバーでアイコンを少し白っぽく＋明るいシャドウ */
-.ad-btn-icon[data-avatar="true"]:not(:disabled):hover {
+.adra-btn-icon[data-avatar="true"]:not(:disabled):hover {
   filter: brightness(1.15);
   box-shadow: 0 4px 12px rgba(255, 255, 255, 0.15);
 }
 /* ドロップダウン・リスト項目のホバー / 選択中 */
-.ad-list-item {
+.adra-list-item {
   transition: background-color 0.1s;
 }
-.ad-list-item:hover {
+.adra-list-item:hover {
   background: var(--ad-bg-hover);
 }
-.ad-list-item.ad-list-item--selected {
+.adra-list-item.adra-list-item--selected {
   background: var(--ad-bg-selected);
 }
-.ad-list-item.ad-list-item--selected:hover {
+.adra-list-item.adra-list-item--selected:hover {
   background: var(--ad-bg-hover);
 }
 
-.ad-card-create {
+.adra-card-create {
   transition: border-color 0.15s, color 0.15s;
 }
-.ad-card-create:hover {
+.adra-card-create:hover {
   border-color: var(--ad-accent) !important;
   color: var(--ad-accent) !important;
 }
@@ -192,7 +192,7 @@ textarea {
 /* --- Color Picker (react-colorful) --- */
 /* Tailwind v4 preflight が react-colorful の注入スタイルを壊すので、
    必要なスタイルを高詳細度で再宣言する */
-.ad-color-picker-popover .react-colorful {
+.adra-color-picker-popover .react-colorful {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -202,7 +202,7 @@ textarea {
   user-select: none;
   cursor: default;
 }
-.ad-color-picker-popover .react-colorful__saturation {
+.adra-color-picker-popover .react-colorful__saturation {
   position: relative;
   flex-grow: 1;
   border-color: transparent;
@@ -212,23 +212,23 @@ textarea {
     linear-gradient(90deg, #fff, hsla(0, 0%, 100%, 0));
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
-.ad-color-picker-popover .react-colorful__hue,
-.ad-color-picker-popover .react-colorful__alpha {
+.adra-color-picker-popover .react-colorful__hue,
+.adra-color-picker-popover .react-colorful__alpha {
   position: relative;
   height: 10px;
   border-radius: 0;
 }
-.ad-color-picker-popover .react-colorful__hue {
+.adra-color-picker-popover .react-colorful__hue {
   background: linear-gradient(
     90deg, red 0, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, red
   );
 }
-.ad-color-picker-popover .react-colorful__alpha,
-.ad-color-picker-popover .react-colorful__alpha-pointer {
+.adra-color-picker-popover .react-colorful__alpha,
+.adra-color-picker-popover .react-colorful__alpha-pointer {
   background-color: #fff;
   background-image: url('data:image/svg+xml;charset=utf-8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill-opacity=".05"><path d="M8 0h8v8H8zM0 8h8v8H0z"/></svg>');
 }
-.ad-color-picker-popover .react-colorful__alpha-gradient {
+.adra-color-picker-popover .react-colorful__alpha-gradient {
   content: "";
   position: absolute;
   left: 0;
@@ -238,7 +238,7 @@ textarea {
   pointer-events: none;
   border-radius: inherit;
 }
-.ad-color-picker-popover .react-colorful__interactive {
+.adra-color-picker-popover .react-colorful__interactive {
   position: absolute;
   left: 0;
   top: 0;
@@ -248,7 +248,7 @@ textarea {
   outline: none;
   touch-action: none;
 }
-.ad-color-picker-popover .react-colorful__pointer {
+.adra-color-picker-popover .react-colorful__pointer {
   position: absolute;
   z-index: 1;
   box-sizing: border-box;
@@ -260,10 +260,10 @@ textarea {
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-.ad-color-picker-popover .react-colorful__saturation-pointer {
+.adra-color-picker-popover .react-colorful__saturation-pointer {
   z-index: 3;
 }
-.ad-color-picker-popover .react-colorful__hue-pointer {
+.adra-color-picker-popover .react-colorful__hue-pointer {
   z-index: 2;
 }
 
@@ -351,13 +351,13 @@ textarea {
 }
 
 /* ColumnHeaderBar */
-.ad-column-header-bar {
+.adra-column-header-bar {
   background: var(--ad-bg-deep);
   border-bottom: 1px solid var(--ad-border);
   flex-shrink: 0;
 }
 
-.ad-column-header-item {
+.adra-column-header-item {
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -679,7 +679,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
         <Tooltip label="送信">
           <button
-            className="ad-btn"
+            className="adra-btn"
             onClick={handleSend}
             title="送信"
             style={{

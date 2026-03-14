@@ -277,7 +277,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               保存
             </button>
             <button
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={() => { setEditingTagsId(null); setTagInput(''); }}
               style={{
                 flex: 1, padding: '2px 6px', fontSize: '0.7rem',
@@ -335,7 +335,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             削除する
           </button>
           <button
-            className="ad-btn ad-btn--ghost"
+            className="adra-btn adra-btn--ghost"
             onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
             style={{
               flex: 1, padding: '4px', fontSize: '0.7rem',
@@ -420,7 +420,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <button
-                className="ad-btn ad-btn--ghost"
+                className="adra-btn adra-btn--ghost"
                 onClick={() => { setAddMode(null); setUrlInput(''); }}
                 style={{
                   padding: '6px 14px', fontSize: '0.8rem',
@@ -465,7 +465,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           </div>
           {activeTab !== 'audio' && (
             <button
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               style={menuBtnStyle}
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
@@ -474,7 +474,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               {uploading ? 'アップロード中...' : 'ファイルを選択'}
             </button>
           )}
-          <button className="ad-btn ad-btn--ghost" style={menuBtnStyle} onClick={() => setAddMode('url')}>
+          <button className="adra-btn adra-btn--ghost" style={menuBtnStyle} onClick={() => setAddMode('url')}>
             <Link size={14} />
             URLから追加
           </button>

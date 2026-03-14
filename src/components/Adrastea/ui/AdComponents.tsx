@@ -97,7 +97,7 @@ export function AdButton({ variant = 'default', fullWidth, children, style, clas
   return (
     <button
       {...props}
-      className={`ad-btn ${isGhost ? 'ad-btn--ghost' : ''} ${className ?? ''}`.trim()}
+      className={`adra-btn ${isGhost ? 'ad-btn--ghost' : ''} ${className ?? ''}`.trim()}
       style={{
         height: HEIGHT,
         padding: isGhost ? '8px 12px' : '0 10px',
@@ -431,7 +431,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         {compact ? (
           <button
             ref={btnRef}
-            className="ad-btn-icon"
+            className="adra-btn-icon"
             onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
             style={{
               width: '24px', height: '24px',
@@ -496,7 +496,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
           }}
         >
           {/* 左: カラーピッカー */}
-          <div className="ad-color-picker-popover" data-hide-alpha={!enableAlpha ? "true" : undefined}>
+          <div className="adra-color-picker-popover" data-hide-alpha={!enableAlpha ? "true" : undefined}>
             <RgbaColorPicker
               color={enableAlpha ? rgba : { ...rgba, a: 1 }}
               onChange={handleChange}

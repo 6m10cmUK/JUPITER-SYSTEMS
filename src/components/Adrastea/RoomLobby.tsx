@@ -144,7 +144,7 @@ function DiceSystemPicker({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
       <label style={{ fontSize: '12px', color: theme.textSecondary }}>ダイスシステム</label>
       <button
-        className="ad-btn"
+        className="adra-btn"
         ref={btnRef}
         type="button"
         onClick={() => setOpen(!open)}
@@ -374,7 +374,7 @@ function SortableRoomCard({
         }}
       >
         <button
-          className="ad-btn-icon"
+          className="adra-btn-icon"
           onClick={(e) => {
             e.stopPropagation();
             onShare();
@@ -397,7 +397,7 @@ function SortableRoomCard({
           <Share2 size={12} />
         </button>
         <button
-          className="ad-btn-icon"
+          className="adra-btn-icon"
           onClick={onEdit}
           title="編集"
           style={{
@@ -612,7 +612,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         </p>
         <div style={{ position: 'absolute', top: '24px', right: '32px', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button
-            className="ad-btn-icon"
+            className="adra-btn-icon"
             onClick={() => setShowProfileEdit(true)}
             title="プロフィール"
             style={{
@@ -640,7 +640,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
             )}
           </button>
           <button
-            className="ad-btn"
+            className="adra-btn"
             onClick={signOut}
             title="ログアウト"
             style={{
@@ -701,7 +701,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               >
                 {/* 新規作成カード */}
                 <div
-                  className="ad-card-create"
+                  className="adra-card-create"
                   onClick={() => {
                     setCreateName('');
                     setCreateDice('DiceBot');

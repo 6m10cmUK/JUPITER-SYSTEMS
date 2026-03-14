@@ -158,7 +158,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
           <Tooltip label="ドックに戻す">
             <button
               type="button"
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={() => {
                 if (minimizedGroups.has(group.id)) {
                   const container = (group.header as any)?.element?.closest('.dv-resize-container') as HTMLElement | null;
@@ -178,13 +178,13 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
           </Tooltip>
           {isMinimized ? (
             <Tooltip label="復元">
-              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleRestore} style={iconBtnStyle}>
+              <button type="button" className="adra-btn adra-btn--ghost" onClick={handleRestore} style={iconBtnStyle}>
                 <Maximize2 size={12} />
               </button>
             </Tooltip>
           ) : (
             <Tooltip label="最小化">
-              <button type="button" className="ad-btn ad-btn--ghost" onClick={handleMinimize} style={iconBtnStyle}>
+              <button type="button" className="adra-btn adra-btn--ghost" onClick={handleMinimize} style={iconBtnStyle}>
                 <Minus size={12} />
               </button>
             </Tooltip>
@@ -197,7 +197,7 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
         <Tooltip label="フロートにする">
           <button
             type="button"
-            className="ad-btn ad-btn--ghost"
+            className="adra-btn adra-btn--ghost"
             onClick={() => {
               containerApi.addFloatingGroup(activePanel);
             }}

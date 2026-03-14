@@ -6,7 +6,7 @@ describe('AdButton — Phase 7 variant', () => {
   it('default variant はゴーストクラスを持つ', () => {
     const { container } = render(<AdButton>テスト</AdButton>);
     const btn = container.querySelector('button')!;
-    expect(btn.classList.contains('ad-btn--ghost')).toBe(true);
+    expect(btn.classList.contains('adra-btn--ghost')).toBe(true);
     expect(btn.style.background).toBeFalsy();
     expect(btn.style.borderStyle).toBe('none');
   });
@@ -14,7 +14,7 @@ describe('AdButton — Phase 7 variant', () => {
   it('primary variant は accent 背景でゴーストクラスを持たない', () => {
     const { container } = render(<AdButton variant="primary">保存</AdButton>);
     const btn = container.querySelector('button')!;
-    expect(btn.classList.contains('ad-btn--ghost')).toBe(false);
+    expect(btn.classList.contains('adra-btn--ghost')).toBe(false);
     expect(btn.style.background).toContain('var(--ad-accent)');
     expect(btn.style.fontWeight).toBe('600');
   });
@@ -22,7 +22,7 @@ describe('AdButton — Phase 7 variant', () => {
   it('danger variant は dangerBgSubtle 背景 + danger テキスト', () => {
     const { container } = render(<AdButton variant="danger">削除</AdButton>);
     const btn = container.querySelector('button')!;
-    expect(btn.classList.contains('ad-btn--ghost')).toBe(false);
+    expect(btn.classList.contains('adra-btn--ghost')).toBe(false);
     expect(btn.style.background).toContain('var(--ad-danger-bg-subtle)');
     expect(btn.style.color).toContain('var(--ad-danger)');
     expect(btn.style.borderStyle).toBe('none');

@@ -113,7 +113,7 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onReorderT
                 />
                 <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
                   <button
-                    className="ad-btn ad-btn--ghost"
+                    className="adra-btn adra-btn--ghost"
                     onClick={() => setEditingId(null)}
                     style={{
                       padding: '4px 8px', background: 'transparent', color: theme.textPrimary,
