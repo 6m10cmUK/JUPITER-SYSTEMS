@@ -673,17 +673,22 @@ function CharacterSubList({
           >
             {/* インデント */}
             <span style={{ flexShrink: 0, width: '20px' }} />
-            {/* アバターカラードット */}
-            <span style={{
+            {/* アバター（画像 or カラードット） */}
+            <div style={{
               flexShrink: 0,
-              width: '14px', height: '14px',
+              width: '18px', height: '18px',
               borderRadius: '50%',
               background: char.color ?? theme.textMuted,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '8px', color: '#fff', fontWeight: 700,
+              overflow: 'hidden',
             }}>
-              {char.name.charAt(0)}
-            </span>
+              {char.images[char.active_image_index]?.url ? (
+                <img
+                  src={char.images[char.active_image_index].url}
+                  alt={char.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                />
+              ) : null}
+            </div>
             {/* 名前 */}
             <span style={{
               flex: 1,
