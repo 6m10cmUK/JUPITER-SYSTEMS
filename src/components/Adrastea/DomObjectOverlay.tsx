@@ -22,6 +22,10 @@ interface DomObjectOverlayProps {
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
   characters?: Character[];
   onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
 }
 
 // --- ユーティリティ ---
@@ -696,10 +700,18 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   characters,
   onUpdatePosition,
   stageRef,
+  currentUserId,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+  onContextMenuCharacter,
 }: {
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
   const visibleChars = characters.filter(c => c.board_visible !== false);
@@ -715,6 +727,10 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
           char={char}
           onUpdatePosition={onUpdatePosition}
           stageRef={stageRef}
+          currentUserId={currentUserId}
+          onSelectCharacter={onSelectCharacter}
+          onDoubleClickCharacter={onDoubleClickCharacter}
+          onContextMenuCharacter={onContextMenuCharacter}
         />
       ))}
     </>
@@ -726,15 +742,25 @@ const DomCharacterItem = memo(function DomCharacterItem({
   char,
   onUpdatePosition,
   stageRef,
+  currentUserId,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+  onContextMenuCharacter,
 }: {
   char: Character;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
 }) {
   const imageUrl = char.images[char.active_image_index]?.url ?? null;
   const blobSrc = useAnimatedBlobSrc(imageUrl);
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState(false);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
@@ -744,6 +770,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
     const el = elRef.current;
     if (!el) return;
     e.stopPropagation();
+
+    // 開始座標を保存
+    startPosRef.current = { x: e.clientX, y: e.clientY };
 
     const stage = stageRef.current;
     const scale = stage?.scaleX?.() ?? 1;
@@ -765,7 +794,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
       el.style.top = `${ds.origPxY + dy}px`;
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (me: PointerEvent) => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       const ds = dragRef.current;
@@ -776,11 +805,19 @@ const DomCharacterItem = memo(function DomCharacterItem({
       el.style.left = `${finalX}px`;
       el.style.top = `${finalY}px`;
       onUpdatePosition?.(char.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+
+      // クリック検出: 移動量が5px未満なら選択
+      const sp = startPosRef.current;
+      if (sp) {
+        const dist = Math.hypot(me.clientX - sp.x, me.clientY - sp.y);
+        if (dist < 5) onSelectCharacter?.(char.id);
+        startPosRef.current = null;
+      }
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
-  }, [char.id, pxX, pxY, stageRef, onUpdatePosition]);
+  }, [char.id, pxX, pxY, stageRef, onUpdatePosition, onSelectCharacter]);
 
   return (
     <div
@@ -796,6 +833,10 @@ const DomCharacterItem = memo(function DomCharacterItem({
         userSelect: 'none',
       }}
       onPointerDown={handlePointerDown}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenuCharacter?.(char.id, e); }}
     >
       {blobSrc ? (
         <img
@@ -821,6 +862,57 @@ const DomCharacterItem = memo(function DomCharacterItem({
           fontWeight: 700,
         }}>
           {char.name.charAt(0)}
+        </div>
+      )}
+
+      {/* 名前ラベル */}
+      <div style={{
+        position: 'absolute',
+        bottom: -20,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        color: '#000',
+        fontSize: 11,
+        whiteSpace: 'nowrap',
+        textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff',
+        userSelect: 'none',
+        pointerEvents: 'none',
+        fontWeight: 600,
+      }}>
+        {char.name}
+      </div>
+
+      {/* ホバーポップアップ */}
+      {hovered && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && (
+        <div style={{
+          position: 'absolute',
+          top: '100%',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          marginTop: 24,
+          zIndex: 100,
+          pointerEvents: 'none',
+          background: 'rgba(0, 0, 0, 0.85)',
+          color: '#fff',
+          padding: '6px 8px',
+          fontSize: 11,
+          lineHeight: 1.5,
+          maxWidth: 240,
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          borderRadius: 3,
+        }}>
+          {char.memo && <div>{char.memo}</div>}
+          {currentUserId === char.owner_id && char.secret_memo && (
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.2)',
+              marginTop: char.memo ? 4 : 0,
+              paddingTop: char.memo ? 4 : 0,
+              color: 'rgba(255,200,100,0.9)',
+            }}>
+              {char.secret_memo}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -914,7 +1006,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
-    characters = [], onUpdateCharacterBoardPosition,
+    characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -994,6 +1086,10 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     characters={characters}
                     onUpdatePosition={onUpdateCharacterBoardPosition}
                     stageRef={stageRef}
+                    currentUserId={currentUserId}
+                    onSelectCharacter={onSelectCharacter}
+                    onDoubleClickCharacter={onDoubleClickCharacter}
+                    onContextMenuCharacter={onContextMenuCharacter}
                   />
                 );
               default:
