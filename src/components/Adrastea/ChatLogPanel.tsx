@@ -659,7 +659,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             <button
               ref={menuBtnRef}
               type="button"
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={() => (showMenu ? setShowMenu(false) : openMenu())}
               title="メニュー"
               style={{
@@ -801,7 +801,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       >
         {hasMore && (
           <button
-            className="ad-btn ad-btn--ghost"
+            className="adra-btn adra-btn--ghost"
             onClick={() => {
               isLoadingMoreRef.current = true;
               onLoadMore();

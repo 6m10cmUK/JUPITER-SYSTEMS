@@ -123,7 +123,7 @@ export function TopToolbar({
           </span>
           <button
             type="button"
-            className="ad-btn ad-btn--ghost"
+            className="adra-btn adra-btn--ghost"
             onClick={onOpenSettings}
             title="ルーム設定"
             style={{
@@ -219,7 +219,7 @@ export function TopToolbar({
         type="button"
         onClick={onOpenProfile}
         title="ユーザー設定"
-        className="ad-btn ad-btn--ghost"
+        className="adra-btn adra-btn--ghost"
         style={{
           width: 28,
           height: 28,

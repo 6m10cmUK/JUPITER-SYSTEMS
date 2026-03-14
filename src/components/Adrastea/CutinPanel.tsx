@@ -123,7 +123,7 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onReord
                 再生
               </button>
               <button
-                className="ad-btn ad-btn--ghost"
+                className="adra-btn adra-btn--ghost"
                 onClick={(e) => { e.stopPropagation(); onEdit(cutin); }}
                 style={{
                   padding: '4px 8px',

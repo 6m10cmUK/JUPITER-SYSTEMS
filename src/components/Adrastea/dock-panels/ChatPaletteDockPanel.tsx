@@ -84,7 +84,7 @@ export function ChatPaletteDockPanel() {
           {paletteItems.map((item, idx) => (
             <button
               key={idx}
-              className="ad-btn ad-btn--ghost"
+              className="adra-btn adra-btn--ghost"
               onClick={(e) => {
                 if (e.detail >= 2) return;
                 ctx.setChatInjectText(item);
@@ -117,7 +117,7 @@ export function ChatPaletteDockPanel() {
       {activeCharacter && (
         <div style={{ padding: '4px 8px', display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.border}` }}>
           <button
-            className="ad-btn ad-btn--ghost"
+            className="adra-btn adra-btn--ghost"
             onClick={() => setShowEditor(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '4px',
