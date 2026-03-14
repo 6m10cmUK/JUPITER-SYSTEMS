@@ -113,8 +113,14 @@ export function LayerPanel() {
     const draggedItems = nonFixed.filter(o => dragSet.has(o.id));
     const rest = nonFixed.filter(o => !dragSet.has(o.id));
 
-    const overIdx = rest.findIndex(o => o.id === overId);
-    if (overIdx < 0) return;
+    // characters_layer や background の上にドロップした場合は先頭として扱う
+    const overObj = sortedObjects.find(o => o.id === overId);
+    let overIdx = rest.findIndex(o => o.id === overId);
+    if (overIdx < 0) {
+      if (!overObj || overObj.type === 'background') return;
+      // characters_layer の上にドロップ → 先頭（0番目）に挿入
+      overIdx = 0;
+    }
 
     const activeOrigIdx = nonFixed.findIndex(o => o.id === activeId);
     const overOrigIdx = nonFixed.findIndex(o => o.id === overId);
@@ -578,6 +584,17 @@ function CharacterSubList({
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
 }) {
+  const [localChars, setLocalChars] = useState<Character[]>(characters);
+
+  // 外部から characters が変わった時に同期（新規追加・削除等）
+  const prevCharsRef = useRef(characters);
+  useEffect(() => {
+    if (prevCharsRef.current !== characters) {
+      prevCharsRef.current = characters;
+      setLocalChars(characters);
+    }
+  }, [characters]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -586,17 +603,18 @@ function CharacterSubList({
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = characters.findIndex(c => c.id === active.id);
-    const newIndex = characters.findIndex(c => c.id === over.id);
+    const oldIndex = localChars.findIndex(c => c.id === active.id);
+    const newIndex = localChars.findIndex(c => c.id === over.id);
     if (oldIndex < 0 || newIndex < 0) return;
-    const newOrder = arrayMove(characters, oldIndex, newIndex);
+    const newOrder = arrayMove(localChars, oldIndex, newIndex);
+    setLocalChars(newOrder);
     onReorder(newOrder.map(c => c.id));
   };
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={characters.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        {characters.map((char) => (
+      <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
+        {localChars.map((char) => (
           <SortableListItem
             key={char.id}
             id={char.id}
