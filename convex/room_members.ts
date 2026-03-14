@@ -30,7 +30,7 @@ export const getMyRole = query({
 
 export const join = mutation({
   args: { room_id: v.string() },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<{ role: RoomRole }> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
@@ -55,10 +55,13 @@ export const join = mutation({
         role: correctRole,
         joined_at: Date.now(),
       });
+      return { role: correctRole };
     } else if (existing.role !== 'owner' && correctRole === 'owner') {
       // 既存エントリがあるがオーナーが user になってしまっている場合に修正
       await ctx.db.patch(existing._id, { role: 'owner' });
+      return { role: 'owner' as RoomRole };
     }
+    return { role: existing.role as RoomRole };
   },
 });
 
