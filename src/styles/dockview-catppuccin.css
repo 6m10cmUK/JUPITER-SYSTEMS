@@ -350,3 +350,19 @@ textarea {
   overflow: hidden;
 }
 
+/* ColumnHeaderBar */
+.ad-column-header-bar {
+  background: var(--ad-bg-deep);
+  border-bottom: 1px solid var(--ad-border);
+  flex-shrink: 0;
+}
+
+.ad-column-header-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 0 0;
+  height: 100%;
+  border-right: 1px solid var(--ad-border);
+  overflow: hidden;
+}
