@@ -145,7 +145,7 @@ export function LayerPanel() {
     });
     if (updates.length > 0) {
       batchUpdateSort(updates);
-      setLocalOrderOverride(null);
+      // localOrderOverride は activeObjects 更新時の useEffect でクリアされる
     }
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
@@ -416,8 +416,8 @@ export function LayerPanel() {
                 </span>
               </SortableListItem>
 
-              {/* キャラサブリスト（展開時） */}
-              {isCharLayerOpen && (
+              {/* キャラサブリスト（展開時・メインリストドラッグ中は非表示） */}
+              {isCharLayerOpen && activeDragId === null && (
                 <CharacterSubList
                   characters={characters}
                   onToggleVisible={(charId) => {
