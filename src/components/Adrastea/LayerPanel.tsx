@@ -14,7 +14,7 @@ import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
   Trash2, Copy, Users,
-  ChevronRight, ChevronDown, GripVertical,
+  ChevronRight, ChevronDown,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
