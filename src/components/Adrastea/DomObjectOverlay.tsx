@@ -845,7 +845,12 @@ const DomCharacterItem = memo(function DomCharacterItem({
         boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
       }}
       onPointerDown={handlePointerDown}
-      onPointerEnter={(e) => { setHovered(true); setCursorPos({ x: e.clientX, y: e.clientY }); }}
+      onPointerEnter={(e) => {
+        setHovered(true);
+        const rect = elRef.current?.getBoundingClientRect();
+        const centerX = rect ? rect.left + rect.width / 2 : e.clientX;
+        setCursorPos({ x: centerX, y: e.clientY });
+      }}
       onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
@@ -898,9 +903,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
       {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
         <div style={{
           position: 'fixed',
-          left: cursorPos.x + 14,
+          left: cursorPos.x,
           top: cursorPos.y - 10,
-          transform: 'translateY(-100%)',
+          transform: 'translateX(-50%) translateY(-100%)',
           zIndex: 10000,
           pointerEvents: 'none',
           background: 'rgba(0, 0, 0, 0.88)',
