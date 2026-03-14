@@ -186,12 +186,16 @@ const Adrastea: React.FC = () => {
   );
 
   const [joinDone, setJoinDone] = useState(isGuest || !roomId); // ゲストは join 不要
+  const [joinedRole, setJoinedRole] = useState<'owner' | 'sub_owner' | 'user' | 'guest' | null>(null);
   const joinMutation = useMutation(api.room_members.join);
 
   // ルーム入室時に join を呼ぶ
   useEffect(() => {
     if (roomId && user && !isGuest) {
       joinMutation({ room_id: roomId })
+        .then((result) => {
+          setJoinedRole(result.role);
+        })
         .catch(() => {})
         .finally(() => setJoinDone(true));
     }
@@ -204,8 +208,8 @@ const Adrastea: React.FC = () => {
     : roomData === null ? 'denied'
     : 'ok';
 
-  // ロール判定（ロード中は安全側の 'guest' にフォールバック）
-  const roomRole = (isGuest ? 'guest' : (memberRole ?? 'guest')) as 'owner' | 'sub_owner' | 'user' | 'guest';
+  // ロール判定（memberRole 優先、undefined 時は joinedRole を使う）
+  const roomRole = (isGuest ? 'guest' : ((memberRole ?? joinedRole) ?? 'guest')) as 'owner' | 'sub_owner' | 'user' | 'guest';
 
   const handleRoomCreated = (newRoomId: string) => {
     navigate(`/adrastea/${newRoomId}`);
@@ -333,8 +337,8 @@ const Adrastea: React.FC = () => {
     return <LoadingScreen progress={0.5} statusText="ルームを確認中..." />;
   }
 
-  // join 完了 & ロール確定待ち（DockLayout を guest で誤初期化しないよう待つ）
-  if (!isGuest && roomId && (!joinDone || memberRole === undefined)) {
+  // join 完了 & ロール確定待ち（joinedRole があれば memberRole が undefined でも進める）
+  if (!isGuest && roomId && (!joinDone || (memberRole === undefined && joinedRole === null))) {
     return <LoadingScreen progress={0.6} statusText="ルームを準備中..." />;
   }
 
