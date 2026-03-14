@@ -835,7 +835,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         left: pxX,
         top: pxY,
         height: pxH,
-        width: 'auto',
+        width: 'max-content',
         cursor: 'move',
         pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
