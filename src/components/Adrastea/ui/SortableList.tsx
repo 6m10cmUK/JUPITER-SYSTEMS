@@ -33,7 +33,25 @@ interface SortableListPanelProps {
   children: React.ReactNode;
 }
 
-const noop = () => {};
+// DragOverlay をカーソル中央にスナップする modifier
+const snapCenterToCursor = ({
+  activatorEvent,
+  draggingNodeRect,
+  transform,
+}: {
+  activatorEvent: Event | null;
+  draggingNodeRect: { left: number; top: number; width: number; height: number } | null;
+  transform: { x: number; y: number; scaleX: number; scaleY: number };
+  [key: string]: unknown;
+}) => {
+  if (draggingNodeRect && activatorEvent && 'clientX' in activatorEvent) {
+    const ev = activatorEvent as PointerEvent;
+    const offsetX = ev.clientX - (draggingNodeRect.left + draggingNodeRect.width / 2);
+    const offsetY = ev.clientY - (draggingNodeRect.top + draggingNodeRect.height / 2);
+    return { ...transform, x: transform.x + offsetX, y: transform.y + offsetY };
+  }
+  return transform;
+};
 
 export function SortableListPanel({
   title,
@@ -115,7 +133,7 @@ export function SortableListPanel({
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
-          <DragOverlay dropAnimation={null}>
+          <DragOverlay dropAnimation={null} modifiers={[snapCenterToCursor]}>
             {activeId ? (
               <div style={{
                 display: 'flex',
