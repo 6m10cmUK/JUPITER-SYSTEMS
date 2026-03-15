@@ -15,9 +15,9 @@ import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
   Trash2, Copy, Users,
-  ChevronRight, ChevronDown,
+  ChevronRight, ChevronDown, Plus,
 } from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
@@ -311,28 +311,20 @@ export function LayerPanel() {
       title="レイヤー"
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-          <Tooltip label="シーン画像追加">
-            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
-              <Image size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip label="シーンテキスト追加">
-            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
-              <Type size={13} />
-            </button>
-          </Tooltip>
-          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
-          <Tooltip label="ルーム画像追加">
-            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
-              <Image size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip label="ルームテキスト追加">
-            <button type="button" className="adra-btn adra-btn--on-bg" onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
-              <Type size={13} />
-            </button>
-          </Tooltip>
-          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
+          <DropdownMenu
+            trigger={
+              <button type="button" className="adra-btn adra-btn--on-bg" style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
+                <Plus size={13} />
+              </button>
+            }
+            items={[
+              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => handleImageAdd(false) },
+              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
+              'separator',
+              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => handleImageAdd(true) },
+              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
+            ]}
+          />
           <Tooltip label="複製">
             <button
               type="button"
