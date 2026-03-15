@@ -103,11 +103,11 @@ function StatusBar({
         left: 4,
         top: '50%',
         transform: 'translateY(-50%)',
-        fontSize: 10,
+        fontSize: 12,
         color: '#000',
         fontWeight: 700,
         pointerEvents: 'none',
-        textShadow: '-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff',
+        textShadow: '0 0 4px #fff, 0 0 4px #fff',
       }}>
         {status.label}
       </span>
@@ -116,11 +116,11 @@ function StatusBar({
         right: canEdit ? 14 : 4,
         top: '50%',
         transform: 'translateY(-50%)',
-        fontSize: 10,
+        fontSize: 12,
         color: '#000',
         fontWeight: 600,
         pointerEvents: 'none',
-        textShadow: '-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff',
+        textShadow: '0 0 4px #fff, 0 0 4px #fff',
       }}>
         {status.value}/{status.max}
       </span>
@@ -144,9 +144,10 @@ function StatusBar({
               border: 'none',
               cursor: 'pointer',
               padding: '0 3px',
-              fontSize: 7,
+              fontSize: 9,
               lineHeight: 1,
-              color: '#fff',
+              color: '#000',
+              textShadow: '0 0 4px #fff, 0 0 4px #fff',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -164,9 +165,10 @@ function StatusBar({
               border: 'none',
               cursor: 'pointer',
               padding: '0 3px',
-              fontSize: 7,
+              fontSize: 9,
               lineHeight: 1,
-              color: '#fff',
+              color: '#000',
+              textShadow: '0 0 4px #fff, 0 0 4px #fff',
               display: 'flex',
               alignItems: 'center',
             }}
@@ -281,7 +283,7 @@ export function StatusDockPanel() {
                 left: -2,
                 background: char.color,
                 color: textColor,
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 700,
                 padding: '0 3px',
                 lineHeight: '16px',
@@ -302,7 +304,7 @@ export function StatusDockPanel() {
               }}>
                 {/* 名前 */}
                 <span style={{
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: 600,
                   color: theme.textPrimary,
                   overflow: 'hidden',
@@ -312,7 +314,7 @@ export function StatusDockPanel() {
                 }}>
                   {char.name}
                   {!isOwner && char.is_status_private && (
-                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 9 }}>🔒</span>
+                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 11 }}>🔒</span>
                   )}
                 </span>
                 {/* 外部URL */}
@@ -356,7 +358,7 @@ export function StatusDockPanel() {
                   ))}
                 </div>
               ) : !isPrivate ? (
-                <div style={{ color: theme.textMuted, fontSize: 10, padding: '2px 0' }}>
+                <div style={{ color: theme.textMuted, fontSize: 12, padding: '2px 0' }}>
                   ステータスなし
                 </div>
               ) : null}
