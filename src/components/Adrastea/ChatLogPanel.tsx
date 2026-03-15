@@ -658,12 +658,12 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               items={[
                 {
                   label: 'チャンネルを追加',
-                  icon: Plus,
+                  icon: <Plus size={14} />,
                   onClick: () => setShowCreateChannel(true),
                 },
                 {
                   label: 'チャンネルを削除',
-                  icon: Trash2,
+                  icon: <Trash2 size={14} />,
                   disabled: !canDeleteActiveChannel,
                   onClick: () => {
                     if (!canDeleteActiveChannel || !activeChannel) return;
@@ -672,11 +672,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 },
                 ...(onClearMessages
                   ? [
-                      { type: 'separator' as const },
+                      'separator' as const,
                       {
                         label: 'チャットをクリア',
-                        icon: Trash2,
-                        danger: true,
+                        icon: <Trash2 size={14} />,
                         onClick: () => setShowClearConfirm(true),
                       },
                     ]

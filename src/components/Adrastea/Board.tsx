@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
-import { theme } from '../../styles/theme';
 import { DomObjectOverlay, useAnimatedBlobSrc } from './DomObjectOverlay';
+import { DropdownMenu } from './ui';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
@@ -152,13 +152,6 @@ const StatusBars = memo(function StatusBars({ piece }: { piece: PieceType }) {
   );
 });
 
-export interface ContextMenuState {
-  visible: boolean;
-  x: number;
-  y: number;
-  pieceId: string | null;
-}
-
 function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
@@ -183,7 +176,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
-  const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, pieceId: null });
+  const [contextMenuState, setContextMenuState] = useState<{ x: number; y: number; pieceId: string } | null>(null);
 
   const fitToScreen = useCallback(() => {
     const stage = stageRef.current;
@@ -298,32 +291,24 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const handleContextMenu = useCallback(
     (pieceId: string, e: KonvaEventObject<PointerEvent>) => {
       e.evt.preventDefault();
-      const stage = stageRef.current;
-      if (!stage) return;
-      const containerRect = stage.container().getBoundingClientRect();
-      setContextMenu({
-        visible: true,
-        x: e.evt.clientX - containerRect.left,
-        y: e.evt.clientY - containerRect.top,
+      setContextMenuState({
+        x: e.evt.clientX,
+        y: e.evt.clientY,
         pieceId,
       });
     },
     []
   );
 
-  const closeContextMenu = useCallback(() => {
-    setContextMenu({ visible: false, x: 0, y: 0, pieceId: null });
-  }, []);
-
   // Stageクリック: メニュー閉じ + 背景オブジェクト選択
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
-    if (contextMenu.visible) closeContextMenu();
+    if (contextMenuState) setContextMenuState(null);
     // Stage 直接クリック（空白領域）→ 背景オブジェクトを選択
     if (e.target === e.target.getStage() && onSelectObject) {
       const bg = objects.find(o => o.type === 'background');
       if (bg) onSelectObject(bg.id);
     }
-  }, [contextMenu.visible, closeContextMenu, objects, onSelectObject]);
+  }, [contextMenuState, objects, onSelectObject]);
 
   const handleStageDblClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage() && onEditObject) {
@@ -370,7 +355,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     <div
       ref={containerRef}
       style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}
-      onClick={closeContextMenu}
     >
       {/* 背景オブジェクト: ビューポート固定 */}
       {(bgObjectUrl || bgObjectColor) && (
@@ -484,63 +468,29 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onContextMenuCharacter={onContextMenuCharacter}
         selectedCharacterId={selectedCharacterId}
       />
-      {/* 右クリックメニュー（HTML DOM） */}
-      {contextMenu.visible && contextMenu.pieceId && (
-        <div
-          style={{
-            position: 'absolute',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            background: theme.bgInput,
-            border: `1px solid ${theme.border}`,
-            borderRadius: 0,
-            padding: '4px 0',
-            zIndex: 100,
-            minWidth: '120px',
-            boxShadow: theme.shadowMd,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            className="adra-list-item"
-            onClick={() => {
-              onEditPiece(contextMenu.pieceId!);
-              closeContextMenu();
-            }}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 16px',
-              border: 'none',
-              color: theme.textPrimary,
-              fontSize: '0.85rem',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            編集
-          </button>
-          <button
-            className="adra-list-item"
-            onClick={() => {
-              onRemovePiece(contextMenu.pieceId!);
-              closeContextMenu();
-            }}
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '8px 16px',
-              border: 'none',
-              color: theme.danger,
-              fontSize: '0.85rem',
-              textAlign: 'left',
-              cursor: 'pointer',
-            }}
-          >
-            削除
-          </button>
-        </div>
-      )}
+      {/* 右クリックメニュー（DropdownMenu） */}
+      <DropdownMenu
+        mode="context"
+        open={contextMenuState !== null}
+        onOpenChange={(open) => { if (!open) setContextMenuState(null); }}
+        position={contextMenuState ?? { x: 0, y: 0 }}
+        items={[
+          {
+            label: '編集',
+            onClick: () => {
+              if (contextMenuState) onEditPiece(contextMenuState.pieceId);
+              setContextMenuState(null);
+            },
+          },
+          {
+            label: '削除',
+            onClick: () => {
+              if (contextMenuState) onRemovePiece(contextMenuState.pieceId);
+              setContextMenuState(null);
+            },
+          },
+        ]}
+      />
       {children}
     </div>
   );
