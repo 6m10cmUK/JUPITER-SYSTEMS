@@ -780,6 +780,10 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
+  // 足元基準: board_y は足元の y 座標を表す
+  // board_y + size が底辺位置となり、top = 底辺 - 高さ = (board_y + size) * GRID_SIZE - size * GRID_SIZE
+  // = board_y * GRID_SIZE なので pxY の計算値は変わらないが、
+  // 概念的に足元基準であることを明記する。
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
   const pxH = (char.size ?? 5) * GRID_SIZE;
   const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
@@ -850,7 +854,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
         filter: hovered ? 'drop-shadow(0 0 6px rgba(255,255,255,0.7))' : undefined,
-        transition: 'filter 0.1s',
+        transition: 'filter 0.1s, top 0.15s ease-out, height 0.15s ease-out',
         boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
         zIndex: zIndex,
       }}
