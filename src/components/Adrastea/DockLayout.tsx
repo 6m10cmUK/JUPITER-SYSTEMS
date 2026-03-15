@@ -68,7 +68,7 @@ function loadLayout(role: string): object | null {
 
 /* ── タブヘッダー左側アクション（ドラッグハンドル） ── */
 
-function PrefixHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps) {
+function PrefixHeaderActions({ group }: IDockviewHeaderActionsProps) {
   const isFloating = group.api.location.type === 'floating';
   if (!isFloating) return null;
 
@@ -84,48 +84,37 @@ function PrefixHeaderActions({ containerApi, group }: IDockviewHeaderActionsProp
         userSelect: 'none',
         height: '100%',
       }}
-      onMouseDown={(e) => {
+      onPointerDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
 
-        // containerApi.floatingGroups からこのグループのフロートパネルを探す
-        const floatingGroup = (containerApi as any).floatingGroups?.find(
-          (fg: any) => fg.group.id === group.id
-        );
-        if (!floatingGroup) return;
-
-        // フロートパネルの現在位置を取得（overlay の element から）
-        const overlayEl = floatingGroup.overlay?.element ??
-          (group.header as any)?.element?.closest('.dv-resize-container');
-        if (!overlayEl) return;
+        // フロートパネルのコンテナ要素（.dv-resize-container）を取得
+        const container = (e.currentTarget as HTMLElement).closest('.dv-resize-container') as HTMLElement | null;
+        if (!container) return;
 
         const startX = e.clientX;
         const startY = e.clientY;
-        const rect = overlayEl.getBoundingClientRect();
-        const startTop = rect.top;
-        const startLeft = rect.left;
+        const startLeft = container.offsetLeft;
+        const startTop = container.offsetTop;
 
-        const parentRect = overlayEl.parentElement?.getBoundingClientRect() ?? { top: 0, left: 0 };
-
+        (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
         document.body.style.cursor = 'grabbing';
 
-        const onMouseMove = (moveE: MouseEvent) => {
+        const onPointerMove = (moveE: PointerEvent) => {
           const dx = moveE.clientX - startX;
           const dy = moveE.clientY - startY;
-          floatingGroup.position({
-            top: startTop - parentRect.top + dy,
-            left: startLeft - parentRect.left + dx,
-          });
+          container.style.left = `${startLeft + dx}px`;
+          container.style.top = `${startTop + dy}px`;
         };
 
-        const onMouseUp = () => {
+        const onPointerUp = () => {
           document.body.style.cursor = '';
-          document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp);
+          document.removeEventListener('pointermove', onPointerMove);
+          document.removeEventListener('pointerup', onPointerUp);
         };
 
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
       }}
     >
       ⠿
