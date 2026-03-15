@@ -21,7 +21,7 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
-import { getDefaultLayoutForRole, loadStore, persistStore, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
+import { getDefaultLayoutForRole, loadStore, persistStore, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -319,14 +319,15 @@ const DockviewInner = memo(function DockviewInner({
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
 
-      // ロール別デフォルトレイアウト
+      // ロール別デフォルトレイアウト（現在の画面サイズにスケーリング）
       const defaultJson = (role === 'owner' || role === 'sub_owner')
         ? DEFAULT_LAYOUT_OWNER
         : role === 'user'
           ? DEFAULT_LAYOUT_USER
           : DEFAULT_LAYOUT_GUEST;
       try {
-        api.fromJSON(defaultJson as Parameters<DockviewApi['fromJSON']>[0]);
+        const scaled = scaleLayout(defaultJson, api.width, api.height);
+        api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
         requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       } catch {
         // フォールスルー: 空のままになる
