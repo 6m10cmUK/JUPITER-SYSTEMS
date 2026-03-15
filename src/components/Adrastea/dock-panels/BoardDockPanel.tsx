@@ -43,22 +43,47 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
               maxWidth: 200,
             }}
           >
-            {/* アイコン */}
-            {imgUrl ? (
-              <img
-                src={imgUrl}
-                style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top', flexShrink: 0 }}
-                draggable={false}
-              />
-            ) : (
-              <div style={{
-                width: 24, height: 24, background: char.color, flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontSize: 11, fontWeight: 700,
-              }}>
-                {char.name.charAt(0)}
-              </div>
-            )}
+            {/* アイコン + イニシアチブバッジ */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top' }}
+                  draggable={false}
+                />
+              ) : (
+                <div style={{
+                  width: 24, height: 24, background: char.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: 11, fontWeight: 700,
+                }}>
+                  {char.name.charAt(0)}
+                </div>
+              )}
+              {/* イニシアチブバッジ */}
+              {(char.initiative ?? 0) !== 0 && (
+                <div style={{
+                  position: 'absolute',
+                  top: -4,
+                  left: -4,
+                  minWidth: 14,
+                  height: 14,
+                  borderRadius: '50%',
+                  background: char.color,
+                  color: '#fff',
+                  fontSize: 8,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 2px',
+                  lineHeight: 1,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                }}>
+                  {char.initiative}
+                </div>
+              )}
+            </div>
             {/* 名前・ステータス */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{
