@@ -165,6 +165,8 @@ function CharacterEditorComponent({
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
+    // flex親(AdModal)では flex:1 が機能、非flex親(dockview)では height が機能
+    height: '100%',
     flex: 1,
     minHeight: 0,
     color: theme.textPrimary,
