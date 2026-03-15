@@ -68,7 +68,7 @@ function loadLayout(role: string): object | null {
 
 /* ── タブヘッダー左側アクション（ドラッグハンドル） ── */
 
-function PrefixHeaderActions({ group }: IDockviewHeaderActionsProps) {
+function PrefixHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps) {
   const isFloating = group.api.location.type === 'floating';
   if (!isFloating) return null;
 
@@ -85,21 +85,47 @@ function PrefixHeaderActions({ group }: IDockviewHeaderActionsProps) {
         height: '100%',
       }}
       onMouseDown={(e) => {
-        // dv-void-container のドラッグを発火させる
-        const headerEl = (group.header as any)?.element as HTMLElement | null;
-        if (headerEl) {
-          const voidContainer = headerEl.querySelector('.dv-void-container') as HTMLElement | null;
-          if (voidContainer) {
-            const syntheticEvent = new MouseEvent('mousedown', {
-              bubbles: true,
-              cancelable: true,
-              clientX: e.clientX,
-              clientY: e.clientY,
-              button: e.button,
-            });
-            voidContainer.dispatchEvent(syntheticEvent);
-          }
-        }
+        e.preventDefault();
+        e.stopPropagation();
+
+        // containerApi.floatingGroups からこのグループのフロートパネルを探す
+        const floatingGroup = (containerApi as any).floatingGroups?.find(
+          (fg: any) => fg.group.id === group.id
+        );
+        if (!floatingGroup) return;
+
+        // フロートパネルの現在位置を取得（overlay の element から）
+        const overlayEl = floatingGroup.overlay?.element ??
+          (group.header as any)?.element?.closest('.dv-resize-container');
+        if (!overlayEl) return;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = overlayEl.getBoundingClientRect();
+        const startTop = rect.top;
+        const startLeft = rect.left;
+
+        const parentRect = overlayEl.parentElement?.getBoundingClientRect() ?? { top: 0, left: 0 };
+
+        document.body.style.cursor = 'grabbing';
+
+        const onMouseMove = (moveE: MouseEvent) => {
+          const dx = moveE.clientX - startX;
+          const dy = moveE.clientY - startY;
+          floatingGroup.position({
+            top: startTop - parentRect.top + dy,
+            left: startLeft - parentRect.left + dx,
+          });
+        };
+
+        const onMouseUp = () => {
+          document.body.style.cursor = '';
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
       }}
     >
       ⠿
