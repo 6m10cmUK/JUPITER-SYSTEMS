@@ -61,7 +61,7 @@ export function ZoomBar({ boardRef }: ZoomBarProps) {
         min={0} max={1} step={0.001}
         value={scaleToSlider(scale)}
         onChange={handleSliderChange}
-        style={{ width: 80, accentColor: theme.accent, height: 12 }}
+        style={{ width: 80, accentColor: theme.textPrimary, height: 12 }}
       />
       <button
         onClick={handleReset}

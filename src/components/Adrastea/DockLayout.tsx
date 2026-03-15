@@ -66,6 +66,47 @@ function loadLayout(role: string): object | null {
 }
 
 
+/* ── タブヘッダー左側アクション（ドラッグハンドル） ── */
+
+function PrefixHeaderActions({ group }: IDockviewHeaderActionsProps) {
+  const isFloating = group.api.location.type === 'floating';
+  if (!isFloating) return null;
+
+  return (
+    <div
+      style={{
+        cursor: 'grab',
+        padding: '0 4px',
+        display: 'flex',
+        alignItems: 'center',
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 10,
+        userSelect: 'none',
+        height: '100%',
+      }}
+      onMouseDown={(e) => {
+        // dv-void-container のドラッグを発火させる
+        const headerEl = (group.header as any)?.element as HTMLElement | null;
+        if (headerEl) {
+          const voidContainer = headerEl.querySelector('.dv-void-container') as HTMLElement | null;
+          if (voidContainer) {
+            const syntheticEvent = new MouseEvent('mousedown', {
+              bubbles: true,
+              cancelable: true,
+              clientX: e.clientX,
+              clientY: e.clientY,
+              button: e.button,
+            });
+            voidContainer.dispatchEvent(syntheticEvent);
+          }
+        }
+      }}
+    >
+      ⠿
+    </div>
+  );
+}
+
 /* ── タブヘッダー右側アクション ── */
 
 const iconBtnStyle: React.CSSProperties = {
@@ -387,6 +428,7 @@ const DockviewInner = memo(function DockviewInner({
       tabComponents={{ boardTab: BoardTab }}
       onReady={onReady}
       theme={catppuccinTheme}
+      prefixHeaderActionsComponent={PrefixHeaderActions}
       rightHeaderActionsComponent={RightHeaderActions}
     />
   );
