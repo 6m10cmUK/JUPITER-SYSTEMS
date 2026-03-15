@@ -67,9 +67,9 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
       style={{
         position: 'absolute',
         bottom: '24px',
-        left: '10%',
-        width: '80%',
-        transform: `translateY(${isVisible ? '0' : isExit ? '0' : '20px'})`,
+        left: '50%',
+        width: 'clamp(400px, 80%, 600px)',
+        transform: `translateX(-50%) translateY(${isVisible ? '0' : isExit ? '0' : '20px'})`,
         opacity: isExit ? 0 : isVisible ? 1 : 0,
         transition: 'transform 0.4s ease-out, opacity 0.4s ease-out',
         zIndex: 99,
