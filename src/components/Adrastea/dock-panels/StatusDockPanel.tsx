@@ -28,20 +28,22 @@ export function StatusDockPanel() {
     .filter(c => !c.is_hidden_on_board)
     .sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
 
+  const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+
   const handleClick = useCallback((charId: string) => {
     const char = ctx.characters.find(c => c.id === charId);
-    if (char && char.owner_id === user?.uid) {
+    if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
       ctx.clearAllEditing();
       ctx.setEditingCharacter(char);
     }
-  }, [ctx, user?.uid]);
+  }, [ctx, user?.uid, isSubOwnerPlus]);
 
   const handleDoubleClick = useCallback((charId: string) => {
     const char = ctx.characters.find(c => c.id === charId);
-    if (char && char.owner_id === user?.uid) {
+    if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
       ctx.setCharacterToOpenModal(char);
     }
-  }, [ctx, user?.uid]);
+  }, [ctx, user?.uid, isSubOwnerPlus]);
 
   return (
     <div style={{
@@ -60,7 +62,6 @@ export function StatusDockPanel() {
         </div>
       ) : visible.map(char => {
         const isOwner = char.owner_id === currentUserId;
-        const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
         const imgUrl = char.images[char.active_image_index]?.url ?? null;
         const isPrivate = char.is_status_private && !isOwner && !isSubOwnerPlus;
         const initiative = char.initiative ?? 0;
@@ -76,7 +77,7 @@ export function StatusDockPanel() {
               gap: 6,
               padding: 4,
               borderLeft: `3px solid ${char.color}`,
-              cursor: isOwner ? 'pointer' : 'default',
+              cursor: (isOwner || isSubOwnerPlus) ? 'pointer' : 'default',
             }}
             onClick={() => handleClick(char.id)}
             onDoubleClick={() => handleDoubleClick(char.id)}
