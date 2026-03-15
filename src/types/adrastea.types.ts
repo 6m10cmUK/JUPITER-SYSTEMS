@@ -28,8 +28,8 @@ export interface Room {
   active_cutin: ActiveCutin | null;
   dice_system: string;
   gm_can_see_secret_memo: boolean;
-  default_login_role?: 'user' | 'sub_owner';
-  default_guest_role?: 'guest' | 'user';
+  default_login_role?: 'sub_owner' | 'user' | 'guest';
+  default_guest_role?: 'sub_owner' | 'user' | 'guest';
   created_at: number;
   updated_at: number;
 }

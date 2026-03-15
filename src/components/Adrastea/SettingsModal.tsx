@@ -12,7 +12,7 @@ type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 interface SettingsModalProps {
   initialSection?: SettingsSection;
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'user' | 'sub_owner'; default_guest_role?: 'guest' | 'user' }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
@@ -64,7 +64,7 @@ function RoomSettingsSection({
   isOwner,
 }: {
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'user' | 'sub_owner'; default_guest_role?: 'guest' | 'user' }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
   isOwner: boolean;
@@ -72,8 +72,8 @@ function RoomSettingsSection({
   const [roomName, setRoomName] = useState(room.name);
   const [description, setDescription] = useState('');
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
-  const [defaultLoginRole, setDefaultLoginRole] = useState<'user' | 'sub_owner'>(room.default_login_role as 'user' | 'sub_owner' ?? 'user');
-  const [defaultGuestRole, setDefaultGuestRole] = useState<'guest' | 'user'>(room.default_guest_role as 'guest' | 'user' ?? 'guest');
+  const [defaultLoginRole, setDefaultLoginRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_login_role as 'sub_owner' | 'user' | 'guest' ?? 'user');
+  const [defaultGuestRole, setDefaultGuestRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_guest_role as 'sub_owner' | 'user' | 'guest' ?? 'guest');
 
   const handleSave = () => {
     onSaveRoom({
@@ -128,7 +128,7 @@ function RoomSettingsSection({
               <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ログインユーザー</div>
               <select
                 value={defaultLoginRole}
-                onChange={(e) => setDefaultLoginRole(e.target.value as 'user' | 'sub_owner')}
+                onChange={(e) => setDefaultLoginRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
                 style={{
                   width: '100%',
                   padding: '6px 8px',
@@ -139,15 +139,16 @@ function RoomSettingsSection({
                   outline: 'none',
                 }}
               >
-                <option value="user">ユーザー</option>
                 <option value="sub_owner">サブオーナー</option>
+                <option value="user">ユーザー</option>
+                <option value="guest">ゲスト</option>
               </select>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ゲスト</div>
               <select
                 value={defaultGuestRole}
-                onChange={(e) => setDefaultGuestRole(e.target.value as 'guest' | 'user')}
+                onChange={(e) => setDefaultGuestRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
                 style={{
                   width: '100%',
                   padding: '6px 8px',
@@ -158,8 +159,9 @@ function RoomSettingsSection({
                   outline: 'none',
                 }}
               >
-                <option value="guest">ゲスト</option>
+                <option value="sub_owner">サブオーナー</option>
                 <option value="user">ユーザー</option>
+                <option value="guest">ゲスト</option>
               </select>
             </div>
           </div>
