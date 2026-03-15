@@ -78,55 +78,84 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
             >
               {formatInitiative(initiative)}
             </div>
-            {/* コンテンツ（アイコン + 名前・ステータス） */}
+            {/* コンテンツ（アイコン + 名前 + ステータスバー） */}
             <div
               style={{
                 display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '3px 6px',
+                flexDirection: 'column',
+                padding: '4px 6px',
                 flex: 1,
+                minWidth: 0,
               }}
             >
-              {/* アイコン */}
-              <div style={{ flexShrink: 0 }}>
-                {imgUrl ? (
-                  <img
-                    src={imgUrl}
-                    style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top' }}
-                    draggable={false}
-                  />
-                ) : (
-                  <div style={{
-                    width: 24, height: 24, background: char.color,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: '#fff', fontSize: 11, fontWeight: 700,
-                  }}>
-                    {char.name.charAt(0)}
-                  </div>
-                )}
-              </div>
-              {/* 名前・ステータス */}
-              <div style={{ flex: 1, minWidth: 0 }}>
+              {/* 1行目: アイコン + 名前 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* アイコン */}
+                <div style={{ flexShrink: 0 }}>
+                  {imgUrl ? (
+                    <img
+                      src={imgUrl}
+                      style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top' }}
+                      draggable={false}
+                    />
+                  ) : (
+                    <div style={{
+                      width: 24, height: 24, background: char.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: 11, fontWeight: 700,
+                    }}>
+                      {char.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                {/* 名前 */}
                 <div style={{
                   color: '#fff', fontSize: 11, fontWeight: 600,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  flex: 1,
                 }}>
                   {char.name}
                   {!isOwner && char.is_status_private && (
                     <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.4)', fontSize: 9 }}>🔒</span>
                   )}
                 </div>
-                {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
-                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 1 }}>
-                    {char.statuses.slice(0, 3).map((s, i) => (
-                      <span key={i} style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9 }}>
-                        {s.label}: {s.value}/{s.max}
-                      </span>
-                    ))}
-                  </div>
-                )}
               </div>
+              {/* 2行目: ステータスバー群 */}
+              {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
+                  {char.statuses.slice(0, 3).map((s, i) => {
+                    const ratio = s.max > 0 ? s.value / s.max : 0;
+                    const barColor = s.max > 0 && ratio <= 4/5 ? '#d9534f' : (s.color || '#4a90d9');
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'rgba(255,255,255,0.7)' }}>
+                        <span style={{ minWidth: 20, flexShrink: 0 }}>{s.label}</span>
+                        <div style={{ position: 'relative', flex: 1, height: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${s.max > 0 ? Math.min(100, (s.value / s.max) * 100) : 0}%`,
+                            background: barColor,
+                            borderRadius: 2,
+                            transition: 'width 0.2s ease',
+                          }} />
+                          <span style={{
+                            position: 'absolute',
+                            right: 4,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            fontSize: 8,
+                            color: 'rgba(255,255,255,0.9)',
+                            fontWeight: 600,
+                            pointerEvents: 'none',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {s.value}/{s.max}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         );
