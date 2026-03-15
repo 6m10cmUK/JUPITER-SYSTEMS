@@ -132,30 +132,40 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
                   const ratio = s.max > 0 ? s.value / s.max : 0;
                   const barColor = s.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
                   return (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
-                      <span style={{ minWidth: 24, flexShrink: 0 }}>{s.label}</span>
-                      <div style={{ position: 'relative', flex: 1, height: 10, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
-                          background: barColor,
-                          borderRadius: 2,
-                          transition: 'width 0.2s ease',
-                        }} />
-                        <span style={{
-                          position: 'absolute',
-                          right: 2,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          fontSize: 10,
-                          color: 'rgba(255,255,255,0.9)',
-                          fontWeight: 600,
-                          pointerEvents: 'none',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {s.value}/{s.max}
-                        </span>
-                      </div>
+                    <div key={i} style={{ position: 'relative', height: 14, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
+                        background: barColor,
+                        borderRadius: 2,
+                        transition: 'width 0.2s ease',
+                      }} />
+                      <span style={{
+                        position: 'absolute',
+                        left: 3,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: 10,
+                        color: '#000',
+                        fontWeight: 600,
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {s.label}
+                      </span>
+                      <span style={{
+                        position: 'absolute',
+                        right: 3,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        fontSize: 10,
+                        color: '#000',
+                        fontWeight: 600,
+                        pointerEvents: 'none',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {s.value}/{s.max}
+                      </span>
                     </div>
                   );
                 })}
