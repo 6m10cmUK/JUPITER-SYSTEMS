@@ -5,8 +5,8 @@ import { GRID_SIZE } from './Board';
 import { DropdownMenu } from './ui';
 
 // --- フラグ・定数 ---
-/** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するフラグ */
-export let __blockBoardWheel = false;
+/** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
+export let __blockBoardWheelCount = 0;
 
 const MIN_SIZE_PX = 50;
 const EDGE_RATIO = 0.15;        // 要素サイズの 15% をエッジ判定に使う
@@ -873,11 +873,14 @@ const DomCharacterItem = memo(function DomCharacterItem({
       onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
       onWheel={(e) => {
         if (hovered && hasMemo && popupRef.current) {
-          e.stopPropagation();
-          e.preventDefault();
-          popupRef.current.scrollTop += e.deltaY;
-          __blockBoardWheel = true;
-          requestAnimationFrame(() => { __blockBoardWheel = false; });
+          const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
+          if (canScroll) {
+            e.stopPropagation();
+            e.preventDefault();
+            popupRef.current.scrollTop += e.deltaY;
+            __blockBoardWheelCount++;
+            requestAnimationFrame(() => { __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1); });
+          }
         }
       }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
@@ -1080,6 +1083,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
 
     // wheel イベントを Konva Stage の canvas に転送（DOM オーバーレイがイベントを奪うため）
     const handleWheel = useCallback((e: React.WheelEvent) => {
+      if (__blockBoardWheelCount > 0) return;
       const stage = stageRef.current;
       if (!stage) return;
       const canvas = stage.container()?.querySelector('canvas');
