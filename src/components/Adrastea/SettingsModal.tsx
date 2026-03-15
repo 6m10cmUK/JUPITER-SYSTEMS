@@ -9,6 +9,7 @@ import { X } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
 import { getAvailableSystems } from '../../services/diceRoller';
 import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl } from '../../services/layoutStorage';
+import { relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
 
 type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 
@@ -200,6 +201,20 @@ function LayoutSection({
   const [newLayoutName, setNewLayoutName] = useState('');
   const [tagError, setTagError] = useState<string | null>(null);
 
+  const applyLayout = (layout: object) => {
+    if (!dockviewApi) return false;
+    try {
+      // fromJSON 前に全グループの幅制約を解除
+      dockviewApi.groups.forEach((g) => relaxGroupWidth(g));
+      dockviewApi.fromJSON(layout as Parameters<typeof dockviewApi.fromJSON>[0]);
+      requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(dockviewApi)));
+      forceUpdate((c) => c + 1);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const togglePanel = (panelId: string, component: string, title: string) => {
     if (!dockviewApi) return;
     const existing = dockviewApi.getPanel(panelId);
@@ -335,11 +350,7 @@ function LayoutSection({
             {/* 適用 */}
             <AdButton
               onClick={() => {
-                if (!dockviewApi) return;
-                try {
-                  dockviewApi.fromJSON(l.layout as Parameters<typeof dockviewApi.fromJSON>[0]);
-                  forceUpdate((c) => c + 1);
-                } catch {
+                if (!applyLayout(l.layout)) {
                   setTagError('レイアウトの適用に失敗しました');
                   setTimeout(() => setTagError(null), 5000);
                 }
@@ -428,9 +439,11 @@ function LayoutSection({
               reader.onload = () => {
                 try {
                   const layout = JSON.parse(reader.result as string);
-                  dockviewApi.fromJSON(layout);
-                  forceUpdate((c) => c + 1);
-                } catch (err) {
+                  if (!applyLayout(layout)) {
+                    setImportError('読み込みに失敗しました。正しいJSONファイルか確認してください。');
+                    setTimeout(() => setImportError(null), 5000);
+                  }
+                } catch {
                   setImportError('読み込みに失敗しました。正しいJSONファイルか確認してください。');
                   setTimeout(() => setImportError(null), 5000);
                 }
