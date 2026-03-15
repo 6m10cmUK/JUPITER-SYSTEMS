@@ -129,25 +129,12 @@ function LayoutSection({
     if (existing) {
       existing.api.setActive();
     } else {
-      let targetGroup = dockviewApi.activeGroup;
-      if (targetGroup?.panels.some((p) => p.id === 'board')) {
-        targetGroup = dockviewApi.groups.find((g) => !g.panels.some((p) => p.id === 'board')) ?? undefined;
-      }
-      if (targetGroup) {
-        dockviewApi.addPanel({
-          id: panelId,
-          component,
-          title,
-          position: { referenceGroup: targetGroup, direction: 'within' },
-        });
-      } else {
-        dockviewApi.addPanel({
-          id: panelId,
-          component,
-          title,
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-      }
+      dockviewApi.addPanel({
+        id: panelId,
+        component,
+        title,
+        floating: true,
+      });
     }
   };
 
