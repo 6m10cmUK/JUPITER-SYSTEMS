@@ -21,7 +21,6 @@ export function StatusDockPanel() {
   const { user } = useAuth();
   const currentUserId = user?.uid ?? '';
 
-  // is_hidden_on_board=false のキャラのみ、initiative 降順でソート
   const visible = [...ctx.characters]
     .filter(c => !c.is_hidden_on_board)
     .sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
@@ -32,113 +31,117 @@ export function StatusDockPanel() {
       overflow: 'auto',
       background: theme.bgSurface,
       color: theme.textPrimary,
-      fontSize: 12,
+      padding: 6,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
     }}>
       {visible.length === 0 ? (
-        <div style={{ padding: 16, color: theme.textMuted, textAlign: 'center' }}>
+        <div style={{ padding: 16, color: theme.textMuted, textAlign: 'center', fontSize: 12 }}>
           表示するキャラクターがいません
         </div>
-      ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${theme.border}`, fontSize: 10, color: theme.textMuted }}>
-              <th style={{ padding: '4px 6px', textAlign: 'center', width: 30 }}>Init</th>
-              <th style={{ padding: '4px 6px', textAlign: 'left' }}>キャラクター</th>
-              <th style={{ padding: '4px 6px', textAlign: 'left' }}>ステータス</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible.map(char => {
-              const isOwner = char.owner_id === currentUserId;
-              const imgUrl = char.images[char.active_image_index]?.url ?? null;
-              const initiative = char.initiative ?? 0;
-              const textColor = isLightColor(char.color) ? '#000' : '#fff';
-              const showStatuses = (!char.is_status_private || isOwner) && char.statuses.length > 0;
+      ) : visible.map(char => {
+        const isOwner = char.owner_id === currentUserId;
+        const imgUrl = char.images[char.active_image_index]?.url ?? null;
+        const initiative = char.initiative ?? 0;
+        const textColor = isLightColor(char.color) ? '#000' : '#fff';
+        const showStatuses = (!char.is_status_private || isOwner) && char.statuses.length > 0;
 
-              return (
-                <tr key={char.id} style={{ borderBottom: `1px solid ${theme.border}` }}>
-                  {/* イニシアチブ */}
-                  <td style={{
-                    padding: '6px',
-                    textAlign: 'center',
-                    fontWeight: 700,
-                    fontSize: 13,
-                    background: char.color,
-                    color: textColor,
-                    width: 30,
-                  }}>
-                    {formatInitiative(initiative)}
-                  </td>
-                  {/* アイコン + 名前 */}
-                  <td style={{ padding: '6px', whiteSpace: 'nowrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      {imgUrl ? (
-                        <img
-                          src={imgUrl}
-                          style={{ width: 28, height: 28, objectFit: 'cover', objectPosition: 'top', flexShrink: 0 }}
-                          draggable={false}
-                        />
-                      ) : (
+        return (
+          <div
+            key={char.id}
+            style={{
+              display: 'flex',
+              gap: 6,
+              background: 'rgba(0,0,0,0.6)',
+              padding: 4,
+              borderLeft: `3px solid ${char.color}`,
+            }}
+          >
+            {/* アイコン + イニシアチブバッジ */}
+            <div style={{ position: 'relative', flexShrink: 0 }}>
+              {imgUrl ? (
+                <img
+                  src={imgUrl}
+                  style={{ width: 48, height: 48, objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                  draggable={false}
+                />
+              ) : (
+                <div style={{
+                  width: 48, height: 48, background: char.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: '#fff', fontSize: 18, fontWeight: 700,
+                }}>
+                  {char.name.charAt(0)}
+                </div>
+              )}
+              {/* イニシアチブバッジ */}
+              <div style={{
+                position: 'absolute',
+                top: -2,
+                left: -2,
+                background: char.color,
+                color: textColor,
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '0 3px',
+                lineHeight: '16px',
+                minWidth: 16,
+                textAlign: 'center',
+              }}>
+                {formatInitiative(initiative)}
+              </div>
+            </div>
+            {/* ステータスバー 2列グリッド */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              {showStatuses ? (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 2,
+                }}>
+                  {char.statuses.map((s, i) => {
+                    const ratio = s.max > 0 ? s.value / s.max : 0;
+                    const barColor = s.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
+                    return (
+                      <div key={i} style={{
+                        position: 'relative',
+                        height: 16,
+                        background: 'rgba(255,255,255,0.1)',
+                        // 奇数個の最後のステータスは2列分使う
+                        gridColumn: (i === char.statuses.length - 1 && char.statuses.length % 2 === 1) ? 'span 2' : undefined,
+                      }}>
                         <div style={{
-                          width: 28, height: 28, background: char.color,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          color: '#fff', fontSize: 13, fontWeight: 700, flexShrink: 0,
+                          height: '100%',
+                          width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
+                          background: barColor,
+                          transition: 'width 0.2s ease',
+                        }} />
+                        <span style={{
+                          position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
+                          fontSize: 10, color: '#000', fontWeight: 700, pointerEvents: 'none',
                         }}>
-                          {char.name.charAt(0)}
-                        </div>
-                      )}
-                      <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {char.name}
-                      </span>
-                      {!isOwner && char.is_status_private && (
-                        <span style={{ color: theme.textMuted, fontSize: 10 }}>🔒</span>
-                      )}
-                    </div>
-                  </td>
-                  {/* ステータスバー群 */}
-                  <td style={{ padding: '6px', width: '50%' }}>
-                    {showStatuses ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {char.statuses.map((s, i) => {
-                          const ratio = s.max > 0 ? s.value / s.max : 0;
-                          const barColor = s.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
-                          return (
-                            <div key={i} style={{ position: 'relative', height: 14, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
-                              <div style={{
-                                height: '100%',
-                                width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
-                                background: barColor,
-                                borderRadius: 2,
-                                transition: 'width 0.2s ease',
-                              }} />
-                              <span style={{
-                                position: 'absolute', left: 3, top: '50%', transform: 'translateY(-50%)',
-                                fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
-                              }}>
-                                {s.label}
-                              </span>
-                              <span style={{
-                                position: 'absolute', right: 3, top: '50%', transform: 'translateY(-50%)',
-                                fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
-                              }}>
-                                {s.value}/{s.max}
-                              </span>
-                            </div>
-                          );
-                        })}
+                          {s.label}
+                        </span>
+                        <span style={{
+                          position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                          fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
+                        }}>
+                          {s.value}/{s.max}
+                        </span>
                       </div>
-                    ) : (
-                      <span style={{ color: theme.textMuted, fontSize: 10 }}>
-                        {char.is_status_private && !isOwner ? '非公開' : '-'}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ color: theme.textMuted, fontSize: 10, padding: '4px 0' }}>
+                  {char.is_status_private && !isOwner ? '🔒 非公開' : 'ステータスなし'}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
