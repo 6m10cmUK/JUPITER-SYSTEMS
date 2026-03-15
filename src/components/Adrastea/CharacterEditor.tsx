@@ -399,7 +399,7 @@ function CharacterEditorComponent({
           <AdTextArea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="キャラクターメモ"
+            placeholder="キャラクターメモ（最大4096文字）"
             style={{ minHeight: '80px' }}
             maxLength={4096}
           />
@@ -414,7 +414,7 @@ function CharacterEditorComponent({
           <AdTextArea
             value={secretMemo}
             onChange={(e) => setSecretMemo(e.target.value)}
-            placeholder="秘密のメモ"
+            placeholder="秘密のメモ（最大4096文字）"
             style={{ minHeight: '80px' }}
             maxLength={4096}
           />
@@ -429,7 +429,7 @@ function CharacterEditorComponent({
           <AdTextArea
             value={chatPalette}
             onChange={(e) => setChatPalette(e.target.value)}
-            placeholder="通常攻撃&#10;魔法&#10;防御"
+            placeholder="通常攻撃&#10;魔法&#10;防御&#10;（最大4096文字）"
             style={{ minHeight: '80px' }}
             maxLength={4096}
           />
