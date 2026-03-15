@@ -48,7 +48,7 @@ function LoadingScreen({ progress, statusText }: { progress: number; statusText:
 function AdrasteaRoom() {
   const ctx = useAdrasteaContext();
   const { can } = usePermission();
-  const { isGuest, user } = useAuth();
+  const { isGuest } = useAuth();
   const isOwner = ctx.roomRole === 'owner';
 
   // メンバー管理（ownerのみ実データ取得）
