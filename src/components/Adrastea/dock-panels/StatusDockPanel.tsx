@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
@@ -42,13 +42,6 @@ export function StatusDockPanel() {
       ctx.setCharacterToOpenModal(char);
     }
   }, [ctx, user?.uid]);
-
-  const handleToggleVisible = useCallback((charId: string) => {
-    const char = ctx.characters.find(c => c.id === charId);
-    if (char) {
-      ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-    }
-  }, [ctx]);
 
   return (
     <div style={{
@@ -166,26 +159,6 @@ export function StatusDockPanel() {
                   disabled={!hasSheetUrl}
                 >
                   <ExternalLink size={11} />
-                </button>
-                {/* 表示/非表示トグル */}
-                <button
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    cursor: 'pointer',
-                    opacity: 0.8,
-                    color: theme.textPrimary,
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  title={char.board_visible !== false ? '盤面から非表示' : '盤面に表示'}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleToggleVisible(char.id);
-                  }}
-                >
-                  {char.board_visible !== false ? <Eye size={11} /> : <EyeOff size={11} />}
                 </button>
               </div>
               {/* ステータスバー 2列グリッド */}
