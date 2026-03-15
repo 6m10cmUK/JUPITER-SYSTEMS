@@ -704,6 +704,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       {/* メッセージ一覧 */}
       <div
         ref={scrollContainerRef}
+        className="ad-selectable"
         onScroll={handleScroll}
         style={{
           flex: 1,
