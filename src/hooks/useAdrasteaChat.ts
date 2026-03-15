@@ -45,7 +45,8 @@ export function useAdrasteaChat(roomId: string) {
         // 全メッセージを BCDice に投げて判定（有効ならダイス、無効なら通常チャット）
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
-          finalContent = result.text;
+          const color = (result.success) ? '#4a90d9' : '#e05555';
+          finalContent = `${content} <color=${color}>${result.text}</color>`;
           finalType = 'dice';
         }
 
