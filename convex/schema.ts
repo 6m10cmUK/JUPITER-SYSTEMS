@@ -20,6 +20,8 @@ export default defineSchema({
     ),
     dice_system: v.string(),
     gm_can_see_secret_memo: v.boolean(),
+    default_login_role: v.optional(v.union(v.literal('user'), v.literal('sub_owner'))),
+    default_guest_role: v.optional(v.union(v.literal('guest'), v.literal('user'))),
     created_at: v.number(),
     updated_at: v.number(),
   })
@@ -259,7 +261,7 @@ export default defineSchema({
   room_members: defineTable({
     room_id: v.string(),
     user_id: v.string(),
-    role: v.union(v.literal('owner'), v.literal('sub_owner'), v.literal('user')),
+    role: v.union(v.literal('owner'), v.literal('sub_owner'), v.literal('user'), v.literal('guest')),
     joined_at: v.number(),
   })
     .index("by_room", ["room_id"])
