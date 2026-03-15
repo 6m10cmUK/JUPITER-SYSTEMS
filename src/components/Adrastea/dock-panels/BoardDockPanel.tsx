@@ -52,45 +52,50 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
             key={char.id}
             style={{
               display: 'flex',
-              alignItems: 'stretch',
-              gap: 0,
-              background: 'rgba(0,0,0,0.65)',
-              minWidth: 140,
-              maxWidth: 200,
+              flexDirection: 'column',
+              gap: 1,
+              minWidth: 160,
+              maxWidth: 220,
             }}
           >
-            {/* カラー帯（イニシアチブ表示） */}
-            <div
-              style={{
-                width: 22,
-                background: char.color,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: textColor,
-                fontSize: 8,
-                fontWeight: 700,
-                flexShrink: 0,
-                padding: '0 2px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-              }}
-            >
-              {formatInitiative(initiative)}
-            </div>
-            {/* コンテンツ（アイコン + 名前 + ステータスバー） */}
+            {/* ヘッダー行: カラー帯 + アイコン + 名前 */}
             <div
               style={{
                 display: 'flex',
-                flexDirection: 'column',
-                padding: '4px 6px',
-                flex: 1,
-                minWidth: 0,
+                alignItems: 'stretch',
+                background: 'rgba(0,0,0,0.65)',
               }}
             >
-              {/* 1行目: アイコン + 名前 */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                {/* アイコン */}
+              {/* カラー帯（イニシアチブ表示） */}
+              <div
+                style={{
+                  width: 22,
+                  background: char.color,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: textColor,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  padding: '0 2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                }}
+              >
+                {formatInitiative(initiative)}
+              </div>
+              {/* アイコン + 名前 */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 6px',
+                  flex: 1,
+                  minWidth: 0,
+                }}
+              >
                 <div style={{ flexShrink: 0 }}>
                   {imgUrl ? (
                     <img
@@ -102,61 +107,60 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
                     <div style={{
                       width: 24, height: 24, background: char.color,
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 11, fontWeight: 700,
+                      color: '#fff', fontSize: 12, fontWeight: 700,
                     }}>
                       {char.name.charAt(0)}
                     </div>
                   )}
                 </div>
-                {/* 名前 */}
                 <div style={{
-                  color: '#fff', fontSize: 11, fontWeight: 600,
+                  color: '#fff', fontSize: 12, fontWeight: 600,
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   flex: 1,
                 }}>
                   {char.name}
                   {!isOwner && char.is_status_private && (
-                    <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.4)', fontSize: 9 }}>🔒</span>
+                    <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.4)', fontSize: 10 }}>🔒</span>
                   )}
                 </div>
               </div>
-              {/* 2行目: ステータスバー群 */}
-              {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginTop: 4 }}>
-                  {char.statuses.slice(0, 3).map((s, i) => {
-                    const ratio = s.max > 0 ? s.value / s.max : 0;
-                    const barColor = s.max > 0 && ratio <= 4/5 ? '#d9534f' : (s.color || '#4a90d9');
-                    return (
-                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'rgba(255,255,255,0.7)' }}>
-                        <span style={{ minWidth: 20, flexShrink: 0 }}>{s.label}</span>
-                        <div style={{ position: 'relative', flex: 1, height: 6, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${s.max > 0 ? Math.min(100, (s.value / s.max) * 100) : 0}%`,
-                            background: barColor,
-                            borderRadius: 2,
-                            transition: 'width 0.2s ease',
-                          }} />
-                          <span style={{
-                            position: 'absolute',
-                            right: 4,
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            fontSize: 8,
-                            color: 'rgba(255,255,255,0.9)',
-                            fontWeight: 600,
-                            pointerEvents: 'none',
-                            whiteSpace: 'nowrap',
-                          }}>
-                            {s.value}/{s.max}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
             </div>
+            {/* ステータスバー群: カラー帯なし、黒背景なし */}
+            {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {char.statuses.slice(0, 3).map((s, i) => {
+                  const ratio = s.max > 0 ? s.value / s.max : 0;
+                  const barColor = s.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
+                  return (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
+                      <span style={{ minWidth: 24, flexShrink: 0 }}>{s.label}</span>
+                      <div style={{ position: 'relative', flex: 1, height: 10, background: 'rgba(255,255,255,0.15)', borderRadius: 2 }}>
+                        <div style={{
+                          height: '100%',
+                          width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
+                          background: barColor,
+                          borderRadius: 2,
+                          transition: 'width 0.2s ease',
+                        }} />
+                        <span style={{
+                          position: 'absolute',
+                          right: 2,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          fontSize: 10,
+                          color: 'rgba(255,255,255,0.9)',
+                          fontWeight: 600,
+                          pointerEvents: 'none',
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {s.value}/{s.max}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         );
       })}
