@@ -4,6 +4,19 @@
 
 /* --- Adrastea テーマトークン --- */
 /* :root にも定義 — Portal で .adrastea-root 外に飛ぶ要素でも CSS 変数が解決できるように */
+/* --- テキスト選択制御 --- */
+.adrastea-root {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.adrastea-root input,
+.adrastea-root textarea,
+.adrastea-root [contenteditable="true"],
+.adrastea-root [contenteditable=""] {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 :root,
 .adrastea-root {
   /* 背景（5層 + elevated） */
