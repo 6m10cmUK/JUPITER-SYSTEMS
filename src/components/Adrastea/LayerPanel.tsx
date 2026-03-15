@@ -46,6 +46,7 @@ export function LayerPanel() {
     updateCharacter,
     reorderLayerCharacters,
     setEditingCharacter,
+    editingCharacter,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -391,6 +392,7 @@ export function LayerPanel() {
               isOpen={isCharLayerOpen}
               onToggleOpen={() => setIsCharLayerOpen(v => !v)}
               characters={layerOrderedCharacters}
+              selectedCharacterId={editingCharacter?.id}
               onToggleVisible={(charId) => {
                 const char = layerOrderedCharacters.find(c => c.id === charId);
                 if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
@@ -559,6 +561,7 @@ function CharacterLayerRow({
   isOpen,
   onToggleOpen,
   characters,
+  selectedCharacterId,
   onToggleVisible,
   onReorder,
   onSelectCharacter,
@@ -567,6 +570,7 @@ function CharacterLayerRow({
   isOpen: boolean;
   onToggleOpen: () => void;
   characters: Character[];
+  selectedCharacterId?: string;
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
   onSelectCharacter?: (charId: string) => void;
@@ -618,6 +622,7 @@ function CharacterLayerRow({
       {isOpen && (
         <CharacterSubList
           characters={characters}
+          selectedCharacterId={selectedCharacterId}
           onToggleVisible={onToggleVisible}
           onReorder={onReorder}
           onSelectCharacter={onSelectCharacter}
@@ -633,11 +638,13 @@ function CharacterLayerRow({
  */
 function CharacterSubList({
   characters,
+  selectedCharacterId,
   onToggleVisible,
   onReorder,
   onSelectCharacter,
 }: {
   characters: Character[];
+  selectedCharacterId?: string;
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
   onSelectCharacter?: (charId: string) => void;
@@ -720,29 +727,18 @@ function CharacterSubList({
           <SortableListItem
             key={char.id}
             id={char.id}
+            isSelected={selectedCharacterId === char.id}
+            onClick={() => onSelectCharacter?.(char.id)}
           >
             {/* インデント */}
             <span style={{ flexShrink: 0, width: '20px' }} />
-            {/* アバター + 名前（クリックで選択） */}
+            {/* アバター + 名前 */}
             <div
-              onClick={() => onSelectCharacter?.(char.id)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
                 flex: 1,
-                cursor: onSelectCharacter ? 'pointer' : 'default',
-                padding: '2px 4px',
-                borderRadius: '4px',
-                transition: 'background-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                if (onSelectCharacter) {
-                  (e.currentTarget as HTMLElement).style.backgroundColor = theme.bgHover;
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
               }}
             >
               {/* アバター（画像 or カラードット） */}

@@ -252,20 +252,27 @@ export function SortableListItem({
 
   return (
     <div
-      ref={(el) => {
-        setNodeRef(el);
-        setActivatorNodeRef(el);
-      }}
+      ref={setNodeRef}
       style={style}
-      {...(!disabled ? listeners : {})}
       {...attributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       {!disabled && !hideHandle && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            flexShrink: 0,
+            cursor: disabled ? 'default' : 'grab',
+          }}
+          {...(!disabled ? listeners : {})}
+          ref={!disabled ? setActivatorNodeRef : undefined}
+        >
           <span
-            style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
+            style={{ display: 'flex', touchAction: 'none' }}
           >
             <GripVertical size={12} color={theme.textMuted} />
           </span>
