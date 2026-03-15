@@ -1,7 +1,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { getUserId, ROLE_HIERARCHY, RoomRole, assertMinRole } from "./_helpers";
+import { getUserId, assertMinRole } from "./_helpers";
+import type { RoomRole } from "./_helpers";
 
 async function getRole(ctx: any, roomId: string): Promise<RoomRole> {
   const identity = await ctx.auth.getUserIdentity();
