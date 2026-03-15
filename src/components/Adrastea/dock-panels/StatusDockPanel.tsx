@@ -98,36 +98,9 @@ function StatusBar({
         background: barColor,
         transition: isDragging ? 'none' : 'width 0.2s ease',
       }} />
-      {canEdit && (
-        <button
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#fff',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0 3px',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            zIndex: 1,
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            updateStatusValue(charId, statusIndex, status.value - 1);
-          }}
-        >
-          &lt;
-        </button>
-      )}
       <span style={{
         position: 'absolute',
-        left: canEdit ? 14 : 4,
+        left: 4,
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 10,
@@ -150,31 +123,58 @@ function StatusBar({
         {status.value}/{status.max}
       </span>
       {canEdit && (
-        <button
+        <div
           style={{
             position: 'absolute',
             right: 0,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            fontSize: 10,
-            fontWeight: 700,
-            color: '#fff',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '0 3px',
+            top: 0,
             height: '100%',
             display: 'flex',
-            alignItems: 'center',
+            flexDirection: 'column',
             zIndex: 1,
           }}
-          onClick={(e) => {
-            e.stopPropagation();
-            updateStatusValue(charId, statusIndex, status.value + 1);
-          }}
         >
-          &gt;
-        </button>
+          <button
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0 3px',
+              fontSize: 7,
+              lineHeight: 1,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              updateStatusValue(charId, statusIndex, status.value + 1);
+            }}
+          >
+            ▲
+          </button>
+          <button
+            style={{
+              flex: 1,
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              padding: '0 3px',
+              fontSize: 7,
+              lineHeight: 1,
+              color: '#fff',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              updateStatusValue(charId, statusIndex, status.value - 1);
+            }}
+          >
+            ▼
+          </button>
+        </div>
       )}
     </div>
   );
