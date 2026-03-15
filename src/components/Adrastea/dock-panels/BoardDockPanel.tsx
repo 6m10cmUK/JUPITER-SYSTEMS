@@ -62,7 +62,7 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
             {/* カラー帯（イニシアチブ表示） */}
             <div
               style={{
-                minWidth: 16,
+                width: 22,
                 background: char.color,
                 display: 'flex',
                 alignItems: 'center',
