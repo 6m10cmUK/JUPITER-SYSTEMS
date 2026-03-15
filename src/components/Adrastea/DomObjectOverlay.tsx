@@ -2,6 +2,7 @@ import { forwardRef, memo, useCallback, useRef, useEffect, useState } from 'reac
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
+import { DropdownMenu } from './ui';
 
 // --- 定数 ---
 const MIN_SIZE_PX = 50;
@@ -944,51 +945,21 @@ const DomCharacterItem = memo(function DomCharacterItem({
       )}
 
       {/* コンテキストメニュー */}
-      {contextMenuPos && createPortal(
-        <>
-          {/* オーバーレイ: クリックで閉じる */}
-          <div
-            style={{ position: 'fixed', inset: 0, zIndex: 9998 }}
-            onPointerDown={() => setContextMenuPos(null)}
-          />
-          {/* メニュー本体 */}
-          <div style={{
-            position: 'fixed',
-            left: contextMenuPos.x,
-            top: contextMenuPos.y,
-            zIndex: 10001,
-            background: '#2a2a2a',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 6,
-            padding: '4px 0',
-            minWidth: 160,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
-          }}>
-            <button
-              style={{
-                display: 'block',
-                width: '100%',
-                padding: '8px 16px',
-                background: 'none',
-                border: 'none',
-                color: '#fff',
-                fontSize: 14,
-                textAlign: 'left',
-                cursor: 'pointer',
-              }}
-              onPointerEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.08)'; }}
-              onPointerLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'none'; }}
-              onClick={() => {
-                onContextMenuCharacter?.(char.id, {} as React.MouseEvent);
-                setContextMenuPos(null);
-              }}
-            >
-              {char.board_visible !== false ? '非表示にする' : '表示する'}
-            </button>
-          </div>
-        </>,
-        document.body
-      )}
+      <DropdownMenu
+        mode="context"
+        open={contextMenuPos !== null}
+        onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
+        position={contextMenuPos ?? { x: 0, y: 0 }}
+        items={[
+          {
+            label: char.board_visible !== false ? '非表示にする' : '表示する',
+            onClick: () => {
+              onContextMenuCharacter?.(char.id, {} as React.MouseEvent);
+              setContextMenuPos(null);
+            },
+          },
+        ]}
+      />
     </div>
   );
 });

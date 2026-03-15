@@ -413,7 +413,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     const next = palette.filter((_, i) => i !== index);
     setPalette(next);
     savePalette(next);
-    setContextMenu(null);
+    setContextMenuOpen(false);
   }, [palette]);
 
   const checkerBg = `linear-gradient(45deg, #808080 25%, transparent 25%, transparent 75%, #808080 75%),
@@ -585,7 +585,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               },
             },
           ]}
-          renderItem={(item, isSelected) => (
+          renderItem={(item, _isSelected) => (
             <span style={{ color: theme.danger }}>
               {item.label}
             </span>
