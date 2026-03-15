@@ -247,6 +247,7 @@ export function StatusDockPanel() {
               gap: 6,
               padding: 4,
               borderLeft: `3px solid ${char.color}`,
+              borderBottom: `1px solid ${theme.borderSubtle}`,
               cursor: (isOwner || isSubOwnerPlus) ? 'pointer' : 'default',
             }}
             onClick={() => handleClick(char.id)}
