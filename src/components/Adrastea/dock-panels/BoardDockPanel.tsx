@@ -58,6 +58,12 @@ export function BoardDockPanel() {
     return ctx.messages[ctx.messages.length - 1];
   }, [ctx.messages]);
 
+  const latestCharColor = useMemo(() => {
+    if (!latestMessage) return null;
+    const char = ctx.characters.find((c) => c.name === latestMessage.sender_name);
+    return char?.color ?? null;
+  }, [latestMessage, ctx.characters]);
+
   return (
     <>
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -103,7 +109,7 @@ export function BoardDockPanel() {
           selectedObjectIds={ctx.selectedObjectIds}
           selectedCharacterId={ctx.editingCharacter?.id ?? null}
         >
-          <MessagePopup message={latestMessage} />
+          <MessagePopup message={latestMessage} charColor={latestCharColor} />
         </Board>
       </div>
       {imagePickerTarget && (
