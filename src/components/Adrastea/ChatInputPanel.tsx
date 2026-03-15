@@ -290,6 +290,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const editorRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
+  const shiftHeld = useRef(false);
   const isUpdating = useRef(false);
   const compositionJustEnded = useRef(false);
   const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
@@ -498,6 +499,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   }, [applyHighlight, updateSuggestions]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    shiftHeld.current = e.shiftKey;
     // サジェストが表示されている場合のキー操作
     if (suggestions.length > 0 && !isComposing.current) {
       if (e.key === 'ArrowDown') {
@@ -546,6 +548,36 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       }
     }
   }, [handleSend, applyHighlight, suggestions, suggestionIndex, applySuggestion]);
+
+  const handleBeforeInput = useCallback((e: React.FormEvent<HTMLDivElement>) => {
+    const event = e.nativeEvent as InputEvent;
+    if (event.inputType === 'insertParagraph' || event.inputType === 'insertLineBreak') {
+      if (isComposing.current) return;
+      e.preventDefault();
+      if (shiftHeld.current) {
+        // Shift+Enter: 改行を手動挿入
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount) {
+          const range = sel.getRangeAt(0);
+          range.deleteContents();
+          const br = document.createElement('br');
+          const sentinel = document.createElement('br');
+          range.insertNode(sentinel);
+          range.insertNode(br);
+          range.setStartAfter(br);
+          range.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+        applyHighlight();
+        const el = editorRef.current;
+        if (el) setIsEmpty(el.innerText.replace(/\n$/, '').length === 0);
+      } else {
+        // Enter: 送信
+        handleSend();
+      }
+    }
+  }, [handleSend, applyHighlight]);
 
   useEffect(() => {
     if (suggestions.length === 0) {
@@ -715,6 +747,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           onCompositionStart={handleCompositionStart}
           onCompositionEnd={handleCompositionEnd}
           onKeyDown={handleKeyDown}
+          onBeforeInput={handleBeforeInput}
           style={{
             minHeight: '60px',
             height: '100%',
