@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { theme } from '../../../styles/theme';
+import { parseContent } from '../ChatLogPanel';
 
 interface MessagePopupProps {
   message: { sender_name: string; content: string } | null;
+  charColor?: string | null;
 }
 
-export function MessagePopup({ message }: MessagePopupProps) {
+export function MessagePopup({ message, charColor }: MessagePopupProps) {
   const [display, setDisplay] = useState<{ sender_name: string; content: string } | null>(null);
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible' | 'exit'>('hidden');
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -32,7 +34,7 @@ export function MessagePopup({ message }: MessagePopupProps) {
       });
     });
 
-    // 10秒後にフェードアウト
+    // 30秒後にフェードアウト
     timerRef.current = setTimeout(() => {
       setPhase('exit');
       // フェードアウト完了後に非表示
@@ -40,7 +42,7 @@ export function MessagePopup({ message }: MessagePopupProps) {
         setPhase('hidden');
         setDisplay(null);
       }, 500);
-    }, 10000);
+    }, 30000);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -54,6 +56,14 @@ export function MessagePopup({ message }: MessagePopupProps) {
 
   return (
     <div
+      onClick={() => {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        setPhase('exit');
+        setTimeout(() => {
+          setPhase('hidden');
+          setDisplay(null);
+        }, 500);
+      }}
       style={{
         position: 'absolute',
         bottom: '24px',
@@ -61,8 +71,8 @@ export function MessagePopup({ message }: MessagePopupProps) {
         transform: `translateX(-50%) translateY(${isVisible ? '0' : isExit ? '0' : '20px'})`,
         opacity: isExit ? 0 : isVisible ? 1 : 0,
         transition: 'transform 0.4s ease-out, opacity 0.4s ease-out',
-        zIndex: 9999,
-        pointerEvents: 'none',
+        zIndex: 99,
+        cursor: 'pointer',
         maxWidth: '80%',
       }}
     >
@@ -78,11 +88,11 @@ export function MessagePopup({ message }: MessagePopupProps) {
           gap: '2px',
         }}
       >
-        <span style={{ fontSize: '11px', fontWeight: 600, color: theme.textSecondary }}>
+        <span style={{ fontSize: '11px', fontWeight: 600, color: charColor || theme.textSecondary }}>
           {display.sender_name}
         </span>
         <span style={{ fontSize: '13px', color: theme.textPrimary, wordBreak: 'break-word' }}>
-          {display.content}
+          {parseContent(display.content)}
         </span>
       </div>
     </div>

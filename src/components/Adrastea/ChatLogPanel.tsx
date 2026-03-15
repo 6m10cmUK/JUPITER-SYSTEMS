@@ -31,7 +31,7 @@ import { genId } from '../../utils/id';
  * - [color=#ff0000]テキスト[/color] → <span style="color: #ff0000">
  */
 
-const parseMarkup = (text: string): React.ReactNode[] => {
+export const parseMarkup = (text: string): React.ReactNode[] => {
   const elements: React.ReactNode[] = [];
   let lastIndex = 0;
   let keyCounter = 0;
@@ -127,7 +127,7 @@ const parseMarkup = (text: string): React.ReactNode[] => {
  * - ### テキスト → 13px
  * 各行のインラインマークアップも parseMarkup で処理される
  */
-const parseContent = (text: string): React.ReactNode => {
+export const parseContent = (text: string): React.ReactNode => {
   const lines = text.split('\n');
 
   return (
