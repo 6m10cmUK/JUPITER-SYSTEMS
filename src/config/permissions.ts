@@ -35,6 +35,7 @@ export const PERMISSION_MIN_ROLE = {
   panel_chat: 'user',
   panel_board: 'user',
   panel_pdfViewer: 'user',
+  panel_status: 'user',
   panel_bgm: 'sub_owner',
   panel_cutin: 'sub_owner',
   panel_layer: 'sub_owner',

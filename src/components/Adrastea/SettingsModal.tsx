@@ -42,6 +42,7 @@ const PANEL_DEFS: PanelDef[] = [
   { id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット', permission: 'panel_chat' },
   { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
   { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
+  { id: 'status', component: 'status', title: 'ステータス', permission: 'panel_status' },
   { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
 ];
 
