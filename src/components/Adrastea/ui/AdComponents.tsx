@@ -321,7 +321,7 @@ const DEFAULT_PALETTE = [
   '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff',
   '#ff00ff', '#ff0080',
   '#1e1e2e', '#313244', '#45475a', '#585b70',
-  'rgba(255,255,255,0.5)', 'rgba(0,0,0,0.5)',
+  '#ffffff80', '#00000080',
 ];
 
 function cssToRgba(value: string): RgbaColor {
@@ -343,8 +343,10 @@ function cssToRgba(value: string): RgbaColor {
 }
 
 function rgbaToCss(c: RgbaColor): string {
-  if (c.a >= 1) return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
-  return `rgba(${c.r},${c.g},${c.b},${Math.round(c.a * 100) / 100})`;
+  const hex = '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
+  if (c.a >= 1) return hex;
+  const alpha = Math.round(c.a * 255);
+  return hex + alpha.toString(16).padStart(2, '0');
 }
 
 function rgbaToDisplayBg(c: RgbaColor): string {
@@ -407,11 +409,12 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
   }, [onChange, enableAlpha]);
 
   const handleSaveToPalette = useCallback(() => {
-    const css = rgbaToCss(rgba);
+    const colorToSave = enableAlpha ? rgba : { ...rgba, a: 1 };
+    const css = rgbaToCss(colorToSave);
     const next = [css, ...palette.filter(c => c !== css)].slice(0, 16);
     setPalette(next);
     savePalette(next);
-  }, [rgba, palette]);
+  }, [rgba, palette, enableAlpha]);
 
   const handleRemoveFromPalette = useCallback((index: number) => {
     const next = palette.filter((_, i) => i !== index);
@@ -511,7 +514,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
             <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(5, 16px)', gap: '3px',
             }}>
-              {DEFAULT_PALETTE.map((c, i) => (
+              {DEFAULT_PALETTE.filter(c => enableAlpha ? true : c.length <= 7).map((c, i) => (
                 <button
                   key={`d-${i}`}
                   onClick={() => onChange(c)}
@@ -546,7 +549,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               >
                 +
               </button>
-              {palette.map((c, i) => (
+              {palette.filter(c => enableAlpha ? true : cssToRgba(c).a >= 1).map((c, i) => (
                 <button
                   key={`u-${i}`}
                   onClick={() => onChange(c)}
