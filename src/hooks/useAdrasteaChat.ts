@@ -42,17 +42,12 @@ export function useAdrasteaChat(roomId: string) {
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
 
-        // 全メッセージを BCDice に投げて判定
+        // 全メッセージを BCDice に投げて判定（有効ならダイス、無効なら通常チャット）
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
           finalContent = result.text;
           finalType = 'dice';
-        } else if (messageType === 'dice') {
-          // /コマンドだったのに BCDice が無効と判定 → 無効表示
-          finalContent = `${content} → (無効なコマンド)`;
-          finalType = 'dice';
         }
-        // result が null で messageType が 'chat' → 通常チャットとしてそのまま
 
         const id = genId();
         await sendMutation({

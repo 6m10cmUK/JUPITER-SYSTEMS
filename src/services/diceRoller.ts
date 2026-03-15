@@ -36,26 +36,17 @@ export async function getAvailableSystems(): Promise<
     const response = await fetch(
       'https://bcdice.onlinesession.app/v2/game_system'
     );
-    if (!response.ok) {
-      return FALLBACK;
-    }
+    if (!response.ok) return FALLBACK;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: any = await response.json();
-    if (!Array.isArray(data.game_system)) {
-      return FALLBACK;
-    }
+    const data = await response.json() as { game_system?: { id: string; name: string }[] };
+    if (!Array.isArray(data.game_system)) return FALLBACK;
 
     const systems = data.game_system
-      .filter((item: { id: string }) => item.id !== 'DiceBot')
-      .map((item: { id: string; name: string }) => ({
-        id: item.id,
-        name: item.name,
-      }));
+      .filter((item) => item.id !== 'DiceBot')
+      .map((item) => ({ id: item.id, name: item.name }));
 
     return [{ id: 'DiceBot', name: '汎用ダイスボット' }, ...systems];
-  } catch (err) {
-    console.error('getAvailableSystems failed:', err);
+  } catch {
     return FALLBACK;
   }
 }
