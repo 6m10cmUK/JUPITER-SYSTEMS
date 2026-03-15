@@ -14,6 +14,18 @@ const COLOR_TEXT_MUTED = '#707070';
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+/** {ラベル名} を選択中キャラの statuses/parameters の value で置換 */
+function resolveTemplateVars(text: string, character: Character | null): string {
+  if (!character) return text;
+  return text.replace(/\{([^}]+)\}/g, (match, label: string) => {
+    const status = character.statuses.find((s) => s.label === label);
+    if (status) return String(status.value);
+    const param = character.parameters.find((p) => p.label === label);
+    if (param) return String(param.value);
+    return match; // 該当なしならそのまま残す
+  });
+}
+
 function parseInlineHtml(text: string): string {
   const markupRegex = /(<color=#[a-fA-F0-9]{6}>.*?<\/color>|\*\*.*?\*\*|~~.*?~~|(?<!\*)\*(?!\*).*?(?<!\*)\*(?!\*))/g;
   let result = '';
@@ -439,7 +451,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     if (senderName.trim()) localStorage.setItem('adrastea-last-sender', senderName.trim());
     const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.url ?? null;
 
-    onSendMessage(text, 'chat', charName, charAvatar);
+    const resolved = resolveTemplateVars(text, selectedCharacterForIcon);
+    onSendMessage(resolved, 'chat', charName, charAvatar);
 
     if (editorRef.current) editorRef.current.innerHTML = '';
     setIsEmpty(true);

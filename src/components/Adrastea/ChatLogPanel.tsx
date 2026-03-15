@@ -483,7 +483,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 {formatTime(msg.created_at)}
               </span>
             </div>
-            <div style={{ color: accent, fontSize: '12px', marginTop: '1px' }}>
+            <div style={{ color: theme.textPrimary, fontSize: '12px', marginTop: '1px' }}>
               {parseContent(msg.content)}
             </div>
           </div>
