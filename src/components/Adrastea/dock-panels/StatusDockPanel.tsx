@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
@@ -17,6 +17,146 @@ function formatInitiative(val: number): string {
   if (val === 0) return '0';
   const rounded = Math.round(val * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
+function StatusBar({
+  charId,
+  statusIndex,
+  status,
+  canEdit,
+  updateStatusValue,
+}: {
+  charId: string;
+  statusIndex: number;
+  status: { label: string; value: number; max: number; color?: string };
+  canEdit: boolean;
+  updateStatusValue: (charId: string, statusIndex: number, newValue: number) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  const ratio = status.max > 0 ? status.value / status.max : 0;
+  const barColor = status.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
+
+  const handleBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!canEdit) return;
+
+    setIsDragging(true);
+    const barEl = e.currentTarget;
+    const rect = barEl.getBoundingClientRect();
+
+    const calcValue = (clientX: number) => {
+      const clampedX = Math.max(rect.left, Math.min(clientX, rect.right));
+      const r = (clampedX - rect.left) / rect.width;
+      return Math.round(r * status.max);
+    };
+
+    const onMouseMove = (moveE: MouseEvent) => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        const newValue = calcValue(moveE.clientX);
+        dragRef.current = newValue;
+        updateStatusValue(charId, statusIndex, newValue);
+      });
+    };
+
+    const onMouseUp = () => {
+      setIsDragging(false);
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    // 初回クリック位置も反映
+    const initVal = calcValue(e.clientX);
+    dragRef.current = initVal;
+    updateStatusValue(charId, statusIndex, initVal);
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 2,
+    }}>
+      {canEdit && (
+        <button
+          style={{
+            background: 'none',
+            border: 'none',
+            color: theme.textMuted,
+            fontSize: 10,
+            cursor: 'pointer',
+            padding: '0 2px',
+            flexShrink: 0,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateStatusValue(charId, statusIndex, status.value - 1);
+          }}
+        >
+          &lt;
+        </button>
+      )}
+      <div
+        style={{
+          position: 'relative',
+          height: 16,
+          background: 'rgba(255,255,255,0.1)',
+          flex: 1,
+          cursor: canEdit ? 'ew-resize' : 'default',
+        }}
+        onMouseDown={handleBarMouseDown}
+      >
+        <div style={{
+          height: '100%',
+          width: `${status.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
+          background: barColor,
+          transition: isDragging ? 'none' : 'width 0.2s ease',
+        }} />
+        <span style={{
+          position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 10, color: '#000', fontWeight: 700, pointerEvents: 'none',
+        }}>
+          {status.label}
+        </span>
+        <span style={{
+          position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+          fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
+        }}>
+          {status.value}/{status.max}
+        </span>
+      </div>
+      {canEdit && (
+        <button
+          style={{
+            background: 'none',
+            border: 'none',
+            color: theme.textMuted,
+            fontSize: 10,
+            cursor: 'pointer',
+            padding: '0 2px',
+            flexShrink: 0,
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            updateStatusValue(charId, statusIndex, status.value + 1);
+          }}
+        >
+          &gt;
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function StatusDockPanel() {
@@ -44,6 +184,15 @@ export function StatusDockPanel() {
       ctx.setCharacterToOpenModal(char);
     }
   }, [ctx, user?.uid, isSubOwnerPlus]);
+
+  const updateStatusValue = useCallback((charId: string, statusIndex: number, newValue: number) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (!char) return;
+    const newStatuses = char.statuses.map((s, i) =>
+      i === statusIndex ? { ...s, value: Math.max(0, Math.min(s.max, newValue)) } : s
+    );
+    ctx.updateCharacter(charId, { statuses: newStatuses });
+  }, [ctx]);
 
   return (
     <div style={{
@@ -169,36 +318,16 @@ export function StatusDockPanel() {
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 2,
                 }}>
-                  {char.statuses.map((s, i) => {
-                    const ratio = s.max > 0 ? s.value / s.max : 0;
-                    const barColor = s.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
-                    return (
-                      <div key={i} style={{
-                        position: 'relative',
-                        height: 16,
-                        background: 'rgba(255,255,255,0.1)',
-                      }}>
-                        <div style={{
-                          height: '100%',
-                          width: `${s.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
-                          background: barColor,
-                          transition: 'width 0.2s ease',
-                        }} />
-                        <span style={{
-                          position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
-                          fontSize: 10, color: '#000', fontWeight: 700, pointerEvents: 'none',
-                        }}>
-                          {s.label}
-                        </span>
-                        <span style={{
-                          position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
-                          fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
-                        }}>
-                          {s.value}/{s.max}
-                        </span>
-                      </div>
-                    );
-                  })}
+                  {char.statuses.map((s, i) => (
+                    <StatusBar
+                      key={i}
+                      charId={char.id}
+                      statusIndex={i}
+                      status={s}
+                      canEdit={isOwner || isSubOwnerPlus}
+                      updateStatusValue={updateStatusValue}
+                    />
+                  ))}
                 </div>
               ) : !isPrivate ? (
                 <div style={{ color: theme.textMuted, fontSize: 10, padding: '2px 0' }}>
