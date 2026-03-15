@@ -659,7 +659,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
     return () => document.removeEventListener('keydown', handleTab);
   }, []);
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -731,7 +731,8 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
