@@ -67,13 +67,13 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
       style={{
         position: 'absolute',
         bottom: '24px',
-        left: '50%',
-        transform: `translateX(-50%) translateY(${isVisible ? '0' : isExit ? '0' : '20px'})`,
+        left: '10%',
+        width: '80%',
+        transform: `translateY(${isVisible ? '0' : isExit ? '0' : '20px'})`,
         opacity: isExit ? 0 : isVisible ? 1 : 0,
         transition: 'transform 0.4s ease-out, opacity 0.4s ease-out',
         zIndex: 99,
         cursor: 'pointer',
-        maxWidth: '80%',
       }}
     >
       <div
@@ -91,7 +91,15 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
         <span style={{ fontSize: '11px', fontWeight: 600, color: charColor || theme.textSecondary }}>
           {display.sender_name}
         </span>
-        <span style={{ fontSize: '13px', color: theme.textPrimary, wordBreak: 'break-word' }}>
+        <span style={{
+          fontSize: '13px',
+          color: theme.textPrimary,
+          wordBreak: 'break-word',
+          display: '-webkit-box',
+          WebkitLineClamp: 3,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+        }}>
           {parseContent(display.content)}
         </span>
       </div>

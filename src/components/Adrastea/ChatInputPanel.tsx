@@ -15,7 +15,7 @@ const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** {ラベル名} を選択中キャラの statuses/parameters の value で置換 */
-function resolveTemplateVars(text: string, character: Character | null): string {
+export function resolveTemplateVars(text: string, character: Character | null): string {
   if (!character) return text;
   return text.replace(/\{([^}]+)\}/g, (match, label: string) => {
     const status = character.statuses.find((s) => s.label === label);
