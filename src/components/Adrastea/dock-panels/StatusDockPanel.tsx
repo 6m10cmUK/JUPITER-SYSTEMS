@@ -313,9 +313,6 @@ export function StatusDockPanel() {
                   flex: 1,
                 }}>
                   {char.name}
-                  {!isOwner && char.is_status_private && (
-                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 11 }}>🔒</span>
-                  )}
                 </span>
                 {/* 外部URL */}
                 <button
