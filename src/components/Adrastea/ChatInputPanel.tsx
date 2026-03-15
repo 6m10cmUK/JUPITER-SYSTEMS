@@ -439,12 +439,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     if (senderName.trim()) localStorage.setItem('adrastea-last-sender', senderName.trim());
     const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.url ?? null;
 
-    if (text.startsWith('/')) {
-      const command = text.slice(1);
-      if (command) onSendMessage(command, 'dice', charName, charAvatar);
-    } else {
-      onSendMessage(text, 'chat', charName, charAvatar);
-    }
+    onSendMessage(text, 'chat', charName, charAvatar);
 
     if (editorRef.current) editorRef.current.innerHTML = '';
     setIsEmpty(true);
