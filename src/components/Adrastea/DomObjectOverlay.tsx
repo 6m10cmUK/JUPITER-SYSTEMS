@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useRef, useEffect, useState } from 'react';
+import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
@@ -782,7 +782,30 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const blockingRef = useRef(false);
   const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
+
+  useLayoutEffect(() => {
+    if (hovered && hasMemo && popupRef.current) {
+      const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
+      if (canScroll && !blockingRef.current) {
+        __blockBoardWheelCount++;
+        blockingRef.current = true;
+      } else if (!canScroll && blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    } else if (blockingRef.current) {
+      __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+      blockingRef.current = false;
+    }
+    return () => {
+      if (blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    };
+  }, [hovered, hasMemo, char.memo, char.secret_memo]);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   // 足元基準: board_y は足元の y 座標を表す
@@ -878,8 +901,6 @@ const DomCharacterItem = memo(function DomCharacterItem({
             e.stopPropagation();
             e.preventDefault();
             popupRef.current.scrollTop += e.deltaY;
-            __blockBoardWheelCount++;
-            requestAnimationFrame(() => { __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1); });
           }
         }
       }}
