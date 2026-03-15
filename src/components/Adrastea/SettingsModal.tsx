@@ -33,22 +33,22 @@ interface PanelDef {
   component: string;
   title: string;
   permission: PermissionKey;
+  disabled?: boolean;
 }
 
 const PANEL_DEFS: PanelDef[] = [
-  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
   { id: 'character', component: 'character', title: 'キャラクター', permission: 'panel_character' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト', permission: 'panel_scenarioText' },
-  { id: 'cutin', component: 'cutin', title: 'カットイン', permission: 'panel_cutin' },
-  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
-  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
   { id: 'chatLog', component: 'chatLog', title: 'チャットログ', permission: 'panel_chat' },
   { id: 'chatInput', component: 'chatInput', title: 'チャット入力', permission: 'panel_chat' },
   { id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット', permission: 'panel_chat' },
-  { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
-  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
   { id: 'status', component: 'status', title: 'ステータス', permission: 'panel_status' },
+  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
+  { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
+  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
+  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
   { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
+  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト (開発中)', permission: 'panel_scenarioText', disabled: true },
+  { id: 'cutin', component: 'cutin', title: 'カットイン (開発中)', permission: 'panel_cutin', disabled: true },
 ];
 
 const NAV_ITEMS: Array<{ key: SettingsSection; label: string }> = [
@@ -191,11 +191,13 @@ function LayoutSection({
   can: (permission: PermissionKey) => boolean;
   onClose: () => void;
 }) {
+  const [, forceUpdate] = useState(0);
+
   const togglePanel = (panelId: string, component: string, title: string) => {
     if (!dockviewApi) return;
     const existing = dockviewApi.getPanel(panelId);
     if (existing) {
-      existing.api.setActive();
+      dockviewApi.removePanel(existing);
     } else {
       dockviewApi.addPanel({
         id: panelId,
@@ -204,69 +206,89 @@ function LayoutSection({
         floating: true,
       });
     }
+    forceUpdate((n) => n + 1);
   };
 
   const filteredPanels = PANEL_DEFS.filter((p) => can(p.permission));
 
-  return (
-    <div>
+  // ユーザー権限とサブオーナー以上で分ける
+  const userPanels = filteredPanels.filter((p) =>
+    ['panel_board', 'panel_character', 'panel_chat', 'panel_status', 'panel_property', 'panel_pdfViewer'].includes(p.permission)
+  );
+  const subOwnerPanels = filteredPanels.filter((p) =>
+    ['panel_scene', 'panel_layer', 'panel_bgm', 'panel_scenarioText', 'panel_cutin'].includes(p.permission)
+  );
+
+  const sectionHeaderStyle = {
+    fontSize: '11px',
+    color: theme.textMuted,
+    marginBottom: '8px',
+    fontWeight: 600,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.08em',
+  };
+
+  const renderPanelRow = (p: PanelDef) => {
+    const exists = !!dockviewApi?.getPanel(p.id);
+    return (
       <div
+        key={p.id}
         style={{
-          fontSize: '11px',
-          color: theme.textMuted,
-          marginBottom: '8px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 0',
+          borderBottom: `1px solid ${theme.borderSubtle}`,
+          opacity: p.disabled ? 0.4 : 1,
         }}
       >
-        パネル表示
-      </div>
-      <div>
-        {filteredPanels.map((p) => {
-          const exists = !!dockviewApi?.getPanel(p.id);
-          return (
-            <div
-              key={p.id}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '6px 0',
-                borderBottom: `1px solid ${theme.borderSubtle}`,
-              }}
-            >
-              <span style={{ fontSize: '12px', color: theme.textPrimary }}>
-                {p.title}
-              </span>
-              <AdButton
-                onClick={() => togglePanel(p.id, p.component, p.title)}
-                style={{ fontSize: '11px' }}
-              >
-                {exists ? '表示中' : '表示する'}
-              </AdButton>
-            </div>
-          );
-        })}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 0',
-            borderBottom: `1px solid ${theme.borderSubtle}`,
-          }}
+        <span style={{ fontSize: '12px', color: p.disabled ? theme.textMuted : theme.textPrimary }}>
+          {p.title}
+        </span>
+        <AdButton
+          onClick={() => togglePanel(p.id, p.component, p.title)}
+          style={{ fontSize: '11px' }}
+          disabled={p.disabled}
         >
-          <span style={{ fontSize: '12px', color: theme.textPrimary }}>
-            デバッグコンソール
-          </span>
-          <AdButton
-            onClick={() => togglePanel('debugConsole', 'debugConsole', 'Debug Console')}
-            style={{ fontSize: '11px' }}
-          >
-            {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
-          </AdButton>
-        </div>
+          {exists ? '非表示' : '表示する'}
+        </AdButton>
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {userPanels.length > 0 && (
+        <>
+          <div style={sectionHeaderStyle}>パネル</div>
+          <div>{userPanels.map(renderPanelRow)}</div>
+        </>
+      )}
+      {subOwnerPanels.length > 0 && (
+        <>
+          <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>管理者パネル</div>
+          <div>{subOwnerPanels.map(renderPanelRow)}</div>
+        </>
+      )}
+      {/* レイアウトエクスポート */}
+      <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>レイアウト操作</div>
+      <div style={{ padding: '6px 0' }}>
+        <AdButton
+          onClick={() => {
+            if (!dockviewApi) return;
+            const json = JSON.stringify(dockviewApi.toJSON(), null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `adrastea-layout-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          style={{ fontSize: '11px' }}
+        >
+          レイアウトをエクスポート
+        </AdButton>
       </div>
     </div>
   );
