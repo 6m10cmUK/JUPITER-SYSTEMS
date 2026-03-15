@@ -165,7 +165,8 @@ function CharacterEditorComponent({
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    height: '100%',
+    flex: 1,
+    minHeight: 0,
     color: theme.textPrimary,
     boxSizing: 'border-box',
     display: 'flex',
