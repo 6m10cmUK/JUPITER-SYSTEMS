@@ -157,6 +157,8 @@ export function LayerPanel() {
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
     if (obj.type === 'characters_layer') return;
+    // オブジェクト選択時はキャラクター選択をクリア
+    setEditingCharacter(undefined);
     if (e.shiftKey && selectedObjectIds.length > 0) {
       const lastSelected = selectedObjectIds[selectedObjectIds.length - 1];
       const anchorIdx = sortedObjects.findIndex(o => o.id === lastSelected);
@@ -179,7 +181,7 @@ export function LayerPanel() {
       setSelectedObjectIds([obj.id]);
       setEditingObjectId(obj.id);
     }
-  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, clearAllEditing]);
+  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, setEditingCharacter, clearAllEditing]);
 
   // 画像選択モーダル用 state
   const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
