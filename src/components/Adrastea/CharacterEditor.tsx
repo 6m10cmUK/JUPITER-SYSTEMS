@@ -322,7 +322,11 @@ function CharacterEditorComponent({
                 type="number"
                 label="駒サイズ"
                 value={size}
-                onChange={(e) => setSize(Math.max(0, Number(e.target.value)))}
+                min={0}
+                onChange={(e) => {
+                  const rounded = Math.round(Number(e.target.value) * 100) / 100;
+                  setSize(Math.max(0, rounded));
+                }}
               />
             </div>
           </div>
