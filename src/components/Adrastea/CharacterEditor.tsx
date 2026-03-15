@@ -399,9 +399,9 @@ function CharacterEditorComponent({
           <AdTextArea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="キャラクターメモ（最大4096文字）"
+            placeholder="キャラクターメモ（最大1024文字）"
             style={{ minHeight: '80px' }}
-            maxLength={4096}
+            maxLength={1024}
           />
         </div>
 
@@ -414,9 +414,9 @@ function CharacterEditorComponent({
           <AdTextArea
             value={secretMemo}
             onChange={(e) => setSecretMemo(e.target.value)}
-            placeholder="秘密のメモ（最大4096文字）"
+            placeholder="秘密のメモ（最大1024文字）"
             style={{ minHeight: '80px' }}
-            maxLength={4096}
+            maxLength={1024}
           />
         </div>
 
