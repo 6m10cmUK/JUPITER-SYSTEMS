@@ -286,7 +286,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const [senderName, setSenderName] = useState(() => localStorage.getItem('adrastea-last-sender') ?? '');
   const [isEmpty, setIsEmpty] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [suggestionIndex, setSuggestionIndex] = useState(0);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
   const editorRef = useRef<HTMLDivElement>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
   const isComposing = useRef(false);
@@ -341,13 +341,13 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const updateSuggestions = useCallback((text: string) => {
     if (!text.trim()) {
       setSuggestions([]);
-      setSuggestionIndex(0);
+      setSuggestionIndex(-1);
       return;
     }
     const lower = text.toLowerCase();
     const matched = paletteItems.filter((item) => item.toLowerCase().includes(lower));
     setSuggestions(matched);
-    setSuggestionIndex(0);
+    setSuggestionIndex(-1);
   }, [paletteItems]);
 
   const applySuggestion = useCallback((text: string) => {
@@ -510,13 +510,15 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        setSuggestionIndex((i) => Math.max(i - 1, 0));
+        setSuggestionIndex((i) => Math.max(i - 1, -1));
         return;
       }
       if (e.key === 'Tab' || e.key === 'Enter') {
-        e.preventDefault();
-        applySuggestion(suggestions[suggestionIndex]);
-        return;
+        if (suggestionIndex >= 0) {
+          e.preventDefault();
+          applySuggestion(suggestions[suggestionIndex]);
+          return;
+        }
       }
       if (e.key === 'Escape') {
         e.preventDefault();
