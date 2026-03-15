@@ -104,10 +104,10 @@ function StatusBar({
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 10,
-        color: theme.textPrimary,
+        color: '#000',
         fontWeight: 700,
         pointerEvents: 'none',
-        textShadow: '0 0 3px rgba(0,0,0,0.7)',
+        textShadow: '-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff',
       }}>
         {status.label}
       </span>
@@ -117,10 +117,10 @@ function StatusBar({
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 10,
-        color: theme.textPrimary,
+        color: '#000',
         fontWeight: 600,
         pointerEvents: 'none',
-        textShadow: '0 0 3px rgba(0,0,0,0.7)',
+        textShadow: '-1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff',
       }}>
         {status.value}/{status.max}
       </span>
