@@ -47,6 +47,8 @@ export function LayerPanel() {
     reorderLayerCharacters,
     setEditingCharacter,
     editingCharacter,
+    addCharacter,
+    removeCharacter,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -269,13 +271,20 @@ export function LayerPanel() {
 
   const hasDuplicateTargets = selectedObjectIds.length > 0
     ? selectedObjectIds.length > 0 && selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
 
   const hasRemoveTargets = selectedObjectIds.length > 0
     ? selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
 
   const handleDuplicate = useCallback(async () => {
+    // キャラクター選択中かつオブジェクトが選択されていない場合
+    if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
+      const { id, created_at, updated_at, ...rest } = editingCharacter;
+      await addCharacter({ ...rest, name: `${editingCharacter.name} (複製)` });
+      return;
+    }
+
     const targets = selectedObjectIds.length > 0
       ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
       : editingObjectId
@@ -296,7 +305,7 @@ export function LayerPanel() {
       setSelectedObjectIds(newIds);
       setEditingObjectId(newIds[newIds.length - 1]);
     }
-  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId]);
+  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId, editingCharacter, addCharacter]);
 
   const iconBtnStyle: React.CSSProperties = {
     border: 'none',
@@ -336,6 +345,18 @@ export function LayerPanel() {
             <button
               type="button"
               onClick={() => {
+                // キャラクター選択中かつオブジェクトが選択されていない場合
+                if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
+                  setPendingRemove({
+                    msg: `キャラクター「${editingCharacter.name}」を削除しますか？`,
+                    action: () => {
+                      removeCharacter(editingCharacter.id);
+                      setEditingCharacter(undefined);
+                    },
+                  });
+                  return;
+                }
+
                 const target = selectedObjectIds.length > 0
                   ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
                   : editingObjectId
