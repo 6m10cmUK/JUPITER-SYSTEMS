@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { theme } from '../../../styles/theme';
-import { calcPopupPos } from '../../../utils/popup';
+import { calcPopupPos } from '../../../utils/calcPopupPos';
 
 export function DiceSystemPicker({
   value,
