@@ -191,6 +191,18 @@ export function useCharacters(roomId: string) {
         }
       });
 
+      // Auto-adjust board_y when size changes to keep the bottom position fixed
+      if ('size' in baseUpdates && baseUpdates.size !== undefined) {
+        const currentChar = characters.find(c => c.id === charId);
+        if (currentChar && currentChar.size !== undefined) {
+          const oldSize = currentChar.size;
+          const newSize = baseUpdates.size;
+          const currentBoardY = currentChar.board_y ?? 0;
+          // Adjust board_y so that board_y + size remains constant (keeps bottom position fixed)
+          statsUpdates.board_y = currentBoardY + (oldSize - newSize);
+        }
+      }
+
       // Cache chat_palette in localStorage before mutation
       if ('chat_palette' in baseUpdates) {
         localStorage.setItem(`adrastea-chat-palette-${charId}`, baseUpdates.chat_palette ?? '');
@@ -205,7 +217,7 @@ export function useCharacters(roomId: string) {
         await updateBaseMutation(baseUpdates as any);
       }
     },
-    [updateStatsMutation, updateBaseMutation]
+    [updateStatsMutation, updateBaseMutation, characters]
   );
 
   const removeCharacter = useCallback(
