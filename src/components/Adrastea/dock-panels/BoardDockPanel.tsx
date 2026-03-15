@@ -5,6 +5,14 @@ import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
 import type { Character } from '../../../types/adrastea.types';
 
+function isLightColor(hex: string): boolean {
+  const c = hex.replace('#', '');
+  const r = parseInt(c.substring(0, 2), 16);
+  const g = parseInt(c.substring(2, 4), 16);
+  const b = parseInt(c.substring(4, 6), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 128;
+}
+
 function CharacterStatusPanel({ characters, currentUserId }: { characters: Character[]; currentUserId: string }) {
   // is_hidden_on_board=false のキャラのみ、initiative 降順でソート
   const visible = [...characters]
@@ -29,81 +37,85 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
       {visible.map(char => {
         const isOwner = char.owner_id === currentUserId;
         const imgUrl = char.images[char.active_image_index]?.url ?? null;
+        const initiative = char.initiative ?? 0;
+        const textColor = isLightColor(char.color) ? '#000' : '#fff';
         return (
           <div
             key={char.id}
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 6,
+              alignItems: 'stretch',
+              gap: 0,
               background: 'rgba(0,0,0,0.65)',
-              padding: '3px 6px',
-              borderLeft: `3px solid ${char.color}`,
               minWidth: 140,
               maxWidth: 200,
             }}
           >
-            {/* アイコン + イニシアチブバッジ */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              {imgUrl ? (
-                <img
-                  src={imgUrl}
-                  style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top' }}
-                  draggable={false}
-                />
-              ) : (
-                <div style={{
-                  width: 24, height: 24, background: char.color,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: '#fff', fontSize: 11, fontWeight: 700,
-                }}>
-                  {char.name.charAt(0)}
-                </div>
-              )}
-              {/* イニシアチブバッジ */}
-              {(char.initiative ?? 0) !== 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: -4,
-                  left: -4,
-                  minWidth: 14,
-                  height: 14,
-                  borderRadius: '50%',
-                  background: char.color,
-                  color: '#fff',
-                  fontSize: 8,
-                  fontWeight: 700,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '0 2px',
-                  lineHeight: 1,
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                }}>
-                  {char.initiative}
-                </div>
-              )}
+            {/* カラー帯（幅18px、イニシアチブ表示） */}
+            <div
+              style={{
+                width: 18,
+                background: char.color,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: textColor,
+                fontSize: 10,
+                fontWeight: 700,
+                flexShrink: 0,
+              }}
+            >
+              {initiative !== 0 ? String(initiative).padStart(2, '0') : ''}
             </div>
-            {/* 名前・ステータス */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{
-                color: '#fff', fontSize: 11, fontWeight: 600,
-                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              }}>
-                {char.name}
-                {!isOwner && char.is_status_private && (
-                  <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.4)', fontSize: 9 }}>🔒</span>
+            {/* コンテンツ（アイコン + 名前・ステータス） */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '3px 6px',
+                flex: 1,
+              }}
+            >
+              {/* アイコン */}
+              <div style={{ flexShrink: 0 }}>
+                {imgUrl ? (
+                  <img
+                    src={imgUrl}
+                    style={{ width: 24, height: 24, objectFit: 'cover', objectPosition: 'top' }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div style={{
+                    width: 24, height: 24, background: char.color,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: '#fff', fontSize: 11, fontWeight: 700,
+                  }}>
+                    {char.name.charAt(0)}
+                  </div>
                 )}
               </div>
-              {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 1 }}>
-                  {char.statuses.slice(0, 3).map((s, i) => (
-                    <span key={i} style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9 }}>
-                      {s.label}: {s.value}/{s.max}
-                    </span>
-                  ))}
+              {/* 名前・ステータス */}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  color: '#fff', fontSize: 11, fontWeight: 600,
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {char.name}
+                  {!isOwner && char.is_status_private && (
+                    <span style={{ marginLeft: 4, color: 'rgba(255,255,255,0.4)', fontSize: 9 }}>🔒</span>
+                  )}
                 </div>
-              )}
+                {(!char.is_status_private || isOwner) && char.statuses.length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 1 }}>
+                    {char.statuses.slice(0, 3).map((s, i) => (
+                      <span key={i} style={{ color: 'rgba(255,255,255,0.7)', fontSize: 9 }}>
+                        {s.label}: {s.value}/{s.max}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         );
