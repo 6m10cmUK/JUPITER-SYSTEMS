@@ -471,7 +471,13 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
                 const isValid = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)
                   || /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/.test(v);
                 if (isValid) {
-                  onChange(v);
+                  // enableAlpha=false なら透明度を除去して6桁hexに強制
+                  const parsed = cssToRgba(v);
+                  const normalized = !enableAlpha && parsed.a < 1
+                    ? rgbaToCss({ ...parsed, a: 1 })
+                    : v;
+                  onChange(normalized);
+                  setTextInput(normalized);
                 } else {
                   setTextInput(value);
                 }
