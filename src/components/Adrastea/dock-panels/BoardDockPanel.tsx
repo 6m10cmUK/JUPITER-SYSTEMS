@@ -13,6 +13,14 @@ function isLightColor(hex: string): boolean {
   return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 
+function formatInitiative(val: number): string {
+  if (val === 0) return '';
+  // 小数点1桁まで丸め
+  const rounded = Math.round(val * 10) / 10;
+  // 整数なら整数表示、小数なら1桁
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+}
+
 function CharacterStatusPanel({ characters, currentUserId }: { characters: Character[]; currentUserId: string }) {
   // is_hidden_on_board=false のキャラのみ、initiative 降順でソート
   const visible = [...characters]
@@ -51,21 +59,24 @@ function CharacterStatusPanel({ characters, currentUserId }: { characters: Chara
               maxWidth: 200,
             }}
           >
-            {/* カラー帯（幅18px、イニシアチブ表示） */}
+            {/* カラー帯（イニシアチブ表示） */}
             <div
               style={{
-                width: 18,
+                minWidth: 16,
                 background: char.color,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: textColor,
-                fontSize: 10,
+                fontSize: 8,
                 fontWeight: 700,
                 flexShrink: 0,
+                padding: '0 2px',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
               }}
             >
-              {initiative !== 0 ? String(initiative).padStart(2, '0') : ''}
+              {formatInitiative(initiative)}
             </div>
             {/* コンテンツ（アイコン + 名前・ステータス） */}
             <div
