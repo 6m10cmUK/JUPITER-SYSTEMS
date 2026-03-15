@@ -344,7 +344,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       setSuggestionIndex(0);
       return;
     }
-    const matched = paletteItems.filter((item) => item.startsWith(text));
+    const lower = text.toLowerCase();
+    const matched = paletteItems.filter((item) => item.toLowerCase().includes(lower));
     setSuggestions(matched);
     setSuggestionIndex(0);
   }, [paletteItems]);
