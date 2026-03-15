@@ -78,7 +78,6 @@ export function StatusDockPanel() {
             style={{
               display: 'flex',
               gap: 6,
-              background: 'rgba(0,0,0,0.5)',
               padding: 4,
               borderLeft: `3px solid ${char.color}`,
               cursor: isOwner ? 'pointer' : 'default',
@@ -122,13 +121,28 @@ export function StatusDockPanel() {
             </div>
             {/* 右側: 名前 + ステータスバー */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              {/* 名前行: 外部URLボタン + 目アイコン + 名前 */}
+              {/* 名前行: 名前 + 右端にボタン群 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 4,
                 marginBottom: 2,
               }}>
+                {/* 名前 */}
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: theme.textPrimary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                }}>
+                  {char.name}
+                  {!isOwner && char.is_status_private && (
+                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 9 }}>🔒</span>
+                  )}
+                </span>
                 {/* 外部URL */}
                 <button
                   style={{
@@ -170,21 +184,6 @@ export function StatusDockPanel() {
                 >
                   {char.board_visible !== false ? <Eye size={11} /> : <EyeOff size={11} />}
                 </button>
-                {/* 名前 */}
-                <span style={{
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: theme.textPrimary,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  flex: 1,
-                }}>
-                  {char.name}
-                  {!isOwner && char.is_status_private && (
-                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 9 }}>🔒</span>
-                  )}
-                </span>
               </div>
               {/* ステータスバー 2列グリッド */}
               {showStatuses ? (
