@@ -360,7 +360,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
   const [textInput, setTextInput] = useState(value);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [popPos, setPopPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
   const rgba = cssToRgba(value);
 
   // value が変わったら textInput を同期
@@ -368,14 +368,23 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     setTextInput(value);
   }, [value]);
 
-  // ポップオーバー位置計算
+  // ポップオーバー位置計算（レンダー後に実測）
   useEffect(() => {
-    if (!open || !btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
-    const popW = 210;
-    const popH = 300;
-    const pos = calcPopupPos(rect, popW, popH, 'down');
-    setPopPos({ top: pos.top, left: pos.left });
+    if (!open || !btnRef.current) {
+      setPopPos(null);
+      return;
+    }
+    // 次フレームで popRef の実サイズを取得して位置決定
+    const raf = requestAnimationFrame(() => {
+      if (!btnRef.current) return;
+      const rect = btnRef.current.getBoundingClientRect();
+      const pop = popRef.current;
+      const popW = pop ? pop.offsetWidth : 210;
+      const popH = pop ? pop.offsetHeight : 300;
+      const pos = calcPopupPos(rect, popW, popH, 'down');
+      setPopPos({ top: pos.top, left: pos.left });
+    });
+    return () => cancelAnimationFrame(raf);
   }, [open]);
 
   // 外側クリックで閉じる
@@ -479,7 +488,10 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         <div
           ref={popRef}
           style={{
-            position: 'fixed', top: popPos.top, left: popPos.left, zIndex: 10000,
+            position: 'fixed',
+            top: popPos?.top ?? -9999, left: popPos?.left ?? -9999,
+            visibility: popPos ? 'visible' : 'hidden',
+            zIndex: 10000,
             background: theme.bgElevated, border: `1px solid ${theme.border}`,
             padding: '8px', display: 'flex', flexDirection: 'row', gap: '8px',
             boxShadow: theme.shadowMd,
