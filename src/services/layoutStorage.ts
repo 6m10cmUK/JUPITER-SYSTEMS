@@ -264,6 +264,57 @@ export function validateForPl(layout: object): string[] {
   return violations;
 }
 
+/**
+ * レイアウトの grid サイズを現在の画面サイズにスケーリングする。
+ * デフォルトレイアウトは特定の画面サイズ (1858x933) でエクスポートされているため、
+ * 異なる画面サイズで復元する際にスケーリングが必要。
+ */
+export function scaleLayout(layout: object, targetWidth: number, targetHeight: number): object {
+  const scaled = structuredClone(layout) as Record<string, any>;
+  const grid = scaled.grid;
+  if (!grid?.root || !grid.width || !grid.height) return scaled;
+
+  const wRatio = targetWidth / grid.width;
+  const hRatio = targetHeight / grid.height;
+
+  const isHorizontal = grid.orientation === 'HORIZONTAL';
+
+  function scaleNode(node: any, horizontal: boolean) {
+    if (node.size != null) {
+      node.size = Math.round(node.size * (horizontal ? wRatio : hRatio));
+    }
+    if (node.type === 'branch' && Array.isArray(node.data)) {
+      node.data.forEach((child: any) => scaleNode(child, !horizontal));
+    }
+  }
+
+  // root.size は orientation の逆方向
+  if (grid.root.size != null) {
+    grid.root.size = Math.round(grid.root.size * (isHorizontal ? hRatio : wRatio));
+  }
+  // root の子は orientation 方向
+  if (Array.isArray(grid.root.data)) {
+    grid.root.data.forEach((child: any) => scaleNode(child, isHorizontal));
+  }
+
+  grid.width = targetWidth;
+  grid.height = targetHeight;
+
+  // floatingGroups の position もスケーリング
+  if (Array.isArray(scaled.floatingGroups)) {
+    for (const fg of scaled.floatingGroups) {
+      if (fg.position) {
+        fg.position.top = Math.round(fg.position.top * hRatio);
+        fg.position.left = Math.round(fg.position.left * wRatio);
+        fg.position.width = Math.round(fg.position.width * wRatio);
+        fg.position.height = Math.round(fg.position.height * hRatio);
+      }
+    }
+  }
+
+  return scaled;
+}
+
 export const DEFAULT_LAYOUT_OWNER = {"grid":{"root":{"type":"branch","data":[{"type":"leaf","data":{"views":["scene"],"activeView":"scene","id":"17"},"size":227},{"type":"leaf","data":{"views":["character"],"activeView":"character","id":"18"},"size":228},{"type":"branch","data":[{"type":"leaf","data":{"views":["bgm"],"activeView":"bgm","id":"10"},"size":158},{"type":"leaf","data":{"views":["property"],"activeView":"property","id":"8"},"size":464},{"type":"leaf","data":{"views":["layer"],"activeView":"layer","id":"12"},"size":311}],"size":265},{"type":"leaf","data":{"views":["board"],"activeView":"board","id":"5"},"size":755},{"type":"branch","data":[{"type":"leaf","data":{"views":["chatLog","chatPalette","pdfViewer"],"activeView":"chatLog","id":"2"},"size":672},{"type":"leaf","data":{"views":["chatInput"],"activeView":"chatInput","id":"6"},"size":261}],"size":383}],"size":933},"width":1858,"height":933,"orientation":"HORIZONTAL"},"panels":{"board":{"id":"board","contentComponent":"board","tabComponent":"boardTab","title":"Board"},"chatLog":{"id":"chatLog","contentComponent":"chatLog","title":"チャットログ"},"chatPalette":{"id":"chatPalette","contentComponent":"chatPalette","title":"チャットパレット"},"pdfViewer":{"id":"pdfViewer","contentComponent":"pdfViewer","title":"PDF"},"chatInput":{"id":"chatInput","contentComponent":"chatInput","title":"チャット入力"},"property":{"id":"property","contentComponent":"property","title":"プロパティ"},"bgm":{"id":"bgm","contentComponent":"bgm","title":"BGM"},"layer":{"id":"layer","contentComponent":"layer","title":"レイヤー"},"scene":{"id":"scene","contentComponent":"scene","title":"シーン"},"character":{"id":"character","contentComponent":"character","title":"キャラクター"}},"activeGroup":"5"};
 
 export const DEFAULT_LAYOUT_USER = {"grid":{"root":{"type":"branch","data":[{"type":"branch","data":[{"type":"leaf","data":{"views":["character"],"activeView":"character","id":"10"},"size":598},{"type":"leaf","data":{"views":["property"],"activeView":"property","id":"8"},"size":335}],"size":289},{"type":"leaf","data":{"views":["board"],"activeView":"board","id":"5"},"size":1519},{"type":"branch","data":[{"type":"leaf","data":{"views":["chatLog","chatPalette"],"activeView":"chatLog","id":"2"},"size":650},{"type":"leaf","data":{"views":["chatInput"],"activeView":"chatInput","id":"6"},"size":283}],"size":50}],"size":933},"width":1858,"height":933,"orientation":"HORIZONTAL"},"panels":{"board":{"id":"board","contentComponent":"board","tabComponent":"boardTab","title":"Board"},"chatLog":{"id":"chatLog","contentComponent":"chatLog","title":"チャットログ"},"chatPalette":{"id":"chatPalette","contentComponent":"chatPalette","title":"チャットパレット"},"status":{"id":"status","contentComponent":"status","title":"ステータス"},"chatInput":{"id":"chatInput","contentComponent":"chatInput","title":"チャット入力"},"property":{"id":"property","contentComponent":"property","title":"プロパティ"},"character":{"id":"character","contentComponent":"character","title":"キャラクター"}},"activeGroup":"4","floatingGroups":[{"data":{"views":["status"],"activeView":"status","id":"4"},"position":{"top":34,"left":296,"width":247,"height":349}}]};
