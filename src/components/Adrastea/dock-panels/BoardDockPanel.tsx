@@ -1,9 +1,10 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
+import { MessagePopup } from '../ui/MessagePopup';
 
 export function BoardDockPanel() {
   const ctx = useAdrasteaContext();
@@ -52,6 +53,11 @@ export function BoardDockPanel() {
     setImagePickerTarget({ id });
   }, [ctx.activeObjects]);
 
+  const latestMessage = useMemo(() => {
+    if (!ctx.messages || ctx.messages.length === 0) return null;
+    return ctx.messages[ctx.messages.length - 1];
+  }, [ctx.messages]);
+
   return (
     <>
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -96,7 +102,9 @@ export function BoardDockPanel() {
           selectedObjectId={ctx.editingObjectId}
           selectedObjectIds={ctx.selectedObjectIds}
           selectedCharacterId={ctx.editingCharacter?.id ?? null}
-        />
+        >
+          <MessagePopup message={latestMessage} />
+        </Board>
       </div>
       {imagePickerTarget && (
         <AssetLibraryModal
