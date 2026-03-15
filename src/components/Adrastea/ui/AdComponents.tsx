@@ -699,7 +699,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
             <X size={14} />
           </button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {children}
         </div>
         {footer && (
