@@ -307,8 +307,14 @@ function CharacterEditorComponent({
                 type="number"
                 label="イニシアティブ"
                 value={initiative}
+                min={-99}
                 max={99}
-                onChange={(e) => setInitiative(Math.min(99, Number(e.target.value)))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const rounded = Math.round(val * 10) / 10;
+                  const clamped = Math.max(-99, Math.min(99, rounded));
+                  setInitiative(clamped);
+                }}
               />
             </div>
             <div style={{ flex: 1 }}>
