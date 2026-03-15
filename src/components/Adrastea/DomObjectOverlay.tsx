@@ -917,20 +917,20 @@ const DomCharacterItem = memo(function DomCharacterItem({
       {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
         <div style={{
           position: 'fixed',
-          left: Math.max(8, Math.min(cursorPos.x - 200, window.innerWidth - 408)),
+          left: Math.max(8, Math.min(cursorPos.x - 130, window.innerWidth - 268)),
           top: cursorPos.y - 10,
           transform: 'translateY(-100%)',
           zIndex: 10000,
           pointerEvents: 'none',
           background: 'rgba(0, 0, 0, 0.72)',
           color: '#fff',
-          padding: '12px 16px',
-          fontSize: 15,
-          lineHeight: 1.7,
-          maxWidth: 400,
+          padding: '8px 10px',
+          fontSize: 10,
+          lineHeight: 1.5,
+          maxWidth: 260,
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
-          borderRadius: 6,
+          borderRadius: 4,
           boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
         }}>
           {char.memo && <div>{char.memo}</div>}
