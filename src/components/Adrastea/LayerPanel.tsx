@@ -49,6 +49,7 @@ export function LayerPanel() {
     editingCharacter,
     addCharacter,
     removeCharacter,
+    setCharacterToOpenModal,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -443,6 +444,10 @@ export function LayerPanel() {
                   setEditingCharacter(char);
                 }
               }}
+              onDoubleClickCharacter={(charId) => {
+                const char = layerOrderedCharacters.find(c => c.id === charId);
+                if (char) setCharacterToOpenModal(char);
+              }}
             />
           );
         }
@@ -603,6 +608,7 @@ function CharacterLayerRow({
   onToggleVisible,
   onReorder,
   onSelectCharacter,
+  onDoubleClickCharacter,
 }: {
   id: string;
   isOpen: boolean;
@@ -612,6 +618,7 @@ function CharacterLayerRow({
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
   onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
 }) {
   const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
 
@@ -664,6 +671,7 @@ function CharacterLayerRow({
           onToggleVisible={onToggleVisible}
           onReorder={onReorder}
           onSelectCharacter={onSelectCharacter}
+          onDoubleClickCharacter={onDoubleClickCharacter}
         />
       )}
     </div>
@@ -680,12 +688,14 @@ function CharacterSubList({
   onToggleVisible,
   onReorder,
   onSelectCharacter,
+  onDoubleClickCharacter,
 }: {
   characters: Character[];
   selectedCharacterId?: string;
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
   onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
 }) {
   const [localChars, setLocalChars] = useState<Character[]>(characters);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -802,7 +812,12 @@ function CharacterSubList({
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
                 opacity: char.board_visible !== false ? 1 : 0.4,
-              }}>
+              }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onDoubleClickCharacter?.(char.id);
+                }}
+              >
                 {char.name}
               </span>
             </div>
