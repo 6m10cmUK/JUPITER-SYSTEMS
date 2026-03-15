@@ -4,6 +4,7 @@ import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
 import { ChevronRight, ChevronDown, X, Palette } from 'lucide-react';
 import { calcPopupPos } from '../../../utils/calcPopupPos';
+import { DropdownMenu } from './DropdownMenu';
 
 // ── Shared compact styles ──
 const FONT_SIZE = '12px';
@@ -353,7 +354,9 @@ function rgbaToDisplayBg(c: RgbaColor): string {
 export function AdColorPicker({ label, value, onChange, enableAlpha, compact, onOpen, onClose }: AdColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(loadPalette);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<number | null>(null);
   const [textInput, setTextInput] = useState(value);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -387,21 +390,13 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
       if (popRef.current && !popRef.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setContextMenu(null);
+        setContextMenuOpen(false);
         onClose?.(rgbaToCss(rgba));
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [open, rgba, onClose]);
-
-  // コンテキストメニュー外クリックで閉じる
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handler = () => setContextMenu(null);
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [contextMenu]);
 
   const handleChange = useCallback((c: RgbaColor) => {
     onChange(enableAlpha ? rgbaToCss(c) : rgbaToCss({ ...c, a: 1 }));
@@ -550,7 +545,9 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
                   onClick={() => onChange(c)}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    setContextMenu({ x: e.clientX, y: e.clientY, index: i });
+                    setContextMenuPos({ x: e.clientX, y: e.clientY });
+                    setSelectedPaletteIndex(i);
+                    setContextMenuOpen(true);
                   }}
                   title={c}
                   style={{
@@ -569,31 +566,31 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         document.body,
       )}
 
-      {/* パレット右クリックメニュー（Portal） */}
-      {contextMenu && createPortal(
-        <div
-          style={{
-            position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 10001,
-            background: theme.bgElevated, border: `1px solid ${theme.border}`,
-            boxShadow: theme.shadowMd, padding: '2px 0',
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => handleRemoveFromPalette(contextMenu.index)}
-            style={{
-              display: 'block', width: '100%', padding: '4px 12px',
-              background: 'transparent', border: 'none', color: theme.danger,
-              fontSize: '11px', cursor: 'pointer', textAlign: 'left',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-          >
-            パレットから削除
-          </button>
-        </div>,
-        document.body,
+      {/* パレット右クリックメニュー（DropdownMenu） */}
+      {contextMenuPos && (
+        <DropdownMenu
+          mode="context"
+          open={contextMenuOpen}
+          onOpenChange={setContextMenuOpen}
+          position={contextMenuPos}
+          items={[
+            {
+              id: 'remove',
+              label: 'パレットから削除',
+              onClick: () => {
+                if (selectedPaletteIndex !== null) {
+                  handleRemoveFromPalette(selectedPaletteIndex);
+                  setSelectedPaletteIndex(null);
+                }
+              },
+            },
+          ]}
+          renderItem={(item, isSelected) => (
+            <span style={{ color: theme.danger }}>
+              {item.label}
+            </span>
+          )}
+        />
       )}
     </div>
   );
