@@ -4,7 +4,10 @@ import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
 import { DropdownMenu } from './ui';
 
-// --- 定数 ---
+// --- フラグ・定数 ---
+/** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するフラグ */
+export let __blockBoardWheel = false;
+
 const MIN_SIZE_PX = 50;
 const EDGE_RATIO = 0.15;        // 要素サイズの 15% をエッジ判定に使う
 const EDGE_MIN_PX = 6;          // スクリーン上の最小エッジ幅
@@ -873,6 +876,8 @@ const DomCharacterItem = memo(function DomCharacterItem({
           e.stopPropagation();
           e.preventDefault();
           popupRef.current.scrollTop += e.deltaY;
+          __blockBoardWheel = true;
+          requestAnimationFrame(() => { __blockBoardWheel = false; });
         }
       }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
