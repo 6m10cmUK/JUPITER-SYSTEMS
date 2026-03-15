@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
-import { DomObjectOverlay, useAnimatedBlobSrc } from './DomObjectOverlay';
+import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheel } from './DomObjectOverlay';
 import { DropdownMenu } from './ui';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
@@ -252,6 +252,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   }, []);
 
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
+    if (__blockBoardWheel) return;
     e.evt.preventDefault();
     const stage = stageRef.current;
     if (!stage) return;
