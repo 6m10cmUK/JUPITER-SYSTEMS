@@ -4,7 +4,7 @@ import { User, Bold, Italic, Strikethrough, Heading1, SendHorizonal } from 'luci
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
-import { Tooltip } from './ui';
+import { Tooltip, DropdownMenu } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { calcPopupPos } from '../../utils/calcPopupPos';
 
@@ -272,10 +272,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 }) => {
   const ctx = useAdrasteaContext();
   const [senderName, setSenderName] = useState(() => localStorage.getItem('adrastea-last-sender') ?? '');
-  const [showCharacterList, setShowCharacterList] = useState(false);
-  const [dropdownPos, setDropdownPos] = useState<{ top: number; left: number } | null>(null);
-  const [showChannelList, setShowChannelList] = useState(false);
-  const [channelDropdownPos, setChannelDropdownPos] = useState<{ top: number; left: number } | null>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [suggestionIndex, setSuggestionIndex] = useState(0);
@@ -284,10 +280,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   const isComposing = useRef(false);
   const isUpdating = useRef(false);
   const compositionJustEnded = useRef(false);
-  const charListRef = useRef<HTMLDivElement>(null);
-  const charIconRef = useRef<HTMLButtonElement>(null);
-  const channelBtnRef = useRef<HTMLButtonElement>(null);
-  const channelListRef = useRef<HTMLDivElement>(null);
   const savedSelectionRef = useRef<{ start: number; end: number } | null>(null);
   const suggestionRef = useRef<HTMLDivElement>(null);
   const [suggestionPos, setSuggestionPos] = useState<{ top: number; left: number; width: number } | null>(null);
@@ -559,35 +551,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
     setSuggestionPos({ top, left: rect.left, width: rect.width });
   }, [suggestions.length]);
 
-  useEffect(() => {
-    if (!showCharacterList) return;
-    const handleMouseDown = (e: MouseEvent) => {
-      if (
-        charListRef.current && !charListRef.current.contains(e.target as Node) &&
-        charIconRef.current && !charIconRef.current.contains(e.target as Node)
-      ) {
-        setShowCharacterList(false);
-        setDropdownPos(null);
-      }
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [showCharacterList]);
-
-  useEffect(() => {
-    if (!showChannelList) return;
-    const handleMouseDown = (e: MouseEvent) => {
-      if (
-        channelListRef.current && !channelListRef.current.contains(e.target as Node) &&
-        channelBtnRef.current && !channelBtnRef.current.contains(e.target as Node)
-      ) {
-        setShowChannelList(false);
-        setChannelDropdownPos(null);
-      }
-    };
-    document.addEventListener('mousedown', handleMouseDown);
-    return () => document.removeEventListener('mousedown', handleMouseDown);
-  }, [showChannelList]);
 
 
   return (
@@ -614,44 +577,65 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         }}
       >
         <Tooltip label="キャラクター選択">
-          <button
-            ref={charIconRef}
-            className="adra-btn-icon"
-            data-avatar={selectedCharacterForIcon ? 'true' : undefined}
-            onClick={() => {
-              if (showCharacterList) {
-                setShowCharacterList(false);
-                setDropdownPos(null);
-              } else {
-                const rect = charIconRef.current?.getBoundingClientRect();
-                if (rect) setDropdownPos(calcPopupPos(rect, 200, 240, 'down'));
-                setShowCharacterList(true);
-              }
+          <DropdownMenu
+            trigger={
+              <button
+                className="adra-btn-icon"
+                data-avatar={selectedCharacterForIcon ? 'true' : undefined}
+                style={{
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  background: selectedCharacterForIcon
+                    ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
+                      ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top center/cover ${selectedCharacterForIcon.color}`
+                      : selectedCharacterForIcon.color
+                    : undefined,
+                  border: `1px solid ${theme.border}`,
+                  flexShrink: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  outline: 'none',
+                }}
+                title="キャラクター選択"
+              >
+                {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url ? (
+                  <User size={14} color={theme.textSecondary} />
+                ) : null}
+              </button>
+            }
+            align="left"
+            direction="down"
+            items={characters.map(c => ({
+              id: c.id,
+              label: c.name,
+              onClick: () => {
+                setSenderName(c.name);
+                ctx.setActiveSpeakerCharId(c.id);
+              },
+            }))}
+            selectedId={ctx.activeSpeakerCharId ?? undefined}
+            renderItem={(item, isSelected) => {
+              const char = characters.find(c => c.id === item.id);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%' }}>
+                  <div style={{
+                    width: '24px', height: '24px', borderRadius: '50%',
+                    background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
+                  }}>
+                    {char?.images[char.active_image_index]?.url && (
+                      <img src={char.images[char.active_image_index].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    )}
+                  </div>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>
+                  {isSelected && <span style={{ color: theme.accent, fontSize: '10px' }}>●</span>}
+                </div>
+              );
             }}
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '50%',
-              background: selectedCharacterForIcon
-                ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
-                  ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top center/cover ${selectedCharacterForIcon.color}`
-                  : selectedCharacterForIcon.color
-                : undefined,
-              border: `1px solid ${theme.border}`,
-              flexShrink: 0,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              outline: 'none',
-            }}
-            title="キャラクター選択"
-          >
-            {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url ? (
-              <User size={14} color={theme.textSecondary} />
-            ) : null}
-          </button>
+          />
         </Tooltip>
 
         <input
@@ -701,63 +685,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
             <SendHorizonal size={16} />
           </button>
         </Tooltip>
-
-        {showCharacterList &&
-          createPortal(
-            <div
-              ref={charListRef}
-              style={{
-                position: 'fixed',
-                top: dropdownPos?.top ?? 0,
-                left: dropdownPos?.left ?? 0,
-                width: '200px',
-                background: theme.bgElevated,
-                border: `1px solid ${theme.border}`,
-                boxShadow: theme.shadowMd,
-                zIndex: 100,
-              }}
-            >
-              {characters.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => {
-                    setSenderName(c.name);
-                    ctx.setActiveSpeakerCharId(c.id);
-                    setShowCharacterList(false);
-                    setDropdownPos(null);
-                  }}
-                  style={{
-                    padding: '6px 8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    color: theme.textPrimary,
-                    fontSize: '12px',
-                    borderBottom: `1px solid ${theme.border}`,
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = theme.bgInput; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                >
-                  <div
-                    style={{
-                      width: '16px',
-                      height: '16px',
-                      borderRadius: '50%',
-                      background: c.images[c.active_image_index]?.url
-                        ? `url(${c.images[c.active_image_index]?.url}) top/cover ${c.color}`
-                        : c.color,
-                      border: `1px solid ${theme.border}`,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span>{c.name}</span>
-                </div>
-              ))}
-            </div>,
-            document.body
-          )}
       </div>
 
       {/* エディタ */}
@@ -920,80 +847,37 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         <div style={{ flex: 1 }} />
 
         {/* チャンネル選択 */}
-        <Tooltip label="チャンネル選択">
-          <button
-            ref={channelBtnRef}
-            className="adra-btn adra-tab"
-            onClick={() => {
-              if (showChannelList) {
-                setShowChannelList(false);
-                setChannelDropdownPos(null);
-              } else {
-                const rect = channelBtnRef.current?.getBoundingClientRect();
-                if (rect) setChannelDropdownPos(calcPopupPos(rect, 160, 120, 'up'));
-                setShowChannelList(true);
-              }
-            }}
-            style={{
-              padding: '6px 10px',
-              border: `1px solid ${theme.borderSubtle}`,
-              fontSize: '11px',
-              cursor: 'pointer',
-              outline: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              flexShrink: 0,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {ctx.channels.find(ch => ch.channel_id === ctx.activeChatChannel)?.label ?? 'ch'}
-          </button>
-        </Tooltip>
-
-        {/* チャンネル選択ドロップダウン */}
-        {showChannelList && channelDropdownPos &&
-          createPortal(
-            <div
-              ref={channelListRef}
-              className="adrastea-root"
-              style={{
-                position: 'fixed',
-                top: channelDropdownPos.top,
-                left: channelDropdownPos.left,
-                minWidth: '120px',
-                background: theme.bgElevated,
-                border: `1px solid ${theme.border}`,
-                boxShadow: theme.shadowMd,
-                zIndex: 100,
-              }}
-            >
-              {ctx.channels.map((ch) => (
-                <div
-                  key={ch.channel_id}
-                  className={`adra-list-item${ch.channel_id === ctx.activeChatChannel ? ' adra-list-item--selected' : ''}`}
-                  onClick={() => {
-                    ctx.setActiveChatChannel(ch.channel_id);
-                    setShowChannelList(false);
-                    setChannelDropdownPos(null);
-                  }}
-                  style={{
-                    padding: '6px 8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    color: theme.textPrimary,
-                    fontSize: '12px',
-                    borderBottom: `1px solid ${theme.borderSubtle}`,
-                  }}
-                >
-                  <span>{ch.label}</span>
-                </div>
-              ))}
-            </div>,
-            document.body
-          )}
+        <DropdownMenu
+          trigger={
+            <Tooltip label="チャンネル選択">
+              <button
+                className="adra-btn adra-tab"
+                style={{
+                  padding: '6px 10px',
+                  border: `1px solid ${theme.borderSubtle}`,
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  flexShrink: 0,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {ctx.channels.find(ch => ch.channel_id === ctx.activeChatChannel)?.label ?? 'ch'}
+              </button>
+            </Tooltip>
+          }
+          direction="up"
+          align="left"
+          items={ctx.channels.map(ch => ({
+            id: ch.channel_id,
+            label: ch.label,
+            onClick: () => { ctx.setActiveChatChannel(ch.channel_id); },
+          }))}
+          selectedId={ctx.activeChatChannel}
+        />
       </div>
 
       {suggestions.length > 0 && suggestionPos && createPortal(
