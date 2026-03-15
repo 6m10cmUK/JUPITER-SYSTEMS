@@ -21,6 +21,7 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
+import { getDefaultLayoutForRole, loadStore, persistStore, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -298,7 +299,17 @@ const DockviewInner = memo(function DockviewInner({
       apiRef.current = api;
       onApiReady(api);
 
-      // 保存済みレイアウトの復元を試みる
+      // 新形式のデフォルトレイアウトを優先
+      const defaultLayout = getDefaultLayoutForRole(role);
+      if (defaultLayout) {
+        try {
+          api.fromJSON(defaultLayout.layout as Parameters<DockviewApi['fromJSON']>[0]);
+          requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
+          return;
+        } catch { /* フォールスルー */ }
+      }
+
+      // 旧形式のフォールバック
       const saved = loadLayout(role);
       if (saved) {
         try {
@@ -308,85 +319,18 @@ const DockviewInner = memo(function DockviewInner({
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
 
-      // ロール別デフォルトレイアウト構築
-      if (role === 'owner' || role === 'sub_owner') {
-        // owner / sub_owner: 全パネル構成（Board | ChatLog/ChatInput, Scene | BGM | Board, Property, Layer）
-        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-        api.addPanel({
-          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
-          position: { referencePanel: 'chatInput', direction: 'below' },
-        });
-        const scenePanel = api.addPanel({
-          id: 'scene', component: 'scene', title: 'シーン',
-          position: { referencePanel: 'board', direction: 'left' },
-        });
-
-        const bgmPanel = api.addPanel({
-          id: 'bgm', component: 'bgm', title: 'BGM',
-          position: { referencePanel: 'scene', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'property', component: 'property', title: 'プロパティ',
-          position: { referencePanel: bgmPanel.id, direction: 'below' },
-        });
-        api.addPanel({
-          id: 'layer', component: 'layer', title: 'レイヤー',
-          position: { referencePanel: 'property', direction: 'below' },
-        });
-
-        scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
-        bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
+      // ロール別デフォルトレイアウト
+      const defaultJson = (role === 'owner' || role === 'sub_owner')
+        ? DEFAULT_LAYOUT_OWNER
+        : role === 'user'
+          ? DEFAULT_LAYOUT_USER
+          : DEFAULT_LAYOUT_GUEST;
+      try {
+        api.fromJSON(defaultJson as Parameters<DockviewApi['fromJSON']>[0]);
         requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
-      } else if (role === 'user') {
-        // user: シーン・キャラクター・チャット・ボード
+      } catch {
+        // フォールスルー: 空のままになる
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-        api.addPanel({
-          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
-          position: { referencePanel: 'chatInput', direction: 'below' },
-        });
-        const scenePanel = api.addPanel({
-          id: 'scene', component: 'scene', title: 'シーン',
-          position: { referencePanel: 'board', direction: 'left' },
-        });
-        api.addPanel({
-          id: 'character', component: 'character', title: 'キャラクター',
-          position: { referencePanel: 'scene', direction: 'below' },
-        });
-
-        scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
-        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
-      } else if (role === 'guest') {
-        // guest: ボード・チャットのみ
-        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
-        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       }
     },
     [onApiReady, role],
@@ -426,7 +370,24 @@ const DockviewInner = memo(function DockviewInner({
 
     const disposable = api.onDidLayoutChange(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
+      timer = setTimeout(() => {
+        const currentRole = roleRef.current;
+        // 旧形式の自動保存（互換維持）
+        saveLayout(api, currentRole);
+        // 新形式: デフォルトレイアウトがあれば上書き
+        const layoutJson = api.toJSON();
+        const s = loadStore();
+        const defaultId = (currentRole === 'owner' || currentRole === 'sub_owner')
+          ? s.gmDefault
+          : currentRole === 'user' ? s.plDefault : null;
+        if (defaultId) {
+          const target = s.layouts.find((l) => l.id === defaultId);
+          if (target) {
+            target.layout = layoutJson;
+            persistStore(s);
+          }
+        }
+      }, 300);
     });
 
     return () => {

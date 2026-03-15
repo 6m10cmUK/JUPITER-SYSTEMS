@@ -8,6 +8,7 @@ import { theme } from '../../styles/theme';
 import { X } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
 import { getAvailableSystems } from '../../services/diceRoller';
+import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl } from '../../services/layoutStorage';
 
 type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 
@@ -192,6 +193,12 @@ function LayoutSection({
   onClose: () => void;
 }) {
   const [, forceUpdate] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [layouts, setLayouts] = useState(() => getSavedLayouts());
+  const [gmDefaultId, setGmDefaultIdState] = useState(() => getGmDefaultId());
+  const [plDefaultId, setPlDefaultIdState] = useState(() => getPlDefaultId());
+  const [newLayoutName, setNewLayoutName] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
 
   const togglePanel = (panelId: string, component: string, title: string) => {
     if (!dockviewApi) return;
@@ -270,6 +277,125 @@ function LayoutSection({
           <div>{subOwnerPanels.map(renderPanelRow)}</div>
         </>
       )}
+      {/* 保存済みレイアウト */}
+      <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>保存済みレイアウト</div>
+      <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {layouts.length === 0 && (
+          <div style={{ fontSize: '11px', color: theme.textMuted }}>保存済みレイアウトはありません</div>
+        )}
+        {layouts.map((l) => (
+          <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
+            <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {l.name}
+            </div>
+            {/* タグ表示 */}
+            {gmDefaultId === l.id && (
+              <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', background: theme.accent, color: theme.bgDeep }}>GM</span>
+            )}
+            {plDefaultId === l.id && (
+              <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', background: theme.success, color: theme.bgDeep }}>PL</span>
+            )}
+            {/* GMタグ付け/解除 */}
+            <AdButton
+              onClick={() => {
+                const newId = gmDefaultId === l.id ? null : l.id;
+                setGmDefault(newId);
+                setGmDefaultIdState(newId);
+                setTagError(null);
+              }}
+              style={{ fontSize: '10px', padding: '2px 6px' }}
+            >
+              {gmDefaultId === l.id ? 'GM解除' : 'GM'}
+            </AdButton>
+            {/* PLタグ付け/解除 */}
+            <AdButton
+              onClick={() => {
+                if (plDefaultId === l.id) {
+                  // 解除
+                  setPlDefault(null);
+                  setPlDefaultIdState(null);
+                  setTagError(null);
+                } else {
+                  // バリデーション
+                  const violations = validateForPl(l.layout);
+                  if (violations.length > 0) {
+                    setTagError(`PLデフォルトに設定できません: ${violations.join('、')} はPL権限では使用できないパネルです`);
+                    setTimeout(() => setTagError(null), 5000);
+                    return;
+                  }
+                  setPlDefault(l.id);
+                  setPlDefaultIdState(l.id);
+                  setTagError(null);
+                }
+              }}
+              style={{ fontSize: '10px', padding: '2px 6px' }}
+            >
+              {plDefaultId === l.id ? 'PL解除' : 'PL'}
+            </AdButton>
+            {/* 適用 */}
+            <AdButton
+              onClick={() => {
+                if (!dockviewApi) return;
+                try {
+                  dockviewApi.fromJSON(l.layout as Parameters<typeof dockviewApi.fromJSON>[0]);
+                  forceUpdate((c) => c + 1);
+                } catch {
+                  setTagError('レイアウトの適用に失敗しました');
+                  setTimeout(() => setTagError(null), 5000);
+                }
+              }}
+              style={{ fontSize: '10px', padding: '2px 6px' }}
+            >
+              適用
+            </AdButton>
+            {/* 削除 */}
+            <AdButton
+              onClick={() => {
+                deleteLayout(l.id);
+                setLayouts(getSavedLayouts());
+                if (gmDefaultId === l.id) setGmDefaultIdState(null);
+                if (plDefaultId === l.id) setPlDefaultIdState(null);
+              }}
+              style={{ fontSize: '10px', padding: '2px 6px', color: theme.danger }}
+            >
+              削除
+            </AdButton>
+          </div>
+        ))}
+        {tagError && (
+          <div style={{ fontSize: '11px', color: theme.danger }}>{tagError}</div>
+        )}
+        {/* 新規保存 */}
+        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+          <input
+            type="text"
+            value={newLayoutName}
+            onChange={(e) => setNewLayoutName(e.target.value)}
+            placeholder="レイアウト名"
+            style={{
+              flex: 1,
+              fontSize: '11px',
+              padding: '4px 6px',
+              background: theme.bgInput,
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '4px',
+              outline: 'none',
+            }}
+          />
+          <AdButton
+            onClick={() => {
+              if (!dockviewApi || !newLayoutName.trim()) return;
+              addLayout(newLayoutName.trim(), dockviewApi.toJSON());
+              setLayouts(getSavedLayouts());
+              setNewLayoutName('');
+            }}
+            style={{ fontSize: '11px', flexShrink: 0 }}
+          >
+            保存
+          </AdButton>
+        </div>
+      </div>
       {/* レイアウトエクスポート */}
       <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>レイアウト操作</div>
       <div style={{ padding: '6px 0' }}>
@@ -289,6 +415,37 @@ function LayoutSection({
         >
           レイアウトをエクスポート
         </AdButton>
+        <AdButton
+          onClick={() => {
+            if (!dockviewApi) return;
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const layout = JSON.parse(reader.result as string);
+                  dockviewApi.fromJSON(layout);
+                  forceUpdate((c) => c + 1);
+                } catch (err) {
+                  setImportError('読み込みに失敗しました。正しいJSONファイルか確認してください。');
+                  setTimeout(() => setImportError(null), 5000);
+                }
+              };
+              reader.readAsText(file);
+            };
+            input.click();
+          }}
+          style={{ fontSize: '11px', marginTop: '4px' }}
+        >
+          レイアウトをインポート
+        </AdButton>
+        {importError && (
+          <div style={{ fontSize: '11px', color: theme.danger, marginTop: '4px' }}>{importError}</div>
+        )}
       </div>
     </div>
   );
