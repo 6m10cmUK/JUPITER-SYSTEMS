@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { theme } from '../../../styles/theme';
@@ -25,6 +27,28 @@ export function StatusDockPanel() {
     .filter(c => !c.is_hidden_on_board)
     .sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
 
+  const handleClick = useCallback((charId: string) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (char && char.owner_id === user?.uid) {
+      ctx.clearAllEditing();
+      ctx.setEditingCharacter(char);
+    }
+  }, [ctx, user?.uid]);
+
+  const handleDoubleClick = useCallback((charId: string) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (char && char.owner_id === user?.uid) {
+      ctx.setCharacterToOpenModal(char);
+    }
+  }, [ctx, user?.uid]);
+
+  const handleToggleVisible = useCallback((charId: string) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (char) {
+      ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+    }
+  }, [ctx]);
+
   return (
     <div style={{
       height: '100%',
@@ -46,6 +70,7 @@ export function StatusDockPanel() {
         const initiative = char.initiative ?? 0;
         const textColor = isLightColor(char.color) ? '#000' : '#fff';
         const showStatuses = (!char.is_status_private || isOwner) && char.statuses.length > 0;
+        const hasSheetUrl = !!char.sheet_url;
 
         return (
           <div
@@ -53,10 +78,13 @@ export function StatusDockPanel() {
             style={{
               display: 'flex',
               gap: 6,
-              background: 'rgba(0,0,0,0.6)',
+              background: 'rgba(0,0,0,0.5)',
               padding: 4,
               borderLeft: `3px solid ${char.color}`,
+              cursor: isOwner ? 'pointer' : 'default',
             }}
+            onClick={() => handleClick(char.id)}
+            onDoubleClick={() => handleDoubleClick(char.id)}
           >
             {/* アイコン + イニシアチブバッジ */}
             <div style={{ position: 'relative', flexShrink: 0 }}>
@@ -92,8 +120,73 @@ export function StatusDockPanel() {
                 {formatInitiative(initiative)}
               </div>
             </div>
-            {/* ステータスバー 2列グリッド */}
+            {/* 右側: 名前 + ステータスバー */}
             <div style={{ flex: 1, minWidth: 0 }}>
+              {/* 名前行: 外部URLボタン + 目アイコン + 名前 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                marginBottom: 2,
+              }}>
+                {/* 外部URL */}
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: hasSheetUrl ? 'pointer' : 'default',
+                    opacity: hasSheetUrl ? 0.8 : 0.25,
+                    color: theme.textPrimary,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={hasSheetUrl ? char.sheet_url! : '外部URLが未設定'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (hasSheetUrl) window.open(char.sheet_url!, '_blank', 'noopener');
+                  }}
+                  disabled={!hasSheetUrl}
+                >
+                  <ExternalLink size={11} />
+                </button>
+                {/* 表示/非表示トグル */}
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    opacity: 0.8,
+                    color: theme.textPrimary,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title={char.board_visible !== false ? '盤面から非表示' : '盤面に表示'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleVisible(char.id);
+                  }}
+                >
+                  {char.board_visible !== false ? <Eye size={11} /> : <EyeOff size={11} />}
+                </button>
+                {/* 名前 */}
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: theme.textPrimary,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                }}>
+                  {char.name}
+                  {!isOwner && char.is_status_private && (
+                    <span style={{ marginLeft: 3, color: theme.textMuted, fontSize: 9 }}>🔒</span>
+                  )}
+                </span>
+              </div>
+              {/* ステータスバー 2列グリッド */}
               {showStatuses ? (
                 <div style={{
                   display: 'grid',
@@ -108,8 +201,6 @@ export function StatusDockPanel() {
                         position: 'relative',
                         height: 16,
                         background: 'rgba(255,255,255,0.1)',
-                        // 奇数個の最後のステータスは2列分使う
-                        gridColumn: (i === char.statuses.length - 1 && char.statuses.length % 2 === 1) ? 'span 2' : undefined,
                       }}>
                         <div style={{
                           height: '100%',
@@ -134,7 +225,7 @@ export function StatusDockPanel() {
                   })}
                 </div>
               ) : (
-                <div style={{ color: theme.textMuted, fontSize: 10, padding: '4px 0' }}>
+                <div style={{ color: theme.textMuted, fontSize: 10, padding: '2px 0' }}>
                   {char.is_status_private && !isOwner ? '🔒 非公開' : 'ステータスなし'}
                 </div>
               )}
