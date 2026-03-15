@@ -48,7 +48,19 @@ function LoadingScreen({ progress, statusText }: { progress: number; statusText:
 function AdrasteaRoom() {
   const ctx = useAdrasteaContext();
   const { can } = usePermission();
-  const { isGuest } = useAuth();
+  const { isGuest, user } = useAuth();
+  const isOwner = ctx.roomRole === 'owner';
+
+  // メンバー管理（ownerのみ実データ取得）
+  const members = useQuery(
+    api.room_members.getMembers,
+    isOwner && ctx.room ? { room_id: ctx.room.id } : 'skip'
+  );
+  const assignRoleMutation = useMutation(api.room_members.assignRole);
+  const handleAssignRole = useCallback((targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => {
+    if (!ctx.room) return;
+    assignRoleMutation({ room_id: ctx.room.id, target_user_id: targetUserId, role });
+  }, [ctx.room, assignRoleMutation]);
 
   const handleAddPiece = useCallback((label: string, color: string) => {
     const center = ctx.getBoardCenter();
@@ -146,6 +158,9 @@ function AdrasteaRoom() {
             await ctx.updateProfile(data);
           }}
           isGuest={isGuest}
+          isOwner={isOwner}
+          members={members ?? []}
+          onAssignRole={handleAssignRole}
           onSignOut={ctx.signOut}
           onClose={() => ctx.setShowSettings(false)}
         />

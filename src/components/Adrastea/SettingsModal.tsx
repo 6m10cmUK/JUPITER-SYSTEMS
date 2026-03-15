@@ -7,12 +7,12 @@ import { theme } from '../../styles/theme';
 import { X } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
 
-type SettingsSection = 'room' | 'layout' | 'user';
+type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 
 interface SettingsModalProps {
   initialSection?: SettingsSection;
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'user' | 'sub_owner'; default_guest_role?: 'guest' | 'user' }) => void;
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
@@ -21,6 +21,9 @@ interface SettingsModalProps {
   isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
+  isOwner: boolean;
+  members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
+  onAssignRole: (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => void;
 }
 
 interface PanelDef {
@@ -50,6 +53,7 @@ const NAV_ITEMS: Array<{ key: SettingsSection; label: string }> = [
   { key: 'room', label: 'ルーム設定' },
   { key: 'layout', label: 'レイアウト' },
   { key: 'user', label: 'ユーザー' },
+  { key: 'members', label: 'メンバー管理' },
 ];
 
 function RoomSettingsSection({
@@ -57,21 +61,29 @@ function RoomSettingsSection({
   onSaveRoom,
   onDeleteRoom,
   onClose,
+  isOwner,
 }: {
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'user' | 'sub_owner'; default_guest_role?: 'guest' | 'user' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
+  isOwner: boolean;
 }) {
   const [roomName, setRoomName] = useState(room.name);
   const [description, setDescription] = useState('');
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
+  const [defaultLoginRole, setDefaultLoginRole] = useState<'user' | 'sub_owner'>(room.default_login_role as 'user' | 'sub_owner' ?? 'user');
+  const [defaultGuestRole, setDefaultGuestRole] = useState<'guest' | 'user'>(room.default_guest_role as 'guest' | 'user' ?? 'guest');
 
   const handleSave = () => {
     onSaveRoom({
       name: roomName,
       description,
       dice_system: diceSystem,
+      ...(isOwner && {
+        default_login_role: defaultLoginRole,
+        default_guest_role: defaultGuestRole,
+      }),
     });
     onClose();
   };
@@ -103,6 +115,56 @@ function RoomSettingsSection({
         onChange={(e) => setDiceSystem(e.target.value)}
         placeholder="DiceBot"
       />
+      {isOwner && (
+        <>
+          <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>
+            デフォルトロール
+          </div>
+          <div style={{ fontSize: 11, color: theme.textMuted, marginBottom: 6 }}>
+            新しく参加するユーザーに自動で付与されるロール
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ログインユーザー</div>
+              <select
+                value={defaultLoginRole}
+                onChange={(e) => setDefaultLoginRole(e.target.value as 'user' | 'sub_owner')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  background: theme.bgSurface,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  outline: 'none',
+                }}
+              >
+                <option value="user">ユーザー</option>
+                <option value="sub_owner">サブオーナー</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ゲスト</div>
+              <select
+                value={defaultGuestRole}
+                onChange={(e) => setDefaultGuestRole(e.target.value as 'guest' | 'user')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  background: theme.bgSurface,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  outline: 'none',
+                }}
+              >
+                <option value="guest">ゲスト</option>
+                <option value="user">ユーザー</option>
+              </select>
+            </div>
+          </div>
+        </>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
         <AdButton variant="danger" onClick={handleDelete}>
           ルームを削除
@@ -201,6 +263,91 @@ function LayoutSection({
           </AdButton>
         </div>
       </div>
+    </div>
+  );
+}
+
+function MembersSection({
+  members,
+  onAssignRole,
+}: {
+  members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
+  onAssignRole: (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => void;
+}) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 11,
+        color: theme.textMuted,
+        marginBottom: 8,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+      }}>
+        メンバー一覧
+      </div>
+      <div style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8 }}>
+        オーナーのロールは変更できません
+      </div>
+      {members.length === 0 ? (
+        <div style={{ color: theme.textMuted, fontSize: 12 }}>メンバーがいません</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {members.map((m) => (
+            <div
+              key={m.user_id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 0',
+                borderBottom: `1px solid ${theme.borderSubtle}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                {m.avatar_url ? (
+                  <img
+                    src={m.avatar_url}
+                    style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', background: theme.border,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, color: theme.textMuted, flexShrink: 0,
+                  }}>
+                    {(m.display_name ?? '?').charAt(0)}
+                  </div>
+                )}
+                <span style={{ fontSize: 12, color: theme.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.display_name ?? m.user_id}
+                </span>
+              </div>
+              {m.role === 'owner' ? (
+                <span style={{ fontSize: 11, color: theme.textMuted, padding: '2px 8px' }}>オーナー</span>
+              ) : (
+                <select
+                  value={m.role}
+                  onChange={(e) => onAssignRole(m.user_id, e.target.value as 'sub_owner' | 'user' | 'guest')}
+                  style={{
+                    padding: '4px 6px',
+                    fontSize: 11,
+                    background: theme.bgSurface,
+                    color: theme.textPrimary,
+                    border: `1px solid ${theme.border}`,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="sub_owner">サブオーナー</option>
+                  <option value="user">ユーザー</option>
+                  <option value="guest">ゲスト</option>
+                </select>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -327,6 +474,9 @@ export function SettingsModal({
   isGuest,
   onSignOut,
   onClose,
+  isOwner,
+  members,
+  onAssignRole,
 }: SettingsModalProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
 
@@ -385,7 +535,7 @@ export function SettingsModal({
             設定
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter(item => item.key !== 'members' || isOwner).map((item) => (
               <button
                 key={item.key}
                 onClick={() => setSection(item.key)}
@@ -447,6 +597,7 @@ export function SettingsModal({
               onSaveRoom={onSaveRoom}
               onDeleteRoom={onDeleteRoom}
               onClose={onClose}
+              isOwner={isOwner}
             />
           )}
           {section === 'layout' && (
@@ -464,6 +615,12 @@ export function SettingsModal({
               onSignOut={onSignOut}
               onClose={onClose}
               dockviewApi={dockviewApi}
+            />
+          )}
+          {section === 'members' && (
+            <MembersSection
+              members={members}
+              onAssignRole={onAssignRole}
             />
           )}
         </div>

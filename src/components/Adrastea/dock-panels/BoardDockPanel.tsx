@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { hasRole } from '../../../config/permissions';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
 
@@ -65,14 +66,16 @@ export function BoardDockPanel() {
           onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
           onSelectCharacter={(charId) => {
             const char = ctx.characters.find(c => c.id === charId);
-            if (char && char.owner_id === user?.uid) {
+            const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+            if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
               ctx.clearAllEditing();
               ctx.setEditingCharacter(char);
             }
           }}
           onDoubleClickCharacter={(charId) => {
             const char = ctx.characters.find(c => c.id === charId);
-            if (char && char.owner_id === user?.uid) {
+            const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+            if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
               ctx.setCharacterToOpenModal(char);
             }
           }}
