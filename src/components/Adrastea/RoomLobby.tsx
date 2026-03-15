@@ -135,9 +135,8 @@ function DiceSystemPicker({
 
   // ドロップダウン位置計算
   const getDropdownPos = () => {
-    if (!btnRef.current) return { top: 0, left: 0, width: 0 };
-    const rect = btnRef.current.getBoundingClientRect();
-    return { top: rect.bottom, left: rect.left, width: rect.width };
+    if (!btnRef.current) return new DOMRect(0, 0, 0, 0);
+    return btnRef.current.getBoundingClientRect();
   };
 
   return (
@@ -164,8 +163,8 @@ function DiceSystemPicker({
         {selectedLabel}
       </button>
       {open && (() => {
-        const pos = getDropdownPos();
-        const popPos = calcPopupPos(new DOMRect(pos.left, 0, pos.width, 0), pos.width, 240, 'down');
+        const rect = getDropdownPos();
+        const popPos = calcPopupPos(rect, rect.width, 240, 'down');
         return createPortal(
         <div
           ref={dropRef}
@@ -174,7 +173,7 @@ function DiceSystemPicker({
             position: 'fixed',
             top: popPos.top,
             left: popPos.left,
-            width: pos.width,
+            width: rect.width,
             zIndex: 9999,
             background: theme.bgSurface,
             border: `1px solid ${theme.border}`,
