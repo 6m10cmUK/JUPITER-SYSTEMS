@@ -13,6 +13,7 @@ import { PdfViewerDockPanel } from './PdfViewerDockPanel';
 import { BgmDockPanel } from './BgmDockPanel';
 import { DebugConsoleDockPanel } from './DebugConsoleDockPanel';
 import { ChatPaletteDockPanel } from './ChatPaletteDockPanel';
+import { StatusDockPanel } from './StatusDockPanel';
 
 export const panelComponents: Record<string, React.FC> = {
   board: BoardDockPanel,
@@ -28,4 +29,5 @@ export const panelComponents: Record<string, React.FC> = {
   pdfViewer: PdfViewerDockPanel,
   bgm: BgmDockPanel,
   debugConsole: DebugConsoleDockPanel,
+  status: StatusDockPanel,
 };
