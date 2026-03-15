@@ -697,7 +697,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingPieceId(null);
     setEditingObjectId(undefined);
     setSelectedObjectIds([]);
-    setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
