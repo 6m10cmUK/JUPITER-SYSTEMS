@@ -34,7 +34,7 @@ export function CharacterDockPanel() {
 
   const handleModalClose = () => {
     setModalChar(undefined);
-    ctx.setEditingCharacter(undefined);
+    // editingCharacter はクリアしない（プロパティパネルに表示を維持）
   };
 
   const handleModalCloseWithSave = () => {
