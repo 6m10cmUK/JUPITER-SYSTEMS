@@ -778,6 +778,8 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
   // 足元基準: board_y は足元の y 座標を表す
@@ -866,6 +868,13 @@ const DomCharacterItem = memo(function DomCharacterItem({
         setCursorPos({ x: centerX, y: e.clientY });
       }}
       onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
+      onWheel={(e) => {
+        if (hovered && hasMemo && popupRef.current) {
+          e.stopPropagation();
+          e.preventDefault();
+          popupRef.current.scrollTop += e.deltaY;
+        }
+      }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
       onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
     >
@@ -915,7 +924,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
 
       {/* ホバーポップアップ（Portal: Board の transform 外に出してカーソル基準表示） */}
       {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
-        <div style={{
+        <div ref={popupRef} style={{
           position: 'fixed',
           left: Math.max(8, Math.min(cursorPos.x - 190, window.innerWidth - 388)),
           top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
@@ -928,8 +937,8 @@ const DomCharacterItem = memo(function DomCharacterItem({
           fontSize: 10,
           lineHeight: 1.5,
           maxWidth: 380,
-          maxHeight: '70vh',
-          overflow: 'auto',
+          maxHeight: '50vh',
+          overflow: 'hidden',
           whiteSpace: 'pre-wrap',
           wordBreak: 'break-word',
           borderRadius: 4,
