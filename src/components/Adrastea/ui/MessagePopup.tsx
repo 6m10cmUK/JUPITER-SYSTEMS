@@ -8,7 +8,7 @@ interface MessagePopupProps {
 export function MessagePopup({ message }: MessagePopupProps) {
   const [display, setDisplay] = useState<{ sender_name: string; content: string } | null>(null);
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible' | 'exit'>('hidden');
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevIdRef = useRef<string>('');
 
   useEffect(() => {
