@@ -44,6 +44,9 @@ export function useAdrastea(roomId: string) {
         foreground_url: (roomData as any).foreground_url ?? null,
         gm_can_see_secret_memo: (roomData as any).gm_can_see_secret_memo ?? false,
         owner_id: (roomData as any).owner_id ?? '',
+        description: (roomData as any).description ?? undefined,
+        default_login_role: (roomData as any).default_login_role ?? undefined,
+        default_guest_role: (roomData as any).default_guest_role ?? undefined,
       }
     : null;
 
