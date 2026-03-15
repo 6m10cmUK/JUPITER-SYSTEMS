@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { theme } from '../../../styles/theme';
-import { CharacterEditor } from '../CharacterEditor';
+import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
 import { Pencil } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export function ChatPaletteDockPanel() {
   const { user } = useAuth();
   const ctx = useAdrasteaContext();
   const [showEditor, setShowEditor] = useState(false);
+  const editorRef = useRef<CharacterEditorHandle>(null);
 
   // アクティブなキャラを取得
   const activeCharacter = ctx.activeSpeakerCharId
@@ -24,6 +25,11 @@ export function ChatPaletteDockPanel() {
   const handleSendPaletteMessage = (text: string) => {
     if (!activeCharacter) return;
     ctx.handleSendMessage(text, 'chat', activeCharacter.name, activeCharacter.images[activeCharacter.active_image_index]?.url ?? null);
+  };
+
+  const handleModalCloseWithSave = () => {
+    editorRef.current?.save();
+    setShowEditor(false);
   };
 
   return (
@@ -140,9 +146,10 @@ export function ChatPaletteDockPanel() {
         <AdModal
           title="チャットパレット編集"
           width="500px"
-          onClose={() => setShowEditor(false)}
+          onClose={handleModalCloseWithSave}
         >
           <CharacterEditor
+            ref={editorRef}
             key={activeCharacter.id}
             character={activeCharacter}
             roomId={ctx.roomId}

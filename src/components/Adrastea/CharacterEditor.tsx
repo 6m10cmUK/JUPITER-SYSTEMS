@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import type { Character, CharacterImage, PieceStatus, CharacterParameter } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
@@ -16,7 +16,11 @@ interface CharacterEditorProps {
   initialSection?: string;
 }
 
-export function CharacterEditor({
+export interface CharacterEditorHandle {
+  save: () => void;
+}
+
+function CharacterEditorComponent({
   character,
   roomId: _roomId,
   currentUserId: _currentUserId,
@@ -25,7 +29,7 @@ export function CharacterEditor({
   onDelete,
   onClose: _onClose,
   initialSection,
-}: CharacterEditorProps) {
+}: CharacterEditorProps, ref: React.Ref<CharacterEditorHandle>) {
   // 基本情報
   const [name, setName] = useState(character?.name ?? '');
   const [color, setColor] = useState(character?.color ?? '#555555');
@@ -131,6 +135,11 @@ export function CharacterEditor({
     });
   };
 
+  // useImperativeHandle で save メソッドを公開
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+  }));
+
   // ─── 複製 ───
   const handleDuplicate = () => {
     if (!onDuplicate) return;
@@ -156,8 +165,7 @@ export function CharacterEditor({
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    maxHeight: '100%',
-    overflowY: 'auto',
+    height: '100%',
     color: theme.textPrimary,
     boxSizing: 'border-box',
     display: 'flex',
@@ -205,7 +213,7 @@ export function CharacterEditor({
       </h3>
 
       {/* スクロール可能エリア */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* 1. 基本情報 */}
         <div style={sectionStyle}>
           <div style={labelStyle}>基本情報</div>
@@ -304,7 +312,7 @@ export function CharacterEditor({
                 type="number"
                 label="駒サイズ"
                 value={size}
-                onChange={(e) => setSize(Math.max(1, Number(e.target.value)))}
+                onChange={(e) => setSize(Math.max(0, Number(e.target.value)))}
               />
             </div>
           </div>
@@ -379,6 +387,7 @@ export function CharacterEditor({
             onChange={(e) => setMemo(e.target.value)}
             placeholder="キャラクターメモ"
             style={{ minHeight: '80px' }}
+            maxLength={4096}
           />
         </div>
 
@@ -393,6 +402,7 @@ export function CharacterEditor({
             onChange={(e) => setSecretMemo(e.target.value)}
             placeholder="秘密のメモ"
             style={{ minHeight: '80px' }}
+            maxLength={4096}
           />
         </div>
 
@@ -407,6 +417,7 @@ export function CharacterEditor({
             onChange={(e) => setChatPalette(e.target.value)}
             placeholder="通常攻撃&#10;魔法&#10;防御"
             style={{ minHeight: '80px' }}
+            maxLength={4096}
           />
         </div>
 
@@ -475,3 +486,5 @@ export function CharacterEditor({
     </div>
   );
 }
+
+export const CharacterEditor = forwardRef(CharacterEditorComponent);
