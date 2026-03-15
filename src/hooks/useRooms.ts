@@ -79,7 +79,7 @@ export function useRooms(_uid?: string) {
         name: r.name ?? '',
         dice_system: r.dice_system ?? 'DiceBot',
         tags: loadRoomTags(r.id),
-        thumbnail_url: null,
+        thumbnail_url: (r as any).foreground_url ?? null,
         created_at: r.created_at ?? r._creationTime ?? 0,
         updated_at: r.updated_at ?? r._creationTime ?? 0,
       }))
