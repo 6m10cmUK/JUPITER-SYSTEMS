@@ -12,7 +12,8 @@
 .adrastea-root input,
 .adrastea-root textarea,
 .adrastea-root [contenteditable="true"],
-.adrastea-root [contenteditable=""] {
+.adrastea-root [contenteditable=""],
+.adrastea-root .ad-selectable {
   user-select: text;
   -webkit-user-select: text;
 }
