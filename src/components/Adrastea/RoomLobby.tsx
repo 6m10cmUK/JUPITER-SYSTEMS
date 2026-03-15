@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
 import { theme } from '../../styles/theme';
 import { useRooms, type Room } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
-import { calcPopupPos } from '../../utils/calcPopupPos';
 import { AdModal, AdInput, AdButton, AdComboBox } from './ui/AdComponents';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import {
