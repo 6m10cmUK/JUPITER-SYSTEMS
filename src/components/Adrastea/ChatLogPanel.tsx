@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import {
   DndContext,
   closestCenter,
@@ -20,7 +19,7 @@ import { Trash2, MoreVertical, Plus } from 'lucide-react';
 import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
-import { ConfirmModal } from './ui';
+import { ConfirmModal, DropdownMenu } from './ui';
 import { genId } from '../../utils/id';
 
 /**
@@ -297,8 +296,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
-  const [showMenu, setShowMenu] = useState(false);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [pendingDeleteChannel, setPendingDeleteChannel] = useState<ChatChannel | null>(null);
 
   const canDeleteActiveChannel = useMemo(
@@ -359,7 +356,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   );
 
   const createInputRef = useRef<HTMLInputElement>(null);
-  const menuBtnRef = useRef<HTMLButtonElement>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -445,22 +441,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     }
   };
 
-  useEffect(() => {
-    if (!showMenu) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (menuBtnRef.current?.contains(target)) return;
-      setShowMenu(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showMenu]);
-
-  const openMenu = () => {
-    const rect = menuBtnRef.current?.getBoundingClientRect();
-    if (rect) setMenuPos({ top: rect.bottom + 4, left: rect.right - 160 });
-    setShowMenu(true);
-  };
 
   const renderMessage = (msg: ChatMessage) => {
     const charColor = characters?.find(c => c.name === msg.sender_name)?.color ?? null;
@@ -656,122 +636,56 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           }}
         >
           {!showCreateChannel && (
-            <button
-              ref={menuBtnRef}
-              type="button"
-              className="adra-btn adra-btn--ghost"
-              onClick={() => (showMenu ? setShowMenu(false) : openMenu())}
-              title="メニュー"
-              style={{
-                border: 'none',
-                color: theme.textSecondary,
-                cursor: 'pointer',
-                padding: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <MoreVertical size={16} />
-            </button>
+            <DropdownMenu
+              trigger={
+                <button
+                  type="button"
+                  className="adra-btn adra-btn--ghost"
+                  title="メニュー"
+                  style={{
+                    border: 'none',
+                    color: theme.textSecondary,
+                    cursor: 'pointer',
+                    padding: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <MoreVertical size={16} />
+                </button>
+              }
+              items={[
+                {
+                  label: 'チャンネルを追加',
+                  icon: Plus,
+                  onClick: () => setShowCreateChannel(true),
+                },
+                {
+                  label: 'チャンネルを削除',
+                  icon: Trash2,
+                  disabled: !canDeleteActiveChannel,
+                  onClick: () => {
+                    if (!canDeleteActiveChannel || !activeChannel) return;
+                    setPendingDeleteChannel(activeChannel);
+                  },
+                },
+                ...(onClearMessages
+                  ? [
+                      { type: 'separator' as const },
+                      {
+                        label: 'チャットをクリア',
+                        icon: Trash2,
+                        danger: true,
+                        onClick: () => setShowClearConfirm(true),
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           )}
         </div>
       </div>
-
-      {/* メニュードロップダウン */}
-      {showMenu && createPortal(
-        <div
-          className="adrastea-root"
-          style={{
-            position: 'fixed',
-            top: menuPos.top,
-            left: menuPos.left,
-            minWidth: '160px',
-            background: theme.bgElevated,
-            border: `1px solid ${theme.border}`,
-            boxShadow: theme.shadowMd,
-            zIndex: 10000,
-            padding: '4px 0',
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className="adra-list-item"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '8px 12px',
-              border: 'none',
-              color: theme.textPrimary,
-              fontSize: '12px',
-              cursor: 'pointer',
-              textAlign: 'left',
-            }}
-            onClick={() => {
-              setShowCreateChannel(true);
-              setShowMenu(false);
-            }}
-          >
-            <Plus size={14} />
-            チャンネルを追加
-          </button>
-          <button
-            type="button"
-            className="adra-list-item"
-            disabled={!canDeleteActiveChannel}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '8px 12px',
-              border: 'none',
-              color: canDeleteActiveChannel ? theme.textPrimary : theme.textMuted,
-              fontSize: '12px',
-              cursor: canDeleteActiveChannel ? 'pointer' : 'not-allowed',
-              textAlign: 'left',
-              opacity: canDeleteActiveChannel ? 1 : 0.6,
-            }}
-            onClick={() => {
-              if (!canDeleteActiveChannel || !activeChannel) return;
-              setPendingDeleteChannel(activeChannel);
-              setShowMenu(false);
-            }}
-          >
-            <Trash2 size={14} />
-            チャンネルを削除
-          </button>
-          {onClearMessages && (
-            <button
-              type="button"
-              className="adra-list-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                width: '100%',
-                padding: '8px 12px',
-                border: 'none',
-                color: theme.danger,
-                fontSize: '12px',
-                cursor: 'pointer',
-                textAlign: 'left',
-              }}
-              onClick={() => {
-                setShowClearConfirm(true);
-                setShowMenu(false);
-              }}
-            >
-              <Trash2 size={14} />
-              チャットをクリア
-            </button>
-          )}
-        </div>,
-        document.body
-      )}
 
       {pendingDeleteChannel && (
         <ConfirmModal
