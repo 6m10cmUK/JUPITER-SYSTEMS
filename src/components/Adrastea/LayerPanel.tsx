@@ -312,30 +312,18 @@ export function LayerPanel() {
     <SortableListPanel
       title="レイヤー"
       headerActions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-          <DropdownMenu
-            trigger={
-              <button type="button" className="adra-btn adra-btn--on-bg" style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
-                <Plus size={13} />
-              </button>
-            }
-            items={[
-              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => handleImageAdd(false) },
-              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
-              'separator',
-              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => handleImageAdd(true) },
-              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
-            ]}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
           <Tooltip label="複製">
             <button
               type="button"
-              className="adra-btn adra-btn--ghost"
               onClick={handleDuplicate}
               disabled={!hasDuplicateTargets}
               style={{
-                ...iconBtnStyle,
+                background: 'transparent',
+                border: 'none',
                 color: theme.accent,
+                cursor: hasDuplicateTargets ? 'pointer' : 'default',
+                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasDuplicateTargets ? 1 : 0.3,
@@ -347,7 +335,6 @@ export function LayerPanel() {
           <Tooltip label="削除">
             <button
               type="button"
-              className="adra-btn adra-btn--ghost"
               onClick={() => {
                 const target = selectedObjectIds.length > 0
                   ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
@@ -358,8 +345,11 @@ export function LayerPanel() {
               }}
               disabled={!hasRemoveTargets}
               style={{
-                ...iconBtnStyle,
+                background: 'transparent',
+                border: 'none',
                 color: theme.danger,
+                cursor: hasRemoveTargets ? 'pointer' : 'default',
+                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasRemoveTargets ? 1 : 0.3,
@@ -368,6 +358,31 @@ export function LayerPanel() {
               <Trash2 size={13} />
             </button>
           </Tooltip>
+          <DropdownMenu
+            trigger={
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.accent,
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Plus size={15} />
+              </button>
+            }
+            items={[
+              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => handleImageAdd(false) },
+              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
+              'separator',
+              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => handleImageAdd(true) },
+              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
+            ]}
+          />
         </div>
       }
       items={sortedObjects}
