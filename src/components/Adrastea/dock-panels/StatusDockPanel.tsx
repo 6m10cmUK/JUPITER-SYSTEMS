@@ -337,7 +337,7 @@ export function StatusDockPanel() {
                 </button>
               </div>
               {/* ステータスバー 2列グリッド */}
-              {showStatuses ? (
+              {showStatuses && (
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
@@ -354,11 +354,7 @@ export function StatusDockPanel() {
                     />
                   ))}
                 </div>
-              ) : !isPrivate ? (
-                <div style={{ color: theme.textMuted, fontSize: 12, padding: '2px 0' }}>
-                  ステータスなし
-                </div>
-              ) : null}
+              )}
             </div>
           </div>
         );
