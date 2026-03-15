@@ -79,7 +79,6 @@ function migrateFromLegacy(): LayoutStore {
           layout: parsed.layout,
         };
         newStore.layouts.push(ownerLayout);
-        newStore.gmDefault = ownerLayout.id;
       }
     }
   } catch (error) {
