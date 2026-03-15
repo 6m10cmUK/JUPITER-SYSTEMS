@@ -83,21 +83,39 @@ function StatusBar({
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 2,
-    }}>
+    <div
+      style={{
+        position: 'relative',
+        height: 16,
+        background: 'rgba(255,255,255,0.1)',
+        cursor: canEdit ? 'ew-resize' : 'default',
+      }}
+      onMouseDown={handleBarMouseDown}
+    >
+      <div style={{
+        height: '100%',
+        width: `${status.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
+        background: barColor,
+        transition: isDragging ? 'none' : 'width 0.2s ease',
+      }} />
       {canEdit && (
         <button
           style={{
-            background: 'none',
-            border: 'none',
-            color: theme.textMuted,
+            position: 'absolute',
+            left: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
             fontSize: 10,
+            fontWeight: 700,
+            color: '#fff',
+            background: 'transparent',
+            border: 'none',
             cursor: 'pointer',
-            padding: '0 2px',
-            flexShrink: 0,
+            padding: '0 3px',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            zIndex: 1,
           }}
           onClick={(e) => {
             e.stopPropagation();
@@ -107,45 +125,48 @@ function StatusBar({
           &lt;
         </button>
       )}
-      <div
-        style={{
-          position: 'relative',
-          height: 16,
-          background: 'rgba(255,255,255,0.1)',
-          flex: 1,
-          cursor: canEdit ? 'ew-resize' : 'default',
-        }}
-        onMouseDown={handleBarMouseDown}
-      >
-        <div style={{
-          height: '100%',
-          width: `${status.max > 0 ? Math.min(100, ratio * 100) : 0}%`,
-          background: barColor,
-          transition: isDragging ? 'none' : 'width 0.2s ease',
-        }} />
-        <span style={{
-          position: 'absolute', left: 4, top: '50%', transform: 'translateY(-50%)',
-          fontSize: 10, color: '#000', fontWeight: 700, pointerEvents: 'none',
-        }}>
-          {status.label}
-        </span>
-        <span style={{
-          position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
-          fontSize: 10, color: '#000', fontWeight: 600, pointerEvents: 'none',
-        }}>
-          {status.value}/{status.max}
-        </span>
-      </div>
+      <span style={{
+        position: 'absolute',
+        left: canEdit ? 14 : 4,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        fontSize: 10,
+        color: '#000',
+        fontWeight: 700,
+        pointerEvents: 'none',
+      }}>
+        {status.label}
+      </span>
+      <span style={{
+        position: 'absolute',
+        right: canEdit ? 14 : 4,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        fontSize: 10,
+        color: '#000',
+        fontWeight: 600,
+        pointerEvents: 'none',
+      }}>
+        {status.value}/{status.max}
+      </span>
       {canEdit && (
         <button
           style={{
-            background: 'none',
-            border: 'none',
-            color: theme.textMuted,
+            position: 'absolute',
+            right: 0,
+            top: '50%',
+            transform: 'translateY(-50%)',
             fontSize: 10,
+            fontWeight: 700,
+            color: '#fff',
+            background: 'transparent',
+            border: 'none',
             cursor: 'pointer',
-            padding: '0 2px',
-            flexShrink: 0,
+            padding: '0 3px',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            zIndex: 1,
           }}
           onClick={(e) => {
             e.stopPropagation();
