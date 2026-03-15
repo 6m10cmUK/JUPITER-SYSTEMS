@@ -374,13 +374,8 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     const rect = btnRef.current.getBoundingClientRect();
     const popW = 210;
     const popH = 300;
-    let top = rect.bottom + 4;
-    let left = rect.left;
-    // 画面外にはみ出す場合は調整
-    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
-    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
-    if (left < 0) left = 8;
-    setPopPos({ top, left });
+    const pos = calcPopupPos(rect, popW, popH, 'down');
+    setPopPos({ top: pos.top, left: pos.left });
   }, [open]);
 
   // 外側クリックで閉じる
