@@ -86,6 +86,8 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
           display: 'flex',
           flexDirection: 'column',
           gap: '2px',
+          height: '91px',
+          overflow: 'hidden',
         }}
       >
         <span style={{ fontSize: '11px', fontWeight: 600, color: charColor || theme.textSecondary }}>
