@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { CharacterPanel } from '../CharacterPanel';
-import { CharacterEditor } from '../CharacterEditor';
+import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
 import type { Character } from '../../../types/adrastea.types';
 export function CharacterDockPanel() {
@@ -10,6 +10,7 @@ export function CharacterDockPanel() {
   const { user } = useAuth();
   const [modalChar, setModalChar] = useState<Character | null | undefined>(undefined);
   const [selectedCharIds, setSelectedCharIds] = useState<string[]>([]);
+  const editorRef = useRef<CharacterEditorHandle>(null);
 
   useEffect(() => {
     if (ctx.characterToOpenModal) {
@@ -34,6 +35,11 @@ export function CharacterDockPanel() {
   const handleModalClose = () => {
     setModalChar(undefined);
     ctx.setEditingCharacter(undefined);
+  };
+
+  const handleModalCloseWithSave = () => {
+    editorRef.current?.save();
+    // handleSave が handleModalClose() を呼ぶので追加の close は不要
   };
 
   const handleSave = (data: Partial<Character>) => {
@@ -88,9 +94,10 @@ export function CharacterDockPanel() {
         <AdModal
           title={modalChar?.id ? 'キャラクター編集' : 'キャラクター追加'}
           width="500px"
-          onClose={handleModalClose}
+          onClose={handleModalCloseWithSave}
         >
           <CharacterEditor
+            ref={editorRef}
             key={modalChar?.id ?? 'new'}
             character={modalChar}
             roomId={ctx.roomId}
