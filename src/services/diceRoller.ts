@@ -97,9 +97,32 @@ export async function rollDice(
 export async function getAvailableSystems(): Promise<
   { id: string; name: string }[]
 > {
-  // 自前実装ではゲームシステム固有の処理はないが、
-  // UIの互換性のためにリストを返す
-  return [
-    { id: 'DiceBot', name: '汎用ダイスボット' },
-  ];
+  const FALLBACK = [{ id: 'DiceBot', name: '汎用ダイスボット' }];
+
+  try {
+    const response = await fetch(
+      'https://bcdice.onlinesession.app/v2/game_system'
+    );
+    if (!response.ok) {
+      return FALLBACK;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await response.json();
+    if (!Array.isArray(data.game_system)) {
+      return FALLBACK;
+    }
+
+    const systems = data.game_system
+      .filter((item: { id: string }) => item.id !== 'DiceBot')
+      .map((item: { id: string; name: string }) => ({
+        id: item.id,
+        name: item.name,
+      }));
+
+    return [{ id: 'DiceBot', name: '汎用ダイスボット' }, ...systems];
+  } catch (err) {
+    console.error('getAvailableSystems failed:', err);
+    return FALLBACK;
+  }
 }
