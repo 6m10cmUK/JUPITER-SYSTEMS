@@ -104,9 +104,10 @@ function StatusBar({
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 10,
-        color: '#000',
+        color: theme.textPrimary,
         fontWeight: 700,
         pointerEvents: 'none',
+        textShadow: '0 0 3px rgba(0,0,0,0.7)',
       }}>
         {status.label}
       </span>
@@ -116,9 +117,10 @@ function StatusBar({
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 10,
-        color: '#000',
+        color: theme.textPrimary,
         fontWeight: 600,
         pointerEvents: 'none',
+        textShadow: '0 0 3px rgba(0,0,0,0.7)',
       }}>
         {status.value}/{status.max}
       </span>
@@ -133,6 +135,7 @@ function StatusBar({
             flexDirection: 'column',
             zIndex: 1,
           }}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <button
             style={{
@@ -248,13 +251,14 @@ export function StatusDockPanel() {
               padding: 4,
               borderLeft: `3px solid ${char.color}`,
               borderBottom: `1px solid ${theme.borderSubtle}`,
-              cursor: (isOwner || isSubOwnerPlus) ? 'pointer' : 'default',
             }}
-            onClick={() => handleClick(char.id)}
-            onDoubleClick={() => handleDoubleClick(char.id)}
           >
             {/* アイコン + イニシアチブバッジ */}
-            <div style={{ position: 'relative', flexShrink: 0 }}>
+            <div
+              style={{ position: 'relative', flexShrink: 0, cursor: (isOwner || isSubOwnerPlus) ? 'pointer' : 'default' }}
+              onClick={() => handleClick(char.id)}
+              onDoubleClick={() => handleDoubleClick(char.id)}
+            >
               {imgUrl ? (
                 <img
                   src={imgUrl}
