@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
 import { AdButton, AdInput, AdTextArea } from './ui';
+import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { theme } from '../../styles/theme';
 import { X } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
+import { getAvailableSystems } from '../../services/diceRoller';
 
 type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 
@@ -62,12 +64,14 @@ function RoomSettingsSection({
   onDeleteRoom,
   onClose,
   isOwner,
+  systems,
 }: {
   room: Room;
   onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
   isOwner: boolean;
+  systems: { id: string; name: string }[];
 }) {
   const [roomName, setRoomName] = useState(room.name);
   const [description, setDescription] = useState('');
@@ -109,11 +113,10 @@ function RoomSettingsSection({
         placeholder="セッションの説明など（任意）"
         rows={3}
       />
-      <AdInput
-        label="ダイスシステム"
+      <DiceSystemPicker
         value={diceSystem}
-        onChange={(e) => setDiceSystem(e.target.value)}
-        placeholder="DiceBot"
+        onChange={setDiceSystem}
+        systems={systems}
       />
       {isOwner && (
         <>
@@ -481,6 +484,11 @@ export function SettingsModal({
   onAssignRole,
 }: SettingsModalProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [diceSystems, setDiceSystems] = useState<{id:string;name:string}[]>([]);
+
+  useEffect(() => {
+    getAvailableSystems().then(setDiceSystems).catch(console.error);
+  }, []);
 
   return (
     <div
@@ -600,6 +608,7 @@ export function SettingsModal({
               onDeleteRoom={onDeleteRoom}
               onClose={onClose}
               isOwner={isOwner}
+              systems={diceSystems}
             />
           )}
           {section === 'layout' && (
