@@ -931,9 +931,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
       {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
         <div ref={popupRef} style={{
           position: 'fixed',
-          left: Math.max(8, Math.min(cursorPos.x - 190, window.innerWidth - 388)),
+          left: Math.max(8, Math.min(cursorPos.x, window.innerWidth - 8)),
           top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
-          transform: cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? 'none' : 'translateY(-50%)',
+          transform: `translateX(-50%) ${cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? '' : 'translateY(-50%)'}`,
           zIndex: 10000,
           pointerEvents: 'none',
           background: 'rgba(0, 0, 0, 0.72)',
