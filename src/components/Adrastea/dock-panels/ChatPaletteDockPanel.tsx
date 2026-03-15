@@ -4,7 +4,7 @@ import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { theme } from '../../../styles/theme';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
-import { Pencil } from 'lucide-react';
+import { Pencil, Send } from 'lucide-react';
 
 export function ChatPaletteDockPanel() {
   const { user } = useAuth();
@@ -41,6 +41,7 @@ export function ChatPaletteDockPanel() {
         borderLeft: `1px solid ${theme.border}`,
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       {/* ヘッダーなし（タイトルは Dockview のタブに表示されるので不要） */}
@@ -85,36 +86,56 @@ export function ChatPaletteDockPanel() {
             display: 'flex',
             flexDirection: 'column',
             gap: '2px',
+            minWidth: 0,
           }}
         >
           {paletteItems.map((item, idx) => (
-            <button
+            <div
               key={idx}
-              className="adra-btn adra-btn--ghost"
-              onClick={(e) => {
-                if (e.detail >= 2) return;
-                ctx.setChatInjectText(item);
-              }}
-              onDoubleClick={() => {
-                handleSendPaletteMessage(item);
-              }}
               style={{
-                padding: '6px 8px',
-                borderRadius: 0,
-                color: theme.textPrimary,
-                fontSize: '12px',
-                textAlign: 'left',
-                cursor: 'pointer',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                width: '100%',
-                display: 'block',
+                display: 'flex',
+                alignItems: 'center',
+                flexShrink: 0,
               }}
-              title={item}
             >
-              {item}
-            </button>
+              <button
+                className="adra-btn adra-btn--ghost"
+                onClick={() => handleSendPaletteMessage(item)}
+                style={{
+                  padding: '4px 6px',
+                  borderRadius: 0,
+                  color: theme.textMuted,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="送信"
+              >
+                <Send size={10} />
+              </button>
+              <button
+                className="adra-btn adra-btn--ghost"
+                onClick={() => ctx.setChatInjectText(item)}
+                style={{
+                  padding: '6px 4px',
+                  borderRadius: 0,
+                  color: theme.textPrimary,
+                  fontSize: '12px',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                  minWidth: 0,
+                  display: 'block',
+                }}
+                title={item}
+              >
+                {item}
+              </button>
+            </div>
           ))}
         </div>
       )}
