@@ -45,6 +45,7 @@ export function LayerPanel() {
     layerOrderedCharacters,
     updateCharacter,
     reorderLayerCharacters,
+    setEditingCharacter,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -395,6 +396,13 @@ export function LayerPanel() {
                 if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
               }}
               onReorder={(orderedIds) => reorderLayerCharacters(orderedIds)}
+              onSelectCharacter={(charId) => {
+                const char = layerOrderedCharacters.find(c => c.id === charId);
+                if (char) {
+                  clearAllEditing();
+                  setEditingCharacter(char);
+                }
+              }}
             />
           );
         }
@@ -553,6 +561,7 @@ function CharacterLayerRow({
   characters,
   onToggleVisible,
   onReorder,
+  onSelectCharacter,
 }: {
   id: string;
   isOpen: boolean;
@@ -560,6 +569,7 @@ function CharacterLayerRow({
   characters: Character[];
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
+  onSelectCharacter?: (charId: string) => void;
 }) {
   const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
 
@@ -610,6 +620,7 @@ function CharacterLayerRow({
           characters={characters}
           onToggleVisible={onToggleVisible}
           onReorder={onReorder}
+          onSelectCharacter={onSelectCharacter}
         />
       )}
     </div>
@@ -624,10 +635,12 @@ function CharacterSubList({
   characters,
   onToggleVisible,
   onReorder,
+  onSelectCharacter,
 }: {
   characters: Character[];
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
+  onSelectCharacter?: (charId: string) => void;
 }) {
   const [localChars, setLocalChars] = useState<Character[]>(characters);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -710,32 +723,55 @@ function CharacterSubList({
           >
             {/* インデント */}
             <span style={{ flexShrink: 0, width: '20px' }} />
-            {/* アバター（画像 or カラードット） */}
-            <div style={{
-              flexShrink: 0,
-              width: '18px', height: '18px',
-              borderRadius: '50%',
-              background: char.color ?? theme.textMuted,
-              overflow: 'hidden',
-            }}>
-              {char.images[char.active_image_index]?.url ? (
-                <img
-                  src={char.images[char.active_image_index].url}
-                  alt={char.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
-                />
-              ) : null}
+            {/* アバター + 名前（クリックで選択） */}
+            <div
+              onClick={() => onSelectCharacter?.(char.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flex: 1,
+                cursor: onSelectCharacter ? 'pointer' : 'default',
+                padding: '2px 4px',
+                borderRadius: '4px',
+                transition: 'background-color 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                if (onSelectCharacter) {
+                  (e.currentTarget as HTMLElement).style.backgroundColor = theme.bgHover;
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+              }}
+            >
+              {/* アバター（画像 or カラードット） */}
+              <div style={{
+                flexShrink: 0,
+                width: '18px', height: '18px',
+                borderRadius: '50%',
+                background: char.color ?? theme.textMuted,
+                overflow: 'hidden',
+              }}>
+                {char.images[char.active_image_index]?.url ? (
+                  <img
+                    src={char.images[char.active_image_index].url}
+                    alt={char.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                  />
+                ) : null}
+              </div>
+              {/* 名前 */}
+              <span style={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                opacity: char.board_visible !== false ? 1 : 0.4,
+              }}>
+                {char.name}
+              </span>
             </div>
-            {/* 名前 */}
-            <span style={{
-              flex: 1,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              opacity: char.board_visible !== false ? 1 : 0.4,
-            }}>
-              {char.name}
-            </span>
             {/* 目アイコン */}
             <Tooltip label={char.board_visible !== false ? '非表示にする' : '表示する'}>
               <button
