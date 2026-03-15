@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { hasRole } from '../../../config/permissions';
 import { theme } from '../../../styles/theme';
 
 function isLightColor(hex: string): boolean {
@@ -13,7 +14,7 @@ function isLightColor(hex: string): boolean {
 }
 
 function formatInitiative(val: number): string {
-  if (val === 0) return '-';
+  if (val === 0) return '0';
   const rounded = Math.round(val * 10) / 10;
   return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
@@ -66,10 +67,12 @@ export function StatusDockPanel() {
         </div>
       ) : visible.map(char => {
         const isOwner = char.owner_id === currentUserId;
+        const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
         const imgUrl = char.images[char.active_image_index]?.url ?? null;
+        const isPrivate = char.is_status_private && !isOwner && !isSubOwnerPlus;
         const initiative = char.initiative ?? 0;
         const textColor = isLightColor(char.color) ? '#000' : '#fff';
-        const showStatuses = (!char.is_status_private || isOwner) && char.statuses.length > 0;
+        const showStatuses = !isPrivate && char.statuses.length > 0;
         const hasSheetUrl = !!char.sheet_url;
 
         return (
@@ -116,7 +119,7 @@ export function StatusDockPanel() {
                 minWidth: 16,
                 textAlign: 'center',
               }}>
-                {formatInitiative(initiative)}
+                {isPrivate ? '?' : formatInitiative(initiative)}
               </div>
             </div>
             {/* 右側: 名前 + ステータスバー */}
@@ -223,11 +226,11 @@ export function StatusDockPanel() {
                     );
                   })}
                 </div>
-              ) : (
+              ) : !isPrivate ? (
                 <div style={{ color: theme.textMuted, fontSize: 10, padding: '2px 0' }}>
-                  {char.is_status_private && !isOwner ? '🔒 非公開' : 'ステータスなし'}
+                  ステータスなし
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         );
