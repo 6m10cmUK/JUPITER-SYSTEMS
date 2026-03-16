@@ -7,6 +7,7 @@ export interface Env {
   GOOGLE_CLIENT_SECRET: string;
   ADMIN_USER_IDS?: string;
   CONVEX_SITE_URL?: string;
+  ARCHIVE_SECRET?: string;
 }
 
 export interface AuthUser {

@@ -1,6 +1,7 @@
-import { mutation, query } from "./_generated/server";
+import { mutation, query, internalAction, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { getUserId } from "./_helpers";
+import { internal } from "./_generated/api";
 
 const ROLE_HIERARCHY = ['guest', 'user', 'sub_owner', 'owner'] as const;
 type RoomRole = typeof ROLE_HIERARCHY[number];
@@ -90,6 +91,102 @@ export const send = mutation({
     };
 
     await ctx.db.insert("messages", message);
+
+    // アーカイブ閾値チェック: 300件超えたらバックグラウンドでアーカイブ
+    const count = await ctx.db
+      .query("messages")
+      .withIndex("by_room", (q) => q.eq("room_id", args.room_id))
+      .collect()
+      .then((msgs) => msgs.length);
+    if (count > 300) {
+      await ctx.scheduler.runAfter(0, internal.messages.archive, {
+        room_id: args.room_id,
+      });
+    }
+
     return message;
+  },
+});
+
+/**
+ * メッセージアーカイブ: 古いメッセージを Worker (D1) に退避し Convex から削除
+ */
+export const archive = internalAction({
+  args: { room_id: v.string() },
+  handler: async (ctx, args) => {
+    // 1. このルームの全メッセージを created_at asc で取得
+    const allMessages: any[] = await ctx.runQuery(internal.messages.listAllForArchive, {
+      room_id: args.room_id,
+    });
+
+    if (allMessages.length <= 100) return; // 100件以下なら何もしない
+
+    // 2. 最新100件を残し、古い方をアーカイブ対象に
+    const toArchive = allMessages.slice(0, allMessages.length - 100);
+
+    // 3. Worker に POST でバッチ送信
+    const workerUrl = process.env.WORKER_URL;
+    const archiveSecret = process.env.ARCHIVE_SECRET;
+    if (!workerUrl || !archiveSecret) {
+      console.error("WORKER_URL or ARCHIVE_SECRET not set");
+      return;
+    }
+
+    const response = await fetch(
+      `${workerUrl}/api/rooms/${args.room_id}/messages/archive`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Archive-Secret": archiveSecret,
+        },
+        body: JSON.stringify({
+          messages: toArchive.map((m: any) => ({
+            id: m.id,
+            room_id: m.room_id,
+            sender_name: m.sender_name,
+            sender_uid: m.sender_uid,
+            sender_avatar: m.sender_avatar,
+            content: m.content,
+            message_type: m.message_type,
+            channel: m.channel,
+            allowed_user_ids: m.allowed_user_ids,
+            created_at: m.created_at,
+          })),
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Archive failed:", await response.text());
+      return;
+    }
+
+    // 4. 成功したら Convex から対象メッセージを削除
+    await ctx.runMutation(internal.messages.deleteArchived, {
+      ids: toArchive.map((m: any) => m._id),
+    });
+  },
+});
+
+/** archive 用: ルーム内全メッセージを created_at asc で取得 */
+export const listAllForArchive = internalQuery({
+  args: { room_id: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("messages")
+      .withIndex("by_room_time", (q) => q.eq("room_id", args.room_id))
+      .order("asc")
+      .collect();
+  },
+});
+
+/** archive 用: 指定IDのメッセージを一括削除 */
+export const deleteArchived = internalMutation({
+  args: { ids: v.array(v.id("messages")) },
+  handler: async (ctx, args) => {
+    for (const id of args.ids) {
+      await ctx.db.delete(id);
+    }
   },
 });

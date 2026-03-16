@@ -10,6 +10,7 @@
 
 import { handleAuth } from './routes/auth';
 import { handleRooms } from './routes/rooms';
+import { handleMessages } from './routes/messages';
 import { handleAssets } from './routes/assets';
 import { handleR2 } from './routes/r2';
 import { handleAdmin } from './routes/admin';
@@ -94,6 +95,14 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
       return handleAuth(request, url, env, headers);
     }
 
+    // --- Messages Archive (JWT or X-Archive-Secret) ---
+    if (url.pathname.match(/^\/api\/rooms\/[^/]+\/messages\/archive/) && request.method === 'POST') {
+      const archiveSecret = request.headers.get('X-Archive-Secret');
+      if (archiveSecret && env.ARCHIVE_SECRET && archiveSecret === env.ARCHIVE_SECRET) {
+        return handleMessages(request, url, env, headers, null);
+      }
+    }
+
     // --- 以下は認証必須 ---
     const authHeader = request.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
@@ -115,6 +124,11 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     }
     if (url.pathname === '/delete' && request.method === 'DELETE') {
       return handleR2.deleteFile(request, url, env, headers, user);
+    }
+
+    // --- Messages API ---
+    if (url.pathname.match(/^\/api\/rooms\/[^/]+\/messages/)) {
+      return handleMessages(request, url, env, headers, user);
     }
 
     // --- Rooms API ---

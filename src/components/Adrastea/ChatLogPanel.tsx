@@ -22,6 +22,14 @@ import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
 import { ConfirmModal, DropdownMenu } from './ui';
 import { genId } from '../../utils/id';
 
+// スピナーアニメーション用のスタイル注入
+if (typeof document !== 'undefined' && !document.getElementById('chat-spinner-style')) {
+  const style = document.createElement('style');
+  style.id = 'chat-spinner-style';
+  style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+  document.head.appendChild(style);
+}
+
 /**
  * インラインマークアップをパースしてReact要素の配列を返す
  * サポート構文:
@@ -181,7 +189,7 @@ interface ChatLogPanelProps {
   hasMore: boolean;
   roomName?: string;
   characters?: Character[];
-  onLoadMore: () => void;
+  onLoadMore: () => void | Promise<void>;
   onClearMessages?: () => void;
 }
 
@@ -378,7 +386,22 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     if (isNearBottomRef.current) {
       setHasNewMessage(false);
     }
-  }, []);
+    // 上端検知: 過去ログ自動読み込み
+    if (el.scrollTop < 50 && hasMore && !loading && !isLoadingMoreRef.current) {
+      isLoadingMoreRef.current = true;
+      const prevScrollHeight = el.scrollHeight;
+      Promise.resolve(onLoadMore()).then(() => {
+        // スクロール位置維持: 追加されたメッセージ分だけ scrollTop を補正
+        requestAnimationFrame(() => {
+          const newScrollHeight = el.scrollHeight;
+          el.scrollTop = newScrollHeight - prevScrollHeight;
+          isLoadingMoreRef.current = false;
+        });
+      }).catch(() => {
+        isLoadingMoreRef.current = false;
+      });
+    }
+  }, [hasMore, loading, onLoadMore]);
 
   useEffect(() => {
     if (filteredMessages.length > prevMessageCountRef.current) {
@@ -713,29 +736,25 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           position: 'relative',
         }}
       >
-        {hasMore && (
-          <button
-            className="adra-btn adra-btn--ghost"
-            onClick={() => {
-              isLoadingMoreRef.current = true;
-              onLoadMore();
-            }}
-            disabled={loading}
+        {hasMore && isLoadingMoreRef.current && (
+          <div
             style={{
-              display: 'block',
-              width: '100%',
-              padding: '4px',
-              marginBottom: '4px',
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 0,
-              color: theme.textSecondary,
-              fontSize: '11px',
-              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              justifyContent: 'center',
+              padding: '8px',
             }}
           >
-            {loading ? '読み込み中...' : 'もっと読み込む'}
-          </button>
+            <div
+              style={{
+                width: '16px',
+                height: '16px',
+                border: `2px solid ${theme.textSecondary}`,
+                borderTopColor: 'transparent',
+                borderRadius: '50%',
+                animation: 'spin 0.8s linear infinite',
+              }}
+            />
+          </div>
         )}
 
         {filteredMessages.map(renderMessage)}
