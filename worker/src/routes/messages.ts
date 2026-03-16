@@ -72,7 +72,7 @@ export async function handleMessages(
       return json({ error: 'Unauthorized' }, headers, 401);
     }
 
-    const limit = Math.min(Number(url.searchParams.get('limit') ?? 50), 100);
+    const limit = Math.min(Number(url.searchParams.get('limit') ?? 200), 200);
     const before = Number(url.searchParams.get('before') ?? Date.now());
     const channel = url.searchParams.get('channel');
 
