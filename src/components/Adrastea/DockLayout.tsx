@@ -21,7 +21,7 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
-import { getDefaultLayoutForRole, loadStore, persistStore, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
+import { getDefaultLayoutForRole, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -371,24 +371,7 @@ const DockviewInner = memo(function DockviewInner({
 
     const disposable = api.onDidLayoutChange(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        const currentRole = roleRef.current;
-        // 旧形式の自動保存（互換維持）
-        saveLayout(api, currentRole);
-        // 新形式: デフォルトレイアウトがあれば上書き
-        const layoutJson = api.toJSON();
-        const s = loadStore();
-        const defaultId = (currentRole === 'owner' || currentRole === 'sub_owner')
-          ? s.gmDefault
-          : currentRole === 'user' ? s.plDefault : null;
-        if (defaultId) {
-          const target = s.layouts.find((l) => l.id === defaultId);
-          if (target) {
-            target.layout = layoutJson;
-            persistStore(s);
-          }
-        }
-      }, 300);
+      timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
     });
 
     return () => {
