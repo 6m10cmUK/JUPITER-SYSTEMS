@@ -32,6 +32,7 @@ interface BoardProps {
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
   onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  onPaste?: () => void;
   currentUserId?: string;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
@@ -172,11 +173,12 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
   const [contextMenuState, setContextMenuState] = useState<{ x: number; y: number; pieceId: string } | null>(null);
+  const [bgContextMenuState, setBgContextMenuState] = useState<{ x: number; y: number } | null>(null);
 
   const fitToScreen = useCallback(() => {
     const stage = stageRef.current;
@@ -304,12 +306,13 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   // Stageクリック: メニュー閉じ + 背景オブジェクト選択
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (contextMenuState) setContextMenuState(null);
+    if (bgContextMenuState) setBgContextMenuState(null);
     // Stage 直接クリック（空白領域）→ 背景オブジェクトを選択
     if (e.target === e.target.getStage() && onSelectObject) {
       const bg = objects.find(o => o.type === 'background');
       if (bg) onSelectObject(bg.id);
     }
-  }, [contextMenuState, objects, onSelectObject]);
+  }, [contextMenuState, bgContextMenuState, objects, onSelectObject]);
 
   const handleStageDblClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage() && onEditObject) {
@@ -396,6 +399,12 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onWheel={handleWheel}
         onClick={handleStageClick}
         onDblClick={handleStageDblClick}
+        onContextMenu={(e: KonvaEventObject<PointerEvent>) => {
+          if (e.target === e.target.getStage() && onPaste) {
+            e.evt.preventDefault();
+            setBgContextMenuState({ x: e.evt.clientX, y: e.evt.clientY });
+          }
+        }}
         onDragStart={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grabbing'); }}
         onDragEnd={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grab'); }}
         style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1, cursor: 'grab' }}
@@ -469,7 +478,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onContextMenuCharacter={onContextMenuCharacter}
         selectedCharacterId={selectedCharacterId}
       />
-      {/* 右クリックメニュー（DropdownMenu） */}
+      {/* 右クリックメニュー（駒用） */}
       <DropdownMenu
         mode="context"
         open={contextMenuState !== null}
@@ -488,6 +497,22 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             onClick: () => {
               if (contextMenuState) onRemovePiece(contextMenuState.pieceId);
               setContextMenuState(null);
+            },
+          },
+        ]}
+      />
+      {/* 背景右クリックメニュー */}
+      <DropdownMenu
+        mode="context"
+        open={bgContextMenuState !== null}
+        onOpenChange={(open) => { if (!open) setBgContextMenuState(null); }}
+        position={bgContextMenuState ?? { x: 0, y: 0 }}
+        items={[
+          {
+            label: '貼り付け',
+            onClick: () => {
+              onPaste?.();
+              setBgContextMenuState(null);
             },
           },
         ]}

@@ -4,7 +4,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
-import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal } from './ui';
+import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
 
 interface CharacterPanelProps {
   characters: Character[];
@@ -18,6 +18,7 @@ interface CharacterPanelProps {
   onRemoveCharacters: (ids: string[]) => void;
   onReorderCharacters?: (orderedIds: string[]) => void;
   onToggleBoardVisible: (charId: string) => void;
+  onPaste?: () => void;
 }
 
 export function CharacterPanel({
@@ -32,8 +33,10 @@ export function CharacterPanel({
   onRemoveCharacters,
   onReorderCharacters,
   onToggleBoardVisible,
+  onPaste,
 }: CharacterPanelProps) {
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
   const canDelete = selectedCharIds.length > 0;
 
@@ -59,7 +62,16 @@ export function CharacterPanel({
 
   return (
     <>
-    <SortableListPanel
+    <div
+      onContextMenu={(e) => {
+        if (onPaste) {
+          e.preventDefault();
+          setContextMenuPos({ x: e.clientX, y: e.clientY });
+        }
+      }}
+      style={{ height: '100%' }}
+    >
+      <SortableListPanel
       title="キャラクター"
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
@@ -205,7 +217,24 @@ export function CharacterPanel({
           </Tooltip>
         </SortableListItem>
       ))}
-    </SortableListPanel>
+      </SortableListPanel>
+    </div>
+
+    <DropdownMenu
+      mode="context"
+      open={contextMenuPos !== null}
+      onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
+      position={contextMenuPos ?? { x: 0, y: 0 }}
+      items={[
+        {
+          label: '貼り付け',
+          onClick: () => {
+            onPaste?.();
+            setContextMenuPos(null);
+          },
+        },
+      ]}
+    />
 
     {pendingRemove && (
       <ConfirmModal
