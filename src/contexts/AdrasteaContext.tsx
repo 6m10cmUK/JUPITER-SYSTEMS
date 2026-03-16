@@ -63,6 +63,7 @@ export interface AdrasteaContextValue {
   // --- useAdrasteaChat ---
   messages: ChatMessage[];
   chatLoading: boolean;
+  loadingMore: boolean;
   hasMore: boolean;
   sendMessage: ReturnType<typeof useAdrasteaChat>['sendMessage'];
   loadMore: ReturnType<typeof useAdrasteaChat>['loadMore'];
@@ -256,7 +257,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   } = useAdrastea(roomId);
 
   const {
-    messages, loading: chatLoading, hasMore, sendMessage, loadMore, clearMessages,
+    messages, loading: chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages,
   } = useAdrasteaChat(roomId);
 
   const {
@@ -789,7 +790,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom, deleteRoom,
 
       // useAdrasteaChat
-      messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+      messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
       chatInjectText, setChatInjectText,
@@ -882,7 +883,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     [
       roomId, roomRole,
       pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom, deleteRoom,
-      messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
+      messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage,
       activeSpeakerCharId, setActiveSpeakerCharId,
       activeChatChannel, setActiveChatChannel,
       chatInjectText, setChatInjectText,
@@ -917,7 +918,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Rooms/Pieces
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
     // Chat
-    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage as any,
+    messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage as any,
     activeSpeakerCharId, setActiveSpeakerCharId,
     // Scenes
     scenes: effectiveScenes, addScene: guardedAddScene as any, updateScene: guardedUpdateScene as any, removeScene: guardedRemoveScene as any, reorderScenes: guardedReorderScenes as any, activateScene: safeActivateScene,
@@ -935,7 +936,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     activeScene,
   }), [
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
-    messages, chatLoading, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
+    messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, guardedSendMessage,
     activeSpeakerCharId, setActiveSpeakerCharId,
     effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
     characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
