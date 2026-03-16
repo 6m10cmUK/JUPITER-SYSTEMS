@@ -251,11 +251,13 @@ function SortableChannelTab({
   channel,
   isActive,
   onSelect,
+  onReclick,
   hasUnread,
 }: {
   channel: ChatChannel;
   isActive: boolean;
   onSelect: () => void;
+  onReclick: () => void;
   hasUnread?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -271,7 +273,7 @@ function SortableChannelTab({
       ref={setNodeRef}
       type="button"
       className={`adra-btn adra-tab${isActive ? ' adra-tab--active' : ''}`}
-      onClick={onSelect}
+      onClick={() => isActive ? onReclick() : onSelect()}
       style={{
         padding: '6px 12px',
         background: isActive ? theme.bgSurface : undefined,
@@ -315,7 +317,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   onClearMessages,
 }) => {
   const { activeChatChannel, setActiveChatChannel, channels, upsertChannel, deleteChannel } = useAdrasteaContext();
-  const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -402,7 +403,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     const unread = new Set<string>();
     const channelIds = channels.map(ch => ch.channel_id);
     for (const chId of channelIds) {
-      if (chId === activeChatChannel) continue;
       const count = messages.filter(m => (m.channel ?? 'main') === chId).length;
       const lastSeen = lastSeenCountRef.current.get(chId) ?? 0;
       if (count > lastSeen) {
@@ -410,12 +410,14 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       }
     }
     return unread;
-  }, [messages, channels, activeChatChannel]);
+  }, [messages, channels]);
 
-  // アクティブチャンネルの既読を更新
+  // アクティブチャンネルの既読を更新（チャンネル切り替え時 or 下端スクロール時）
   useEffect(() => {
-    const count = messages.filter(m => (m.channel ?? 'main') === activeChatChannel).length;
-    lastSeenCountRef.current.set(activeChatChannel, count);
+    if (isNearBottomRef.current) {
+      const count = messages.filter(m => (m.channel ?? 'main') === activeChatChannel).length;
+      lastSeenCountRef.current.set(activeChatChannel, count);
+    }
   }, [activeChatChannel, messages]);
 
   const handleScroll = useCallback(() => {
@@ -425,9 +427,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     isNearBottomRef.current =
       el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
     if (isNearBottomRef.current) {
-      setHasNewMessage(false);
+      // 下端到達 → アクティブチャンネルの既読を更新
+      const count = messages.filter(m => (m.channel ?? 'main') === activeChatChannel).length;
+      lastSeenCountRef.current.set(activeChatChannel, count);
     }
-  }, []);
+  }, [messages, activeChatChannel]);
 
   // 上端センチネル: 可視になったら過去ログ読み込み
   useEffect(() => {
@@ -461,14 +465,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   useEffect(() => {
     if (filteredMessages.length > prevMessageCountRef.current) {
       if (initialLoadRef.current) {
-        // 初回ロード: 下端にスクロールするだけ（新着扱いしない）
         initialLoadRef.current = false;
       } else if (!isLoadingMoreRef.current) {
-        // 新着メッセージ → 下端にスクロール or バッジ表示
+        // 下端にいるなら自動スクロール（上にいるなら unreadChannels の青点で通知）
         if (isNearBottomRef.current) {
           messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        } else {
-          setHasNewMessage(true);
         }
       }
     }
@@ -480,11 +481,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
     }
   }, [loading]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setHasNewMessage(false);
-  };
 
   // フォーカス時に入力欄にフォーカス
   useEffect(() => {
@@ -524,7 +520,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       setNewChannelName('');
     }
   };
-
 
   const renderMessage = (msg: ChatMessage) => {
     const charColor = characters?.find(c => c.name === msg.sender_name)?.color ?? null;
@@ -639,7 +634,16 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               key={ch.channel_id}
               type="button"
               className={`adra-btn adra-tab${activeChatChannel === ch.channel_id ? ' adra-tab--active' : ''}`}
-              onClick={() => setActiveChatChannel(ch.channel_id)}
+              onClick={() => {
+                if (activeChatChannel === ch.channel_id) {
+                  // アクティブタブ再クリック → 一番下にスクロール + 既読更新
+                  messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                  const count = messages.filter(m => (m.channel ?? 'main') === ch.channel_id).length;
+                  lastSeenCountRef.current.set(ch.channel_id, count);
+                } else {
+                  setActiveChatChannel(ch.channel_id);
+                }
+              }}
               style={{
                 padding: '6px 12px',
                 background: activeChatChannel === ch.channel_id ? theme.bgSurface : undefined,
@@ -685,6 +689,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                     channel={ch}
                     isActive={activeChatChannel === ch.channel_id}
                     onSelect={() => setActiveChatChannel(ch.channel_id)}
+                    onReclick={() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                      const count = messages.filter(m => (m.channel ?? 'main') === ch.channel_id).length;
+                      lastSeenCountRef.current.set(ch.channel_id, count);
+                    }}
                     hasUnread={unreadChannels.has(ch.channel_id)}
                   />
                 ))}
@@ -836,32 +845,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         {filteredMessages.map(renderMessage)}
         <div ref={messagesEndRef} />
       </div>
-
-      {/* 新着バッジ */}
-      {hasNewMessage && (
-        <div style={{ position: 'relative' }}>
-          <button
-            onClick={scrollToBottom}
-            style={{
-              position: 'absolute',
-              bottom: '4px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              background: theme.accent,
-              color: theme.textOnAccent,
-              border: 'none',
-              borderRadius: 0,
-              padding: '2px 10px',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              zIndex: 1,
-            }}
-          >
-            ↓ 新着あり
-          </button>
-        </div>
-      )}
 
       {showClearConfirm && onClearMessages && (
         <ConfirmModal
