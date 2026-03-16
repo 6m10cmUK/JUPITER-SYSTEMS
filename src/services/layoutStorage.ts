@@ -97,7 +97,6 @@ function migrateFromLegacy(): LayoutStore {
           layout: parsed.layout,
         };
         newStore.layouts.push(userLayout);
-        newStore.plDefault = userLayout.id;
       }
     }
   } catch (error) {
