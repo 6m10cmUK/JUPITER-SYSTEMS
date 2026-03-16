@@ -360,7 +360,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
-  const prevMessageCountRef = useRef(messages.length);
+  const prevLastMessageIdRef = useRef<string | null>(null);
   const isLoadingMoreRef = useRef(false);
 
   // アクティブチャンネルでメッセージをフィルタ
@@ -368,6 +368,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     () => messages.filter(m => (m.channel ?? 'main') === activeChatChannel),
     [messages, activeChatChannel]
   );
+
+  const lastMessageId = filteredMessages.length > 0
+    ? filteredMessages[filteredMessages.length - 1].id
+    : null;
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -381,15 +385,15 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   }, []);
 
   useEffect(() => {
-    if (filteredMessages.length > prevMessageCountRef.current) {
+    if (lastMessageId && lastMessageId !== prevLastMessageIdRef.current) {
       if (!isLoadingMoreRef.current) {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
         setHasNewMessage(false);
       }
       isLoadingMoreRef.current = false;
     }
-    prevMessageCountRef.current = filteredMessages.length;
-  }, [filteredMessages.length]);
+    prevLastMessageIdRef.current = lastMessageId;
+  }, [lastMessageId]);
 
   useEffect(() => {
     if (!loading) {
