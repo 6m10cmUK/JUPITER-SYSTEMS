@@ -7,6 +7,7 @@ import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
 import { SettingsModal } from '../components/Adrastea/SettingsModal';
 import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
+import { OnboardingModal } from '../components/Adrastea/OnboardingModal';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
@@ -172,7 +173,7 @@ function AdrasteaRoom() {
 const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut } = useAuth();
+  const { user, isGuest, loading: authLoading, signIn, signInAsGuest, signOut, onboarded, updateProfile } = useAuth();
 
   // Convex から room データを取得
   const roomData = useQuery(
@@ -203,6 +204,7 @@ const Adrastea: React.FC = () => {
   const [joinDone, setJoinDone] = useState(isGuest || !roomId); // ゲストは join 不要
   const [joinedRole, setJoinedRole] = useState<'owner' | 'sub_owner' | 'user' | 'guest' | null>(null);
   const joinMutation = useMutation(api.room_members.join);
+  const completeOnboardingMutation = useMutation(api.users.completeOnboarding);
 
   // ルーム入室時に join を呼ぶ
   useEffect(() => {
@@ -300,6 +302,23 @@ const Adrastea: React.FC = () => {
           </button>
         </div>
       </div>
+    );
+  }
+
+  // オンボーディング（初回ログイン時）
+  if (!onboarded && !isGuest) {
+    return (
+      <OnboardingModal
+        defaultName={user?.displayName ?? ''}
+        defaultImage={user?.avatarUrl ?? null}
+        isGuest={isGuest}
+        onComplete={async (data) => {
+          await updateProfile(data);
+        }}
+        onSkip={async () => {
+          await completeOnboardingMutation();
+        }}
+      />
     );
   }
 
