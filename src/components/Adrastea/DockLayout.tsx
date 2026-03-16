@@ -21,7 +21,7 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
-import { getDefaultLayoutForRole, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
+import { getDefaultLayoutForRole, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST, loadStore, persistStore } from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -44,13 +44,28 @@ const BoardTab: React.FunctionComponent<IDockviewPanelHeaderProps> = (props) => 
 
 function saveLayout(api: DockviewApi, role: string) {
   try {
+    const layoutJson = api.toJSON();
+
+    // 旧形式にも保存（互換性維持）
     localStorage.setItem(
       layoutKey(role),
       JSON.stringify({
         _version: LAYOUT_VERSION,
-        layout: api.toJSON(),
+        layout: layoutJson,
       }),
     );
+
+    // 新形式のストアにも保存
+    const store = loadStore();
+    const defaultKey = (role === 'owner' || role === 'sub_owner') ? 'gmDefault' : 'plDefault';
+    const defaultId = store[defaultKey as keyof typeof store];
+    if (defaultId && typeof defaultId === 'string') {
+      const layoutEntry = store.layouts.find(l => l.id === defaultId);
+      if (layoutEntry) {
+        layoutEntry.layout = layoutJson;
+        persistStore(store);
+      }
+    }
   } catch { /* ignore */ }
 }
 
