@@ -4,11 +4,12 @@ import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
 import { AdButton, AdInput, AdTextArea } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
+import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
 import { X, Trash2 } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
 import { getAvailableSystems } from '../../services/diceRoller';
-import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl } from '../../services/layoutStorage';
+import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl, scaleLayout } from '../../services/layoutStorage';
 import { relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
 
 type SettingsSection = 'room' | 'layout' | 'user' | 'members';
@@ -206,7 +207,14 @@ function LayoutSection({
     try {
       // fromJSON 前に全グループの幅制約を解除
       dockviewApi.groups.forEach((g) => relaxGroupWidth(g));
-      dockviewApi.fromJSON(layout as Parameters<typeof dockviewApi.fromJSON>[0]);
+
+      // 比率ベースレイアウトをスケーリング
+      let layoutToApply = layout;
+      if ((layout as any).grid?.width === 1) {
+        layoutToApply = scaleLayout(layout, dockviewApi.width, dockviewApi.height);
+      }
+
+      dockviewApi.fromJSON(layoutToApply as Parameters<typeof dockviewApi.fromJSON>[0]);
       requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(dockviewApi)));
       forceUpdate((c) => c + 1);
       return true;
@@ -315,19 +323,37 @@ function LayoutSection({
                 {l.name}
               </div>
               {/* タグ選択 */}
-              <select
-                value={currentTag}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  // 既存タグ解除
-                  if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
-                  if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
-                  setTagError(null);
-                  if (val === 'gm') {
-                    // 他のレイアウトからGMタグを外す（排他）
+              <DropdownMenu
+                align="left"
+                selectedId={currentTag || undefined}
+                trigger={
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '3px',
+                    background: currentTag === 'gm' ? theme.accent : currentTag === 'pl' ? theme.success : 'transparent',
+                    color: currentTag ? theme.bgDeep : theme.textMuted,
+                    border: `1px solid ${currentTag === 'gm' ? theme.accent : currentTag === 'pl' ? theme.success : theme.border}`,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {currentTag === 'gm' ? 'GM' : currentTag === 'pl' ? 'PL' : '—'}
+                  </span>
+                }
+                items={[
+                  { id: '', label: '—', onClick: () => {
+                    if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
+                    if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
+                    setTagError(null);
+                  }},
+                  ...((gmDefaultId === null || gmDefaultId === l.id) ? [{ id: 'gm', label: 'GM', onClick: () => {
+                    if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
                     setGmDefault(l.id);
                     setGmDefaultIdState(l.id);
-                  } else if (val === 'pl') {
+                    setTagError(null);
+                  }}] : []),
+                  ...((plDefaultId === null || plDefaultId === l.id) ? [{ id: 'pl', label: 'PL', onClick: () => {
+                    if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
                     const violations = validateForPl(l.layout);
                     if (violations.length > 0) {
                       setTagError(`PLデフォルトに設定できません: ${violations.join('、')} はPL権限では使用できないパネルです`);
@@ -336,23 +362,10 @@ function LayoutSection({
                     }
                     setPlDefault(l.id);
                     setPlDefaultIdState(l.id);
-                  }
-                }}
-                style={{
-                  fontSize: '10px',
-                  padding: '2px 4px',
-                  background: theme.bgInput,
-                  color: theme.textPrimary,
-                  border: `1px solid ${theme.border}`,
-                  borderRadius: '3px',
-                  outline: 'none',
-                  flexShrink: 0,
-                }}
-              >
-                <option value="">—</option>
-                {(gmDefaultId === null || gmDefaultId === l.id) && <option value="gm">GM</option>}
-                {(plDefaultId === null || plDefaultId === l.id) && <option value="pl">PL</option>}
-              </select>
+                    setTagError(null);
+                  }}] : []),
+                ]}
+              />
               {/* 削除アイコン */}
               <Trash2
                 size={13}
