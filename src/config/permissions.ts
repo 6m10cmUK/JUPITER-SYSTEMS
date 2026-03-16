@@ -29,16 +29,17 @@ export const PERMISSION_MIN_ROLE = {
   layer_manage: 'sub_owner',
 
   // パネル表示制御（guest は全パネル非表示）
-  panel_scene: 'user',
+  panel_scene: 'sub_owner',
   panel_character: 'user',
-  panel_scenarioText: 'user',
+  panel_scenarioText: 'sub_owner',
   panel_chat: 'user',
   panel_board: 'user',
   panel_pdfViewer: 'user',
+  panel_status: 'user',
   panel_bgm: 'sub_owner',
   panel_cutin: 'sub_owner',
   panel_layer: 'sub_owner',
-  panel_property: 'sub_owner',
+  panel_property: 'user',
   panel_debug: 'owner',
 
   // オーナー専用

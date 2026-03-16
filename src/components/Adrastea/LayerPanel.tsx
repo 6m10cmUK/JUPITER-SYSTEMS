@@ -1,14 +1,23 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
+import {
+  DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates, useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
+import type { BoardObject, BoardObjectType, Character } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
   Trash2, Copy, Users,
+  ChevronRight, ChevronDown, Plus,
 } from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
@@ -33,6 +42,14 @@ export function LayerPanel() {
     clearAllEditing,
     getBoardCenter,
     activeScene,
+    layerOrderedCharacters,
+    updateCharacter,
+    reorderLayerCharacters,
+    setEditingCharacter,
+    editingCharacter,
+    addCharacter,
+    removeCharacter,
+    setCharacterToOpenModal,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -40,6 +57,7 @@ export function LayerPanel() {
   const [renameValue, setRenameValue] = useState('');
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
+  const [isCharLayerOpen, setIsCharLayerOpen] = useState(true);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -98,15 +116,22 @@ export function LayerPanel() {
 
     if (dragSet.has(overId)) return;
 
-    const nonFixed = sortedObjects.filter(o => o.type !== 'background' && o.type !== 'characters_layer');
-    const draggedItems = nonFixed.filter(o => dragSet.has(o.id));
-    const rest = nonFixed.filter(o => !dragSet.has(o.id));
+    // background 以外はすべて含める（characters_layer も含む）
+    const allMovable = sortedObjects.filter(o => o.type !== 'background');
+    const draggedItems = allMovable.filter(o => dragSet.has(o.id));
+    const rest = allMovable.filter(o => !dragSet.has(o.id));
 
-    const overIdx = rest.findIndex(o => o.id === overId);
-    if (overIdx < 0) return;
+    // characters_layer や background の上にドロップした場合は先頭として扱う
+    const overObj = sortedObjects.find(o => o.id === overId);
+    let overIdx = rest.findIndex(o => o.id === overId);
+    if (overIdx < 0) {
+      if (!overObj || overObj.type === 'background') return;
+      // characters_layer の上にドロップ → 先頭（0番目）に挿入
+      overIdx = 0;
+    }
 
-    const activeOrigIdx = nonFixed.findIndex(o => o.id === activeId);
-    const overOrigIdx = nonFixed.findIndex(o => o.id === overId);
+    const activeOrigIdx = allMovable.findIndex(o => o.id === activeId);
+    const overOrigIdx = allMovable.findIndex(o => o.id === overId);
     const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
 
     rest.splice(insertIdx, 0, ...draggedItems);
@@ -127,11 +152,14 @@ export function LayerPanel() {
     });
     if (updates.length > 0) {
       batchUpdateSort(updates);
-      setLocalOrderOverride(null);
+      // localOrderOverride は activeObjects 更新時の useEffect でクリアされる
     }
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
+    if (obj.type === 'characters_layer') return;
+    // オブジェクト選択時はキャラクター選択をクリア
+    setEditingCharacter(undefined);
     if (e.shiftKey && selectedObjectIds.length > 0) {
       const lastSelected = selectedObjectIds[selectedObjectIds.length - 1];
       const anchorIdx = sortedObjects.findIndex(o => o.id === lastSelected);
@@ -154,7 +182,7 @@ export function LayerPanel() {
       setSelectedObjectIds([obj.id]);
       setEditingObjectId(obj.id);
     }
-  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, clearAllEditing]);
+  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, setEditingCharacter, clearAllEditing]);
 
   // 画像選択モーダル用 state
   const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
@@ -246,13 +274,20 @@ export function LayerPanel() {
 
   const hasDuplicateTargets = selectedObjectIds.length > 0
     ? selectedObjectIds.length > 0 && selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
 
   const hasRemoveTargets = selectedObjectIds.length > 0
     ? selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
 
   const handleDuplicate = useCallback(async () => {
+    // キャラクター選択中かつオブジェクトが選択されていない場合
+    if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
+      const { id, created_at, updated_at, ...rest } = editingCharacter;
+      await addCharacter({ ...rest, name: `${editingCharacter.name} (複製)` });
+      return;
+    }
+
     const targets = selectedObjectIds.length > 0
       ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
       : editingObjectId
@@ -273,7 +308,7 @@ export function LayerPanel() {
       setSelectedObjectIds(newIds);
       setEditingObjectId(newIds[newIds.length - 1]);
     }
-  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId]);
+  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId, editingCharacter, addCharacter]);
 
   const iconBtnStyle: React.CSSProperties = {
     border: 'none',
@@ -284,44 +319,23 @@ export function LayerPanel() {
     lineHeight: 1,
   };
 
-
   return (
     <>
     <SortableListPanel
       title="レイヤー"
       headerActions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
-          <Tooltip label="シーン画像追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(false)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
-              <Image size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip label="シーンテキスト追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(false, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: theme.accentHighlight, borderRadius: '2px' }}>
-              <Type size={13} />
-            </button>
-          </Tooltip>
-          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
-          <Tooltip label="ルーム画像追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleImageAdd(true)} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
-              <Image size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip label="ルームテキスト追加">
-            <button type="button" className="ad-btn ad-btn--on-bg" onClick={() => handleAdd(true, 'text')} style={{ ...iconBtnStyle, display: 'flex', alignItems: 'center', background: 'rgba(166,227,161,0.2)', borderRadius: '2px' }}>
-              <Type size={13} />
-            </button>
-          </Tooltip>
-          <span style={{ width: '1px', height: '12px', background: theme.border, flexShrink: 0, margin: '0 2px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
           <Tooltip label="複製">
             <button
               type="button"
-              className="ad-btn ad-btn--ghost"
               onClick={handleDuplicate}
               disabled={!hasDuplicateTargets}
               style={{
-                ...iconBtnStyle,
+                background: 'transparent',
+                border: 'none',
                 color: theme.accent,
+                cursor: hasDuplicateTargets ? 'pointer' : 'default',
+                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasDuplicateTargets ? 1 : 0.3,
@@ -333,8 +347,19 @@ export function LayerPanel() {
           <Tooltip label="削除">
             <button
               type="button"
-              className="ad-btn ad-btn--ghost"
               onClick={() => {
+                // キャラクター選択中かつオブジェクトが選択されていない場合
+                if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
+                  setPendingRemove({
+                    msg: `キャラクター「${editingCharacter.name}」を削除しますか？`,
+                    action: () => {
+                      removeCharacter(editingCharacter.id);
+                      setEditingCharacter(undefined);
+                    },
+                  });
+                  return;
+                }
+
                 const target = selectedObjectIds.length > 0
                   ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
                   : editingObjectId
@@ -344,8 +369,11 @@ export function LayerPanel() {
               }}
               disabled={!hasRemoveTargets}
               style={{
-                ...iconBtnStyle,
+                background: 'transparent',
+                border: 'none',
                 color: theme.danger,
+                cursor: hasRemoveTargets ? 'pointer' : 'default',
+                padding: '2px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasRemoveTargets ? 1 : 0.3,
@@ -354,6 +382,31 @@ export function LayerPanel() {
               <Trash2 size={13} />
             </button>
           </Tooltip>
+          <DropdownMenu
+            trigger={
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.accent,
+                  cursor: 'pointer',
+                  padding: '2px',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Plus size={15} />
+              </button>
+            }
+            items={[
+              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => handleImageAdd(false) },
+              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
+              'separator',
+              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => handleImageAdd(true) },
+              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
+            ]}
+          />
         </div>
       }
       items={sortedObjects}
@@ -362,23 +415,54 @@ export function LayerPanel() {
       emptyMessage="オブジェクトがありません"
     >
       {sortedObjects.map((obj) => {
-        const isSelected = selectedObjectIds.includes(obj.id);
+        const isSelected = obj.type !== 'characters_layer' && selectedObjectIds.includes(obj.id);
         const isDragGroupMember = activeDragId != null
           && selectedObjectIds.includes(activeDragId)
           && isSelected
           && obj.id !== activeDragId;
         const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
 
+        // characters_layer の特別扱い
+        if (obj.type === 'characters_layer') {
+          return (
+            <CharacterLayerRow
+              key={obj.id}
+              id={obj.id}
+              isOpen={isCharLayerOpen}
+              onToggleOpen={() => setIsCharLayerOpen(v => !v)}
+              characters={layerOrderedCharacters}
+              selectedCharacterId={editingCharacter?.id}
+              onToggleVisible={(charId) => {
+                const char = layerOrderedCharacters.find(c => c.id === charId);
+                if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+              }}
+              onReorder={(orderedIds) => reorderLayerCharacters(orderedIds)}
+              onSelectCharacter={(charId) => {
+                const char = layerOrderedCharacters.find(c => c.id === charId);
+                if (char) {
+                  clearAllEditing();
+                  setEditingCharacter(char);
+                }
+              }}
+              onDoubleClickCharacter={(charId) => {
+                const char = layerOrderedCharacters.find(c => c.id === charId);
+                if (char) setCharacterToOpenModal(char);
+              }}
+            />
+          );
+        }
+
         return (
           <SortableListItem
             key={obj.id}
             id={obj.id}
             disabled={obj.type === 'background'}
+            hideHandle={obj.type === 'foreground'}
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
           >
-            {obj.type !== 'background' && (
+            {obj.type !== 'background' && obj.type !== 'foreground' && (
               <div
                 onClick={(e) => {
                   e.stopPropagation();
@@ -465,7 +549,7 @@ export function LayerPanel() {
                   opacity: obj.visible ? 1 : 0.4,
                 }}
                 onDoubleClick={(e) => {
-                  if (obj.type === 'background') return;
+                  if (obj.type === 'background' || obj.type === 'foreground') return;
                   e.stopPropagation();
                   setRenamingId(obj.id);
                   setRenameValue(obj.name);
@@ -478,7 +562,7 @@ export function LayerPanel() {
               <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
                 <button
                   type="button"
-                  className="ad-btn ad-btn--ghost ad-btn--ghost-on-bg"
+                  className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
                   style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
                   onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
                 >
@@ -507,5 +591,278 @@ export function LayerPanel() {
       />
     )}
     </>
+  );
+}
+
+/**
+ * キャラクターレイヤー行（header + sublist を一体で drag）
+ * useSortable({ disabled: true }) を外側 div に適用して transform を受け取り、
+ * flexDirection: column で子孫すべてを一緒に動かす
+ */
+function CharacterLayerRow({
+  id,
+  isOpen,
+  onToggleOpen,
+  characters,
+  selectedCharacterId,
+  onToggleVisible,
+  onReorder,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+}: {
+  id: string;
+  isOpen: boolean;
+  onToggleOpen: () => void;
+  characters: Character[];
+  selectedCharacterId?: string;
+  onToggleVisible: (charId: string) => void;
+  onReorder: (orderedIds: string[]) => void;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+}) {
+  const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        transform: CSS.Transform.toString(transform),
+        transition,
+      }}
+    >
+      {/* ヘッダー行 */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          padding: '4px 8px',
+          paddingLeft: '20px',
+          fontSize: '12px',
+          color: theme.textPrimary,
+          borderBottom: `1px solid ${theme.border}`,
+          cursor: 'pointer',
+        }}
+        onClick={onToggleOpen}
+      >
+        <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: theme.textMuted }}>
+          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        </span>
+        <span style={{
+          flexShrink: 0, width: '20px', height: '20px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          borderRadius: '2px',
+          background: 'rgba(166,227,161,0.2)',
+        }}>
+          <Users size={12} />
+        </span>
+        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          キャラクター
+        </span>
+      </div>
+
+      {/* キャラサブリスト */}
+      {isOpen && (
+        <CharacterSubList
+          characters={characters}
+          selectedCharacterId={selectedCharacterId}
+          onToggleVisible={onToggleVisible}
+          onReorder={onReorder}
+          onSelectCharacter={onSelectCharacter}
+          onDoubleClickCharacter={onDoubleClickCharacter}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * キャラクターサブリスト（LayerPanel内で展開時に表示）
+ * 独立した DndContext で並び替えをサポート
+ */
+function CharacterSubList({
+  characters,
+  selectedCharacterId,
+  onToggleVisible,
+  onReorder,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+}: {
+  characters: Character[];
+  selectedCharacterId?: string;
+  onToggleVisible: (charId: string) => void;
+  onReorder: (orderedIds: string[]) => void;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+}) {
+  const [localChars, setLocalChars] = useState<Character[]>(characters);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
+  const [draggedHtml, setDraggedHtml] = useState<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // 外部から characters が変わった時に同期（新規追加・削除等）
+  const prevCharsRef = useRef(characters);
+  useEffect(() => {
+    if (prevCharsRef.current !== characters) {
+      prevCharsRef.current = characters;
+      setLocalChars(characters);
+    }
+  }, [characters]);
+
+  useEffect(() => {
+    if (!activeId) {
+      setCursorPos(null);
+      return;
+    }
+    const handleMove = (e: PointerEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, [activeId]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = localChars.findIndex(c => c.id === active.id);
+    const newIndex = localChars.findIndex(c => c.id === over.id);
+    if (oldIndex < 0 || newIndex < 0) return;
+    const newOrder = arrayMove(localChars, oldIndex, newIndex);
+    setLocalChars(newOrder);
+    onReorder(newOrder.map(c => c.id));
+  };
+
+  return (
+    <div ref={containerRef}>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={(event) => {
+          const id = String(event.active.id);
+          setActiveId(id);
+          const target = (event.activatorEvent as Event)?.target as HTMLElement | null;
+          const sortableEl = target?.closest?.('[aria-roledescription="sortable"]') as HTMLElement | null;
+          if (sortableEl) {
+            setDraggedHtml(sortableEl.outerHTML);
+          }
+          const activatorEvent = event.activatorEvent as PointerEvent | null;
+          const initialRect = event.active.rect.current?.initial;
+          if (activatorEvent && initialRect) {
+            setGrabOffset({
+              x: activatorEvent.clientX - initialRect.left,
+              y: activatorEvent.clientY - initialRect.top,
+            });
+            setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
+          }
+        }}
+        onDragEnd={(event) => {
+          setActiveId(null);
+          setDraggedHtml('');
+          handleDragEnd(event);
+        }}
+      >
+        <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
+        {localChars.map((char) => (
+          <SortableListItem
+            key={char.id}
+            id={char.id}
+            isSelected={selectedCharacterId === char.id}
+            onClick={() => onSelectCharacter?.(char.id)}
+          >
+            {/* インデント */}
+            <span style={{ flexShrink: 0, width: '20px' }} />
+            {/* アバター + 名前 */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                flex: 1,
+              }}
+            >
+              {/* アバター（画像 or カラードット） */}
+              <div style={{
+                flexShrink: 0,
+                width: '18px', height: '18px',
+                borderRadius: '50%',
+                background: char.color ?? theme.textMuted,
+                overflow: 'hidden',
+              }}>
+                {char.images[char.active_image_index]?.url ? (
+                  <img
+                    src={char.images[char.active_image_index].url}
+                    alt={char.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
+                  />
+                ) : null}
+              </div>
+              {/* 名前 */}
+              <span style={{
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                opacity: char.board_visible !== false ? 1 : 0.4,
+              }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  onDoubleClickCharacter?.(char.id);
+                }}
+              >
+                {char.name}
+              </span>
+            </div>
+            {/* 目アイコン */}
+            <Tooltip label={char.board_visible !== false ? '非表示にする' : '表示する'}>
+              <button
+                type="button"
+                className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
+                style={{
+                  border: 'none',
+                  color: theme.textSecondary,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  padding: '2px 4px',
+                  lineHeight: 1,
+                  opacity: char.board_visible !== false ? 1 : 0.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                onClick={(e) => { e.stopPropagation(); onToggleVisible(char.id); }}
+              >
+                {char.board_visible !== false ? <Eye size={12} /> : <EyeOff size={12} />}
+              </button>
+            </Tooltip>
+          </SortableListItem>
+        ))}
+        <DragOverlay dropAnimation={null}>
+          <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
+        </DragOverlay>
+      </SortableContext>
+    </DndContext>
+    {activeId && cursorPos && draggedHtml && createPortal(
+      <div style={{
+        position: 'fixed',
+        top: cursorPos.y - grabOffset.y,
+        left: cursorPos.x - grabOffset.x,
+        width: containerRef.current?.closest?.('[style*="overflow"]')?.clientWidth ?? containerRef.current?.offsetWidth ?? 240,
+        zIndex: 9999,
+        pointerEvents: 'none',
+        opacity: 0.85,
+      }}>
+        <div dangerouslySetInnerHTML={{ __html: draggedHtml }} />
+      </div>,
+      document.body
+    )}
+    </div>
   );
 }

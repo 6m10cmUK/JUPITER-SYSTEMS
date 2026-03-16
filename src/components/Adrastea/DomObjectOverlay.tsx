@@ -1,8 +1,13 @@
-import { forwardRef, memo, useCallback, useRef, useEffect, useState } from 'react';
+import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
+import { DropdownMenu } from './ui';
 
-// --- 定数 ---
+// --- フラグ・定数 ---
+/** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
+export let __blockBoardWheelCount = 0;
+
 const MIN_SIZE_PX = 50;
 const EDGE_RATIO = 0.15;        // 要素サイズの 15% をエッジ判定に使う
 const EDGE_MIN_PX = 6;          // スクリーン上の最小エッジ幅
@@ -22,6 +27,11 @@ interface DomObjectOverlayProps {
   onSyncObjectSize?: (id: string, width: number, height: number) => void;
   characters?: Character[];
   onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  selectedCharacterId?: string | null;
 }
 
 // --- ユーティリティ ---
@@ -482,7 +492,7 @@ export function preloadImageBlobs(urls: string[]): void {
 
 // --- PanelObject (DOM版) ---
 const DomPanelObject = memo(function DomPanelObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -490,6 +500,7 @@ const DomPanelObject = memo(function DomPanelObject({
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
+  baseZIndex?: number;
 }) {
   const blobSrc = useAnimatedBlobSrc(obj.image_url);
 
@@ -498,6 +509,7 @@ const DomPanelObject = memo(function DomPanelObject({
       obj={obj} isSelected={isSelected} isDraggable={!obj.position_locked}
       isResizable={!obj.size_locked} stageRef={stageRef}
       onMove={onMove} onSelect={onSelect} onEdit={onEdit} onResize={onResize}
+      style={{ zIndex: baseZIndex }}
     >
       <div style={{
         width: '100%', height: '100%',
@@ -531,7 +543,7 @@ const DomPanelObject = memo(function DomPanelObject({
 
 // --- TextObject (DOM版) ---
 const DomTextObject = memo(function DomTextObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, onSyncSize,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, onSyncSize, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -540,6 +552,7 @@ const DomTextObject = memo(function DomTextObject({
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
   onSyncSize?: (id: string, w: number, h: number) => void;
+  baseZIndex?: number;
 }) {
   const fontFamily = obj.font_family || 'sans-serif';
   const textStr = obj.text_content || '';
@@ -577,7 +590,7 @@ const DomTextObject = memo(function DomTextObject({
       obj={obj} isSelected={isSelected} isDraggable={!obj.position_locked}
       isResizable={!obj.size_locked} stageRef={stageRef}
       onMove={onMove} onSelect={onSelect} onEdit={onEdit} onResize={onResize}
-      style={autoSizeStyle}
+      style={{ ...autoSizeStyle, zIndex: baseZIndex }}
     >
       <div ref={contentRef} style={{
         width: '100%', height: '100%',
@@ -606,7 +619,7 @@ const DomTextObject = memo(function DomTextObject({
 
 // --- ForegroundObject (DOM版) ---
 const DomForegroundObject = memo(function DomForegroundObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -614,6 +627,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   onSelect: (id: string) => void;
   onEdit: (id: string) => void;
   fadeInDuration?: number;
+  baseZIndex?: number;
 }) {
   const elRef = useRef<HTMLDivElement>(null);
   const blobSrc = useAnimatedBlobSrc(obj.image_url);
@@ -645,6 +659,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
         obj={obj} isSelected={isSelected} isDraggable={false}
         isResizable={false} stageRef={stageRef}
         onMove={onMove} onSelect={onSelect} onEdit={onEdit}
+        style={{ zIndex: baseZIndex }}
       >
         <div style={{
           width: '100%', height: '100%',
@@ -696,25 +711,41 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   characters,
   onUpdatePosition,
   stageRef,
+  currentUserId,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+  onContextMenuCharacter,
+  selectedCharacterId,
+  baseZIndex,
 }: {
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  selectedCharacterId?: string | null;
+  baseZIndex?: number;
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
+  // 配列の順序をそのまま維持（レイヤーパネルの並び順 = z順）
   const visibleChars = characters.filter(c => c.board_visible !== false);
-
-  // initiative 昇順（低い値 = 奥に描画）
-  const sorted = [...visibleChars].sort((a, b) => (a.initiative ?? 0) - (b.initiative ?? 0));
 
   return (
     <>
-      {sorted.map((char) => (
+      {visibleChars.map((char, idx) => (
         <DomCharacterItem
           key={char.id}
           char={char}
+          zIndex={baseZIndex != null ? baseZIndex + (visibleChars.length - 1 - idx) : (visibleChars.length - idx)}
           onUpdatePosition={onUpdatePosition}
           stageRef={stageRef}
+          currentUserId={currentUserId}
+          onSelectCharacter={onSelectCharacter}
+          onDoubleClickCharacter={onDoubleClickCharacter}
+          onContextMenuCharacter={onContextMenuCharacter}
+          isSelected={selectedCharacterId === char.id}
         />
       ))}
     </>
@@ -726,24 +757,72 @@ const DomCharacterItem = memo(function DomCharacterItem({
   char,
   onUpdatePosition,
   stageRef,
+  currentUserId,
+  onSelectCharacter,
+  onDoubleClickCharacter,
+  onContextMenuCharacter,
+  isSelected,
+  zIndex,
 }: {
   char: Character;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
+  currentUserId?: string;
+  onSelectCharacter?: (charId: string) => void;
+  onDoubleClickCharacter?: (charId: string) => void;
+  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
+  isSelected?: boolean;
+  zIndex?: number;
 }) {
   const imageUrl = char.images[char.active_image_index]?.url ?? null;
   const blobSrc = useAnimatedBlobSrc(imageUrl);
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);
+  const startPosRef = useRef<{ x: number; y: number } | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const blockingRef = useRef(false);
+  const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
+
+  useLayoutEffect(() => {
+    if (hovered && hasMemo && popupRef.current) {
+      const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
+      if (canScroll && !blockingRef.current) {
+        __blockBoardWheelCount++;
+        blockingRef.current = true;
+      } else if (!canScroll && blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    } else if (blockingRef.current) {
+      __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+      blockingRef.current = false;
+    }
+    return () => {
+      if (blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    };
+  }, [hovered, hasMemo, char.memo, char.secret_memo]);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
+  // 足元基準: board_y は足元の y 座標を表す
+  // board_y + size が底辺位置となり、top = 底辺 - 高さ = (board_y + size) * GRID_SIZE - size * GRID_SIZE
+  // = board_y * GRID_SIZE なので pxY の計算値は変わらないが、
+  // 概念的に足元基準であることを明記する。
   const pxY = (char.board_y ?? 0) * GRID_SIZE;
   const pxH = (char.size ?? 5) * GRID_SIZE;
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = elRef.current;
     if (!el) return;
     e.stopPropagation();
+
+    // 開始座標を保存
+    startPosRef.current = { x: e.clientX, y: e.clientY };
 
     const stage = stageRef.current;
     const scale = stage?.scaleX?.() ?? 1;
@@ -765,7 +844,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
       el.style.top = `${ds.origPxY + dy}px`;
     };
 
-    const onPointerUp = () => {
+    const onPointerUp = (me: PointerEvent) => {
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
       const ds = dragRef.current;
@@ -776,11 +855,19 @@ const DomCharacterItem = memo(function DomCharacterItem({
       el.style.left = `${finalX}px`;
       el.style.top = `${finalY}px`;
       onUpdatePosition?.(char.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+
+      // クリック検出: 移動量が5px未満なら選択
+      const sp = startPosRef.current;
+      if (sp) {
+        const dist = Math.hypot(me.clientX - sp.x, me.clientY - sp.y);
+        if (dist < 5) onSelectCharacter?.(char.id);
+        startPosRef.current = null;
+      }
     };
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
-  }, [char.id, pxX, pxY, stageRef, onUpdatePosition]);
+  }, [char.id, pxX, pxY, stageRef, onUpdatePosition, onSelectCharacter]);
 
   return (
     <div
@@ -790,12 +877,35 @@ const DomCharacterItem = memo(function DomCharacterItem({
         left: pxX,
         top: pxY,
         height: pxH,
-        width: 'auto',
+        width: 'max-content',
         cursor: 'move',
         pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
+        filter: hovered ? 'drop-shadow(0 0 6px rgba(255,255,255,0.7))' : undefined,
+        transition: 'filter 0.1s, top 0.15s ease-out, height 0.15s ease-out',
+        boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
+        zIndex: zIndex,
       }}
       onPointerDown={handlePointerDown}
+      onPointerEnter={(e) => {
+        setHovered(true);
+        const rect = elRef.current?.getBoundingClientRect();
+        const centerX = rect ? rect.left + rect.width / 2 : e.clientX;
+        setCursorPos({ x: centerX, y: e.clientY });
+      }}
+      onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
+      onWheel={(e) => {
+        if (hovered && hasMemo && popupRef.current) {
+          const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
+          if (canScroll) {
+            e.stopPropagation();
+            e.preventDefault();
+            popupRef.current.scrollTop += e.deltaY;
+          }
+        }
+      }}
+      onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
     >
       {blobSrc ? (
         <img
@@ -823,6 +933,77 @@ const DomCharacterItem = memo(function DomCharacterItem({
           {char.name.charAt(0)}
         </div>
       )}
+
+      {/* 名前ラベル */}
+      <div style={{
+        position: 'absolute',
+        bottom: -26,
+        left: '50%',
+        transform: 'translateX(-50%)',
+        color: '#000',
+        fontSize: 22,
+        whiteSpace: 'nowrap',
+        textShadow: '0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff',
+        userSelect: 'none',
+        pointerEvents: 'none',
+        fontWeight: 600,
+      }}>
+        {char.name}
+      </div>
+
+      {/* ホバーポップアップ（Portal: Board の transform 外に出してカーソル基準表示） */}
+      {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
+        <div ref={popupRef} style={{
+          position: 'fixed',
+          left: Math.max(8, Math.min(cursorPos.x, window.innerWidth - 8)),
+          top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
+          transform: `translateX(-50%) ${cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? '' : 'translateY(-50%)'}`,
+          zIndex: 10000,
+          pointerEvents: 'none',
+          background: 'rgba(0, 0, 0, 0.72)',
+          color: '#fff',
+          padding: '8px 10px',
+          fontSize: 10,
+          lineHeight: 1.5,
+          maxWidth: 380,
+          maxHeight: '50vh',
+          overflow: 'hidden',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
+          borderRadius: 4,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+        }}>
+          {char.memo && <div>{char.memo}</div>}
+          {currentUserId === char.owner_id && char.secret_memo && (
+            <div style={{
+              borderTop: '1px solid rgba(255,255,255,0.2)',
+              marginTop: char.memo ? 8 : 0,
+              paddingTop: char.memo ? 8 : 0,
+              color: 'rgba(255,200,100,0.9)',
+            }}>
+              {char.secret_memo}
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
+
+      {/* コンテキストメニュー */}
+      <DropdownMenu
+        mode="context"
+        open={contextMenuPos !== null}
+        onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
+        position={contextMenuPos ?? { x: 0, y: 0 }}
+        items={[
+          {
+            label: char.board_visible !== false ? '非表示にする' : '表示する',
+            onClick: () => {
+              onContextMenuCharacter?.(char.id, {} as React.MouseEvent);
+              setContextMenuPos(null);
+            },
+          },
+        ]}
+      />
     </div>
   );
 });
@@ -914,7 +1095,8 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
-    characters = [], onUpdateCharacterBoardPosition,
+    characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter,
+    selectedCharacterId,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
@@ -922,6 +1104,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
 
     // wheel イベントを Konva Stage の canvas に転送（DOM オーバーレイがイベントを奪うため）
     const handleWheel = useCallback((e: React.WheelEvent) => {
+      if (__blockBoardWheelCount > 0) return;
       const stage = stageRef.current;
       if (!stage) return;
       const canvas = stage.container()?.querySelector('canvas');
@@ -942,10 +1125,12 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
       >
         {/* Board.tsx が rAF でこの div の style.transform を直接更新する */}
         <div ref={ref} style={{ transformOrigin: '0 0' }}>
-          {keyedObjects.map(({ obj, stableKey }) => {
+          {keyedObjects.map(({ obj, stableKey }, listIdx) => {
             const isSelected = selectedObjectIds.length > 0
               ? selectedObjectIds.includes(obj.id)
               : obj.id === selectedObjectId;
+
+            const baseZIndex = (listIdx + 1) * 100;
 
             switch (obj.type) {
               case 'background':
@@ -962,6 +1147,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onMove={onMoveObject} onSelect={onSelectObject}
                     onEdit={onEditObject}
                     onResize={obj.size_locked ? undefined : onResizeObject}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'text':
@@ -973,6 +1159,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onEdit={onEditObject}
                     onResize={obj.size_locked ? undefined : onResizeObject}
                     onSyncSize={onSyncObjectSize}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'foreground':
@@ -985,6 +1172,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     fadeInDuration={activeScene?.fg_transition === 'fade'
                       ? activeScene.fg_transition_duration
                       : undefined}
+                    baseZIndex={baseZIndex}
                   />
                 );
               case 'characters_layer':
@@ -994,6 +1182,12 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     characters={characters}
                     onUpdatePosition={onUpdateCharacterBoardPosition}
                     stageRef={stageRef}
+                    currentUserId={currentUserId}
+                    onSelectCharacter={onSelectCharacter}
+                    onDoubleClickCharacter={onDoubleClickCharacter}
+                    onContextMenuCharacter={onContextMenuCharacter}
+                    selectedCharacterId={selectedCharacterId}
+                    baseZIndex={baseZIndex}
                   />
                 );
               default:

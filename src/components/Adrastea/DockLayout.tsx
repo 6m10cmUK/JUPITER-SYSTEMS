@@ -21,6 +21,7 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
+import { getDefaultLayoutForRole, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST } from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -65,6 +66,62 @@ function loadLayout(role: string): object | null {
   return null;
 }
 
+
+/* ── タブヘッダー左側アクション（ドラッグハンドル） ── */
+
+function PrefixHeaderActions({ group }: IDockviewHeaderActionsProps) {
+  const isFloating = group.api.location.type === 'floating';
+  if (!isFloating) return null;
+
+  return (
+    <div
+      style={{
+        cursor: 'grab',
+        padding: '0 4px',
+        display: 'flex',
+        alignItems: 'center',
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 10,
+        userSelect: 'none',
+        height: '100%',
+      }}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // フロートパネルのコンテナ要素（.dv-resize-container）を取得
+        const container = (e.currentTarget as HTMLElement).closest('.dv-resize-container') as HTMLElement | null;
+        if (!container) return;
+
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startLeft = container.offsetLeft;
+        const startTop = container.offsetTop;
+
+        (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
+        document.body.style.cursor = 'grabbing';
+
+        const onPointerMove = (moveE: PointerEvent) => {
+          const dx = moveE.clientX - startX;
+          const dy = moveE.clientY - startY;
+          container.style.left = `${startLeft + dx}px`;
+          container.style.top = `${startTop + dy}px`;
+        };
+
+        const onPointerUp = () => {
+          document.body.style.cursor = '';
+          document.removeEventListener('pointermove', onPointerMove);
+          document.removeEventListener('pointerup', onPointerUp);
+        };
+
+        document.addEventListener('pointermove', onPointerMove);
+        document.addEventListener('pointerup', onPointerUp);
+      }}
+    >
+      ⠿
+    </div>
+  );
+}
 
 /* ── タブヘッダー右側アクション ── */
 
@@ -242,7 +299,18 @@ const DockviewInner = memo(function DockviewInner({
       apiRef.current = api;
       onApiReady(api);
 
-      // 保存済みレイアウトの復元を試みる
+      // 新形式のデフォルトレイアウトを優先
+      const defaultLayout = getDefaultLayoutForRole(role);
+      if (defaultLayout) {
+        try {
+          const scaled = scaleLayout(defaultLayout.layout, api.width, api.height);
+          api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
+          requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
+          return;
+        } catch { /* フォールスルー */ }
+      }
+
+      // 旧形式のフォールバック
       const saved = loadLayout(role);
       if (saved) {
         try {
@@ -252,85 +320,19 @@ const DockviewInner = memo(function DockviewInner({
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
       }
 
-      // ロール別デフォルトレイアウト構築
-      if (role === 'owner' || role === 'sub_owner') {
-        // owner / sub_owner: 全パネル構成（Board | ChatLog/ChatInput, Scene | BGM | Board, Property, Layer）
-        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-        api.addPanel({
-          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
-          position: { referencePanel: 'chatInput', direction: 'below' },
-        });
-        const scenePanel = api.addPanel({
-          id: 'scene', component: 'scene', title: 'シーン',
-          position: { referencePanel: 'board', direction: 'left' },
-        });
-
-        const bgmPanel = api.addPanel({
-          id: 'bgm', component: 'bgm', title: 'BGM',
-          position: { referencePanel: 'scene', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'property', component: 'property', title: 'プロパティ',
-          position: { referencePanel: bgmPanel.id, direction: 'below' },
-        });
-        api.addPanel({
-          id: 'layer', component: 'layer', title: 'レイヤー',
-          position: { referencePanel: 'property', direction: 'below' },
-        });
-
-        scenePanel.api.setSize({ width: window.innerWidth * 0.1 });
-        bgmPanel.api.setSize({ width: window.innerWidth * 0.13 });
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.52 });
+      // ロール別デフォルトレイアウト（現在の画面サイズにスケーリング）
+      const defaultJson = (role === 'owner' || role === 'sub_owner')
+        ? DEFAULT_LAYOUT_OWNER
+        : role === 'user'
+          ? DEFAULT_LAYOUT_USER
+          : DEFAULT_LAYOUT_GUEST;
+      try {
+        const scaled = scaleLayout(defaultJson, api.width, api.height);
+        api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
         requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
-      } else if (role === 'user') {
-        // user: シーン・キャラクター・チャット・ボード
+      } catch {
+        // フォールスルー: 空のままになる
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-        api.addPanel({
-          id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット',
-          position: { referencePanel: 'chatInput', direction: 'below' },
-        });
-        const scenePanel = api.addPanel({
-          id: 'scene', component: 'scene', title: 'シーン',
-          position: { referencePanel: 'board', direction: 'left' },
-        });
-        api.addPanel({
-          id: 'character', component: 'character', title: 'キャラクター',
-          position: { referencePanel: 'scene', direction: 'below' },
-        });
-
-        scenePanel.api.setSize({ width: window.innerWidth * 0.12 });
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.6 });
-        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
-      } else if (role === 'guest') {
-        // guest: ボード・チャットのみ
-        api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
-        api.addPanel({
-          id: 'chatLog', component: 'chatLog', title: 'チャットログ',
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-        api.addPanel({
-          id: 'chatInput', component: 'chatInput', title: 'チャット',
-          position: { referencePanel: 'chatLog', direction: 'below' },
-        });
-
-        api.getPanel('board')?.api.setSize({ width: window.innerWidth * 0.75 });
-        requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       }
     },
     [onApiReady, role],
@@ -387,6 +389,7 @@ const DockviewInner = memo(function DockviewInner({
       tabComponents={{ boardTab: BoardTab }}
       onReady={onReady}
       theme={catppuccinTheme}
+      prefixHeaderActionsComponent={PrefixHeaderActions}
       rightHeaderActionsComponent={RightHeaderActions}
     />
   );

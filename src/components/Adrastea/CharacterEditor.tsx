@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import type { Character, CharacterImage, PieceStatus, CharacterParameter } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
@@ -16,7 +16,11 @@ interface CharacterEditorProps {
   initialSection?: string;
 }
 
-export function CharacterEditor({
+export interface CharacterEditorHandle {
+  save: () => void;
+}
+
+function CharacterEditorComponent({
   character,
   roomId: _roomId,
   currentUserId: _currentUserId,
@@ -25,7 +29,7 @@ export function CharacterEditor({
   onDelete,
   onClose: _onClose,
   initialSection,
-}: CharacterEditorProps) {
+}: CharacterEditorProps, ref: React.Ref<CharacterEditorHandle>) {
   // 基本情報
   const [name, setName] = useState(character?.name ?? '');
   const [color, setColor] = useState(character?.color ?? '#555555');
@@ -131,6 +135,11 @@ export function CharacterEditor({
     });
   };
 
+  // useImperativeHandle で save メソッドを公開
+  useImperativeHandle(ref, () => ({
+    save: handleSave,
+  }));
+
   // ─── 複製 ───
   const handleDuplicate = () => {
     if (!onDuplicate) return;
@@ -156,8 +165,10 @@ export function CharacterEditor({
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    maxHeight: '100%',
-    overflowY: 'auto',
+    // flex親(AdModal)では flex:1 が機能、非flex親(dockview)では height が機能
+    height: '100%',
+    flex: 1,
+    minHeight: 0,
     color: theme.textPrimary,
     boxSizing: 'border-box',
     display: 'flex',
@@ -205,7 +216,7 @@ export function CharacterEditor({
       </h3>
 
       {/* スクロール可能エリア */}
-      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <div style={{ flex: 1, overflowY: 'auto', minHeight: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {/* 1. 基本情報 */}
         <div style={sectionStyle}>
           <div style={labelStyle}>基本情報</div>
@@ -296,7 +307,14 @@ export function CharacterEditor({
                 type="number"
                 label="イニシアティブ"
                 value={initiative}
-                onChange={(e) => setInitiative(Number(e.target.value))}
+                min={-99}
+                max={99}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const rounded = Math.round(val * 10) / 10;
+                  const clamped = Math.max(-99, Math.min(99, rounded));
+                  setInitiative(clamped);
+                }}
               />
             </div>
             <div style={{ flex: 1 }}>
@@ -304,7 +322,11 @@ export function CharacterEditor({
                 type="number"
                 label="駒サイズ"
                 value={size}
-                onChange={(e) => setSize(Math.max(1, Number(e.target.value)))}
+                min={0}
+                onChange={(e) => {
+                  const rounded = Math.round(Number(e.target.value) * 100) / 100;
+                  setSize(Math.max(0, rounded));
+                }}
               />
             </div>
           </div>
@@ -377,8 +399,9 @@ export function CharacterEditor({
           <AdTextArea
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
-            placeholder="キャラクターメモ"
+            placeholder="キャラクターメモ（最大1024文字）"
             style={{ minHeight: '80px' }}
+            maxLength={1024}
           />
         </div>
 
@@ -391,8 +414,9 @@ export function CharacterEditor({
           <AdTextArea
             value={secretMemo}
             onChange={(e) => setSecretMemo(e.target.value)}
-            placeholder="秘密のメモ"
+            placeholder="秘密のメモ（最大1024文字）"
             style={{ minHeight: '80px' }}
+            maxLength={1024}
           />
         </div>
 
@@ -405,8 +429,9 @@ export function CharacterEditor({
           <AdTextArea
             value={chatPalette}
             onChange={(e) => setChatPalette(e.target.value)}
-            placeholder="通常攻撃&#10;魔法&#10;防御"
+            placeholder="通常攻撃&#10;魔法&#10;防御&#10;（最大4096文字）"
             style={{ minHeight: '80px' }}
+            maxLength={4096}
           />
         </div>
 
@@ -475,3 +500,5 @@ export function CharacterEditor({
     </div>
   );
 }
+
+export const CharacterEditor = forwardRef(CharacterEditorComponent);

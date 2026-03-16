@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Character } from '../types/adrastea.types';
@@ -14,6 +14,8 @@ export function useCharacters(roomId: string) {
   const removeMutation = useMutation(api.characters.remove);
 
   const loading = statsData === undefined || baseData === undefined;
+  const [charOrderVersion, setCharOrderVersion] = useState(0);
+  const [layerCharOrderVersion, setLayerCharOrderVersion] = useState(0);
 
   const characters: Character[] = useMemo(() => {
     if (!statsData || !baseData) return [];
@@ -96,7 +98,33 @@ export function useCharacters(roomId: string) {
     });
 
     return overlaidCharacters;
-  }, [statsData, baseData, roomId]);
+  }, [statsData, baseData, roomId, charOrderVersion]);
+
+  const layerOrderedCharacters: Character[] = useMemo(() => {
+    if (characters.length === 0) return [];
+    const storageKey = `adrastea-layer-char-order-${roomId}`;
+    const savedOrder = localStorage.getItem(storageKey);
+    if (!savedOrder) return characters;
+    try {
+      const orderedIds = JSON.parse(savedOrder) as string[];
+      const idToChar = new Map(characters.map(c => [c.id, c]));
+      const sorted: Character[] = [];
+      const seen = new Set<string>();
+      for (const id of orderedIds) {
+        const char = idToChar.get(id);
+        if (char) {
+          sorted.push(char);
+          seen.add(id);
+        }
+      }
+      for (const char of characters) {
+        if (!seen.has(char.id)) sorted.push(char);
+      }
+      return sorted;
+    } catch {
+      return characters;
+    }
+  }, [characters, roomId, layerCharOrderVersion]);
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
@@ -163,6 +191,18 @@ export function useCharacters(roomId: string) {
         }
       });
 
+      // Auto-adjust board_y when size changes to keep the bottom position fixed
+      if ('size' in baseUpdates && baseUpdates.size !== undefined) {
+        const currentChar = characters.find(c => c.id === charId);
+        if (currentChar && currentChar.size !== undefined) {
+          const oldSize = currentChar.size;
+          const newSize = baseUpdates.size;
+          const currentBoardY = currentChar.board_y ?? 0;
+          // Adjust board_y so that board_y + size remains constant (keeps bottom position fixed)
+          statsUpdates.board_y = currentBoardY + (oldSize - newSize);
+        }
+      }
+
       // Cache chat_palette in localStorage before mutation
       if ('chat_palette' in baseUpdates) {
         localStorage.setItem(`adrastea-chat-palette-${charId}`, baseUpdates.chat_palette ?? '');
@@ -177,7 +217,7 @@ export function useCharacters(roomId: string) {
         await updateBaseMutation(baseUpdates as any);
       }
     },
-    [updateStatsMutation, updateBaseMutation]
+    [updateStatsMutation, updateBaseMutation, characters]
   );
 
   const removeCharacter = useCallback(
@@ -191,9 +231,19 @@ export function useCharacters(roomId: string) {
     async (orderedIds: string[]): Promise<void> => {
       const storageKey = `adrastea-char-order-${roomId}`;
       localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+      setCharOrderVersion(v => v + 1);
     },
     [roomId]
   );
 
-  return { characters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters };
+  const reorderLayerCharacters = useCallback(
+    async (orderedIds: string[]): Promise<void> => {
+      const storageKey = `adrastea-layer-char-order-${roomId}`;
+      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+      setLayerCharOrderVersion(v => v + 1);
+    },
+    [roomId]
+  );
+
+  return { characters, layerOrderedCharacters, loading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters };
 }

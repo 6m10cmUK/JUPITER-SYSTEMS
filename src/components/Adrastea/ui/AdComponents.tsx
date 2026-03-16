@@ -4,6 +4,7 @@ import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
 import { ChevronRight, ChevronDown, X, Palette } from 'lucide-react';
 import { calcPopupPos } from '../../../utils/calcPopupPos';
+import { DropdownMenu } from './DropdownMenu';
 
 // ── Shared compact styles ──
 const FONT_SIZE = '12px';
@@ -97,7 +98,7 @@ export function AdButton({ variant = 'default', fullWidth, children, style, clas
   return (
     <button
       {...props}
-      className={`adra-btn ${isGhost ? 'ad-btn--ghost' : ''} ${className ?? ''}`.trim()}
+      className={`adra-btn ${isGhost ? 'adra-btn--ghost' : ''} ${className ?? ''}`.trim()}
       style={{
         height: HEIGHT,
         padding: isGhost ? '8px 12px' : '0 10px',
@@ -320,7 +321,7 @@ const DEFAULT_PALETTE = [
   '#00ff80', '#00ffff', '#0080ff', '#0000ff', '#8000ff',
   '#ff00ff', '#ff0080',
   '#1e1e2e', '#313244', '#45475a', '#585b70',
-  'rgba(255,255,255,0.5)', 'rgba(0,0,0,0.5)',
+  '#ffffff80', '#00000080',
 ];
 
 function cssToRgba(value: string): RgbaColor {
@@ -342,8 +343,10 @@ function cssToRgba(value: string): RgbaColor {
 }
 
 function rgbaToCss(c: RgbaColor): string {
-  if (c.a >= 1) return '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
-  return `rgba(${c.r},${c.g},${c.b},${Math.round(c.a * 100) / 100})`;
+  const hex = '#' + [c.r, c.g, c.b].map(v => v.toString(16).padStart(2, '0')).join('');
+  if (c.a >= 1) return hex;
+  const alpha = Math.round(c.a * 255);
+  return hex + alpha.toString(16).padStart(2, '0');
 }
 
 function rgbaToDisplayBg(c: RgbaColor): string {
@@ -353,11 +356,13 @@ function rgbaToDisplayBg(c: RgbaColor): string {
 export function AdColorPicker({ label, value, onChange, enableAlpha, compact, onOpen, onClose }: AdColorPickerProps) {
   const [open, setOpen] = useState(false);
   const [palette, setPalette] = useState(loadPalette);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; index: number } | null>(null);
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [selectedPaletteIndex, setSelectedPaletteIndex] = useState<number | null>(null);
   const [textInput, setTextInput] = useState(value);
   const popRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const [popPos, setPopPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
   const rgba = cssToRgba(value);
 
   // value が変わったら textInput を同期
@@ -365,19 +370,23 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     setTextInput(value);
   }, [value]);
 
-  // ポップオーバー位置計算
+  // ポップオーバー位置計算（レンダー後に実測）
   useEffect(() => {
-    if (!open || !btnRef.current) return;
-    const rect = btnRef.current.getBoundingClientRect();
-    const popW = 210;
-    const popH = 300;
-    let top = rect.bottom + 4;
-    let left = rect.left;
-    // 画面外にはみ出す場合は調整
-    if (top + popH > window.innerHeight) top = rect.top - popH - 4;
-    if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
-    if (left < 0) left = 8;
-    setPopPos({ top, left });
+    if (!open || !btnRef.current) {
+      setPopPos(null);
+      return;
+    }
+    // 次フレームで popRef の実サイズを取得して位置決定
+    const raf = requestAnimationFrame(() => {
+      if (!btnRef.current) return;
+      const rect = btnRef.current.getBoundingClientRect();
+      const pop = popRef.current;
+      const popW = pop ? pop.offsetWidth : 210;
+      const popH = pop ? pop.offsetHeight : 300;
+      const pos = calcPopupPos(rect, popW, popH, 'down');
+      setPopPos({ top: pos.top, left: pos.left });
+    });
+    return () => cancelAnimationFrame(raf);
   }, [open]);
 
   // 外側クリックで閉じる
@@ -387,7 +396,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
       if (popRef.current && !popRef.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setContextMenu(null);
+        setContextMenuOpen(false);
         onClose?.(rgbaToCss(rgba));
       }
     };
@@ -395,30 +404,23 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     return () => document.removeEventListener('mousedown', handler);
   }, [open, rgba, onClose]);
 
-  // コンテキストメニュー外クリックで閉じる
-  useEffect(() => {
-    if (!contextMenu) return;
-    const handler = () => setContextMenu(null);
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [contextMenu]);
-
   const handleChange = useCallback((c: RgbaColor) => {
     onChange(enableAlpha ? rgbaToCss(c) : rgbaToCss({ ...c, a: 1 }));
   }, [onChange, enableAlpha]);
 
   const handleSaveToPalette = useCallback(() => {
-    const css = rgbaToCss(rgba);
+    const colorToSave = enableAlpha ? rgba : { ...rgba, a: 1 };
+    const css = rgbaToCss(colorToSave);
     const next = [css, ...palette.filter(c => c !== css)].slice(0, 16);
     setPalette(next);
     savePalette(next);
-  }, [rgba, palette]);
+  }, [rgba, palette, enableAlpha]);
 
   const handleRemoveFromPalette = useCallback((index: number) => {
     const next = palette.filter((_, i) => i !== index);
     setPalette(next);
     savePalette(next);
-    setContextMenu(null);
+    setContextMenuOpen(false);
   }, [palette]);
 
   const checkerBg = `linear-gradient(45deg, #808080 25%, transparent 25%, transparent 75%, #808080 75%),
@@ -469,7 +471,13 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
                 const isValid = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(v)
                   || /^rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+/.test(v);
                 if (isValid) {
-                  onChange(v);
+                  // enableAlpha=false なら透明度を除去して6桁hexに強制
+                  const parsed = cssToRgba(v);
+                  const normalized = !enableAlpha && parsed.a < 1
+                    ? rgbaToCss({ ...parsed, a: 1 })
+                    : v;
+                  onChange(normalized);
+                  setTextInput(normalized);
                 } else {
                   setTextInput(value);
                 }
@@ -489,7 +497,10 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         <div
           ref={popRef}
           style={{
-            position: 'fixed', top: popPos.top, left: popPos.left, zIndex: 10000,
+            position: 'fixed',
+            top: popPos?.top ?? -9999, left: popPos?.left ?? -9999,
+            visibility: popPos ? 'visible' : 'hidden',
+            zIndex: 10000,
             background: theme.bgElevated, border: `1px solid ${theme.border}`,
             padding: '8px', display: 'flex', flexDirection: 'row', gap: '8px',
             boxShadow: theme.shadowMd,
@@ -509,7 +520,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
             <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(5, 16px)', gap: '3px',
             }}>
-              {DEFAULT_PALETTE.map((c, i) => (
+              {DEFAULT_PALETTE.filter(c => enableAlpha ? true : c.length <= 7).map((c, i) => (
                 <button
                   key={`d-${i}`}
                   onClick={() => onChange(c)}
@@ -544,13 +555,15 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               >
                 +
               </button>
-              {palette.map((c, i) => (
+              {palette.filter(c => enableAlpha ? true : cssToRgba(c).a >= 1).map((c, i) => (
                 <button
                   key={`u-${i}`}
                   onClick={() => onChange(c)}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    setContextMenu({ x: e.clientX, y: e.clientY, index: i });
+                    setContextMenuPos({ x: e.clientX, y: e.clientY });
+                    setSelectedPaletteIndex(i);
+                    setContextMenuOpen(true);
                   }}
                   title={c}
                   style={{
@@ -569,31 +582,31 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         document.body,
       )}
 
-      {/* パレット右クリックメニュー（Portal） */}
-      {contextMenu && createPortal(
-        <div
-          style={{
-            position: 'fixed', top: contextMenu.y, left: contextMenu.x, zIndex: 10001,
-            background: theme.bgElevated, border: `1px solid ${theme.border}`,
-            boxShadow: theme.shadowMd, padding: '2px 0',
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={() => handleRemoveFromPalette(contextMenu.index)}
-            style={{
-              display: 'block', width: '100%', padding: '4px 12px',
-              background: 'transparent', border: 'none', color: theme.danger,
-              fontSize: '11px', cursor: 'pointer', textAlign: 'left',
-              whiteSpace: 'nowrap',
-            }}
-            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; }}
-            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = 'transparent'; }}
-          >
-            パレットから削除
-          </button>
-        </div>,
-        document.body,
+      {/* パレット右クリックメニュー（DropdownMenu） */}
+      {contextMenuPos && (
+        <DropdownMenu
+          mode="context"
+          open={contextMenuOpen}
+          onOpenChange={setContextMenuOpen}
+          position={contextMenuPos}
+          items={[
+            {
+              id: 'remove',
+              label: 'パレットから削除',
+              onClick: () => {
+                if (selectedPaletteIndex !== null) {
+                  handleRemoveFromPalette(selectedPaletteIndex);
+                  setSelectedPaletteIndex(null);
+                }
+              },
+            },
+          ]}
+          renderItem={(item, _isSelected) => (
+            <span style={{ color: theme.danger }}>
+              {item.label}
+            </span>
+          )}
+        />
       )}
     </div>
   );
@@ -646,7 +659,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
     return () => document.removeEventListener('keydown', handleTab);
   }, []);
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -702,7 +715,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
             <X size={14} />
           </button>
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {children}
         </div>
         {footer && (
@@ -718,7 +731,8 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -1047,7 +1061,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           }}
         />
         <button
-          className="ad-btn"
+          className="adra-btn"
           type="button"
           onClick={() => { if (input.trim()) handleSelect(input); }}
           disabled={!input.trim()}
@@ -1133,7 +1147,7 @@ export function AdToggleButtons<T extends string | null>({ label, value, options
       <div style={{ display: 'flex', gap: '2px' }}>
         {options.map((opt) => (
           <button
-            className="ad-btn"
+            className="adra-btn"
             key={String(opt.value)}
             onClick={() => onChange(opt.value)}
             style={{

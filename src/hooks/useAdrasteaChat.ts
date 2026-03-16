@@ -40,25 +40,29 @@ export function useAdrasteaChat(roomId: string) {
     ) => {
       try {
         let finalContent = content;
-        if (messageType === 'dice') {
-          const result = await rollDice(content, diceSystem || 'DiceBot');
-          finalContent = result
-            ? `${content} → ${result.text}`
-            : `${content} → (無効なコマンド)`;
+        let finalType: ChatMessage['message_type'] = messageType;
+
+        // 全メッセージを BCDice に投げて判定（有効ならダイス、無効なら通常チャット）
+        const result = await rollDice(content, diceSystem || 'DiceBot');
+        if (result) {
+          const color = (result.success) ? '#4a90d9' : '#e05555';
+          finalContent = `${content} <color=${color}>${result.text}</color>`;
+          finalType = 'dice';
         }
+
         const id = genId();
         await sendMutation({
           id,
           room_id: roomId,
           sender_name: senderName,
           content: finalContent,
-          message_type: messageType === 'dice' ? 'dice' : messageType,
+          message_type: finalType,
           sender_uid: senderUid,
           sender_avatar: senderAvatar,
           channel,
           allowed_user_ids: allowedUserIds,
         });
-        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: messageType, channel, allowed_user_ids: allowedUserIds, created_at: Date.now() } as ChatMessage;
+        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: allowedUserIds, created_at: Date.now() } as ChatMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;

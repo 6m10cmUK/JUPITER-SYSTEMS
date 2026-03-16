@@ -18,7 +18,7 @@ database_id = "3816e6dc-5093-47da-8811-ea36ea6257c2"
 name = "adrastea-r2-proxy-staging"
 
 [env.staging.vars]
-ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:6100,http://100.121.7.83:5173,http://100.121.7.83:6100,https://jupiter-systems-git-feat-adrastea-deploy-6m10cmuks-projects.vercel.app,https://jupiter-systems-git-feat-adrastea-6m10cmuks-projects.vercel.app"
+ALLOWED_ORIGINS = "http://localhost:5173,http://localhost:6100,http://100.121.7.83:5173,http://100.121.7.83:6100,https://jupiter-systems-git-feat-adrastea-deploy-6m10cmuks-projects.vercel.app,https://jupiter-systems-git-feat-adrastea-6m10cmuks-projects.vercel.app,https://jupiter-systems-git-feat-adrastea-character-6m10cmuks-projects.vercel.app"
 
 [[env.staging.r2_buckets]]
 binding = "R2_BUCKET"
