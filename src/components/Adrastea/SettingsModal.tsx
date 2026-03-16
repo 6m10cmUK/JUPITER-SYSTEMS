@@ -5,7 +5,7 @@ import type { PermissionKey } from '../../config/permissions';
 import { AdButton, AdInput, AdTextArea } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { theme } from '../../styles/theme';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
 import { getAvailableSystems } from '../../services/diceRoller';
 import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl } from '../../services/layoutStorage';
@@ -298,81 +298,75 @@ function LayoutSection({
         {layouts.length === 0 && (
           <div style={{ fontSize: '11px', color: theme.textMuted }}>保存済みレイアウトはありません</div>
         )}
-        {layouts.map((l) => (
-          <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px' }}>
-            <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {l.name}
-            </div>
-            {/* タグ表示 */}
-            {gmDefaultId === l.id && (
-              <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', background: theme.accent, color: theme.bgDeep }}>GM</span>
-            )}
-            {plDefaultId === l.id && (
-              <span style={{ fontSize: '10px', padding: '1px 4px', borderRadius: '3px', background: theme.success, color: theme.bgDeep }}>PL</span>
-            )}
-            {/* GMタグ付け/解除 */}
-            <AdButton
-              onClick={() => {
-                const newId = gmDefaultId === l.id ? null : l.id;
-                setGmDefault(newId);
-                setGmDefaultIdState(newId);
-                setTagError(null);
-              }}
-              style={{ fontSize: '10px', padding: '2px 6px' }}
-            >
-              {gmDefaultId === l.id ? 'GM解除' : 'GM'}
-            </AdButton>
-            {/* PLタグ付け/解除 */}
-            <AdButton
-              onClick={() => {
-                if (plDefaultId === l.id) {
-                  // 解除
-                  setPlDefault(null);
-                  setPlDefaultIdState(null);
-                  setTagError(null);
-                } else {
-                  // バリデーション
-                  const violations = validateForPl(l.layout);
-                  if (violations.length > 0) {
-                    setTagError(`PLデフォルトに設定できません: ${violations.join('、')} はPL権限では使用できないパネルです`);
+        {layouts.map((l) => {
+          const currentTag = gmDefaultId === l.id ? 'gm' : plDefaultId === l.id ? 'pl' : '';
+          return (
+            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+              {/* レイアウト名 — クリックで適用 */}
+              <div
+                onClick={() => {
+                  if (!applyLayout(l.layout)) {
+                    setTagError('レイアウトの適用に失敗しました');
                     setTimeout(() => setTagError(null), 5000);
-                    return;
                   }
-                  setPlDefault(l.id);
-                  setPlDefaultIdState(l.id);
+                }}
+                style={{ flex: 1, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.textPrimary }}
+              >
+                {l.name}
+              </div>
+              {/* タグ選択 */}
+              <select
+                value={currentTag}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  // 既存タグ解除
+                  if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
+                  if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
                   setTagError(null);
-                }
-              }}
-              style={{ fontSize: '10px', padding: '2px 6px' }}
-            >
-              {plDefaultId === l.id ? 'PL解除' : 'PL'}
-            </AdButton>
-            {/* 適用 */}
-            <AdButton
-              onClick={() => {
-                if (!applyLayout(l.layout)) {
-                  setTagError('レイアウトの適用に失敗しました');
-                  setTimeout(() => setTagError(null), 5000);
-                }
-              }}
-              style={{ fontSize: '10px', padding: '2px 6px' }}
-            >
-              適用
-            </AdButton>
-            {/* 削除 */}
-            <AdButton
-              onClick={() => {
-                deleteLayout(l.id);
-                setLayouts(getSavedLayouts());
-                if (gmDefaultId === l.id) setGmDefaultIdState(null);
-                if (plDefaultId === l.id) setPlDefaultIdState(null);
-              }}
-              style={{ fontSize: '10px', padding: '2px 6px', color: theme.danger }}
-            >
-              削除
-            </AdButton>
-          </div>
-        ))}
+                  if (val === 'gm') {
+                    // 他のレイアウトからGMタグを外す（排他）
+                    setGmDefault(l.id);
+                    setGmDefaultIdState(l.id);
+                  } else if (val === 'pl') {
+                    const violations = validateForPl(l.layout);
+                    if (violations.length > 0) {
+                      setTagError(`PLデフォルトに設定できません: ${violations.join('、')} はPL権限では使用できないパネルです`);
+                      setTimeout(() => setTagError(null), 5000);
+                      return;
+                    }
+                    setPlDefault(l.id);
+                    setPlDefaultIdState(l.id);
+                  }
+                }}
+                style={{
+                  fontSize: '10px',
+                  padding: '2px 4px',
+                  background: theme.bgInput,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  borderRadius: '3px',
+                  outline: 'none',
+                  flexShrink: 0,
+                }}
+              >
+                <option value="">—</option>
+                {(gmDefaultId === null || gmDefaultId === l.id) && <option value="gm">GM</option>}
+                {(plDefaultId === null || plDefaultId === l.id) && <option value="pl">PL</option>}
+              </select>
+              {/* 削除アイコン */}
+              <Trash2
+                size={13}
+                style={{ cursor: 'pointer', color: theme.textMuted, flexShrink: 0 }}
+                onClick={() => {
+                  deleteLayout(l.id);
+                  setLayouts(getSavedLayouts());
+                  if (gmDefaultId === l.id) setGmDefaultIdState(null);
+                  if (plDefaultId === l.id) setPlDefaultIdState(null);
+                }}
+              />
+            </div>
+          );
+        })}
         {tagError && (
           <div style={{ fontSize: '11px', color: theme.danger }}>{tagError}</div>
         )}
