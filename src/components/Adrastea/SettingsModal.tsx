@@ -459,6 +459,19 @@ function LayoutSection({
         {importError && (
           <div style={{ fontSize: '11px', color: theme.danger, marginTop: '4px' }}>{importError}</div>
         )}
+        <AdButton
+          onClick={() => {
+            localStorage.removeItem('adrastea-layouts');
+            localStorage.removeItem('adrastea-dock-layout-owner');
+            localStorage.removeItem('adrastea-dock-layout-user');
+            localStorage.removeItem('adrastea-dock-layout-sub_owner');
+            localStorage.removeItem('adrastea-dock-layout-guest');
+            window.location.reload();
+          }}
+          style={{ fontSize: '11px', marginTop: '4px', color: theme.danger }}
+        >
+          レイアウトデータをリセット
+        </AdButton>
       </div>
     </div>
   );
