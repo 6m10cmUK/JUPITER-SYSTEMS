@@ -303,7 +303,8 @@ const DockviewInner = memo(function DockviewInner({
       const defaultLayout = getDefaultLayoutForRole(role);
       if (defaultLayout) {
         try {
-          api.fromJSON(defaultLayout.layout as Parameters<DockviewApi['fromJSON']>[0]);
+          const scaled = scaleLayout(defaultLayout.layout, api.width, api.height);
+          api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
           requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
           return;
         } catch { /* フォールスルー */ }
