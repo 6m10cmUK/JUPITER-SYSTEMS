@@ -31,7 +31,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateMeMutation = useMutation(api.users.updateMe);
 
   const signIn = async () => {
-    await convexSignIn("google", { redirectTo: window.location.pathname + window.location.search });
+    await convexSignIn("google", { redirectTo: window.location.origin + window.location.pathname + window.location.search });
   };
 
   const signInAsGuest = async (_displayName: string) => {
