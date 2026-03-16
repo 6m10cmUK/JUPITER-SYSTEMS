@@ -127,10 +127,16 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
     async (file: File) => {
       setUploading(true);
       try {
+        let result: Asset | null = null;
         if (activeTab === 'audio') {
-          await uploadAudioAsset(file);
+          result = await uploadAudioAsset(file);
         } else {
-          await uploadAsset(file);
+          result = await uploadAsset(file);
+        }
+        if (result && onSelect) {
+          previewAudioRef.current?.pause();
+          onSelect(result.url, result.id, result.title || result.filename, result.width, result.height);
+          onClose();
         }
       } catch (err) {
         console.error('アップロード失敗:', err);
@@ -139,7 +145,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         setAddMode(null);
       }
     },
-    [activeTab, uploadAsset, uploadAudioAsset]
+    [activeTab, uploadAsset, uploadAudioAsset, onSelect, onClose]
   );
 
   const dnd = useDragDropOverlay(handleUpload);

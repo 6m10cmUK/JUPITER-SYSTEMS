@@ -23,6 +23,7 @@ export const getMe = query({
       id: userId,
       name: user?.name ?? identity.name ?? null,
       image: user?.image ?? identity.pictureUrl ?? null,
+      onboarded: user?.onboarded ?? true,
     };
   },
 });
@@ -39,8 +40,19 @@ export const updateMe = mutation({
     const patch: Record<string, unknown> = {};
     if (args.name !== undefined) patch.name = args.name;
     if (args.image !== undefined) patch.image = args.image;
+    patch.onboarded = true;
     if (Object.keys(patch).length > 0) {
       await ctx.db.patch(userId as Id<"users">, patch);
     }
+  },
+});
+
+export const completeOnboarding = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = getUserId(identity);
+    await ctx.db.patch(userId as Id<"users">, { onboarded: true });
   },
 });
