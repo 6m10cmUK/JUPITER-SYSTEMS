@@ -1,18 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
 import { AdButton, AdInput, AdTextArea } from './ui';
+import { DiceSystemPicker } from './ui/DiceSystemPicker';
+import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
-import { X } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { AssetPicker } from './AssetPicker';
+import { getAvailableSystems } from '../../services/diceRoller';
+import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl, scaleLayout } from '../../services/layoutStorage';
+import { relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
 
-type SettingsSection = 'room' | 'layout' | 'user';
+type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 
 interface SettingsModalProps {
   initialSection?: SettingsSection;
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
@@ -21,6 +26,9 @@ interface SettingsModalProps {
   isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
+  isOwner: boolean;
+  members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
+  onAssignRole: (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => void;
 }
 
 interface PanelDef {
@@ -28,27 +36,29 @@ interface PanelDef {
   component: string;
   title: string;
   permission: PermissionKey;
+  disabled?: boolean;
 }
 
 const PANEL_DEFS: PanelDef[] = [
-  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
   { id: 'character', component: 'character', title: 'キャラクター', permission: 'panel_character' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト', permission: 'panel_scenarioText' },
-  { id: 'cutin', component: 'cutin', title: 'カットイン', permission: 'panel_cutin' },
-  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
-  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
   { id: 'chatLog', component: 'chatLog', title: 'チャットログ', permission: 'panel_chat' },
   { id: 'chatInput', component: 'chatInput', title: 'チャット入力', permission: 'panel_chat' },
   { id: 'chatPalette', component: 'chatPalette', title: 'チャットパレット', permission: 'panel_chat' },
-  { id: 'board', component: 'board', title: 'Board', permission: 'panel_board' },
+  { id: 'status', component: 'status', title: 'ステータス', permission: 'panel_status' },
+  { id: 'property', component: 'property', title: 'プロパティ', permission: 'panel_property' },
   { id: 'pdfViewer', component: 'pdfViewer', title: 'PDF', permission: 'panel_pdfViewer' },
+  { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
+  { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
   { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
+  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト (開発中)', permission: 'panel_scenarioText', disabled: true },
+  { id: 'cutin', component: 'cutin', title: 'カットイン (開発中)', permission: 'panel_cutin', disabled: true },
 ];
 
 const NAV_ITEMS: Array<{ key: SettingsSection; label: string }> = [
   { key: 'room', label: 'ルーム設定' },
   { key: 'layout', label: 'レイアウト' },
   { key: 'user', label: 'ユーザー' },
+  { key: 'members', label: 'メンバー管理' },
 ];
 
 function RoomSettingsSection({
@@ -56,21 +66,31 @@ function RoomSettingsSection({
   onSaveRoom,
   onDeleteRoom,
   onClose,
+  isOwner,
+  systems,
 }: {
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
+  isOwner: boolean;
+  systems: { id: string; name: string }[];
 }) {
   const [roomName, setRoomName] = useState(room.name);
   const [description, setDescription] = useState('');
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
+  const [defaultLoginRole, setDefaultLoginRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_login_role as 'sub_owner' | 'user' | 'guest' ?? 'user');
+  const [defaultGuestRole, setDefaultGuestRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_guest_role as 'sub_owner' | 'user' | 'guest' ?? 'guest');
 
   const handleSave = () => {
     onSaveRoom({
       name: roomName,
       description,
       dice_system: diceSystem,
+      ...(isOwner && {
+        default_login_role: defaultLoginRole,
+        default_guest_role: defaultGuestRole,
+      }),
     });
     onClose();
   };
@@ -96,12 +116,63 @@ function RoomSettingsSection({
         placeholder="セッションの説明など（任意）"
         rows={3}
       />
-      <AdInput
-        label="ダイスシステム"
+      <DiceSystemPicker
         value={diceSystem}
-        onChange={(e) => setDiceSystem(e.target.value)}
-        placeholder="DiceBot"
+        onChange={setDiceSystem}
+        systems={systems}
       />
+      {isOwner && (
+        <>
+          <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 }}>
+            デフォルトロール
+          </div>
+          <div style={{ fontSize: 11, color: theme.textMuted, marginBottom: 6 }}>
+            新しく参加するユーザーに自動で付与されるロール
+          </div>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ログインユーザー</div>
+              <select
+                value={defaultLoginRole}
+                onChange={(e) => setDefaultLoginRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  background: theme.bgSurface,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  outline: 'none',
+                }}
+              >
+                <option value="sub_owner">サブオーナー</option>
+                <option value="user">ユーザー</option>
+                <option value="guest">ゲスト</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ゲスト</div>
+              <select
+                value={defaultGuestRole}
+                onChange={(e) => setDefaultGuestRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
+                style={{
+                  width: '100%',
+                  padding: '6px 8px',
+                  fontSize: 12,
+                  background: theme.bgSurface,
+                  color: theme.textPrimary,
+                  border: `1px solid ${theme.border}`,
+                  outline: 'none',
+                }}
+              >
+                <option value="sub_owner">サブオーナー</option>
+                <option value="user">ユーザー</option>
+                <option value="guest">ゲスト</option>
+              </select>
+            </div>
+          </div>
+        </>
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
         <AdButton variant="danger" onClick={handleDelete}>
           ルームを削除
@@ -123,56 +194,325 @@ function LayoutSection({
   can: (permission: PermissionKey) => boolean;
   onClose: () => void;
 }) {
+  const [, forceUpdate] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [layouts, setLayouts] = useState(() => getSavedLayouts());
+  const [gmDefaultId, setGmDefaultIdState] = useState(() => getGmDefaultId());
+  const [plDefaultId, setPlDefaultIdState] = useState(() => getPlDefaultId());
+  const [newLayoutName, setNewLayoutName] = useState('');
+  const [tagError, setTagError] = useState<string | null>(null);
+
+  const applyLayout = (layout: object) => {
+    if (!dockviewApi) return false;
+    try {
+      // fromJSON 前に全グループの幅制約を解除
+      dockviewApi.groups.forEach((g) => relaxGroupWidth(g));
+
+      // 比率ベースレイアウトをスケーリング
+      let layoutToApply = layout;
+      if ((layout as any).grid?.width === 1) {
+        layoutToApply = scaleLayout(layout, dockviewApi.width, dockviewApi.height);
+      }
+
+      dockviewApi.fromJSON(layoutToApply as Parameters<typeof dockviewApi.fromJSON>[0]);
+      requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(dockviewApi)));
+      forceUpdate((c) => c + 1);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const togglePanel = (panelId: string, component: string, title: string) => {
     if (!dockviewApi) return;
     const existing = dockviewApi.getPanel(panelId);
     if (existing) {
-      existing.api.setActive();
+      dockviewApi.removePanel(existing);
     } else {
-      let targetGroup = dockviewApi.activeGroup;
-      if (targetGroup?.panels.some((p) => p.id === 'board')) {
-        targetGroup = dockviewApi.groups.find((g) => !g.panels.some((p) => p.id === 'board')) ?? undefined;
-      }
-      if (targetGroup) {
-        dockviewApi.addPanel({
-          id: panelId,
-          component,
-          title,
-          position: { referenceGroup: targetGroup, direction: 'within' },
-        });
-      } else {
-        dockviewApi.addPanel({
-          id: panelId,
-          component,
-          title,
-          position: { referencePanel: 'board', direction: 'right' },
-        });
-      }
+      dockviewApi.addPanel({
+        id: panelId,
+        component,
+        title,
+        floating: true,
+      });
     }
+    forceUpdate((n) => n + 1);
   };
 
   const filteredPanels = PANEL_DEFS.filter((p) => can(p.permission));
 
-  return (
-    <div>
+  // ユーザー権限とサブオーナー以上で分ける
+  const userPanels = filteredPanels.filter((p) =>
+    ['panel_board', 'panel_character', 'panel_chat', 'panel_status', 'panel_property', 'panel_pdfViewer'].includes(p.permission)
+  );
+  const subOwnerPanels = filteredPanels.filter((p) =>
+    ['panel_scene', 'panel_layer', 'panel_bgm', 'panel_scenarioText', 'panel_cutin'].includes(p.permission)
+  );
+
+  const sectionHeaderStyle = {
+    fontSize: '11px',
+    color: theme.textMuted,
+    marginBottom: '8px',
+    fontWeight: 600,
+    textTransform: 'uppercase' as const,
+    letterSpacing: '0.08em',
+  };
+
+  const renderPanelRow = (p: PanelDef) => {
+    const exists = !!dockviewApi?.getPanel(p.id);
+    return (
       <div
+        key={p.id}
         style={{
-          fontSize: '11px',
-          color: theme.textMuted,
-          marginBottom: '8px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '6px 0',
+          borderBottom: `1px solid ${theme.borderSubtle}`,
+          opacity: p.disabled ? 0.4 : 1,
         }}
       >
-        パネル表示
+        <span style={{ fontSize: '12px', color: p.disabled ? theme.textMuted : theme.textPrimary }}>
+          {p.title}
+        </span>
+        <AdButton
+          onClick={() => togglePanel(p.id, p.component, p.title)}
+          style={{ fontSize: '11px' }}
+          disabled={p.disabled}
+        >
+          {exists ? '非表示' : '表示する'}
+        </AdButton>
       </div>
-      <div>
-        {filteredPanels.map((p) => {
-          const exists = !!dockviewApi?.getPanel(p.id);
+    );
+  };
+
+  return (
+    <div>
+      {userPanels.length > 0 && (
+        <>
+          <div style={sectionHeaderStyle}>パネル</div>
+          <div>{userPanels.map(renderPanelRow)}</div>
+        </>
+      )}
+      {subOwnerPanels.length > 0 && (
+        <>
+          <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>管理者パネル</div>
+          <div>{subOwnerPanels.map(renderPanelRow)}</div>
+        </>
+      )}
+      {/* 保存済みレイアウト */}
+      <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>保存済みレイアウト</div>
+      <div style={{ padding: '6px 0', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {layouts.length === 0 && (
+          <div style={{ fontSize: '11px', color: theme.textMuted }}>保存済みレイアウトはありません</div>
+        )}
+        {layouts.map((l) => {
+          const currentTag = gmDefaultId === l.id ? 'gm' : plDefaultId === l.id ? 'pl' : '';
           return (
+            <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px' }}>
+              {/* レイアウト名 — クリックで適用 */}
+              <div
+                onClick={() => {
+                  if (!applyLayout(l.layout)) {
+                    setTagError('レイアウトの適用に失敗しました');
+                    setTimeout(() => setTagError(null), 5000);
+                  }
+                }}
+                style={{ flex: 1, cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.textPrimary }}
+              >
+                {l.name}
+              </div>
+              {/* タグ選択 */}
+              <DropdownMenu
+                align="left"
+                selectedId={currentTag || undefined}
+                trigger={
+                  <span style={{
+                    fontSize: '10px',
+                    padding: '2px 8px',
+                    borderRadius: '3px',
+                    background: currentTag === 'gm' ? theme.accent : currentTag === 'pl' ? theme.success : 'transparent',
+                    color: currentTag ? theme.bgDeep : theme.textMuted,
+                    border: `1px solid ${currentTag === 'gm' ? theme.accent : currentTag === 'pl' ? theme.success : theme.border}`,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {currentTag === 'gm' ? 'GM' : currentTag === 'pl' ? 'PL' : '—'}
+                  </span>
+                }
+                items={[
+                  { id: '', label: '—', onClick: () => {
+                    if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
+                    if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
+                    setTagError(null);
+                  }},
+                  ...((gmDefaultId === null || gmDefaultId === l.id) ? [{ id: 'gm', label: 'GM', onClick: () => {
+                    if (plDefaultId === l.id) { setPlDefault(null); setPlDefaultIdState(null); }
+                    setGmDefault(l.id);
+                    setGmDefaultIdState(l.id);
+                    setTagError(null);
+                  }}] : []),
+                  ...((plDefaultId === null || plDefaultId === l.id) ? [{ id: 'pl', label: 'PL', onClick: () => {
+                    if (gmDefaultId === l.id) { setGmDefault(null); setGmDefaultIdState(null); }
+                    const violations = validateForPl(l.layout);
+                    if (violations.length > 0) {
+                      setTagError(`PLデフォルトに設定できません: ${violations.join('、')} はPL権限では使用できないパネルです`);
+                      setTimeout(() => setTagError(null), 5000);
+                      return;
+                    }
+                    setPlDefault(l.id);
+                    setPlDefaultIdState(l.id);
+                    setTagError(null);
+                  }}] : []),
+                ]}
+              />
+              {/* 削除アイコン */}
+              <Trash2
+                size={13}
+                style={{ cursor: 'pointer', color: theme.textMuted, flexShrink: 0 }}
+                onClick={() => {
+                  deleteLayout(l.id);
+                  setLayouts(getSavedLayouts());
+                  if (gmDefaultId === l.id) setGmDefaultIdState(null);
+                  if (plDefaultId === l.id) setPlDefaultIdState(null);
+                }}
+              />
+            </div>
+          );
+        })}
+        {tagError && (
+          <div style={{ fontSize: '11px', color: theme.danger }}>{tagError}</div>
+        )}
+        {/* 新規保存 */}
+        <div style={{ display: 'flex', gap: '4px', marginTop: '4px' }}>
+          <input
+            type="text"
+            value={newLayoutName}
+            onChange={(e) => setNewLayoutName(e.target.value)}
+            placeholder="レイアウト名"
+            style={{
+              flex: 1,
+              fontSize: '11px',
+              padding: '4px 6px',
+              background: theme.bgInput,
+              color: theme.textPrimary,
+              border: `1px solid ${theme.border}`,
+              borderRadius: '4px',
+              outline: 'none',
+            }}
+          />
+          <AdButton
+            onClick={() => {
+              if (!dockviewApi || !newLayoutName.trim()) return;
+              addLayout(newLayoutName.trim(), dockviewApi.toJSON());
+              setLayouts(getSavedLayouts());
+              setNewLayoutName('');
+            }}
+            style={{ fontSize: '11px', flexShrink: 0 }}
+          >
+            保存
+          </AdButton>
+        </div>
+      </div>
+      {/* レイアウトエクスポート */}
+      <div style={{ ...sectionHeaderStyle, marginTop: '16px' }}>レイアウト操作</div>
+      <div style={{ padding: '6px 0' }}>
+        <AdButton
+          onClick={() => {
+            if (!dockviewApi) return;
+            const json = JSON.stringify(dockviewApi.toJSON(), null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `adrastea-layout-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          style={{ fontSize: '11px' }}
+        >
+          レイアウトをエクスポート
+        </AdButton>
+        <AdButton
+          onClick={() => {
+            if (!dockviewApi) return;
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = () => {
+                try {
+                  const layout = JSON.parse(reader.result as string);
+                  if (!applyLayout(layout)) {
+                    setImportError('読み込みに失敗しました。正しいJSONファイルか確認してください。');
+                    setTimeout(() => setImportError(null), 5000);
+                  }
+                } catch {
+                  setImportError('読み込みに失敗しました。正しいJSONファイルか確認してください。');
+                  setTimeout(() => setImportError(null), 5000);
+                }
+              };
+              reader.readAsText(file);
+            };
+            input.click();
+          }}
+          style={{ fontSize: '11px', marginTop: '4px' }}
+        >
+          レイアウトをインポート
+        </AdButton>
+        {importError && (
+          <div style={{ fontSize: '11px', color: theme.danger, marginTop: '4px' }}>{importError}</div>
+        )}
+        <AdButton
+          onClick={() => {
+            localStorage.removeItem('adrastea-layouts');
+            localStorage.removeItem('adrastea-dock-layout-owner');
+            localStorage.removeItem('adrastea-dock-layout-user');
+            localStorage.removeItem('adrastea-dock-layout-sub_owner');
+            localStorage.removeItem('adrastea-dock-layout-guest');
+            window.location.reload();
+          }}
+          style={{ fontSize: '11px', marginTop: '4px', color: theme.danger }}
+        >
+          レイアウトデータをリセット
+        </AdButton>
+      </div>
+    </div>
+  );
+}
+
+function MembersSection({
+  members,
+  onAssignRole,
+}: {
+  members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
+  onAssignRole: (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => void;
+}) {
+  return (
+    <div>
+      <div style={{
+        fontSize: 11,
+        color: theme.textMuted,
+        marginBottom: 8,
+        fontWeight: 600,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+      }}>
+        メンバー一覧
+      </div>
+      <div style={{ fontSize: 11, color: theme.textMuted, marginBottom: 8 }}>
+        オーナーのロールは変更できません
+      </div>
+      {members.length === 0 ? (
+        <div style={{ color: theme.textMuted, fontSize: 12 }}>メンバーがいません</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {members.map((m) => (
             <div
-              key={p.id}
+              key={m.user_id}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -181,38 +521,50 @@ function LayoutSection({
                 borderBottom: `1px solid ${theme.borderSubtle}`,
               }}
             >
-              <span style={{ fontSize: '12px', color: theme.textPrimary }}>
-                {p.title}
-              </span>
-              <AdButton
-                onClick={() => togglePanel(p.id, p.component, p.title)}
-                style={{ fontSize: '11px' }}
-              >
-                {exists ? '表示中' : '表示する'}
-              </AdButton>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+                {m.avatar_url ? (
+                  <img
+                    src={m.avatar_url}
+                    style={{ width: 24, height: 24, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div style={{
+                    width: 24, height: 24, borderRadius: '50%', background: theme.border,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, color: theme.textMuted, flexShrink: 0,
+                  }}>
+                    {(m.display_name ?? '?').charAt(0)}
+                  </div>
+                )}
+                <span style={{ fontSize: 12, color: theme.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.display_name ?? m.user_id}
+                </span>
+              </div>
+              {m.role === 'owner' ? (
+                <span style={{ fontSize: 11, color: theme.textMuted, padding: '2px 8px' }}>オーナー</span>
+              ) : (
+                <select
+                  value={m.role}
+                  onChange={(e) => onAssignRole(m.user_id, e.target.value as 'sub_owner' | 'user' | 'guest')}
+                  style={{
+                    padding: '4px 6px',
+                    fontSize: 11,
+                    background: theme.bgSurface,
+                    color: theme.textPrimary,
+                    border: `1px solid ${theme.border}`,
+                    outline: 'none',
+                  }}
+                >
+                  <option value="sub_owner">サブオーナー</option>
+                  <option value="user">ユーザー</option>
+                  <option value="guest">ゲスト</option>
+                </select>
+              )}
             </div>
-          );
-        })}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 0',
-            borderBottom: `1px solid ${theme.borderSubtle}`,
-          }}
-        >
-          <span style={{ fontSize: '12px', color: theme.textPrimary }}>
-            デバッグコンソール
-          </span>
-          <AdButton
-            onClick={() => togglePanel('debugConsole', 'debugConsole', 'Debug Console')}
-            style={{ fontSize: '11px' }}
-          >
-            {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
-          </AdButton>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -339,8 +691,16 @@ export function SettingsModal({
   isGuest,
   onSignOut,
   onClose,
+  isOwner,
+  members,
+  onAssignRole,
 }: SettingsModalProps) {
   const [section, setSection] = useState<SettingsSection>(initialSection);
+  const [diceSystems, setDiceSystems] = useState<{id:string;name:string}[]>([]);
+
+  useEffect(() => {
+    getAvailableSystems().then(setDiceSystems).catch(console.error);
+  }, []);
 
   return (
     <div
@@ -397,7 +757,7 @@ export function SettingsModal({
             設定
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {NAV_ITEMS.map((item) => (
+            {NAV_ITEMS.filter(item => item.key !== 'members' || isOwner).map((item) => (
               <button
                 key={item.key}
                 onClick={() => setSection(item.key)}
@@ -459,6 +819,8 @@ export function SettingsModal({
               onSaveRoom={onSaveRoom}
               onDeleteRoom={onDeleteRoom}
               onClose={onClose}
+              isOwner={isOwner}
+              systems={diceSystems}
             />
           )}
           {section === 'layout' && (
@@ -476,6 +838,12 @@ export function SettingsModal({
               onSignOut={onSignOut}
               onClose={onClose}
               dockviewApi={dockviewApi}
+            />
+          )}
+          {section === 'members' && (
+            <MembersSection
+              members={members}
+              onAssignRole={onAssignRole}
             />
           )}
         </div>

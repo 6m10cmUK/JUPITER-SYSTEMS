@@ -30,7 +30,17 @@ export async function handleAdmin(
       'SELECT * FROM assets ORDER BY created_at DESC LIMIT 500'
     ).all();
     const results = (rows.results as Record<string, unknown>[]).map((r) => ({
-      ...r,
+      id: r.id,
+      title: r.title,
+      ownerId: r.owner_id,
+      size: r.size_bytes,
+      type: r.asset_type,
+      createdAt: r.created_at,
+      url: r.url,
+      r2_key: r.r2_key,
+      filename: r.filename,
+      width: r.width,
+      height: r.height,
       tags: JSON.parse((r.tags as string) || '[]'),
     }));
     return json(results, headers);

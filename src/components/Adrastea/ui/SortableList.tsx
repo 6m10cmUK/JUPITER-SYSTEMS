@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   DndContext,
+  DragOverlay,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -32,8 +34,6 @@ interface SortableListPanelProps {
   children: React.ReactNode;
 }
 
-const noop = () => {};
-
 export function SortableListPanel({
   title,
   titleIcon,
@@ -45,6 +45,12 @@ export function SortableListPanel({
   emptyMessage,
   children,
 }: SortableListPanelProps) {
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
+  const [draggedHtml, setDraggedHtml] = useState<string>('');
+  const containerRef = useRef<HTMLDivElement>(null);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
@@ -53,6 +59,19 @@ export function SortableListPanel({
   );
 
   const hasItems = items.length > 0;
+
+  // ポインター追跡
+  useEffect(() => {
+    if (!activeId) {
+      setCursorPos(null);
+      return;
+    }
+    const handleMove = (e: PointerEvent) => {
+      setCursorPos({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('pointermove', handleMove, { passive: true });
+    return () => window.removeEventListener('pointermove', handleMove);
+  }, [activeId]);
 
   return (
     <div style={{
@@ -96,16 +115,46 @@ export function SortableListPanel({
       </div>
 
       {/* List */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
+      <div ref={containerRef} style={{ flex: 1, overflowY: 'auto' }}>
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragEnd={onDragEnd ?? noop}
+          onDragStart={(event) => {
+            const id = String(event.active.id);
+            setActiveId(id);
+            // DOM クローンをキャプチャ（activatorEvent.target から sortable 要素を探す）
+            const target = (event.activatorEvent as Event)?.target as HTMLElement | null;
+            const sortableEl = target?.closest?.('[aria-roledescription="sortable"]') as HTMLElement | null;
+            if (sortableEl) {
+              setDraggedHtml(sortableEl.outerHTML);
+            }
+            // 掴んだ位置を計算
+            const activatorEvent = event.activatorEvent as PointerEvent | null;
+            const initialRect = event.active.rect.current?.initial;
+            if (activatorEvent && initialRect) {
+              setGrabOffset({
+                x: activatorEvent.clientX - initialRect.left,
+                y: activatorEvent.clientY - initialRect.top,
+              });
+              // 初期カーソル位置をセット（pointermove を待たずに overlay 表示）
+              setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
+            } else {
+              setGrabOffset({ x: 16, y: 14 });
+            }
+            onDragStart?.(event);
+          }}
+          onDragEnd={(event) => {
+            setActiveId(null);
+            setDraggedHtml('');
+            onDragEnd?.(event);
+          }}
         >
           <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             {children}
           </SortableContext>
+          <DragOverlay dropAnimation={null}>
+            <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
+          </DragOverlay>
         </DndContext>
         {!hasItems && emptyMessage && (
           <div style={{
@@ -118,6 +167,22 @@ export function SortableListPanel({
           </div>
         )}
       </div>
+
+      {/* Portal overlay for cursor tracking */}
+      {activeId && cursorPos && draggedHtml && createPortal(
+        <div style={{
+          position: 'fixed',
+          top: cursorPos.y - grabOffset.y,
+          left: cursorPos.x - grabOffset.x,
+          width: containerRef.current?.offsetWidth ?? 240,
+          zIndex: 9999,
+          pointerEvents: 'none',
+          opacity: 0.85,
+        }}>
+          <div dangerouslySetInnerHTML={{ __html: draggedHtml }} />
+        </div>,
+        document.body
+      )}
 
       {/* Footer */}
       {footerActions && (
@@ -137,6 +202,7 @@ export function SortableListPanel({
 interface SortableListItemProps {
   id: string;
   disabled?: boolean;
+  hideHandle?: boolean;
   isSelected?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
@@ -148,6 +214,7 @@ interface SortableListItemProps {
 export function SortableListItem({
   id,
   disabled,
+  hideHandle,
   isSelected,
   isGroupDrag,
   onClick,
@@ -176,7 +243,7 @@ export function SortableListItem({
     background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : isGroupDrag ? 0.4 : 1,
+    opacity: isDragging ? 0 : isGroupDrag ? 0.4 : 1,
     boxShadow: isDragging ? theme.shadowSm : undefined,
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
@@ -187,16 +254,25 @@ export function SortableListItem({
     <div
       ref={setNodeRef}
       style={style}
-      {...(!disabled ? listeners : {})}
+      {...attributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
-      {!disabled && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+      {!disabled && !hideHandle && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            flexShrink: 0,
+            cursor: disabled ? 'default' : 'grab',
+          }}
+          {...(!disabled ? listeners : {})}
+          ref={!disabled ? setActivatorNodeRef : undefined}
+        >
           <span
-            ref={setActivatorNodeRef}
-            {...attributes}
-            style={{ cursor: 'grab', display: 'flex', touchAction: 'none' }}
+            style={{ display: 'flex', touchAction: 'none' }}
           >
             <GripVertical size={12} color={theme.textMuted} />
           </span>

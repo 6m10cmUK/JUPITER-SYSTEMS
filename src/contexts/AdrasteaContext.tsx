@@ -4,6 +4,7 @@ import { api } from '../../convex/_generated/api';
 import type { AuthUser } from '../contexts/AuthContext';
 import type { DockviewApi } from 'dockview';
 import type { BoardHandle } from '../components/Adrastea/Board';
+import { GRID_SIZE } from '../components/Adrastea/Board';
 import type {
   Piece,
   Room,
@@ -104,6 +105,8 @@ export interface AdrasteaContextValue {
   updateCharacter: ReturnType<typeof useCharacters>['updateCharacter'];
   removeCharacter: ReturnType<typeof useCharacters>['removeCharacter'];
   reorderCharacters: ReturnType<typeof useCharacters>['reorderCharacters'];
+  layerOrderedCharacters: Character[];
+  reorderLayerCharacters: ReturnType<typeof useCharacters>['reorderLayerCharacters'];
 
   // --- useObjects ---
   allObjects: BoardObject[];
@@ -149,6 +152,8 @@ export interface AdrasteaContextValue {
   setEditingScene: React.Dispatch<React.SetStateAction<Scene | null | undefined>>;
   editingCharacter: Character | null | undefined;
   setEditingCharacter: React.Dispatch<React.SetStateAction<Character | null | undefined>>;
+  characterToOpenModal: Character | null;
+  setCharacterToOpenModal: (char: Character | null) => void;
   editingCutin: Cutin | null | undefined;
   setEditingCutin: React.Dispatch<React.SetStateAction<Cutin | null | undefined>>;
   editingBgmId: string | null;
@@ -264,7 +269,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [updateRoom]);
 
   const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, handleObjectsCreated);
-  const { characters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters } = useCharacters(roomId);
+  const { characters, layerOrderedCharacters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters } = useCharacters(roomId);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -410,6 +415,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   const [editingScene, setEditingScene] = useState<Scene | null | undefined>(undefined);
   const [editingCharacter, setEditingCharacter] = useState<Character | null | undefined>(undefined);
+  const [characterToOpenModal, setCharacterToOpenModal] = useState<Character | null>(null);
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
   const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
@@ -421,7 +427,19 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Board ref ---
   const boardRef = useRef<BoardHandle | null>(null);
   const getBoardCenter = useCallback(() => {
-    return { x: 0, y: 0 };
+    const board = boardRef.current;
+    if (!board) return { x: 0, y: 0 };
+    const stage = board.getStage();
+    if (!stage) return { x: 0, y: 0 };
+    const scale = board.getScale();
+    const stagePos = stage.position();
+    const w = stage.width();
+    const h = stage.height();
+    if (!w || !h) return { x: 0, y: 0 };
+    return {
+      x: Math.round(((w / 2) - stagePos.x) / scale / GRID_SIZE),
+      y: Math.round(((h / 2) - stagePos.y) / scale / GRID_SIZE),
+    };
   }, []);
 
   // --- Dockview ---
@@ -679,7 +697,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingPieceId(null);
     setEditingObjectId(undefined);
     setSelectedObjectIds([]);
-    setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
@@ -792,6 +809,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       updateCharacter: guardedUpdateCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters,
+      layerOrderedCharacters,
+      reorderLayerCharacters,
 
       // useObjects
       allObjects, activeObjects: effectiveActiveObjects,
@@ -818,6 +837,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // UI state
       editingScene, setEditingScene,
       editingCharacter, setEditingCharacter,
+      characterToOpenModal, setCharacterToOpenModal,
       editingCutin, setEditingCutin,
       editingBgmId, setEditingBgmId,
       editingPieceId, setEditingPieceId,
@@ -875,7 +895,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
       bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
-      editingScene, editingCharacter, editingCutin, editingBgmId,
+      editingScene, editingCharacter, characterToOpenModal, editingCutin, editingBgmId,
       editingPieceId, editingObjectId, selectedObjectIds,
       showSettings, settingsSection, setShowSettings, activeSpeakerCharId, setActiveSpeakerCharId,
       activeScene,
@@ -902,7 +922,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Scenes
     scenes: effectiveScenes, addScene: guardedAddScene as any, updateScene: guardedUpdateScene as any, removeScene: guardedRemoveScene as any, reorderScenes: guardedReorderScenes as any, activateScene: safeActivateScene,
     // Characters
-    characters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any,
+    characters, layerOrderedCharacters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any, reorderLayerCharacters,
     // Objects
     allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
     // ScenarioTexts

@@ -1,10 +1,14 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
+import { useAuth } from '../../../contexts/AuthContext';
+import { hasRole } from '../../../config/permissions';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
+import { MessagePopup } from '../ui/MessagePopup';
 
 export function BoardDockPanel() {
   const ctx = useAdrasteaContext();
+  const { user } = useAuth();
   const [imagePickerTarget, setImagePickerTarget] = useState<{ id: string } | null>(null);
 
   const handleMoveObject = useCallback((id: string, x: number, y: number) => {
@@ -49,27 +53,65 @@ export function BoardDockPanel() {
     setImagePickerTarget({ id });
   }, [ctx.activeObjects]);
 
+  const latestMessage = useMemo(() => {
+    if (!ctx.messages || ctx.messages.length === 0) return null;
+    return ctx.messages[ctx.messages.length - 1];
+  }, [ctx.messages]);
+
+  const latestCharColor = useMemo(() => {
+    if (!latestMessage) return null;
+    const char = ctx.characters.find((c) => c.name === latestMessage.sender_name);
+    return char?.color ?? null;
+  }, [latestMessage, ctx.characters]);
+
   return (
     <>
-      <Board
-        ref={ctx.boardRef}
-        pieces={ctx.pieces}
-        objects={ctx.activeObjects}
-        activeScene={ctx.activeScene}
-        gridVisible={ctx.gridVisible}
-        characters={ctx.characters}
-        onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
-        onMovePiece={ctx.movePiece}
-        onRemovePiece={ctx.removePiece}
-        onEditPiece={(id) => { ctx.clearAllEditing(); ctx.setEditingPieceId(id); }}
-        onMoveObject={handleMoveObject}
-        onSelectObject={handleSelectObject}
-        onEditObject={handleEditObject}
-        onResizeObject={handleResizeObject}
-        onSyncObjectSize={handleSyncObjectSize}
-        selectedObjectId={ctx.editingObjectId}
-        selectedObjectIds={ctx.selectedObjectIds}
-      />
+      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+        <Board
+          ref={ctx.boardRef}
+          pieces={ctx.pieces}
+          objects={ctx.activeObjects}
+          activeScene={ctx.activeScene}
+          gridVisible={ctx.gridVisible}
+          characters={ctx.layerOrderedCharacters}
+          currentUserId={user?.uid ?? ''}
+          onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
+          onSelectCharacter={(charId) => {
+            const char = ctx.characters.find(c => c.id === charId);
+            const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+            if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
+              ctx.clearAllEditing();
+              ctx.setEditingCharacter(char);
+            }
+          }}
+          onDoubleClickCharacter={(charId) => {
+            const char = ctx.characters.find(c => c.id === charId);
+            const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+            if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
+              ctx.setCharacterToOpenModal(char);
+            }
+          }}
+          onContextMenuCharacter={(charId, _e) => {
+            const char = ctx.characters.find(c => c.id === charId);
+            if (char) {
+              ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+            }
+          }}
+          onMovePiece={ctx.movePiece}
+          onRemovePiece={ctx.removePiece}
+          onEditPiece={(id) => { ctx.clearAllEditing(); ctx.setEditingPieceId(id); }}
+          onMoveObject={handleMoveObject}
+          onSelectObject={handleSelectObject}
+          onEditObject={handleEditObject}
+          onResizeObject={handleResizeObject}
+          onSyncObjectSize={handleSyncObjectSize}
+          selectedObjectId={ctx.editingObjectId}
+          selectedObjectIds={ctx.selectedObjectIds}
+          selectedCharacterId={ctx.editingCharacter?.id ?? null}
+        >
+          <MessagePopup message={latestMessage} charColor={latestCharColor} />
+        </Board>
+      </div>
       {imagePickerTarget && (
         <AssetLibraryModal
           onSelect={(url, assetId) => {

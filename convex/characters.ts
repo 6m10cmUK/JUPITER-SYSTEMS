@@ -116,6 +116,9 @@ export const create = mutation({
       is_hidden_on_board: args.is_hidden_on_board,
       is_speech_hidden: args.is_speech_hidden,
       sort_order: args.sort_order,
+      board_x: args.board_x,
+      board_y: args.board_y,
+      board_visible: args.board_visible,
       created_at: now,
       updated_at: now,
     });

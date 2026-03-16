@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Eye, FolderOpen, Volume2, VolumeX, Pencil } from 'lucide-react';
+import { Eye, FolderOpen, Volume2, VolumeX, Settings } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -138,7 +138,7 @@ export function TopToolbar({
               flexShrink: 0,
             }}
           >
-            <Pencil size={11} />
+            <Settings size={11} />
           </button>
         </div>
       )}

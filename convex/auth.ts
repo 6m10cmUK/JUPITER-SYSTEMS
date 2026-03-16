@@ -5,6 +5,21 @@ import { Anonymous } from "@convex-dev/auth/providers/Anonymous";
 export const { auth, signIn, signOut, store } = convexAuth({
   providers: [Google, Anonymous],
   callbacks: {
+    async redirect({ redirectTo }) {
+      // ホワイトリスト: localhost + Vercel プレビュー
+      const allowed = [
+        /^https?:\/\/localhost(:\d+)?/,
+        /^https?:\/\/100\.121\.7\.83(:\d+)?/,
+        /^https:\/\/.*\.vercel\.app/,
+      ];
+      if (redirectTo.startsWith("/") || redirectTo.startsWith("?")) {
+        return redirectTo;
+      }
+      if (allowed.some((re) => re.test(redirectTo))) {
+        return redirectTo;
+      }
+      return "/";
+    },
     async createOrUpdateUser(ctx, { existingUserId, profile }) {
       if (existingUserId) {
         // 既存ユーザー: name/image は上書きしない（ユーザーが編集した値を保持）
