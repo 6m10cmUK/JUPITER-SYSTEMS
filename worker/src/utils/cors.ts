@@ -8,7 +8,14 @@ export function corsHeaders(origin: string, allowedOrigins: string): Record<stri
       'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
   }
-  if (!origins.includes(origin)) return {};
+  const isAllowed = origins.some((allowed) => {
+    if (allowed.startsWith('https://*.')) {
+      const suffix = allowed.slice('https://*'.length);
+      return origin.startsWith('https://') && origin.endsWith(suffix);
+    }
+    return allowed === origin;
+  });
+  if (!isAllowed) return {};
   return {
     'Access-Control-Allow-Origin': origin,
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
