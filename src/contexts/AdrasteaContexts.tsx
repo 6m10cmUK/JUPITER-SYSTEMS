@@ -20,6 +20,7 @@ import type { useScenes } from '../hooks/useScenes';
 import type { useCharacters } from '../hooks/useCharacters';
 import type { useScenarioTexts } from '../hooks/useScenarioTexts';
 import type { useCutins } from '../hooks/useCutins';
+import type { PanelSelection } from './AdrasteaContext';
 
 // ============================================================================
 // CONTEXT 1: RoomDataContext
@@ -126,6 +127,8 @@ export interface UIStateContextValue {
   setEditingObjectId: React.Dispatch<React.SetStateAction<string | null | undefined>>;
   selectedObjectIds: string[];
   setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>>;
+  panelSelection: PanelSelection | null;
+  setPanelSelection: React.Dispatch<React.SetStateAction<PanelSelection | null>>;
   showRoomSettings: boolean;
   setShowRoomSettings: (v: boolean) => void;
   showProfileEdit: boolean;

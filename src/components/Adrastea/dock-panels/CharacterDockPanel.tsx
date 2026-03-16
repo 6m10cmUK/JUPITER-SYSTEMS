@@ -10,7 +10,10 @@ export function CharacterDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
   const [modalChar, setModalChar] = useState<Character | null | undefined>(undefined);
-  const [selectedCharIds, setSelectedCharIds] = useState<string[]>([]);
+  const selectedCharIds = ctx.panelSelection?.panel === 'character' ? ctx.panelSelection.ids : [];
+  const setSelectedCharIds = useCallback((ids: string[]) => {
+    ctx.setPanelSelection(ids.length > 0 ? { panel: 'character', ids } : null);
+  }, [ctx.setPanelSelection]);
   const editorRef = useRef<CharacterEditorHandle>(null);
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export function CharacterDockPanel() {
   const handleSelectCharacter = (char: Character) => {
     ctx.clearAllEditing();
     ctx.setEditingCharacter(char);
-    // プロパティパネルに表示するのみで、モーダルは開かない
+    setSelectedCharIds([char.id]);
   };
 
   const handleModalClose = () => {
@@ -61,6 +64,10 @@ export function CharacterDockPanel() {
   const handleDelete = () => {
     if (modalChar) {
       ctx.removeCharacter(modalChar.id);
+      // editingCharacter もクリア
+      if (ctx.editingCharacter?.id === modalChar.id) {
+        ctx.setEditingCharacter(undefined);
+      }
       handleModalClose();
     }
   };
@@ -68,6 +75,21 @@ export function CharacterDockPanel() {
   const handleRemoveCharacters = (ids: string[]) => {
     ids.forEach(id => ctx.removeCharacter(id));
     setSelectedCharIds([]);
+    // 削除対象に editingCharacter が含まれていたらクリア
+    if (ctx.editingCharacter && ids.includes(ctx.editingCharacter.id)) {
+      ctx.setEditingCharacter(undefined);
+    }
+  };
+
+  const handleDuplicateCharacters = (ids: string[]) => {
+    const chars = ctx.characters.filter(c => ids.includes(c.id));
+    chars.forEach(char => {
+      const { id, _id, _creationTime, ...rest } = char as any;
+      ctx.addCharacter({
+        ...rest,
+        name: `${char.name} (コピー)`,
+      });
+    });
   };
 
   const handleToggleBoardVisible = (charId: string) => {
@@ -97,6 +119,7 @@ export function CharacterDockPanel() {
         onDoubleClickCharacter={(char) => setModalChar(char)}
         onSelectedCharIdsChange={setSelectedCharIds}
         onRemoveCharacters={handleRemoveCharacters}
+        onDuplicateCharacters={handleDuplicateCharacters}
         onReorderCharacters={ctx.reorderCharacters}
         onToggleBoardVisible={handleToggleBoardVisible}
         onPaste={handlePaste}

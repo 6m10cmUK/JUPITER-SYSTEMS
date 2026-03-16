@@ -426,6 +426,8 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     const threshold = 80;
     isNearBottomRef.current =
       el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+    // スクロール位置をリアルタイム保存（チャンネル切替時の復元用）
+    scrollPositionMap.current.set(activeChatChannel, el.scrollTop);
     if (isNearBottomRef.current) {
       // 下端到達 → アクティブチャンネルの既読を更新
       const count = messages.filter(m => (m.channel ?? 'main') === activeChatChannel).length;
@@ -462,16 +464,38 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     return () => observer.disconnect();
   }, [hasMore, loading, onLoadMore]);
 
+  // チャンネル切替時のスクロール位置保存・復元
+  const prevChannelRef = useRef(activeChatChannel);
+  const scrollPositionMap = useRef<Map<string, number>>(new Map());
+
+  // ① チャンネル切替時: RAF で paint 後に復元
   useEffect(() => {
-    if (filteredMessages.length > prevMessageCountRef.current) {
-      if (initialLoadRef.current) {
-        initialLoadRef.current = false;
-      } else if (!isLoadingMoreRef.current) {
-        // 下端にいるなら自動スクロール（上にいるなら unreadChannels の青点で通知）
-        if (isNearBottomRef.current) {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }
+    if (prevChannelRef.current === activeChatChannel) return;
+    prevChannelRef.current = activeChatChannel;
+    prevMessageCountRef.current = filteredMessages.length;
+    const savedChannel = activeChatChannel;
+    requestAnimationFrame(() => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      const saved = scrollPositionMap.current.get(savedChannel);
+      if (saved !== undefined) {
+        container.scrollTop = saved;
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
       }
+    });
+  }, [activeChatChannel]);
+
+  // ② 新着メッセージ時: 下端にいるなら自動スクロール
+  useEffect(() => {
+    if (filteredMessages.length <= prevMessageCountRef.current) {
+      prevMessageCountRef.current = filteredMessages.length;
+      return;
+    }
+    if (initialLoadRef.current) {
+      initialLoadRef.current = false;
+    } else if (!isLoadingMoreRef.current && isNearBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
     prevMessageCountRef.current = filteredMessages.length;
   }, [filteredMessages.length]);

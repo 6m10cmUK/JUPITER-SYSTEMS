@@ -209,6 +209,7 @@ interface SortableListItemProps {
   onDoubleClick?: (e: React.MouseEvent) => void;
   handleExtra?: React.ReactNode;
   children: React.ReactNode;
+  itemStyle?: React.CSSProperties;
 }
 
 export function SortableListItem({
@@ -221,6 +222,7 @@ export function SortableListItem({
   onDoubleClick,
   handleExtra,
   children,
+  itemStyle,
 }: SortableListItemProps) {
   const {
     attributes,
@@ -248,6 +250,9 @@ export function SortableListItem({
     zIndex: isDragging ? 10 : undefined,
     position: 'relative',
     touchAction: 'none',
+    ...itemStyle,
+    // isSelected は itemStyle より優先
+    ...(isSelected ? { background: theme.accentBgSubtle } : {}),
   };
 
   return (

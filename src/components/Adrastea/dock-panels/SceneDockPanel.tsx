@@ -1,10 +1,13 @@
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenePanel } from '../ScenePanel';
 
 export function SceneDockPanel() {
   const ctx = useAdrasteaContext();
-  const [selectedSceneIds, setSelectedSceneIds] = useState<string[]>([]);
+  const selectedSceneIds = ctx.panelSelection?.panel === 'scene' ? ctx.panelSelection.ids : [];
+  const setSelectedSceneIds = useCallback((ids: string[]) => {
+    ctx.setPanelSelection(ids.length > 0 ? { panel: 'scene', ids } : null);
+  }, [ctx.setPanelSelection]);
 
   const rebalanceSortOrder = (newSceneId: string, nextSortOrder: number) => {
     const sorted = [...ctx.scenes, { id: newSceneId, sort_order: nextSortOrder } as any]

@@ -35,6 +35,16 @@ import { checkPermission, type PermissionKey } from '../config/permissions';
 import { useToast } from '../components/Adrastea/ui/Toast';
 
 // ---------------------------------------------------------------------------
+// Panel selection types
+// ---------------------------------------------------------------------------
+
+export type PanelSelectionType = 'scene' | 'character' | 'layer';
+export interface PanelSelection {
+  panel: PanelSelectionType;
+  ids: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Pending edits types
 // ---------------------------------------------------------------------------
 
@@ -166,6 +176,8 @@ export interface AdrasteaContextValue {
   setEditingObjectId: React.Dispatch<React.SetStateAction<string | null | undefined>>;
   selectedObjectIds: string[];
   setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>>;
+  panelSelection: PanelSelection | null;
+  setPanelSelection: React.Dispatch<React.SetStateAction<PanelSelection | null>>;
   showRoomSettings: boolean;
   setShowRoomSettings: (v: boolean) => void;
   showProfileEdit: boolean;
@@ -421,11 +433,20 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     if (show) setSettingsSection(section);
   }, []);
 
+  const [panelSelection, setPanelSelection] = useState<PanelSelection | null>(null);
+  const selectedObjectIds = panelSelection?.panel === 'layer' ? panelSelection.ids : [];
+  const setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>> = useCallback((action) => {
+    setPanelSelection(prev => {
+      const prevIds = prev?.panel === 'layer' ? prev.ids : [];
+      const newIds = typeof action === 'function' ? action(prevIds) : action;
+      return newIds.length > 0 ? { panel: 'layer', ids: newIds } : null;
+    });
+  }, []);
+
   const [editingScene, setEditingScene] = useState<Scene | null | undefined>(undefined);
   const [editingCharacter, setEditingCharacter] = useState<Character | null | undefined>(undefined);
   const [characterToOpenModal, setCharacterToOpenModal] = useState<Character | null>(null);
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
-  const [selectedObjectIds, setSelectedObjectIds] = useState<string[]>([]);
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
   const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
   const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
@@ -704,7 +725,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // 編集状態をクリア
     setEditingPieceId(null);
     setEditingObjectId(undefined);
-    setSelectedObjectIds([]);
+    setPanelSelection(prev => prev?.panel === 'layer' ? null : prev);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
@@ -754,7 +775,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const clearAllEditing = useCallback(() => {
     setEditingPieceId(null);
     setEditingObjectId(undefined);
-    setSelectedObjectIds([]);
+    setPanelSelection(null);
     setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
@@ -851,6 +872,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       editingPieceId, setEditingPieceId,
       editingObjectId, setEditingObjectId,
       selectedObjectIds, setSelectedObjectIds,
+      panelSelection, setPanelSelection,
       showRoomSettings: showSettings && settingsSection === 'room',
       setShowRoomSettings: (v: boolean) => setShowSettings(v, 'room'),
       showProfileEdit: showSettings && settingsSection === 'user',
@@ -907,7 +929,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
       masterVolume, setMasterVolume, bgmMuted, setBgmMuted,
       editingScene, editingCharacter, characterToOpenModal, editingCutin, editingBgmId,
-      editingPieceId, editingObjectId, selectedObjectIds,
+      editingPieceId, editingObjectId, panelSelection,
       showSettings, settingsSection, setShowSettings, activeSpeakerCharId, setActiveSpeakerCharId,
       activeScene,
       profile, user, signOut, updateProfile,
@@ -963,6 +985,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     editingScene, setEditingScene, editingCharacter, setEditingCharacter, editingCutin, setEditingCutin,
     editingBgmId, setEditingBgmId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
     selectedObjectIds, setSelectedObjectIds,
+    panelSelection, setPanelSelection,
     showRoomSettings: showSettings && settingsSection === 'room',
     setShowRoomSettings: (v: boolean) => setShowSettings(v, 'room'),
     showProfileEdit: showSettings && settingsSection === 'user',
@@ -981,9 +1004,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // 排他編集リセット
     clearAllEditing,
   }), [
-    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, selectedObjectIds,
+    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, panelSelection,
     showSettings, settingsSection, setShowSettings,
-    masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing,
+    masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing, setSelectedObjectIds,
   ]);
 
   return (

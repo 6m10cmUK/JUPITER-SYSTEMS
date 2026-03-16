@@ -461,6 +461,11 @@ export function LayerPanel() {
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
+            itemStyle={
+              (obj.type === 'background' || obj.type === 'foreground')
+                ? { background: theme.bgInput }
+                : undefined
+            }
           >
             {obj.type !== 'background' && obj.type !== 'foreground' && (
               <div
@@ -534,7 +539,7 @@ export function LayerPanel() {
                 onClick={(e) => e.stopPropagation()}
                 style={{
                   flex: 1, minWidth: 0,
-                  background: theme.bgInput, border: `1px solid ${theme.border}`,
+                  background: theme.bgDeep, border: `1px solid ${theme.border}`,
                   color: theme.textPrimary, fontSize: '12px', padding: '1px 4px',
                   outline: 'none',
                 }}
@@ -644,6 +649,7 @@ function CharacterLayerRow({
           color: theme.textPrimary,
           borderBottom: `1px solid ${theme.border}`,
           cursor: 'pointer',
+          background: theme.bgDeep,
         }}
         onClick={onToggleOpen}
       >
