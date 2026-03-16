@@ -134,6 +134,16 @@ export function DropdownMenu({
     setMenuInitialized(true);
   }, [isOpen, align, direction, mode]);
 
+  // --- Sync position to menuPos in context mode ---
+  useEffect(() => {
+    if (mode === 'context' && isOpen && position) {
+      setMenuPos({ top: position.y, left: position.x });
+    } else if (mode === 'context' && !isOpen) {
+      setMenuPos(null);
+      setHoveredIndex(null);
+    }
+  }, [mode, isOpen, position?.x, position?.y]);
+
   // --- Handle click-outside (mode-dependent) ---
   useEffect(() => {
     if (!isOpen) return;

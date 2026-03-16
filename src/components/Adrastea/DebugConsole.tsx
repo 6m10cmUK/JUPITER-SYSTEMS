@@ -86,10 +86,24 @@ export function DebugConsoleContent() {
     const text = filtered.map(e =>
       `${new Date(e.timestamp).toLocaleTimeString()} [${e.level}] ${e.args}`
     ).join('\n');
-    navigator.clipboard.writeText(text).then(() => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else {
+      // non-secure context fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    });
+    }
   }, [filtered]);
 
   return (
