@@ -38,6 +38,7 @@ export interface RoomDataContextValue {
   // --- Chat ---
   messages: ChatMessage[];
   chatLoading: boolean;
+  loadingMore: boolean;
   hasMore: boolean;
   sendMessage: ReturnType<typeof useAdrasteaChat>['sendMessage'];
   loadMore: ReturnType<typeof useAdrasteaChat>['loadMore'];

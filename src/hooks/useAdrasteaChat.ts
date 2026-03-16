@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
@@ -20,6 +20,11 @@ export function useAdrasteaChat(roomId: string) {
   const [archivedMessages, setArchivedMessages] = useState<ChatMessage[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+
+  // token がない場合（ゲスト等）は D1 から取得できないので hasMore を false に
+  useEffect(() => {
+    if (!token) setHasMore(false);
+  }, [token]);
 
   // Convex メッセージを ChatMessage に変換してキャッシュにマージ
   const convexMessages: ChatMessage[] = useMemo(() => {
@@ -125,6 +130,7 @@ export function useAdrasteaChat(roomId: string) {
 
       if (!res.ok) {
         console.error('過去ログ取得失敗:', res.status);
+        setHasMore(false); // エラー時はリトライしない
         return;
       }
 

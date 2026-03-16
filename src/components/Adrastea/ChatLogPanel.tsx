@@ -186,6 +186,7 @@ export const parseContent = (text: string): React.ReactNode => {
 interface ChatLogPanelProps {
   messages: ChatMessage[];
   loading: boolean;
+  loadingMore: boolean;
   hasMore: boolean;
   roomName?: string;
   characters?: Character[];
@@ -250,10 +251,12 @@ function SortableChannelTab({
   channel,
   isActive,
   onSelect,
+  hasUnread,
 }: {
   channel: ChatChannel;
   isActive: boolean;
   onSelect: () => void;
+  hasUnread?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: channel.channel_id,
@@ -286,6 +289,17 @@ function SortableChannelTab({
       {...listeners}
     >
       {channel.label}
+      {hasUnread && (
+        <span style={{
+          display: 'inline-block',
+          width: '6px',
+          height: '6px',
+          borderRadius: '50%',
+          background: theme.accent,
+          marginLeft: '4px',
+          verticalAlign: 'middle',
+        }} />
+      )}
     </button>
   );
 }
@@ -293,6 +307,7 @@ function SortableChannelTab({
 const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   messages,
   loading,
+  loadingMore,
   hasMore,
   roomName: _roomName,
   characters,
@@ -305,6 +320,9 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
   const [pendingDeleteChannel, setPendingDeleteChannel] = useState<ChatChannel | null>(null);
+
+  // チャンネルごとの最終確認メッセージ数
+  const lastSeenCountRef = useRef<Map<string, number>>(new Map());
 
   const canDeleteActiveChannel = useMemo(
     () => !DEFAULT_CHANNELS.some((dc) => dc.channel_id === activeChatChannel),
@@ -378,6 +396,27 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     () => messages.filter(m => (m.channel ?? 'main') === activeChatChannel),
     [messages, activeChatChannel]
   );
+
+  // 未読チャンネルを検出
+  const unreadChannels = useMemo(() => {
+    const unread = new Set<string>();
+    const channelIds = channels.map(ch => ch.channel_id);
+    for (const chId of channelIds) {
+      if (chId === activeChatChannel) continue;
+      const count = messages.filter(m => (m.channel ?? 'main') === chId).length;
+      const lastSeen = lastSeenCountRef.current.get(chId) ?? 0;
+      if (count > lastSeen) {
+        unread.add(chId);
+      }
+    }
+    return unread;
+  }, [messages, channels, activeChatChannel]);
+
+  // アクティブチャンネルの既読を更新
+  useEffect(() => {
+    const count = messages.filter(m => (m.channel ?? 'main') === activeChatChannel).length;
+    lastSeenCountRef.current.set(activeChatChannel, count);
+  }, [activeChatChannel, messages]);
 
   const handleScroll = useCallback(() => {
     const el = scrollContainerRef.current;
@@ -615,6 +654,17 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               title={ch.label}
             >
               {ch.label}
+              {unreadChannels.has(ch.channel_id) && (
+                <span style={{
+                  display: 'inline-block',
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: theme.accent,
+                  marginLeft: '4px',
+                  verticalAlign: 'middle',
+                }} />
+              )}
             </button>
           ))}
 
@@ -635,6 +685,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                     channel={ch}
                     isActive={activeChatChannel === ch.channel_id}
                     onSelect={() => setActiveChatChannel(ch.channel_id)}
+                    hasUnread={unreadChannels.has(ch.channel_id)}
                   />
                 ))}
               </SortableContext>
@@ -760,7 +811,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       >
         {/* 上端センチネル + ローディング */}
         <div ref={sentinelRef} style={{ height: '1px' }} />
-        {hasMore && (
+        {hasMore && loadingMore && (
           <div
             style={{
               display: 'flex',
