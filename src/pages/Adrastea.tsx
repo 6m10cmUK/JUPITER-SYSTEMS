@@ -11,6 +11,8 @@ import { OnboardingModal } from '../components/Adrastea/OnboardingModal';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
+import { ToastContainer } from '../components/Adrastea/ui/Toast';
+import { usePasteHandler } from '../hooks/usePasteHandler';
 import { theme } from '../styles/theme';
 
 /** 共通ローディング画面 */
@@ -51,6 +53,9 @@ function AdrasteaRoom() {
   const { can } = usePermission();
   const { isGuest } = useAuth();
   const isOwner = ctx.roomRole === 'owner';
+
+  // クリップボードインポート
+  usePasteHandler({ addCharacter: ctx.addCharacter, showToast: ctx.showToast });
 
   // メンバー管理（ownerのみ実データ取得）
   const members = useQuery(
@@ -166,6 +171,9 @@ function AdrasteaRoom() {
           onClose={() => ctx.setShowSettings(false)}
         />
       )}
+
+      {/* トースト通知 */}
+      <ToastContainer toasts={ctx.toasts} />
     </div>
   );
 }

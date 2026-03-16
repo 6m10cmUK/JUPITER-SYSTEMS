@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
+import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 import { CharacterPanel } from '../CharacterPanel';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
@@ -75,6 +76,15 @@ export function CharacterDockPanel() {
     ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
   };
 
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      await handleClipboardImport(text, ctx.addCharacter, ctx.showToast);
+    } catch {
+      ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [ctx.addCharacter, ctx.showToast]);
+
   return (
     <>
       <CharacterPanel
@@ -89,6 +99,7 @@ export function CharacterDockPanel() {
         onRemoveCharacters={handleRemoveCharacters}
         onReorderCharacters={ctx.reorderCharacters}
         onToggleBoardVisible={handleToggleBoardVisible}
+        onPaste={handlePaste}
       />
       {modalChar !== undefined && ctx.roomId && (
         <AdModal

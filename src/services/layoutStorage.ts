@@ -1,3 +1,5 @@
+import { generateUUID } from '../utils/uuid';
+
 // localStorage キー
 const STORE_KEY = 'adrastea-layouts';
 const LEGACY_OWNER_KEY = 'adrastea-dock-layout-owner';
@@ -19,8 +21,8 @@ export interface LayoutStore {
 
 // 初期値を生成する関数
 function createInitialStore(): LayoutStore {
-  const gmId = crypto.randomUUID();
-  const plId = crypto.randomUUID();
+  const gmId = generateUUID();
+  const plId = generateUUID();
   return {
     version: 1,
     layouts: [
@@ -74,7 +76,7 @@ function migrateFromLegacy(): LayoutStore {
       const parsed = JSON.parse(legacyOwner) as { _version?: number; layout?: object };
       if (parsed._version === 3 && parsed.layout) {
         const ownerLayout: SavedLayout = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           name: '(自動保存)',
           layout: parsed.layout,
         };
@@ -92,7 +94,7 @@ function migrateFromLegacy(): LayoutStore {
       const parsed = JSON.parse(legacyUser) as { _version?: number; layout?: object };
       if (parsed._version === 3 && parsed.layout) {
         const userLayout: SavedLayout = {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           name: '(自動保存)',
           layout: parsed.layout,
         };
@@ -127,11 +129,11 @@ export function getSavedLayouts(): SavedLayout[] {
 }
 
 /**
- * レイアウト保存（新規追加）。id は crypto.randomUUID() で生成。返り値は id
+ * レイアウト保存（新規追加）。id は generateUUID() で生成。返り値は id
  */
 export function addLayout(name: string, layout: object): string {
   const currentStore = loadStore();
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const newLayout: SavedLayout = {
     id,
     name,

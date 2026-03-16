@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
+import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
 import { MessagePopup } from '../ui/MessagePopup';
@@ -52,6 +53,15 @@ export function BoardDockPanel() {
     if (obj?.type === 'text') return;
     setImagePickerTarget({ id });
   }, [ctx.activeObjects]);
+
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      await handleClipboardImport(text, ctx.addCharacter, ctx.showToast);
+    } catch {
+      ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [ctx.addCharacter, ctx.showToast]);
 
   const latestMessage = useMemo(() => {
     if (!ctx.messages || ctx.messages.length === 0) return null;
@@ -108,6 +118,7 @@ export function BoardDockPanel() {
           selectedObjectId={ctx.editingObjectId}
           selectedObjectIds={ctx.selectedObjectIds}
           selectedCharacterId={ctx.editingCharacter?.id ?? null}
+          onPaste={handlePaste}
         >
           <MessagePopup message={latestMessage} charColor={latestCharColor} />
         </Board>

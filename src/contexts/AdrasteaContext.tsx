@@ -32,6 +32,7 @@ import { useAuth } from './AuthContext';
 import { RoomDataContext, UIStateContext } from './AdrasteaContexts';
 import type { RoomDataContextValue, UIStateContextValue } from './AdrasteaContexts';
 import { checkPermission, type PermissionKey } from '../config/permissions';
+import { useToast } from '../components/Adrastea/ui/Toast';
 
 // ---------------------------------------------------------------------------
 // Pending edits types
@@ -210,6 +211,10 @@ export interface AdrasteaContextValue {
   // --- パネル登録（遅延リスナー用） ---
   registerPanel: (panelId: string) => void;
   unregisterPanel: (panelId: string) => void;
+
+  // --- Toast ---
+  toasts: { id: string; message: string; type: 'success' | 'error' }[];
+  showToast: (message: string, type: 'success' | 'error') => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +236,8 @@ interface AdrasteaProviderProps {
 export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, roomId, roomRole }) => {
   const { user, profile, signOut, updateProfile: updateProfileFromAuth } = useAuth();
   const updateProfile = updateProfileFromAuth ?? (async () => {});
+
+  const { toasts, showToast } = useToast();
 
   // --- Convex mutations ---
   const removeRoom = useMutation(api.rooms.remove);
@@ -879,6 +886,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // パネル登録
       registerPanel, unregisterPanel,
+
+      // Toast
+      toasts, showToast,
     }),
     [
       roomId, roomRole,
@@ -910,6 +920,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setPendingEdit,
       clearAllEditing,
       registerPanel, unregisterPanel,
+      toasts, showToast,
     ],
   );
 

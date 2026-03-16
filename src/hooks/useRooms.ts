@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
+import { generateUUID } from '../utils/uuid';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
 const ROOM_TAGS_PREFIX = 'adrastea-room-tags-';
@@ -124,7 +125,7 @@ export function useRooms(_uid?: string) {
 
   const addRoom = useCallback(
     async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
-      const id = crypto.randomUUID();
+      const id = generateUUID();
       await createMutation({ id, name, dice_system, gm_can_see_secret_memo: false });
       return id;
     },
