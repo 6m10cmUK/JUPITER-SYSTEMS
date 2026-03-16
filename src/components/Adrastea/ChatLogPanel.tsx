@@ -367,9 +367,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
   const prevMessageCountRef = useRef(messages.length);
   const isLoadingMoreRef = useRef(false);
+  const initialLoadRef = useRef(true);
 
   // アクティブチャンネルでメッセージをフィルタ
   const filteredMessages = useMemo(
@@ -386,30 +388,50 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     if (isNearBottomRef.current) {
       setHasNewMessage(false);
     }
-    // 上端検知: 過去ログ自動読み込み
-    if (el.scrollTop < 50 && hasMore && !loading && !isLoadingMoreRef.current) {
-      isLoadingMoreRef.current = true;
-      const prevScrollHeight = el.scrollHeight;
-      Promise.resolve(onLoadMore()).then(() => {
-        // スクロール位置維持: 追加されたメッセージ分だけ scrollTop を補正
-        requestAnimationFrame(() => {
-          const newScrollHeight = el.scrollHeight;
-          el.scrollTop = newScrollHeight - prevScrollHeight;
-          isLoadingMoreRef.current = false;
-        });
-      }).catch(() => {
-        isLoadingMoreRef.current = false;
-      });
-    }
+  }, []);
+
+  // 上端センチネル: 可視になったら過去ログ読み込み
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel || !container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !isLoadingMoreRef.current) {
+          isLoadingMoreRef.current = true;
+          const prevScrollHeight = container.scrollHeight;
+          Promise.resolve(onLoadMore()).then(() => {
+            requestAnimationFrame(() => {
+              const newScrollHeight = container.scrollHeight;
+              container.scrollTop = newScrollHeight - prevScrollHeight;
+              isLoadingMoreRef.current = false;
+            });
+          }).catch(() => {
+            isLoadingMoreRef.current = false;
+          });
+        }
+      },
+      { root: container, rootMargin: '200px 0px 0px 0px', threshold: 0 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, [hasMore, loading, onLoadMore]);
 
   useEffect(() => {
     if (filteredMessages.length > prevMessageCountRef.current) {
-      if (!isLoadingMoreRef.current) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        setHasNewMessage(false);
+      if (initialLoadRef.current) {
+        // 初回ロード: 下端にスクロールするだけ（新着扱いしない）
+        initialLoadRef.current = false;
+      } else if (!isLoadingMoreRef.current) {
+        // 新着メッセージ → 下端にスクロール or バッジ表示
+        if (isNearBottomRef.current) {
+          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          setHasNewMessage(true);
+        }
       }
-      isLoadingMoreRef.current = false;
     }
     prevMessageCountRef.current = filteredMessages.length;
   }, [filteredMessages.length]);
@@ -736,12 +758,15 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           position: 'relative',
         }}
       >
-        {hasMore && isLoadingMoreRef.current && (
+        {/* 上端センチネル + ローディング */}
+        <div ref={sentinelRef} style={{ height: '1px' }} />
+        {hasMore && (
           <div
             style={{
               display: 'flex',
               justifyContent: 'center',
               padding: '8px',
+              minHeight: '32px',
             }}
           >
             <div

@@ -114,7 +114,7 @@ export function useAdrasteaChat(roomId: string) {
 
       const params = new URLSearchParams({
         before: String(oldest),
-        limit: '50',
+        limit: '200',
       });
       const res = await fetch(
         `${API_BASE_URL}/api/rooms/${roomId}/messages?${params}`,
