@@ -4,6 +4,10 @@ import { authTables } from "@convex-dev/auth/server";
 
 export default defineSchema({
   ...authTables,
+  users: defineTable({
+    ...authTables.users.validator.fields,
+    onboarded: v.optional(v.boolean()),
+  }),
   rooms: defineTable({
     id: v.string(),
     name: v.string(),

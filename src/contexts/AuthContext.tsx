@@ -16,6 +16,7 @@ interface AuthContextValue {
   profile: UserProfile | null;
   isGuest: boolean;
   loading: boolean;
+  onboarded: boolean;
   signIn: () => Promise<void>;
   signInAsGuest: (displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isGuest = user?.isGuest ?? false;
   // viewerData が undefined = ロード中。null = 未認証
   const loading = isLoading || (isAuthenticated && viewerData === undefined);
+  const onboarded = viewerData?.onboarded ?? true;
 
   return (
     <AuthContext.Provider value={{
@@ -75,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profile,
       isGuest,
       loading,
+      onboarded,
       signIn,
       signInAsGuest,
       signOut,

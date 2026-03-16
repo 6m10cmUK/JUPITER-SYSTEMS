@@ -30,6 +30,7 @@ export const { auth, signIn, signOut, store } = convexAuth({
         name: profile.name ?? undefined,
         image: profile.image ?? undefined,
         email: profile.email ?? undefined,
+        onboarded: false,
       });
     },
   },
