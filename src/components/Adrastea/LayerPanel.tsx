@@ -28,7 +28,7 @@ const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>>
   characters_layer: ({ size = 14 }) => <Users size={size} />,
 };
 
-export function LayerPanel() {
+export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
   const {
     activeObjects,
     addObject,
@@ -58,6 +58,7 @@ export function LayerPanel() {
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
   const [isCharLayerOpen, setIsCharLayerOpen] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objId?: string } | null>(null);
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -215,7 +216,7 @@ export function LayerPanel() {
 
     const newObjId = await addObject({
       type,
-      name: `新規${type}`,
+      name: type === 'text' ? '新規テキスト' : '新規オブジェクト',
       x: center.x,
       y: center.y,
       width,
@@ -321,6 +322,16 @@ export function LayerPanel() {
 
   return (
     <>
+    <div
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
+        const objId = objEl?.getAttribute('data-obj-id') ?? undefined;
+        setContextMenu({ x: e.clientX, y: e.clientY, objId });
+      }}
+      style={{ height: '100%' }}
+    >
     <SortableListPanel
       title="レイヤー"
       headerActions={
@@ -453,8 +464,8 @@ export function LayerPanel() {
         }
 
         return (
+          <div key={obj.id} data-obj-id={obj.id} style={{ display: 'contents' }}>
           <SortableListItem
-            key={obj.id}
             id={obj.id}
             disabled={obj.type === 'background'}
             hideHandle={obj.type === 'foreground'}
@@ -576,9 +587,96 @@ export function LayerPanel() {
               </Tooltip>
             )}
           </SortableListItem>
+          </div>
         );
       })}
     </SortableListPanel>
+    </div>
+
+    <DropdownMenu
+      mode="context"
+      open={contextMenu !== null}
+      onOpenChange={(open) => { if (!open) setContextMenu(null); }}
+      position={contextMenu ?? { x: 0, y: 0 }}
+      items={[
+        {
+          label: (() => {
+            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
+            const canDup = ctxObj && ctxObj.type !== 'background' && ctxObj.type !== 'foreground' && ctxObj.type !== 'characters_layer';
+            if (!canDup) return '複製';
+            const ids = contextMenu?.objId && !selectedObjectIds.includes(contextMenu.objId)
+              ? [contextMenu.objId]
+              : selectedObjectIds.filter(id => {
+                  const o = activeObjects.find(o => o.id === id);
+                  return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
+                });
+            return ids.length > 1 ? `${ids.length}件複製` : '複製';
+          })(),
+          disabled: (() => {
+            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
+            return !ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer';
+          })(),
+          onClick: () => {
+            const ctxObjId = contextMenu?.objId;
+            if (!ctxObjId) { setContextMenu(null); return; }
+            const ctxObj = activeObjects.find(o => o.id === ctxObjId);
+            if (!ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer') {
+              setContextMenu(null); return;
+            }
+            const targets = ctxObjId && !selectedObjectIds.includes(ctxObjId)
+              ? activeObjects.filter(o => o.id === ctxObjId)
+              : activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer');
+            (async () => {
+              const newIds: string[] = [];
+              for (const obj of targets) {
+                const { id, created_at, updated_at, ...rest } = obj;
+                const newId = await addObject({ ...rest, name: `${obj.name} (複製)`, sort_order: obj.sort_order + 1 });
+                if (newId) newIds.push(newId);
+              }
+              if (newIds.length > 0) {
+                setSelectedObjectIds(newIds);
+                setEditingObjectId(newIds[newIds.length - 1]);
+              }
+            })();
+            setContextMenu(null);
+          },
+        },
+        {
+          label: (() => {
+            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
+            const canDel = ctxObj && ctxObj.type !== 'background' && ctxObj.type !== 'foreground' && ctxObj.type !== 'characters_layer';
+            if (!canDel) return '削除';
+            const ids = contextMenu?.objId && !selectedObjectIds.includes(contextMenu.objId)
+              ? [contextMenu.objId]
+              : getDeletableIds(contextMenu?.objId ?? '');
+            return ids.length > 1 ? `${ids.length}件削除` : '削除';
+          })(),
+          disabled: (() => {
+            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
+            return !ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer';
+          })(),
+          onClick: () => {
+            const ctxObjId = contextMenu?.objId;
+            if (!ctxObjId) { setContextMenu(null); return; }
+            const ctxObj = activeObjects.find(o => o.id === ctxObjId);
+            if (!ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer') {
+              setContextMenu(null); return;
+            }
+            handleRemoveObject(ctxObj);
+            setContextMenu(null);
+          },
+        },
+        'separator',
+        {
+          label: '貼り付け',
+          disabled: !onPaste,
+          onClick: () => {
+            onPaste?.();
+            setContextMenu(null);
+          },
+        },
+      ]}
+    />
 
     {pendingRemove && (
       <ConfirmModal

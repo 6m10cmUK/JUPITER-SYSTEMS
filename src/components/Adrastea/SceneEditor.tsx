@@ -45,8 +45,6 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    height: '100%',
-    overflowY: 'auto',
     color: theme.textPrimary,
     boxSizing: 'border-box',
   };

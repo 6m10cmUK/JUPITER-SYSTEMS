@@ -160,6 +160,9 @@ export interface BoardObject {
   scale_x: number;
   scale_y: number;
 
+  // メモ
+  memo?: string;
+
   // メタ
   created_at: number;
   updated_at: number;

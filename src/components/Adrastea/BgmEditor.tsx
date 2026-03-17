@@ -25,8 +25,6 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onClose }: BgmEditor
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    height: '100%',
-    overflowY: 'auto',
     display: 'flex',
     flexDirection: 'column',
     gap: '8px',
