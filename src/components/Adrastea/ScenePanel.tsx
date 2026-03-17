@@ -4,8 +4,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
-import { Plus, Copy, Trash2, Pencil } from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
+import { Plus, Copy, Trash2 } from 'lucide-react';
+import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -37,6 +37,7 @@ export function ScenePanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState('');
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; sceneId?: string } | null>(null);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -79,44 +80,28 @@ export function ScenePanel({
     } else {
       onSelectedSceneIdsChange([scene.id]);
       onActivateScene(scene.id);
+      onEditScene(scene);
     }
-  }, [scenes, selectedSceneIds, onSelectedSceneIdsChange, onActivateScene]);
+  }, [scenes, selectedSceneIds, onSelectedSceneIdsChange, onActivateScene, onEditScene]);
 
   const canDuplicate = onDuplicateScenes && selectedSceneIds.length > 0;
   const canDelete = selectedSceneIds.length > 0 && selectedSceneIds.length < scenes.length;
 
   return (
     <>
+    <div
+      onContextMenu={(e) => {
+        e.preventDefault();
+        const sceneEl = (e.target as HTMLElement).closest('[data-scene-id]');
+        const sceneId = sceneEl?.getAttribute('data-scene-id') ?? undefined;
+        setContextMenu({ x: e.clientX, y: e.clientY, sceneId });
+      }}
+      style={{ height: '100%' }}
+    >
     <SortableListPanel
       title="シーン"
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <button
-            onClick={() => {
-              if (selectedSceneIds.length === 1) {
-                const scene = scenes.find(s => s.id === selectedSceneIds[0]);
-                if (scene) {
-                  onActivateScene(scene.id);
-                  onEditScene(scene);
-                }
-              }
-            }}
-            disabled={selectedSceneIds.length !== 1}
-            aria-label="シーンを編集"
-            title="選択中のシーンを編集"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: theme.textSecondary,
-              cursor: selectedSceneIds.length === 1 ? 'pointer' : 'default',
-              padding: '2px',
-              display: 'flex',
-              alignItems: 'center',
-              opacity: selectedSceneIds.length === 1 ? 1 : 0.3,
-            }}
-          >
-            <Pencil size={13} />
-          </button>
           {onDuplicateScenes && (
             <button
               onClick={() => onDuplicateScenes(selectedSceneIds)}
@@ -187,8 +172,8 @@ export function ScenePanel({
       {scenes.map((scene) => {
         const isSelected = selectedSceneIds.includes(scene.id);
         return (
+        <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }}>
         <SortableListItem
-          key={scene.id}
           id={scene.id}
           isSelected={activeSceneId === scene.id || isSelected}
           onClick={(e) => handleRowClick(e, scene)}
@@ -295,9 +280,71 @@ export function ScenePanel({
             </div>
           </div>
         </SortableListItem>
+        </div>
         );
       })}
     </SortableListPanel>
+    </div>
+
+    <DropdownMenu
+      mode="context"
+      open={contextMenu !== null}
+      onOpenChange={(open) => { if (!open) setContextMenu(null); }}
+      position={contextMenu ?? { x: 0, y: 0 }}
+      items={[
+        {
+          label: '編集',
+          disabled: !contextMenu?.sceneId,
+          onClick: () => {
+            if (contextMenu?.sceneId) {
+              const scene = scenes.find(s => s.id === contextMenu.sceneId);
+              if (scene) {
+                onActivateScene(scene.id);
+                onEditScene(scene);
+              }
+            }
+            setContextMenu(null);
+          },
+        },
+        {
+          label: (() => {
+            const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
+              ? [contextMenu.sceneId]
+              : selectedSceneIds;
+            return ids.length > 1 ? `${ids.length}件複製` : '複製';
+          })(),
+          disabled: !onDuplicateScenes || (!contextMenu?.sceneId && selectedSceneIds.length === 0),
+          onClick: () => {
+            const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
+              ? [contextMenu.sceneId]
+              : selectedSceneIds;
+            if (ids.length > 0) onDuplicateScenes?.(ids);
+            setContextMenu(null);
+          },
+        },
+        {
+          label: (() => {
+            const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
+              ? [contextMenu.sceneId]
+              : selectedSceneIds;
+            return ids.length > 1 ? `${ids.length}件削除` : '削除';
+          })(),
+          disabled: !contextMenu?.sceneId && selectedSceneIds.length === 0,
+          onClick: () => {
+            const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
+              ? [contextMenu.sceneId]
+              : selectedSceneIds;
+            if (ids.length > 0 && ids.length < scenes.length) {
+              setPendingRemove({
+                ids,
+                msg: ids.length > 1 ? `${ids.length}件のシーンを削除しますか？` : 'このシーンを削除しますか？',
+              });
+            }
+            setContextMenu(null);
+          },
+        },
+      ]}
+    />
 
     {pendingRemove && (
       <ConfirmModal

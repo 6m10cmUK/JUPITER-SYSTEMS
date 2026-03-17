@@ -40,39 +40,79 @@ interface BoardProps {
   children?: ReactNode;
 }
 
-export const LOGICAL_SIZE = 5000;
 export const GRID_SIZE = 50;
 export const MIN_SCALE = 0.02;
 export const MAX_SCALE = 4;
 
-const HALF = LOGICAL_SIZE / 2;
+interface GridLinesProps {
+  stageRef: React.RefObject<StageType | null>;
+  width: number;
+  height: number;
+}
 
-const GridLines = memo(function GridLines() {
+const GridLines = memo(function GridLines({ stageRef, width, height }: GridLinesProps) {
   return (
     <Shape
       listening={false}
       perfectDrawEnabled={false}
       sceneFunc={(context) => {
+        const stage = stageRef.current;
+        if (!stage || width === 0 || height === 0) return;
+
+        const scale = stage.scaleX();
+        const sx = stage.x();
+        const sy = stage.y();
+
+        // ビューポートの論理座標範囲
+        const left = -sx / scale;
+        const top = -sy / scale;
+        const right = (width - sx) / scale;
+        const bottom = (height - sy) / scale;
+
+        const MINOR = GRID_SIZE * 5;
+        const MAJOR = GRID_SIZE * 10;
+        const lw = 1 / scale; // 常に1画面ピクセル
+
+        // 細線 (5マスごと)
         context.beginPath();
-        context.strokeStyle = 'rgba(255,255,255,0.05)';
-        context.lineWidth = 1;
-        for (let x = -HALF; x <= HALF; x += GRID_SIZE) {
-          context.moveTo(x, -HALF);
-          context.lineTo(x, HALF);
+        context.strokeStyle = 'rgba(255,255,255,0.08)';
+        context.lineWidth = lw;
+        for (let x = Math.floor(left / MINOR) * MINOR; x <= right; x += MINOR) {
+          context.moveTo(x, top);
+          context.lineTo(x, bottom);
         }
-        for (let y = -HALF; y <= HALF; y += GRID_SIZE) {
-          context.moveTo(-HALF, y);
-          context.lineTo(HALF, y);
+        for (let y = Math.floor(top / MINOR) * MINOR; y <= bottom; y += MINOR) {
+          context.moveTo(left, y);
+          context.lineTo(right, y);
         }
         context.stroke();
-        // 原点の十字線（少し目立たせる）
+
+        // 太線 (10マスごと)
         context.beginPath();
-        context.strokeStyle = 'rgba(255,255,255,0.15)';
-        context.lineWidth = 1;
-        context.moveTo(0, -HALF);
-        context.lineTo(0, HALF);
-        context.moveTo(-HALF, 0);
-        context.lineTo(HALF, 0);
+        context.strokeStyle = 'rgba(255,255,255,0.18)';
+        context.lineWidth = lw;
+        for (let x = Math.floor(left / MAJOR) * MAJOR; x <= right; x += MAJOR) {
+          context.moveTo(x, top);
+          context.lineTo(x, bottom);
+        }
+        for (let y = Math.floor(top / MAJOR) * MAJOR; y <= bottom; y += MAJOR) {
+          context.moveTo(left, y);
+          context.lineTo(right, y);
+        }
+        context.stroke();
+
+        // 原点の十字線（ビューポート内にある場合のみ）
+        context.beginPath();
+        context.strokeStyle = 'rgba(255,255,255,0.25)';
+        context.lineWidth = lw;
+        if (left <= 0 && 0 <= right) {
+          context.moveTo(0, top);
+          context.lineTo(0, bottom);
+        }
+        if (top <= 0 && 0 <= bottom) {
+          context.moveTo(left, 0);
+          context.lineTo(right, 0);
+        }
         context.stroke();
       }}
     />
@@ -412,7 +452,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         {/* 背景+グリッド: hitテスト不要 */}
         {gridVisible && (
           <Layer hitGraphEnabled={false} listening={false}>
-            <GridLines />
+            <GridLines stageRef={stageRef} width={stageSize.width} height={stageSize.height} />
           </Layer>
         )}
         {/* インタラクティブ要素 */}

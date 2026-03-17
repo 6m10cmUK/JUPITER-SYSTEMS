@@ -36,7 +36,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInAsGuest = async (_displayName: string) => {
-    await convexSignIn("anonymous");
+    let deviceId = localStorage.getItem('adrastea_guest_device_id');
+    if (!deviceId) {
+      deviceId = crypto.randomUUID();
+      localStorage.setItem('adrastea_guest_device_id', deviceId);
+    }
+    await convexSignIn("anonymous", { deviceId } as any);
   };
 
   const signOut = async () => {

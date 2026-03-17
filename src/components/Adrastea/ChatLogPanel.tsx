@@ -15,12 +15,13 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { theme } from '../../styles/theme';
-import { Trash2, MoreVertical, Plus } from 'lucide-react';
+import { Trash2, MoreVertical, Plus, Download } from 'lucide-react';
 import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
 import { ConfirmModal, DropdownMenu } from './ui';
 import { genId } from '../../utils/id';
+import { API_BASE_URL } from '../../config/api';
 
 // スピナーアニメーション用のスタイル注入
 if (typeof document !== 'undefined' && !document.getElementById('chat-spinner-style')) {
@@ -189,6 +190,8 @@ interface ChatLogPanelProps {
   loadingMore: boolean;
   hasMore: boolean;
   roomName?: string;
+  roomId?: string;
+  authToken?: string;
   characters?: Character[];
   onLoadMore: () => void | Promise<void>;
   onClearMessages?: () => void;
@@ -200,6 +203,93 @@ const formatTime = (timestamp: number): string => {
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${h}:${m}`;
 };
+
+function generateLogHtml(messages: ChatMessage[], channelFilter: string | null, characters: Character[], roomName?: string): string {
+  const filtered = messages.filter(m => {
+    if (m.message_type === 'system') return false;
+    if (channelFilter !== null && (m.channel ?? 'main') !== channelFilter) return false;
+    return true;
+  });
+  const lines = filtered.map(m => {
+    const charColor = characters.find(c => c.name === m.sender_name)?.color ?? '#888888';
+    const ch = m.channel ?? 'main';
+    const content = m.content.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const name = m.sender_name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return `<p style="color:${charColor}">
+  <span> [${ch}]</span>
+  <span>${name}</span> :
+  <span>
+    ${content}
+  </span>
+</p>`;
+  });
+  const title = roomName ? `ログ - ${roomName}` : 'ログ';
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title}</title>
+</head>
+<body>
+
+${lines.join('\n\n')}
+
+</body>
+</html>`;
+}
+
+function downloadLog(html: string, filename: string) {
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+const MAX_LOG_MESSAGES = 10000;
+
+async function fetchAllArchivedMessages(roomId: string, token: string, existingMessages: ChatMessage[]): Promise<ChatMessage[]> {
+  const allArchived: ChatMessage[] = [];
+  // existingMessages の最古の created_at を起点にする（それより古いものだけD1から取る）
+  const oldestExisting = existingMessages.length > 0
+    ? existingMessages[0].created_at
+    : Date.now();
+  let before = oldestExisting;
+  let hasMore = true;
+
+  while (hasMore) {
+    const params = new URLSearchParams({ before: String(before), limit: '200' });
+    const res = await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) break;
+    const data = await res.json() as { messages: any[]; has_more: boolean };
+    hasMore = data.has_more;
+    if (data.messages.length === 0) break;
+    const msgs: ChatMessage[] = data.messages.map((m: any) => ({
+      id: m.id,
+      room_id: m.room_id,
+      sender_name: m.sender_name,
+      sender_uid: m.sender_uid ?? undefined,
+      sender_avatar: m.sender_avatar ?? null,
+      content: m.content,
+      message_type: m.message_type as ChatMessage['message_type'],
+      channel: m.channel ?? 'main',
+      allowed_user_ids: m.allowed_user_ids,
+      created_at: m.created_at,
+    }));
+    allArchived.push(...msgs);
+    if (allArchived.length >= MAX_LOG_MESSAGES) {
+      allArchived.splice(MAX_LOG_MESSAGES);
+      break;
+    }
+    before = msgs[msgs.length - 1].created_at;
+  }
+  return allArchived;
+}
 
 const getDiceAccentColor = (content: string): string => {
   if (content.includes('成功') || content.includes('クリティカル')) return theme.success;
@@ -312,6 +402,8 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   loadingMore,
   hasMore,
   roomName: _roomName,
+  roomId,
+  authToken,
   characters,
   onLoadMore,
   onClearMessages,
@@ -809,6 +901,41 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                       },
                     ]
                   : []),
+                'separator' as const,
+                {
+                  label: 'ログ出力',
+                  icon: <Download size={14} />,
+                  onClick: async () => {
+                    let allMessages = messages;
+                    if (roomId && authToken) {
+                      const archived = await fetchAllArchivedMessages(roomId, authToken, messages);
+                      // D1 + 既存メッセージを ID 重複排除でマージ
+                      const merged = new Map<string, ChatMessage>();
+                      for (const m of archived) merged.set(m.id, m);
+                      for (const m of messages) merged.set(m.id, m);
+                      allMessages = Array.from(merged.values()).sort((a, b) => a.created_at - b.created_at);
+                    }
+                    const html = generateLogHtml(allMessages, activeChatChannel, characters ?? [], _roomName);
+                    const chName = activeChatChannel === 'main' ? 'メイン' : activeChatChannel;
+                    downloadLog(html, `log_${chName}.html`);
+                  },
+                },
+                {
+                  label: '全ログ出力',
+                  icon: <Download size={14} />,
+                  onClick: async () => {
+                    let allMessages = messages;
+                    if (roomId && authToken) {
+                      const archived = await fetchAllArchivedMessages(roomId, authToken, messages);
+                      const merged = new Map<string, ChatMessage>();
+                      for (const m of archived) merged.set(m.id, m);
+                      for (const m of messages) merged.set(m.id, m);
+                      allMessages = Array.from(merged.values()).sort((a, b) => a.created_at - b.created_at);
+                    }
+                    const html = generateLogHtml(allMessages, null, characters ?? [], _roomName);
+                    downloadLog(html, 'log_all.html');
+                  },
+                },
               ]}
             />
           )}

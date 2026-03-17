@@ -52,6 +52,7 @@ export function useObjects(
       text_vertical_align: o.text_vertical_align as BoardObject['text_vertical_align'],
       text_color: o.text_color, scale_x: o.scale_x, scale_y: o.scale_y,
       created_at: o._creationTime, updated_at: o._creationTime,
+      memo: (o as any).memo,
     } as BoardObject));
     const serverIds = new Set(serverObjs.map((o) => o.id));
     const extras = optimisticObjects.filter((o) => !serverIds.has(o.id));

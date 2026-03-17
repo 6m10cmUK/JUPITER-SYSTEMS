@@ -133,6 +133,7 @@ export const update = mutation({
     text_color: v.optional(v.string()),
     scale_x: v.optional(v.number()),
     scale_y: v.optional(v.number()),
+    memo: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

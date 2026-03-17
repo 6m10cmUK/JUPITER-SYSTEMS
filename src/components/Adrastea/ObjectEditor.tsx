@@ -63,6 +63,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const [sizeLocked, setSizeLocked] = useState(object?.size_locked ?? false);
   const [opacity, _setOpacity] = useState(object?.opacity ?? 1);
   const [visible, _setVisible] = useState(object?.visible ?? true);
+  const [memo, setMemo] = useState(object?.memo ?? '');
 
   // 外部からの変更（レイヤーパネルでのリネーム、画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
   useEffect(() => {
@@ -145,21 +146,22 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       data.opacity = opacity;
       data.visible = visible;
     }
+    if (type !== 'background') {
+      data.memo = memo.slice(0, 2048);
+    }
     ctx.setPendingEdit(`object:${object?.id ?? 'new'}`, {
       type: 'object',
       id: object?.id ?? null,
       data,
     });
-  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, scaleX, scaleY, width, height, imageFit, positionLocked, sizeLocked, opacity, visible]);
+  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, scaleX, scaleY, width, height, imageFit, positionLocked, sizeLocked, opacity, visible, memo]);
 
   if (object === undefined) return null;
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
-    padding: '8px',
-    height: '100%',
-    overflowY: 'auto',
     color: theme.textPrimary,
+    padding: '8px',
     boxSizing: 'border-box',
   };
 
@@ -561,6 +563,20 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <AdCheckbox checked={sizeLocked} onChange={setSizeLocked} label="サイズを固定" />
               </AdSection>
             </>
+          )}
+
+          {!isBackground && !isForeground && (
+            <AdSection label="メモ">
+              <AdTextArea
+                value={memo}
+                onChange={(e) => setMemo(e.target.value.slice(0, 2048))}
+                placeholder="ホバー時に表示されるメモ（最大2048文字）"
+                rows={4}
+              />
+              <div style={{ textAlign: 'right', fontSize: '10px', color: theme.textMuted, marginTop: '2px' }}>
+                {memo.length} / 2048
+              </div>
+            </AdSection>
           )}
 
           {/* ボタン */}

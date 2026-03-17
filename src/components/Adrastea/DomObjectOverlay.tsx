@@ -115,6 +115,9 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<ResizeState | null>(null);
+  const [hovered, setHovered] = useState(false);
+  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   // ドラッグもリサイズもできないオブジェクトかどうか
   const canDrag = isDraggable && !obj.position_locked;
@@ -321,8 +324,41 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onDoubleClick={handleDoubleClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setCursorPos(null); }}
+      onMouseMove={(e) => { if (hovered) setCursorPos({ x: e.clientX, y: e.clientY }); }}
     >
       {children}
+
+      {/* オブジェクトメモホバーポップアップ */}
+      {hovered && cursorPos && obj.memo && (obj.type === 'panel' || obj.type === 'text') && createPortal(
+        <div
+          ref={popupRef}
+          style={{
+            position: 'fixed',
+            left: Math.max(8, Math.min(cursorPos.x, window.innerWidth - 8)),
+            top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
+            transform: `translateX(-50%) ${cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? '' : 'translateY(-50%)'}`,
+            zIndex: 10000,
+            pointerEvents: 'none',
+            background: 'rgba(0, 0, 0, 0.72)',
+            color: '#fff',
+            padding: '8px 10px',
+            fontSize: 10,
+            lineHeight: 1.5,
+            maxWidth: 380,
+            maxHeight: '50vh',
+            overflow: 'hidden',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            borderRadius: 4,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+          }}
+        >
+          {obj.memo}
+        </div>,
+        document.body
+      )}
     </div>
   );
 });

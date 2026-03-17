@@ -64,8 +64,6 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     padding: '8px',
-    height: '100%',
-    overflowY: 'auto',
     color: theme.textPrimary,
     boxSizing: 'border-box',
   };

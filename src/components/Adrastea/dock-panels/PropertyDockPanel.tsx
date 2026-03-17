@@ -6,16 +6,25 @@ import { ObjectEditor } from '../ObjectEditor';
 import { CutinEditor } from '../CutinEditor';
 import { PieceEditor } from '../PieceEditor';
 import { BgmEditor } from '../BgmEditor';
+import type React from 'react';
+
+const scrollWrapperStyle: React.CSSProperties = {
+  height: '100%',
+  overflowY: 'auto',
+  boxSizing: 'border-box',
+};
 
 export function PropertyDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
 
+  let content: React.ReactNode = null;
+
   // PieceEditor
   if (ctx.editingPieceId) {
     const piece = ctx.pieces.find((p) => p.id === ctx.editingPieceId);
     if (piece) {
-      return (
+      content = (
         <PieceEditor
           key={piece.id}
           piece={piece}
@@ -29,8 +38,8 @@ export function PropertyDockPanel() {
   }
 
   // ObjectEditor
-  if (ctx.editingObjectId !== undefined && ctx.roomId) {
-    return (
+  if (!content && ctx.editingObjectId !== undefined && ctx.roomId) {
+    content = (
       <ObjectEditor
         key={ctx.editingObjectId ?? 'new-object'}
         object={ctx.editingObjectId ? ctx.activeObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null}
@@ -49,12 +58,12 @@ export function PropertyDockPanel() {
   }
 
   // SceneEditor
-  if (ctx.editingScene !== undefined && ctx.roomId) {
+  if (!content && ctx.editingScene !== undefined && ctx.roomId) {
     // Firestoreの最新データを参照（レイヤーパネル等でのリネームを反映するため）
     const liveScene = ctx.editingScene
       ? ctx.scenes.find(s => s.id === ctx.editingScene!.id) ?? ctx.editingScene
       : null;
-    return (
+    content = (
       <SceneEditor
         key={liveScene?.id ?? 'new-scene'}
         scene={liveScene}
@@ -72,8 +81,8 @@ export function PropertyDockPanel() {
   }
 
   // CharacterEditor
-  if (ctx.editingCharacter !== undefined && ctx.roomId) {
-    return (
+  if (!content && ctx.editingCharacter !== undefined && ctx.roomId) {
+    content = (
       <CharacterEditor
         key={ctx.editingCharacter?.id ?? 'new-character'}
         character={ctx.editingCharacter}
@@ -92,8 +101,8 @@ export function PropertyDockPanel() {
   }
 
   // CutinEditor
-  if (ctx.editingCutin !== undefined && ctx.roomId) {
-    return (
+  if (!content && ctx.editingCutin !== undefined && ctx.roomId) {
+    content = (
       <CutinEditor
         key={ctx.editingCutin?.id ?? 'new-cutin'}
         cutin={ctx.editingCutin}
@@ -112,10 +121,10 @@ export function PropertyDockPanel() {
   }
 
   // BgmEditor
-  if (ctx.editingBgmId) {
+  if (!content && ctx.editingBgmId) {
     const track = ctx.bgms.find((b) => b.id === ctx.editingBgmId);
     if (track) {
-      return (
+      content = (
         <BgmEditor
           key={track.id}
           track={track}
@@ -127,5 +136,7 @@ export function PropertyDockPanel() {
     }
   }
 
-  return null;
+  if (!content) return null;
+
+  return <div style={scrollWrapperStyle}>{content}</div>;
 }

@@ -179,6 +179,7 @@ export default defineSchema({
     text_color: v.string(),
     scale_x: v.number(),
     scale_y: v.number(),
+    memo: v.optional(v.string()),
     created_at: v.number(),
     updated_at: v.number(),
   })
