@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
+import { useThrottledCallback } from '../../../hooks/useThrottledUpdate';
 import { CharacterPanel } from '../CharacterPanel';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
@@ -92,11 +93,13 @@ export function CharacterDockPanel() {
     });
   };
 
-  const handleToggleBoardVisible = (charId: string) => {
+  const handleToggleBoardVisibleRaw = useCallback((charId: string) => {
     const char = ctx.characters.find(c => c.id === charId);
     if (!char) return;
     ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-  };
+  }, [ctx]);
+
+  const handleToggleBoardVisible = useThrottledCallback(handleToggleBoardVisibleRaw);
 
   const handlePaste = useCallback(async () => {
     try {

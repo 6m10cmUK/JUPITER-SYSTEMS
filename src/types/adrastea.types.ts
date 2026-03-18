@@ -29,7 +29,6 @@ export interface Room {
   dice_system: string;
   gm_can_see_secret_memo: boolean;
   default_login_role?: 'sub_owner' | 'user' | 'guest';
-  default_guest_role?: 'sub_owner' | 'user' | 'guest';
   created_at: number;
   updated_at: number;
 }

@@ -17,13 +17,12 @@ type SettingsSection = 'room' | 'layout' | 'user' | 'members';
 interface SettingsModalProps {
   initialSection?: SettingsSection;
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
   profile: { display_name?: string; avatar_url?: string | null } | null;
   onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
-  isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
   isOwner: boolean;
@@ -70,7 +69,7 @@ function RoomSettingsSection({
   systems,
 }: {
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest'; default_guest_role?: 'sub_owner' | 'user' | 'guest' }) => void;
+  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
   isOwner: boolean;
@@ -80,7 +79,6 @@ function RoomSettingsSection({
   const [description, setDescription] = useState('');
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
   const [defaultLoginRole, setDefaultLoginRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_login_role as 'sub_owner' | 'user' | 'guest' ?? 'user');
-  const [defaultGuestRole, setDefaultGuestRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_guest_role as 'sub_owner' | 'user' | 'guest' ?? 'guest');
 
   const handleSave = () => {
     onSaveRoom({
@@ -89,7 +87,6 @@ function RoomSettingsSection({
       dice_system: diceSystem,
       ...(isOwner && {
         default_login_role: defaultLoginRole,
-        default_guest_role: defaultGuestRole,
       }),
     });
     onClose();
@@ -135,26 +132,6 @@ function RoomSettingsSection({
               <select
                 value={defaultLoginRole}
                 onChange={(e) => setDefaultLoginRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
-                style={{
-                  width: '100%',
-                  padding: '6px 8px',
-                  fontSize: 12,
-                  background: theme.bgSurface,
-                  color: theme.textPrimary,
-                  border: `1px solid ${theme.border}`,
-                  outline: 'none',
-                }}
-              >
-                <option value="sub_owner">サブオーナー</option>
-                <option value="user">ユーザー</option>
-                <option value="guest">ゲスト</option>
-              </select>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ゲスト</div>
-              <select
-                value={defaultGuestRole}
-                onChange={(e) => setDefaultGuestRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
                 style={{
                   width: '100%',
                   padding: '6px 8px',
@@ -572,14 +549,12 @@ function MembersSection({
 function UserSection({
   profile,
   onSaveProfile,
-  isGuest,
   onSignOut,
   onClose,
   dockviewApi,
 }: {
   profile: { display_name?: string; avatar_url?: string | null } | null;
   onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
-  isGuest: boolean;
   onSignOut: () => void;
   onClose: () => void;
   dockviewApi: DockviewApi | null;
@@ -591,65 +566,59 @@ function UserSection({
 
   return (
     <div>
-      {isGuest ? (
-        <div style={{ color: theme.textMuted, fontSize: 12 }}>
-          ゲストユーザーはプロフィールを編集できません
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {profileError && (
-            <div style={{ padding: '6px 10px', background: theme.danger, color: theme.textOnAccent, fontSize: 12 }}>
-              {profileError}
-            </div>
-          )}
-          <AdInput
-            label="表示名"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="表示名を入力"
-          />
-          <AssetPicker
-            label="アイコン画像"
-            currentUrl={avatarUrl || null}
-            onSelect={(url) => setAvatarUrl(url)}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-            <div /> {/* spacer */}
-            <AdButton
-              variant="primary"
-              disabled={profileSaving || !displayName.trim()}
-              onClick={async () => {
-                if (!displayName.trim()) return;
-                setProfileSaving(true);
-                setProfileError(null);
-                try {
-                  await onSaveProfile({
-                    display_name: displayName.trim(),
-                    avatar_url: avatarUrl.trim() || null,
-                  });
-                } catch {
-                  setProfileError('プロフィールの保存に失敗しました');
-                } finally {
-                  setProfileSaving(false);
-                }
-              }}
-            >
-              {profileSaving ? '保存中...' : '保存'}
-            </AdButton>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {profileError && (
+          <div style={{ padding: '6px 10px', background: theme.danger, color: theme.textOnAccent, fontSize: 12 }}>
+            {profileError}
           </div>
-          <div style={{ height: 1, background: theme.border }} />
+        )}
+        <AdInput
+          label="表示名"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          placeholder="表示名を入力"
+        />
+        <AssetPicker
+          label="アイコン画像"
+          currentUrl={avatarUrl || null}
+          onSelect={(url) => setAvatarUrl(url)}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+          <div /> {/* spacer */}
           <AdButton
-            variant="danger"
-            onClick={() => { onSignOut(); onClose(); }}
+            variant="primary"
+            disabled={profileSaving || !displayName.trim()}
+            onClick={async () => {
+              if (!displayName.trim()) return;
+              setProfileSaving(true);
+              setProfileError(null);
+              try {
+                await onSaveProfile({
+                  display_name: displayName.trim(),
+                  avatar_url: avatarUrl.trim() || null,
+                });
+              } catch {
+                setProfileError('プロフィールの保存に失敗しました');
+              } finally {
+                setProfileSaving(false);
+              }
+            }}
           >
-            ログアウト
+            {profileSaving ? '保存中...' : '保存'}
           </AdButton>
         </div>
-      )}
+        <div style={{ height: 1, background: theme.border }} />
+        <AdButton
+          variant="danger"
+          onClick={() => { onSignOut(); onClose(); }}
+        >
+          ログアウト
+        </AdButton>
+      </div>
 
       {/* 開発者モード */}
       <div>
-        <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, marginTop: isGuest ? 16 : 0 }}>
+        <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, marginTop: 16 }}>
           開発者
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -688,7 +657,6 @@ export function SettingsModal({
   can,
   profile,
   onSaveProfile,
-  isGuest,
   onSignOut,
   onClose,
   isOwner,
@@ -834,7 +802,6 @@ export function SettingsModal({
             <UserSection
               profile={profile}
               onSaveProfile={onSaveProfile}
-              isGuest={isGuest}
               onSignOut={onSignOut}
               onClose={onClose}
               dockviewApi={dockviewApi}

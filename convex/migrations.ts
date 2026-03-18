@@ -49,12 +49,54 @@ export const fixUserIds = mutation({
   },
 });
 
+/** rooms テーブルから default_guest_role フィールドを削除 */
+export const removeDefaultGuestRole = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const rooms = await ctx.db.query("rooms").collect();
+    let count = 0;
+    for (const room of rooms) {
+      if ((room as any).default_guest_role !== undefined) {
+        const { default_guest_role: _removed, ...rest } = room as any;
+        await ctx.db.replace(room._id, rest);
+        count++;
+      }
+    }
+    return { updated: count };
+  },
+});
+
 /** D1スナップショットから最初のルームのowner_idを取得 */
 export const getFirstRoomOwnerId = internalQuery({
   args: {},
   handler: async (ctx) => {
     const room = await ctx.db.query("rooms").first();
     return room ? room.owner_id : null;
+  },
+});
+
+/** キャラクターの board_y 基準を上端から足元に変更 */
+export const migrateCharacterBoardYToBottom = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const allStats = await ctx.db.query("characters_stats").collect();
+    let count = 0;
+    for (const stats of allStats) {
+      const base = await ctx.db
+        .query("characters_base")
+        .filter((q) => q.eq(q.field("id"), stats.id))
+        .first();
+      if (!base) continue;
+      const size = base.size ?? 5;
+      const oldBoardY = stats.board_y ?? 0;
+      const newBoardY = oldBoardY + size; // 上端 + サイズ = 足元
+      await ctx.db.patch(stats._id, { board_y: newBoardY });
+      count++;
+    }
+    return { migrated: count };
   },
 });
 

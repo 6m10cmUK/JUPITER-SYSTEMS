@@ -8,6 +8,7 @@ export interface DropdownMenuItem {
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  danger?: boolean;
 }
 
 export type DropdownMenuEntry = DropdownMenuItem | 'separator';
@@ -129,15 +130,26 @@ export function DropdownMenu({
         const adjustedTop = triggerRect.top - menuHeight - marginGap;
         setMenuPos((prev) => (prev ? { ...prev, top: adjustedTop } : null));
       }
+    } else if (mode === 'context') {
+      // Adjust context menu to keep within viewport
+      const menuH = menuRef.current.offsetHeight;
+      const menuW = menuRef.current.offsetWidth;
+      let { top, left } = menuPos;
+      if (top + menuH > window.innerHeight - 8) top = Math.max(8, top - menuH);
+      if (left + menuW > window.innerWidth - 8) left = Math.max(8, left - menuW);
+      if (top !== menuPos.top || left !== menuPos.left) {
+        setMenuPos({ top, left });
+      }
     }
 
     setMenuInitialized(true);
-  }, [isOpen, align, direction, mode]);
+  }, [isOpen, align, direction, mode, menuPos?.top, menuPos?.left]);
 
   // --- Sync position to menuPos in context mode ---
   useEffect(() => {
     if (mode === 'context' && isOpen && position) {
       setMenuPos({ top: position.y, left: position.x });
+      setMenuInitialized(false);
     } else if (mode === 'context' && !isOpen) {
       setMenuPos(null);
       setHoveredIndex(null);
@@ -237,7 +249,7 @@ export function DropdownMenu({
             gap: '8px',
             padding: '6px 12px',
             fontSize: '12px',
-            color: theme.textPrimary,
+            color: entry.danger ? theme.danger : theme.textPrimary,
             cursor: isDisabled ? 'default' : 'pointer',
             background:
               isSelected || (isHovered && !isDisabled) ? theme.bgHover : 'transparent',
@@ -273,7 +285,7 @@ export function DropdownMenu({
               padding: '4px 0',
               minWidth: '160px',
               width: 'max-content',
-              visibility: menuInitialized || mode === 'context' ? 'visible' : 'hidden',
+              visibility: menuInitialized ? 'visible' : 'hidden',
             }}
             onMouseLeave={() => setHoveredIndex(null)}
           >

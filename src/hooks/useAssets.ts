@@ -9,7 +9,7 @@ import { apiFetch } from '../config/api';
 let assetCache: { uid: string; assets: Asset[] } | null = null;
 
 export function useAssets() {
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const token = useAuthToken();
   const uid = user?.uid;
   const cached = uid && assetCache?.uid === uid ? assetCache.assets : null;
@@ -26,7 +26,7 @@ export function useAssets() {
   }, [uid]);
 
   const fetchAssets = useCallback(async () => {
-    if (!uid || isGuest) {
+    if (!uid) {
       setAssets([]);
       setLoading(false);
       return;
@@ -41,7 +41,7 @@ export function useAssets() {
     } finally {
       setLoading(false);
     }
-  }, [uid, isGuest, token]);
+  }, [uid, token]);
 
   // キャッシュがあればフェッチをスキップ
   useEffect(() => {
@@ -51,7 +51,7 @@ export function useAssets() {
 
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
-      if (!uid || isGuest) return null;
+      if (!uid) return null;
       const result = await uploadAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
@@ -82,12 +82,12 @@ export function useAssets() {
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   const uploadAudioAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
-      if (!uid || isGuest) return null;
+      if (!uid) return null;
       const result = await uploadAudioAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
@@ -117,12 +117,12 @@ export function useAssets() {
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   const addAssetByUrl = useCallback(
     async (url: string, assetType: 'image' | 'audio'): Promise<Asset | null> => {
-      if (!uid || isGuest) return null;
+      if (!uid) return null;
       // Dropbox共有URL（dl=0）を直接ダウンロードURL（dl=1）に変換
       // 新形式(scl): dl=0 → dl=1 のみでOK
       // 旧形式(/s/): www.dropbox.com → dl.dropboxusercontent.com でも可
@@ -150,21 +150,21 @@ export function useAssets() {
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   const deleteAsset = useCallback(
     async (assetId: string, _r2Key?: string) => {
-      if (!uid || isGuest) return;
+      if (!uid) return;
       await apiFetch(`/api/assets/${assetId}`, { method: 'DELETE' }, token ?? undefined);
       setAssets((prev) => prev.filter((a) => a.id !== assetId));
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   const updateAssetTags = useCallback(
     async (assetId: string, tags: string[]) => {
-      if (!uid || isGuest) return;
+      if (!uid) return;
       await apiFetch(`/api/assets/${assetId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -172,12 +172,12 @@ export function useAssets() {
       }, token ?? undefined);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   const updateAssetTitle = useCallback(
     async (assetId: string, title: string) => {
-      if (!uid || isGuest) return;
+      if (!uid) return;
       await apiFetch(`/api/assets/${assetId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -185,7 +185,7 @@ export function useAssets() {
       }, token ?? undefined);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, title } : a)));
     },
-    [uid, isGuest, token]
+    [uid, token]
   );
 
   return { assets, loading, fetchAssets, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle };

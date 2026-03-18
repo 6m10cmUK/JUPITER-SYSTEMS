@@ -66,8 +66,6 @@ const objectFields = {
 export const list = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     return ctx.db
       .query("objects")
       .withIndex("by_room", (q) => q.eq("room_id", args.room_id))

@@ -670,7 +670,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                     background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                   }}>
                     {char?.images[char.active_image_index]?.url && (
-                      <img src={char.images[char.active_image_index].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={char.images[char.active_image_index].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                     )}
                   </div>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</span>

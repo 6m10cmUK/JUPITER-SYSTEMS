@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
-import { hasRole } from '../../../config/permissions';
+import { hasRole, checkPermission } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
+import { useThrottledCallback } from '../../../hooks/useThrottledUpdate';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
 import { MessagePopup } from '../ui/MessagePopup';
@@ -13,8 +14,8 @@ export function BoardDockPanel() {
   const [imagePickerTarget, setImagePickerTarget] = useState<{ id: string } | null>(null);
 
   const handleMoveObject = useCallback((id: string, x: number, y: number) => {
-    ctx.updateObject(id, { x, y });
-  }, [ctx.updateObject]);
+    ctx.moveObject(id, { x, y });
+  }, [ctx.moveObject]);
 
   const handleResizeObject = useCallback((id: string, width: number, height: number) => {
     const obj = ctx.activeObjects.find(o => o.id === id);
@@ -24,35 +25,37 @@ export function BoardDockPanel() {
       const ratioH = height / obj.height;
       const ratio = Math.abs(ratioW - 1) > Math.abs(ratioH - 1) ? ratioW : ratioH;
       const newFontSize = Math.max(1, Math.round(obj.font_size * ratio));
-      ctx.updateObject(id, { font_size: newFontSize });
+      ctx.moveObject(id, { font_size: newFontSize });
       return;
     }
-    ctx.updateObject(id, { width, height });
-  }, [ctx.updateObject, ctx.activeObjects]);
+    ctx.moveObject(id, { width, height });
+  }, [ctx.moveObject, ctx.activeObjects]);
 
   // auto_size テキストの描画サイズを width/height に同期（500msデバウンス）
   const syncTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const handleSyncObjectSize = useCallback((id: string, width: number, height: number) => {
     clearTimeout(syncTimerRef.current[id]);
     syncTimerRef.current[id] = setTimeout(() => {
-      ctx.updateObject(id, { width, height });
+      ctx.moveObject(id, { width, height });
       delete syncTimerRef.current[id];
     }, 500);
-  }, [ctx.updateObject]);
+  }, [ctx.moveObject]);
 
   // シングルクリック → プロパティ表示（単一選択）
   const handleSelectObject = useCallback((id: string) => {
+    if (!checkPermission(ctx.roomRole, 'object_edit')) return;
     ctx.clearAllEditing();
     ctx.setSelectedObjectIds([id]);
     ctx.setEditingObjectId(id);
-  }, [ctx.clearAllEditing, ctx.setSelectedObjectIds, ctx.setEditingObjectId]);
+  }, [ctx.clearAllEditing, ctx.setSelectedObjectIds, ctx.setEditingObjectId, ctx.roomRole]);
 
   // ダブルクリック → 画像選択モーダル直表示（テキストオブジェクトは除外）
   const handleEditObject = useCallback((id: string) => {
+    if (!checkPermission(ctx.roomRole, 'object_edit')) return;
     const obj = ctx.activeObjects.find(o => o.id === id);
     if (obj?.type === 'text') return;
     setImagePickerTarget({ id });
-  }, [ctx.activeObjects]);
+  }, [ctx.activeObjects, ctx.roomRole]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -62,6 +65,15 @@ export function BoardDockPanel() {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
     }
   }, [ctx.addCharacter, ctx.showToast]);
+
+  const handleToggleBoardVisibleRaw = useCallback((charId: string) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (char) {
+      ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+    }
+  }, [ctx]);
+
+  const handleToggleBoardVisible = useThrottledCallback(handleToggleBoardVisibleRaw);
 
   const latestMessage = useMemo(() => {
     if (!ctx.messages || ctx.messages.length === 0) return null;
@@ -85,7 +97,7 @@ export function BoardDockPanel() {
           gridVisible={ctx.gridVisible}
           characters={ctx.layerOrderedCharacters}
           currentUserId={user?.uid ?? ''}
-          onUpdateCharacterBoardPosition={(charId, x, y) => ctx.updateCharacter(charId, { board_x: x, board_y: y })}
+          onUpdateCharacterBoardPosition={(charId, x, y) => ctx.moveCharacter(charId, { board_x: x, board_y: y })}
           onSelectCharacter={(charId) => {
             const char = ctx.characters.find(c => c.id === charId);
             const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
@@ -102,10 +114,7 @@ export function BoardDockPanel() {
             }
           }}
           onContextMenuCharacter={(charId, _e) => {
-            const char = ctx.characters.find(c => c.id === charId);
-            if (char) {
-              ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-            }
+            handleToggleBoardVisible(charId);
           }}
           onMovePiece={ctx.movePiece}
           onRemovePiece={ctx.removePiece}

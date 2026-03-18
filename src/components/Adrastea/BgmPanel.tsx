@@ -3,7 +3,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
-import { SortableListPanel, SortableListItem } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
+import { DropdownMenu } from './ui/DropdownMenu';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
   Play, Pause, Square, Trash2, Plus, Music,
@@ -85,10 +86,17 @@ interface BgmTrackRowProps {
   onEdit: (id: string) => void;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
   onRemove: (id: string) => void;
+  onContextMenu?: (e: React.MouseEvent, id: string) => void;
+  renamingId?: string | null;
+  renameValue?: string;
+  onRenameChange?: (value: string) => void;
+  onRenameSubmit?: () => void;
+  onRenameCancel?: () => void;
 }
 
 function BgmTrackRow({
-  track, isEditing, onEdit, onUpdate, onRemove,
+  track, isEditing, onEdit, onUpdate, onRemove, onContextMenu,
+  renamingId, renameValue, onRenameChange, onRenameSubmit, onRenameCancel,
 }: BgmTrackRowProps) {
   const [localMuted, setLocalMuted] = useState(false);
 
@@ -105,7 +113,8 @@ function BgmTrackRow({
   const effectiveVolume = localMuted ? 0 : track.bgm_volume;
 
   return (
-    <SortableListItem id={track.id} onClick={() => onEdit(track.id)} isSelected={isEditing}>
+    <div onContextMenu={onContextMenu ? (e) => onContextMenu(e, track.id) : undefined}>
+      <SortableListItem id={track.id} onClick={() => onEdit(track.id)} isSelected={isEditing}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Top row: controls */}
         <div style={{
@@ -141,15 +150,35 @@ function BgmTrackRow({
           </button>
 
           {/* Track name */}
-          <span
-            style={{
-              flex: 1, minWidth: 0,
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              color: theme.textPrimary, fontSize: '11px',
-            }}
-          >
-            {track.name}
-          </span>
+          {renamingId === track.id ? (
+            <input
+              autoFocus
+              value={renameValue ?? ''}
+              onChange={(e) => onRenameChange?.(e.target.value)}
+              onBlur={() => onRenameSubmit?.()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') onRenameSubmit?.();
+                else if (e.key === 'Escape') onRenameCancel?.();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                flex: 1, minWidth: 0,
+                background: theme.bgDeep, border: `1px solid ${theme.border}`,
+                color: theme.textPrimary, fontSize: '11px', padding: '1px 4px',
+                outline: 'none',
+              }}
+            />
+          ) : (
+            <span
+              style={{
+                flex: 1, minWidth: 0,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                color: theme.textPrimary, fontSize: '11px',
+              }}
+            >
+              {track.name}
+            </span>
+          )}
 
           {/* Remove from scene */}
           <button
@@ -190,12 +219,13 @@ function BgmTrackRow({
         </div>
       </div>
     </SortableListItem>
+    </div>
   );
 }
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
@@ -255,7 +285,40 @@ export function BgmPanel() {
     });
   }, [localBgms, updateBgm]);
 
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string } | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [showAddPicker, setShowAddPicker] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const handleContextMenu = useCallback((e: React.MouseEvent, trackId: string) => {
+    e.preventDefault();
+    clearAllEditing();
+    setEditingBgmId(trackId); // 右クリックで選択を移す
+    setContextMenu({ x: e.clientX, y: e.clientY, trackId });
+  }, [clearAllEditing, setEditingBgmId]);
+
+  const handleRenameSubmit = useCallback(() => {
+    if (renamingId && renameValue.trim()) {
+      updateBgm(renamingId, { name: renameValue.trim() });
+    }
+    setRenamingId(null);
+  }, [renamingId, renameValue, updateBgm]);
+
+  const handleDuplicate = useCallback(async () => {
+    if (!contextMenu) return;
+    const track = bgms.find(b => b.id === contextMenu.trackId);
+    if (!track) return;
+    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+    await addBgm({ ...rest, name: `${track.name} (複製)` });
+    setContextMenu(null);
+  }, [contextMenu, bgms, addBgm]);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!pendingDeleteId) return;
+    await removeBgm(pendingDeleteId);
+    setPendingDeleteId(null);
+  }, [pendingDeleteId, removeBgm]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
@@ -367,6 +430,12 @@ export function BgmPanel() {
             isEditing={editingBgmId === track.id}
             onEdit={handleEdit}
             onUpdate={updateBgm}
+            onContextMenu={handleContextMenu}
+            renamingId={renamingId}
+            renameValue={renameValue}
+            onRenameChange={setRenameValue}
+            onRenameSubmit={handleRenameSubmit}
+            onRenameCancel={() => setRenamingId(null)}
             onRemove={(id) => {
               const track = bgms.find(b => b.id === id);
               if (!track || !currentSceneId) return;
@@ -380,6 +449,43 @@ export function BgmPanel() {
           />
         ))}
       </SortableListPanel>
+
+      {contextMenu && (
+        <DropdownMenu
+          mode="context"
+          open={true}
+          onOpenChange={(open) => { if (!open) setContextMenu(null); }}
+          position={{ x: contextMenu.x, y: contextMenu.y }}
+          items={[
+            {
+              label: '複製',
+              onClick: handleDuplicate,
+            },
+            'separator',
+            {
+              label: '削除',
+              danger: true,
+              onClick: () => {
+                setContextMenu(null);
+                setPendingDeleteId(contextMenu.trackId);
+              },
+            },
+          ]}
+        />
+      )}
+
+      {pendingDeleteId && (() => {
+        const delTrack = bgms.find(b => b.id === pendingDeleteId);
+        return (
+          <ConfirmModal
+            message={`「${delTrack?.name ?? 'BGM'}」を削除しますか？（全シーンから削除されます）`}
+            confirmLabel="削除"
+            danger
+            onConfirm={handleConfirmDelete}
+            onCancel={() => setPendingDeleteId(null)}
+          />
+        );
+      })()}
 
       {showAddPicker && (
         <AssetLibraryModal

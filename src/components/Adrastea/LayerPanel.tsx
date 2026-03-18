@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
 import { createPortal } from 'react-dom';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import {
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
+import { useObjectContextMenu } from './useObjectContextMenu';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -50,6 +52,8 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     addCharacter,
     removeCharacter,
     setCharacterToOpenModal,
+    panelSelection,
+    setPanelSelection,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -58,7 +62,31 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
   const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
   const [isCharLayerOpen, setIsCharLayerOpen] = useState(true);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objId?: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objId?: string; charId?: string } | null>(null);
+
+  // panelSelection から選択されたキャラクターIDを導出
+  const selectedCharIds = panelSelection?.panel === 'character' ? panelSelection.ids : [];
+
+  // コンテキストメニューの targets 計算
+  const ctxTargets = (() => {
+    if (!contextMenu?.objId) return [];
+    const ctxObj = activeObjects.find(o => o.id === contextMenu.objId);
+    if (!ctxObj) return [];
+    // 右クリックしたオブジェクトが選択中に含まれていれば選択中全体を対象にする
+    if (selectedObjectIds.includes(contextMenu.objId) && selectedObjectIds.length > 1) {
+      return activeObjects.filter(o => selectedObjectIds.includes(o.id));
+    }
+    return [ctxObj];
+  })();
+
+  // useObjectContextMenu hook
+  const { items: ctxMenuItems, confirmModal: ctxConfirmModal } = useObjectContextMenu(ctxTargets, {
+    onClose: () => setContextMenu(null),
+    onAfterDuplicate: (newIds) => {
+      setSelectedObjectIds(newIds);
+      setEditingObjectId(newIds[newIds.length - 1]);
+    },
+  });
 
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
@@ -242,7 +270,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     setPendingImageAdd(null);
   };
 
-  const handleToggleVisible = useCallback((obj: BoardObject) => {
+  const handleToggleVisibleRaw = useCallback((obj: BoardObject) => {
     if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
       const newVisible = !obj.visible;
       for (const id of selectedObjectIds) {
@@ -253,6 +281,13 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       updateObject(obj.id, { visible: !obj.visible });
     }
   }, [selectedObjectIds, activeObjects, updateObject]);
+  const handleToggleVisible = useThrottledCallback(handleToggleVisibleRaw);
+
+  const handleToggleCharVisibleRaw = useCallback((charId: string) => {
+    const char = layerOrderedCharacters.find(c => c.id === charId);
+    if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+  }, [layerOrderedCharacters, updateCharacter]);
+  const handleToggleCharVisible = useThrottledCallback(handleToggleCharVisibleRaw);
 
   const handleRemoveObject = useCallback((obj: BoardObject) => {
     if (obj.type === 'background') return;
@@ -326,8 +361,31 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
+        const charEl = (e.target as HTMLElement).closest('[data-char-id]');
+        const charId = charEl?.getAttribute('data-char-id') ?? undefined;
+        if (charId) {
+          const char = layerOrderedCharacters.find(c => c.id === charId);
+          if (char) {
+            clearAllEditing();
+            setEditingCharacter(char);
+            if (!selectedCharIds.includes(charId)) {
+              setPanelSelection({ panel: 'character', ids: [charId] });
+            }
+          }
+          setContextMenu({ x: e.clientX, y: e.clientY, charId });
+          return;
+        }
         const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
         const objId = objEl?.getAttribute('data-obj-id') ?? undefined;
+        if (objId) {
+          const obj = activeObjects.find(o => o.id === objId);
+          if (obj?.type === 'foreground') return; // 前景はメニューなし
+          // 右クリック時に選択を移す
+          if (!selectedObjectIds.includes(objId)) {
+            setSelectedObjectIds([objId]);
+            setEditingObjectId(objId);
+          }
+        }
         setContextMenu({ x: e.clientX, y: e.clientY, objId });
       }}
       style={{ height: '100%' }}
@@ -442,17 +500,35 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
               isOpen={isCharLayerOpen}
               onToggleOpen={() => setIsCharLayerOpen(v => !v)}
               characters={layerOrderedCharacters}
-              selectedCharacterId={editingCharacter?.id}
-              onToggleVisible={(charId) => {
-                const char = layerOrderedCharacters.find(c => c.id === charId);
-                if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-              }}
+              selectedCharIds={selectedCharIds}
+              onToggleVisible={handleToggleCharVisible}
               onReorder={(orderedIds) => reorderLayerCharacters(orderedIds)}
-              onSelectCharacter={(charId) => {
+              onSelectCharacter={(charId, e) => {
                 const char = layerOrderedCharacters.find(c => c.id === charId);
-                if (char) {
+                if (!char) return;
+
+                if (e.shiftKey && selectedCharIds.length > 0) {
+                  // Shift: 範囲選択
+                  const lastSelected = selectedCharIds[selectedCharIds.length - 1];
+                  const anchorIdx = layerOrderedCharacters.findIndex(c => c.id === lastSelected);
+                  const targetIdx = layerOrderedCharacters.findIndex(c => c.id === charId);
+                  if (anchorIdx >= 0 && targetIdx >= 0) {
+                    const start = Math.min(anchorIdx, targetIdx);
+                    const end = Math.max(anchorIdx, targetIdx);
+                    const ids = layerOrderedCharacters.slice(start, end + 1).map(c => c.id);
+                    setPanelSelection({ panel: 'character', ids });
+                  }
+                } else if (e.metaKey || e.ctrlKey) {
+                  // Ctrl/Cmd: トグル
+                  const newIds = selectedCharIds.includes(charId)
+                    ? selectedCharIds.filter(id => id !== charId)
+                    : [...selectedCharIds, charId];
+                  setPanelSelection(newIds.length > 0 ? { panel: 'character', ids: newIds } : null);
+                } else {
+                  // 通常クリック: 単一選択
                   clearAllEditing();
                   setEditingCharacter(char);
+                  setPanelSelection({ panel: 'character', ids: [charId] });
                 }
               }}
               onDoubleClickCharacter={(charId) => {
@@ -598,74 +674,52 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       open={contextMenu !== null}
       onOpenChange={(open) => { if (!open) setContextMenu(null); }}
       position={contextMenu ?? { x: 0, y: 0 }}
-      items={[
+      items={contextMenu?.charId ? [
         {
-          label: (() => {
-            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
-            const canDup = ctxObj && ctxObj.type !== 'background' && ctxObj.type !== 'foreground' && ctxObj.type !== 'characters_layer';
-            if (!canDup) return '複製';
-            const ids = contextMenu?.objId && !selectedObjectIds.includes(contextMenu.objId)
-              ? [contextMenu.objId]
-              : selectedObjectIds.filter(id => {
-                  const o = activeObjects.find(o => o.id === id);
-                  return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
-                });
-            return ids.length > 1 ? `${ids.length}件複製` : '複製';
-          })(),
-          disabled: (() => {
-            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
-            return !ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer';
-          })(),
-          onClick: () => {
-            const ctxObjId = contextMenu?.objId;
-            if (!ctxObjId) { setContextMenu(null); return; }
-            const ctxObj = activeObjects.find(o => o.id === ctxObjId);
-            if (!ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer') {
-              setContextMenu(null); return;
+          label: '複製',
+          onClick: async () => {
+            const char = layerOrderedCharacters.find(c => c.id === contextMenu.charId);
+            if (char) {
+              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = char as any;
+              await addCharacter({ ...rest, name: `${char.name} (複製)` });
             }
-            const targets = ctxObjId && !selectedObjectIds.includes(ctxObjId)
-              ? activeObjects.filter(o => o.id === ctxObjId)
-              : activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer');
-            (async () => {
-              const newIds: string[] = [];
-              for (const obj of targets) {
-                const { id, created_at, updated_at, ...rest } = obj;
-                const newId = await addObject({ ...rest, name: `${obj.name} (複製)`, sort_order: obj.sort_order + 1 });
-                if (newId) newIds.push(newId);
-              }
-              if (newIds.length > 0) {
-                setSelectedObjectIds(newIds);
-                setEditingObjectId(newIds[newIds.length - 1]);
-              }
-            })();
             setContextMenu(null);
           },
         },
+        'separator',
         {
-          label: (() => {
-            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
-            const canDel = ctxObj && ctxObj.type !== 'background' && ctxObj.type !== 'foreground' && ctxObj.type !== 'characters_layer';
-            if (!canDel) return '削除';
-            const ids = contextMenu?.objId && !selectedObjectIds.includes(contextMenu.objId)
-              ? [contextMenu.objId]
-              : getDeletableIds(contextMenu?.objId ?? '');
-            return ids.length > 1 ? `${ids.length}件削除` : '削除';
-          })(),
-          disabled: (() => {
-            const ctxObj = contextMenu?.objId ? activeObjects.find(o => o.id === contextMenu.objId) : null;
-            return !ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer';
-          })(),
+          label: '削除',
+          danger: true,
           onClick: () => {
-            const ctxObjId = contextMenu?.objId;
-            if (!ctxObjId) { setContextMenu(null); return; }
-            const ctxObj = activeObjects.find(o => o.id === ctxObjId);
-            if (!ctxObj || ctxObj.type === 'background' || ctxObj.type === 'foreground' || ctxObj.type === 'characters_layer') {
-              setContextMenu(null); return;
+            const char = layerOrderedCharacters.find(c => c.id === contextMenu.charId);
+            if (char) {
+              setPendingRemove({
+                msg: `キャラクター「${char.name}」を削除しますか？`,
+                action: () => {
+                  removeCharacter(char.id);
+                  setEditingCharacter(undefined);
+                },
+              });
             }
-            handleRemoveObject(ctxObj);
             setContextMenu(null);
           },
         },
+      ] : [
+        {
+          label: '名前を変更',
+          disabled: !contextMenu?.objId,
+          onClick: () => {
+            if (contextMenu?.objId) {
+              const obj = activeObjects.find(o => o.id === contextMenu.objId);
+              if (obj) {
+                setRenamingId(contextMenu.objId);
+                setRenameValue(obj.name);
+              }
+            }
+            setContextMenu(null);
+          },
+        },
+        ...ctxMenuItems,
         'separator',
         {
           label: '貼り付け',
@@ -687,6 +741,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         onCancel={() => setPendingRemove(null)}
       />
     )}
+    {ctxConfirmModal}
     {pendingImageAdd && (
       <AssetLibraryModal
         onClose={() => setPendingImageAdd(null)}
@@ -707,7 +762,7 @@ function CharacterLayerRow({
   isOpen,
   onToggleOpen,
   characters,
-  selectedCharacterId,
+  selectedCharIds,
   onToggleVisible,
   onReorder,
   onSelectCharacter,
@@ -717,10 +772,10 @@ function CharacterLayerRow({
   isOpen: boolean;
   onToggleOpen: () => void;
   characters: Character[];
-  selectedCharacterId?: string;
+  selectedCharIds: string[];
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
-  onSelectCharacter?: (charId: string) => void;
+  onSelectCharacter?: (charId: string, e: React.MouseEvent) => void;
   onDoubleClickCharacter?: (charId: string) => void;
 }) {
   const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
@@ -771,7 +826,7 @@ function CharacterLayerRow({
       {isOpen && (
         <CharacterSubList
           characters={characters}
-          selectedCharacterId={selectedCharacterId}
+          selectedCharIds={selectedCharIds}
           onToggleVisible={onToggleVisible}
           onReorder={onReorder}
           onSelectCharacter={onSelectCharacter}
@@ -788,17 +843,17 @@ function CharacterLayerRow({
  */
 function CharacterSubList({
   characters,
-  selectedCharacterId,
+  selectedCharIds,
   onToggleVisible,
   onReorder,
   onSelectCharacter,
   onDoubleClickCharacter,
 }: {
   characters: Character[];
-  selectedCharacterId?: string;
+  selectedCharIds: string[];
   onToggleVisible: (charId: string) => void;
   onReorder: (orderedIds: string[]) => void;
-  onSelectCharacter?: (charId: string) => void;
+  onSelectCharacter?: (charId: string, e: React.MouseEvent) => void;
   onDoubleClickCharacter?: (charId: string) => void;
 }) {
   const [localChars, setLocalChars] = useState<Character[]>(characters);
@@ -876,11 +931,11 @@ function CharacterSubList({
       >
         <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
         {localChars.map((char) => (
+          <div key={char.id} data-char-id={char.id} style={{ display: 'contents' }}>
           <SortableListItem
-            key={char.id}
             id={char.id}
-            isSelected={selectedCharacterId === char.id}
-            onClick={() => onSelectCharacter?.(char.id)}
+            isSelected={selectedCharIds.includes(char.id)}
+            onClick={(e: React.MouseEvent) => onSelectCharacter?.(char.id, e)}
           >
             {/* インデント */}
             <span style={{ flexShrink: 0, width: '20px' }} />
@@ -947,6 +1002,7 @@ function CharacterSubList({
               </button>
             </Tooltip>
           </SortableListItem>
+          </div>
         ))}
         <DragOverlay dropAnimation={null}>
           <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />

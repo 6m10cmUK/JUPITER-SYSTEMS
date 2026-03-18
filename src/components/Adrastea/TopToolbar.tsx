@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Eye, FolderOpen, Volume2, VolumeX, Settings } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
-import { useAuth } from '../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { usePermission } from '../../hooks/usePermission';
 import { BgmMiniPlayer } from './BgmMiniPlayer';
@@ -71,7 +70,6 @@ export function TopToolbar({
   roomName,
 }: TopToolbarProps) {
   const [showAssetLibrary, setShowAssetLibrary] = useState(false);
-  const { isGuest } = useAuth();
   const { roomRole } = usePermission();
 
   const { masterVolume, setMasterVolume, bgmMuted, setBgmMuted } = useAdrasteaContext();
@@ -97,7 +95,7 @@ export function TopToolbar({
         borderRight: `1px solid ${theme.border}`,
         marginRight: '4px',
       }}>
-        <span style={{ fontSize: '12px', fontWeight: 700, letterSpacing: '0.05em', color: theme.textPrimary }}>
+        <span style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.05em', color: theme.textPrimary, fontFamily: "'Barlow Condensed', sans-serif" }}>
           Adrastea
         </span>
         <span style={{ fontSize: '9px', color: theme.textMuted, opacity: 0.7 }}>
@@ -208,11 +206,9 @@ export function TopToolbar({
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
       {/* アセット管理 */}
-      {!isGuest && (
-        <IconButton onClick={() => setShowAssetLibrary(true)} title="アセット管理">
-          <FolderOpen size={14} />
-        </IconButton>
-      )}
+      <IconButton onClick={() => setShowAssetLibrary(true)} title="アセット管理">
+        <FolderOpen size={14} />
+      </IconButton>
 
       {/* プロフィール設定 */}
       <button

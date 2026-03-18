@@ -25,8 +25,7 @@ export default defineSchema({
     dice_system: v.string(),
     gm_can_see_secret_memo: v.boolean(),
     default_login_role: v.optional(v.union(v.literal('sub_owner'), v.literal('user'), v.literal('guest'))),
-    default_guest_role: v.optional(v.union(v.literal('sub_owner'), v.literal('user'), v.literal('guest'))),
-    created_at: v.number(),
+created_at: v.number(),
     updated_at: v.number(),
   })
     .index("by_owner", ["owner_id"]),
