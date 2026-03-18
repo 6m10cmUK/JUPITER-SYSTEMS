@@ -26,7 +26,7 @@ export function useAssets() {
   }, [uid]);
 
   const fetchAssets = useCallback(async () => {
-    if (!uid) {
+    if (!uid || !token) {
       setAssets([]);
       setLoading(false);
       return;
@@ -52,6 +52,35 @@ export function useAssets() {
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid) return null;
+
+      // デモモード: token なしなら blob URL で返す
+      if (!token) {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        const dims = await new Promise<{ width: number; height: number }>((resolve) => {
+          img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+          img.onerror = () => resolve({ width: 0, height: 0 });
+          img.src = url;
+        });
+        const asset: Asset = {
+          id: crypto.randomUUID(),
+          uid: uid!,
+          url,
+          r2_key: '',
+          filename: file.name,
+          title: file.name,
+          size_bytes: file.size,
+          width: dims.width,
+          height: dims.height,
+          tags: [],
+          asset_type: 'image',
+          created_at: Date.now(),
+        };
+        setAssets((prev) => [asset, ...prev]);
+        return asset;
+      }
+
+      // 本番: R2へのアップロード処理
       const result = await uploadAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
@@ -88,6 +117,30 @@ export function useAssets() {
   const uploadAudioAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
       if (!uid) return null;
+
+      // デモモード: token なしなら blob URL で返す
+      if (!token) {
+        const url = URL.createObjectURL(file);
+        const asset: Asset = {
+          id: crypto.randomUUID(),
+          uid: uid!,
+          url,
+          r2_key: '',
+          filename: file.name,
+          title: file.name,
+          size_bytes: file.size,
+          width: 0,
+          height: 0,
+          tags: [],
+          asset_type: 'audio',
+          created_at: Date.now(),
+
+        };
+        setAssets((prev) => [asset, ...prev]);
+        return asset;
+      }
+
+      // 本番: R2へのアップロード処理
       const result = await uploadAudioAssetToR2(file, uid, token ?? '');
       const title = file.name;
       let res: Response;
@@ -131,6 +184,29 @@ export function useAssets() {
         : url;
       const filename = decodeURIComponent(normalizedUrl.split('/').pop() || normalizedUrl).replace(/[?#].*$/, '');
       const title = filename;
+
+      // デモモード: token なしならそのまま URL を登録
+      if (!token) {
+        const asset: Asset = {
+          id: crypto.randomUUID(),
+          uid: uid!,
+          url: normalizedUrl,
+          r2_key: '',
+          filename,
+          title,
+          size_bytes: 0,
+          width: 0,
+          height: 0,
+          tags: [],
+          asset_type: assetType,
+          created_at: Date.now(),
+
+        };
+        setAssets((prev) => [asset, ...prev]);
+        return asset;
+      }
+
+      // 本番: D1に登録
       const res = await apiFetch('/api/assets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -156,6 +232,14 @@ export function useAssets() {
   const deleteAsset = useCallback(
     async (assetId: string, _r2Key?: string) => {
       if (!uid) return;
+
+      // デモモード: token なしならローカル削除のみ
+      if (!token) {
+        setAssets((prev) => prev.filter((a) => a.id !== assetId));
+        return;
+      }
+
+      // 本番: API経由で削除
       await apiFetch(`/api/assets/${assetId}`, { method: 'DELETE' }, token ?? undefined);
       setAssets((prev) => prev.filter((a) => a.id !== assetId));
     },
@@ -165,6 +249,14 @@ export function useAssets() {
   const updateAssetTags = useCallback(
     async (assetId: string, tags: string[]) => {
       if (!uid) return;
+
+      // デモモード: token なしならローカル更新のみ
+      if (!token) {
+        setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
+        return;
+      }
+
+      // 本番: API経由で更新
       await apiFetch(`/api/assets/${assetId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -178,6 +270,14 @@ export function useAssets() {
   const updateAssetTitle = useCallback(
     async (assetId: string, title: string) => {
       if (!uid) return;
+
+      // デモモード: token なしならローカル更新のみ
+      if (!token) {
+        setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, title } : a)));
+        return;
+      }
+
+      // 本番: API経由で更新
       await apiFetch(`/api/assets/${assetId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
