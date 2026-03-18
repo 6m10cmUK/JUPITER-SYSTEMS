@@ -29,11 +29,6 @@ export const list = query({
 export const get = query({
   args: { id: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
     const room = await ctx.db
       .query("rooms")
       .filter((q) => q.eq(q.field("id"), args.id))
@@ -115,7 +110,6 @@ export const update = mutation({
     dice_system: v.optional(v.string()),
     gm_can_see_secret_memo: v.optional(v.boolean()),
     default_login_role: v.optional(v.union(v.literal('sub_owner'), v.literal('user'), v.literal('guest'))),
-    default_guest_role: v.optional(v.union(v.literal('sub_owner'), v.literal('user'), v.literal('guest'))),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -153,7 +147,6 @@ export const update = mutation({
     if (args.gm_can_see_secret_memo !== undefined)
       updates.gm_can_see_secret_memo = args.gm_can_see_secret_memo;
     if (args.default_login_role !== undefined) updates.default_login_role = args.default_login_role;
-    if (args.default_guest_role !== undefined) updates.default_guest_role = args.default_guest_role;
 
     const _id = room._id;
     await ctx.db.patch(_id, updates);

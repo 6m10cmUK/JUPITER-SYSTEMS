@@ -115,6 +115,7 @@ export interface AdrasteaContextValue {
   characters: Character[];
   addCharacter: ReturnType<typeof useCharacters>['addCharacter'];
   updateCharacter: ReturnType<typeof useCharacters>['updateCharacter'];
+  moveCharacter: (charId: string, updates: { board_x?: number; board_y?: number }) => Promise<void>;
   removeCharacter: ReturnType<typeof useCharacters>['removeCharacter'];
   reorderCharacters: ReturnType<typeof useCharacters>['reorderCharacters'];
   layerOrderedCharacters: Character[];
@@ -125,6 +126,7 @@ export interface AdrasteaContextValue {
   activeObjects: BoardObject[];
   addObject: (data: Partial<BoardObject>) => Promise<string>;
   updateObject: (id: string, data: Partial<BoardObject>) => Promise<void>;
+  moveObject: (id: string, data: Partial<BoardObject>) => Promise<void>;
   removeObject: (id: string) => Promise<void>;
   reorderObjects: (orderedIds: string[]) => Promise<void>;
   batchUpdateSort: (updates: { id: string; sort: number }[]) => Promise<void>;
@@ -289,7 +291,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [updateRoom]);
 
   const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, handleObjectsCreated);
-  const { characters, layerOrderedCharacters, loading: charactersLoading, addCharacter, updateCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters } = useCharacters(roomId);
+  const { characters, layerOrderedCharacters, loading: charactersLoading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters } = useCharacters(roomId);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
   const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
@@ -793,11 +795,13 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes) as any;
   const guardedAddObject      = withPermission('object_edit',    addObject) as any;
   const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject) as any;
+  const guardedMoveObject     = withPermission('object_move',    syncedUpdateObject) as any;
   const guardedRemoveObject   = withPermission('object_edit',    removeObject) as any;
   const guardedReorderObjects = withPermission('object_edit',    reorderObjects) as any;
   const guardedBatchSort      = withPermission('object_edit',    batchUpdateSort) as any;
   const guardedAddCharacter   = withPermission('character_edit', (data: any) => addCharacter({ ...data, owner_id: user?.uid ?? '' })) as any;
   const guardedUpdateCharacter= withPermission('character_edit', updateCharacter) as any;
+  const guardedMoveCharacter  = withPermission('object_move', moveCharacter) as any;
   const guardedRemoveCharacter= withPermission('character_edit', removeCharacter) as any;
   const guardedAddBgm         = withPermission('bgm_manage',     addBgm) as any;
   const guardedUpdateBgm      = withPermission('bgm_manage',     updateBgm) as any;
@@ -836,6 +840,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       // useCharacters
       characters, addCharacter: guardedAddCharacter,
       updateCharacter: guardedUpdateCharacter,
+      moveCharacter: guardedMoveCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters,
       layerOrderedCharacters,
@@ -845,6 +850,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       allObjects, activeObjects: effectiveActiveObjects,
       addObject: guardedAddObject,
       updateObject: guardedUpdateObject,
+      moveObject: guardedMoveObject,
       removeObject: guardedRemoveObject,
       reorderObjects: guardedReorderObjects,
       batchUpdateSort: guardedBatchSort,
@@ -921,9 +927,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       chatInjectText, setChatInjectText,
       channels, upsertChannel, deleteChannel,
       effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
-      characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
+      characters, guardedAddCharacter, guardedUpdateCharacter, guardedMoveCharacter, guardedRemoveCharacter, reorderCharacters,
       allObjects, effectiveActiveObjects,
-      guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
+      guardedAddObject, guardedUpdateObject, guardedMoveObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
       scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
       cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
       bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,
@@ -958,7 +964,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Characters
     characters, layerOrderedCharacters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any, reorderLayerCharacters,
     // Objects
-    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
+    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, moveObject: guardedMoveObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
     // ScenarioTexts
     scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     // Cutins
@@ -973,7 +979,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     activeSpeakerCharId, setActiveSpeakerCharId,
     effectiveScenes, guardedAddScene, guardedUpdateScene, guardedRemoveScene, guardedReorderScenes, safeActivateScene,
     characters, guardedAddCharacter, guardedUpdateCharacter, guardedRemoveCharacter, reorderCharacters,
-    allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
+    allObjects, effectiveActiveObjects, guardedAddObject, guardedUpdateObject, guardedMoveObject, guardedRemoveObject, guardedReorderObjects, guardedBatchSort, injectOptimistic,
     scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     cutins, guardedAddCutin, guardedUpdateCutin, guardedRemoveCutin, reorderCutins, guardedTriggerCutin, clearCutin,
     bgms, guardedAddBgm, guardedUpdateBgm, guardedRemoveBgm, reorderBgms,

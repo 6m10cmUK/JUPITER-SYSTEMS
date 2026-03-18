@@ -204,6 +204,7 @@ interface SortableListItemProps {
   disabled?: boolean;
   hideHandle?: boolean;
   isSelected?: boolean;
+  isActive?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
@@ -217,6 +218,7 @@ export function SortableListItem({
   disabled,
   hideHandle,
   isSelected,
+  isActive,
   isGroupDrag,
   onClick,
   onDoubleClick,
@@ -242,6 +244,7 @@ export function SortableListItem({
     fontSize: '12px',
     color: theme.textPrimary,
     borderBottom: `1px solid ${theme.border}`,
+    borderLeft: isActive ? `5px solid ${theme.accent}` : '5px solid transparent',
     background: isSelected ? theme.accentBgSubtle : 'transparent',
     transform: CSS.Transform.toString(transform),
     transition,

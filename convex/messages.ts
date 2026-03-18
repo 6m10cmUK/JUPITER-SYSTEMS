@@ -29,11 +29,7 @@ export const list = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const userId = getUserId(identity);
+    const userId = identity ? getUserId(identity) : null;
     const messages = await ctx.db
       .query("messages")
       .withIndex("by_room_time", (q) => q.eq("room_id", args.room_id))
@@ -43,11 +39,10 @@ export const list = query({
     // Filter messages based on allowed_user_ids
     return messages.filter(msg => {
       const allowedUserIds = (msg as any).allowed_user_ids;
-      // If allowed_user_ids is set and non-empty, only include if user is in the list
+      // 秘密メッセージは未認証ユーザーには非表示
       if (allowedUserIds && allowedUserIds.length > 0) {
-        return allowedUserIds.includes(userId);
+        return userId ? allowedUserIds.includes(userId) : false;
       }
-      // If not set or empty, include for all users
       return true;
     });
   },

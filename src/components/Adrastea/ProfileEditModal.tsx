@@ -12,14 +12,14 @@ interface ProfileEditModalProps {
 }
 
 export function ProfileEditModal({ profile, onSave, onClose }: ProfileEditModalProps) {
-  const { isGuest } = useAuth();
+  const { user } = useAuth();
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ゲストは編集不可
-  if (isGuest) return null;
+  // ユーザーが未認証の場合は編集不可
+  if (!user) return null;
 
   const handleSave = async () => {
     if (!displayName.trim()) return;

@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { useEntityEditor } from '../../hooks/useEntityEditor';
 import { AdInput, AdTextArea, AdButton, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
 
-function safeFontSize(v: unknown): number {
-  const n = typeof v === 'number' && !Number.isNaN(v) && v > 0 ? v : 16;
-  return n;
-}
 
 const FONT_OPTIONS = [
   { value: 'sans-serif', label: 'ゴシック体' },
@@ -33,128 +30,109 @@ interface ObjectEditorProps {
 }
 
 export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _onSave, onDelete, onClose }: ObjectEditorProps) {
-  const [type, setType] = useState<BoardObjectType>(object?.type ?? defaultType ?? 'panel');
-  const [name, setName] = useState(object?.name ?? '');
-  const [imageUrl, setImageUrl] = useState(object?.image_url ?? '');
-  const [backgroundColor, setBackgroundColor] = useState(() => {
-    const c = object?.background_color;
-    return c && c !== 'transparent' ? c : '#1e1e2e';
-  });
-  const [bgEnabled, setBgEnabled] = useState(
-    !!object?.background_color && object.background_color !== 'transparent'
-  );
-  const [textContent, setTextContent] = useState(object?.text_content ?? '');
-  const [fontSize, setFontSize] = useState(() => safeFontSize(object?.font_size));
-  const [fontFamily, setFontFamily] = useState(object?.font_family ?? 'sans-serif');
-  const [letterSpacing, setLetterSpacing] = useState(object?.letter_spacing ?? 0);
-  const [lineHeight, setLineHeight] = useState(object?.line_height ?? 1.2);
-  const [autoSize, setAutoSize] = useState(object?.auto_size ?? true);
-  const [textAlign, setTextAlign] = useState<'left' | 'center' | 'right'>(object?.text_align ?? 'left');
-  const [textVerticalAlign, setTextVerticalAlign] = useState<'top' | 'middle' | 'bottom'>(object?.text_vertical_align ?? 'top');
-  const [textColor, setTextColor] = useState(object?.text_color ?? '#ffffff');
-  const [scaleX, setScaleX] = useState(object?.scale_x ?? 1);
-  const [scaleY, setScaleY] = useState(object?.scale_y ?? 1);
-  const [posX, setPosX] = useState(object?.x ?? 50);
-  const [posY, setPosY] = useState(object?.y ?? 50);
-  const [width, setWidth] = useState(object?.width ?? 4);
-  const [height, setHeight] = useState(object?.height ?? 4);
-  const [imageFit, setImageFit] = useState<'cover' | 'contain' | 'stretch'>(object?.image_fit ?? 'contain');
-  const [positionLocked, setPositionLocked] = useState(object?.position_locked ?? false);
-  const [sizeLocked, setSizeLocked] = useState(object?.size_locked ?? false);
-  const [opacity, _setOpacity] = useState(object?.opacity ?? 1);
-  const [visible, _setVisible] = useState(object?.visible ?? true);
-  const [memo, setMemo] = useState(object?.memo ?? '');
-
-  // 外部からの変更（レイヤーパネルでのリネーム、画像選択モーダル、ボード上リサイズ等）をローカルstateに同期
-  useEffect(() => {
-    if (object && object.name !== undefined) {
-      setName(object.name);
-    }
-  }, [object?.name]);
-  useEffect(() => {
-    if (object && object.image_url !== undefined) {
-      setImageUrl(object.image_url ?? '');
-    }
-  }, [object?.image_url]);
-  useEffect(() => {
-    if (object && object.font_size !== undefined) {
-      setFontSize(safeFontSize(object.font_size));
-    }
-  }, [object?.font_size]);
-  useEffect(() => {
-    if (object) {
-      setPosX(object.x);
-      setPosY(object.y);
-      setWidth(object.width);
-      setHeight(object.height);
-    }
-  }, [object?.x, object?.y, object?.width, object?.height]);
-
   const ctx = useAdrasteaContext();
   const isGlobal = object?.global ?? false;
-
   const isNew = object === null;
-  const isBackground = type === 'background';
-  const isForeground = type === 'foreground';
 
-  useEffect(() => {
-    if (isNew) return;
-    const data: Record<string, unknown> = {
-      type,
-      name: isForeground ? '前景' : (name.trim() || '無題'),
-      visible,
-      opacity,
-    };
-    if (type === 'panel') {
-      data.x = posX;
-      data.y = posY;
-      data.image_url = imageUrl || null;
-      data.background_color = bgEnabled ? backgroundColor : 'transparent';
-      data.width = width;
-      data.height = height;
-      data.image_fit = imageFit;
-      data.position_locked = positionLocked;
-      data.size_locked = sizeLocked;
-    } else if (type === 'text') {
-      data.x = posX;
-      data.y = posY;
-      data.text_content = textContent;
-      data.font_size = fontSize;
-      data.font_family = fontFamily;
-      data.letter_spacing = letterSpacing;
-      data.line_height = lineHeight;
-      data.auto_size = autoSize;
-      data.text_align = textAlign;
-      data.text_vertical_align = textVerticalAlign;
-      data.text_color = textColor;
-      data.background_color = bgEnabled ? backgroundColor : 'transparent';
-      data.width = width;
-      data.height = height;
-      data.position_locked = positionLocked;
-      data.size_locked = sizeLocked;
-      data.scale_x = scaleX;
-      data.scale_y = scaleY;
-    } else if (type === 'foreground') {
-      data.x = posX;
-      data.y = posY;
-      data.image_url = imageUrl || null;
-      data.width = width;
-      data.height = height;
-      data.image_fit = imageFit;
-    } else if (type === 'background') {
-      data.image_url = imageUrl || null;
-      data.opacity = opacity;
-      data.visible = visible;
-    }
-    if (type !== 'background') {
-      data.memo = memo.slice(0, 2048);
-    }
-    ctx.setPendingEdit(`object:${object?.id ?? 'new'}`, {
-      type: 'object',
-      id: object?.id ?? null,
-      data,
-    });
-  }, [type, name, posX, posY, imageUrl, backgroundColor, bgEnabled, textContent, fontSize, fontFamily, letterSpacing, lineHeight, autoSize, textAlign, textVerticalAlign, textColor, scaleX, scaleY, width, height, imageFit, positionLocked, sizeLocked, opacity, visible, memo]);
+  const { state, set } = useEntityEditor({
+    entity: object as Record<string, unknown> | null | undefined,
+    entityId: object?.id ?? null,
+    editType: 'object',
+    fields: {
+      // debounce: テキスト入力・数値入力（連続入力）
+      name:               { debounce: true, defaultValue: '' },
+      x:                  { debounce: true, defaultValue: 50 },
+      y:                  { debounce: true, defaultValue: 50 },
+      width:              { debounce: true, defaultValue: 4 },
+      height:             { debounce: true, defaultValue: 4 },
+      text_content:       { debounce: true, defaultValue: '' },
+      font_size:          { debounce: true, defaultValue: 16 },
+      font_family:        { debounce: true, defaultValue: 'sans-serif' },
+      letter_spacing:     { debounce: true, defaultValue: 0 },
+      line_height:        { debounce: true, defaultValue: 1.2 },
+      text_color:         { debounce: true, defaultValue: '#ffffff' },
+      scale_x:            { debounce: true, defaultValue: 1 },
+      scale_y:            { debounce: true, defaultValue: 1 },
+      memo:               { debounce: true, defaultValue: '' },
+      opacity:            { debounce: true, defaultValue: 1 },
+
+      // immediate: トグル・選択（1回の操作 = 1回の書き込み）
+      type:               { defaultValue: defaultType ?? 'panel' },
+      visible:            { immediate: true, defaultValue: true },
+      position_locked:    { immediate: true, defaultValue: false },
+      size_locked:        { immediate: true, defaultValue: false },
+      image_url:          { immediate: true, defaultValue: '' },
+      image_fit:          { immediate: true, defaultValue: 'contain' },
+      background_color:   { immediate: true, defaultValue: '#1e1e2e' },
+      auto_size:          { immediate: true, defaultValue: true },
+      text_align:         { immediate: true, defaultValue: 'left' },
+      text_vertical_align: { immediate: true, defaultValue: 'top' },
+      global:             { defaultValue: false },
+    },
+    onDebounceSave: (key, data) => ctx.setPendingEdit(key, data as any),
+    onImmediateUpdate: (id, data) => (ctx as any).updateObject(id, data),
+    buildSaveData: (s: any) => {
+      const type = s.type as string;
+      const isForeground = type === 'foreground';
+      const data: Record<string, unknown> = {
+        type,
+        name: isForeground ? '前景' : ((s.name as string)?.trim() || '無題'),
+        visible: s.visible,
+        opacity: s.opacity,
+      };
+      if (type === 'panel') {
+        data.x = s.x;
+        data.y = s.y;
+        data.image_url = s.image_url || null;
+        data.background_color = s.background_color && s.background_color !== 'transparent'
+          ? s.background_color : 'transparent';
+        data.width = s.width;
+        data.height = s.height;
+        data.image_fit = s.image_fit;
+        data.position_locked = s.position_locked;
+        data.size_locked = s.size_locked;
+      } else if (type === 'text') {
+        data.x = s.x;
+        data.y = s.y;
+        data.text_content = s.text_content;
+        data.font_size = s.font_size;
+        data.font_family = s.font_family;
+        data.letter_spacing = s.letter_spacing;
+        data.line_height = s.line_height;
+        data.auto_size = s.auto_size;
+        data.text_align = s.text_align;
+        data.text_vertical_align = s.text_vertical_align;
+        data.text_color = s.text_color;
+        data.background_color = s.background_color && s.background_color !== 'transparent'
+          ? s.background_color : 'transparent';
+        data.width = s.width;
+        data.height = s.height;
+        data.position_locked = s.position_locked;
+        data.size_locked = s.size_locked;
+        data.scale_x = s.scale_x;
+        data.scale_y = s.scale_y;
+      } else if (type === 'foreground') {
+        data.x = s.x;
+        data.y = s.y;
+        data.image_url = s.image_url || null;
+        data.width = s.width;
+        data.height = s.height;
+        data.image_fit = s.image_fit;
+      } else if (type === 'background') {
+        data.image_url = s.image_url || null;
+        data.opacity = s.opacity;
+        data.visible = s.visible;
+      }
+      if (type !== 'background') {
+        data.memo = ((s.memo as string) ?? '').slice(0, 2048);
+      }
+      return data;
+    },
+  });
+
+  const bgEnabled = !!state.background_color && (state.background_color as string) !== 'transparent';
+  const isBackground = (state.type as string) === 'background';
+  const isForeground = (state.type as string) === 'foreground';
 
   if (object === undefined) return null;
 
@@ -183,8 +161,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       {isNew && (
         <AdSection label="タイプ">
           <AdToggleButtons
-            value={type}
-            onChange={(v) => setType(v as BoardObjectType)}
+            value={state.type as BoardObjectType}
+            onChange={(v) => set('type', v as BoardObjectType)}
             options={[
               { value: 'panel', label: 'パネル' },
               { value: 'text', label: 'テキスト' },
@@ -198,8 +176,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         <>
           <AdSection title="背景画像">
             <AssetPicker
-              currentUrl={imageUrl || null}
-              onSelect={(url) => setImageUrl(url)}
+              currentUrl={(state.image_url as string) || null}
+              onSelect={(url) => set('image_url', url)}
             />
           </AdSection>
           <AdSection title="設定">
@@ -218,42 +196,42 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
           {/* 名前（前景は固定） */}
           {!isForeground && (
             <AdSection label="名前">
-              <AdInput value={name} onChange={(e) => setName(e.target.value)} placeholder="オブジェクト名" />
+              <AdInput value={(state.name as string) ?? ''} onChange={(e) => set('name', e.target.value)} placeholder="オブジェクト名" />
             </AdSection>
           )}
 
           {/* panel: 画像 + 背景色 + サイズ */}
-          {type === 'panel' && (
+          {(state.type as string) === 'panel' && (
             <>
               <AdSection>
                 <AssetPicker
                   label="画像"
-                  currentUrl={imageUrl || null}
-                  onSelect={(url) => setImageUrl(url)}
+                  currentUrl={(state.image_url as string) || null}
+                  onSelect={(url) => set('image_url', url)}
                 />
               </AdSection>
-              {imageUrl && (
+              {(state.image_url as string) && (
                 <AdSection label="画像表示">
                   <AdToggleButtons
-                    value={imageFit}
+                    value={state.image_fit as string}
                     options={[
                       { value: 'contain', label: '全体表示' },
                       { value: 'cover', label: 'トリミング' },
                       { value: 'stretch', label: '引き伸ばし' },
                     ]}
-                    onChange={(v) => setImageFit(v as 'contain' | 'cover' | 'stretch')}
+                    onChange={(v) => set('image_fit', v)}
                   />
                 </AdSection>
               )}
               <AdSection label="背景色">
                 <AdCheckbox
                   checked={bgEnabled}
-                  onChange={setBgEnabled}
+                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
                   label="背景色を使用"
                 />
                 {bgEnabled && (
                   <div style={{ marginTop: '6px' }}>
-                    <AdColorPicker value={backgroundColor} onChange={setBackgroundColor} enableAlpha />
+                    <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
                   </div>
                 )}
               </AdSection>
@@ -262,16 +240,16 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
-                    value={String(posX)}
-                    onChange={(e) => setPosX(Number(e.target.value))}
+                    value={String(state.x as number)}
+                    onChange={(e) => set('x', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
-                    value={String(posY)}
-                    onChange={(e) => setPosY(Number(e.target.value))}
+                    value={String(state.y as number)}
+                    onChange={(e) => set('y', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
@@ -282,43 +260,43 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
-                    value={String(width)}
-                    onChange={(e) => setWidth(Number(e.target.value))}
+                    value={String(state.width as number)}
+                    onChange={(e) => set('width', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
-                    value={String(height)}
-                    onChange={(e) => setHeight(Number(e.target.value))}
+                    value={String(state.height as number)}
+                    onChange={(e) => set('height', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                 </div>
               </AdSection>
               <AdSection label="ロック">
-                <AdCheckbox checked={positionLocked} onChange={setPositionLocked} label="位置を固定" />
-                <AdCheckbox checked={sizeLocked} onChange={setSizeLocked} label="サイズを固定" />
+                <AdCheckbox checked={state.position_locked as boolean} onChange={(v) => set('position_locked', v)} label="位置を固定" />
+                <AdCheckbox checked={state.size_locked as boolean} onChange={(v) => set('size_locked', v)} label="サイズを固定" />
               </AdSection>
             </>
           )}
 
           {/* text: テキスト内容 + フォント + 色 + 背景色 + サイズ */}
-          {type === 'text' && (
+          {(state.type as string) === 'text' && (
             <>
               <AdSection label="テキスト内容">
                 <AdTextArea
-                  value={textContent}
-                  onChange={(e) => setTextContent(e.target.value)}
+                  value={(state.text_content as string) ?? ''}
+                  onChange={(e) => set('text_content', e.target.value)}
                   placeholder="表示するテキスト"
                   rows={3}
                 />
               </AdSection>
               <AdSection label="フォント">
                 <select
-                  value={fontFamily}
-                  onChange={(e) => setFontFamily(e.target.value)}
+                  value={state.font_family as string}
+                  onChange={(e) => set('font_family', e.target.value)}
                   style={{
                     width: '100%',
                     height: '24px',
@@ -330,7 +308,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                     color: theme.textPrimary,
                     outline: 'none',
                     boxSizing: 'border-box',
-                    fontFamily: fontFamily,
+                    fontFamily: state.font_family as string,
                   }}
                 >
                   {FONT_OPTIONS.map(f => (
@@ -344,10 +322,10 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <AdInput
                     type="number"
-                    value={String(fontSize)}
+                    value={String(state.font_size as number)}
                     onChange={(e) => {
                   const n = Number(e.target.value);
-                  setFontSize(Number.isNaN(n) || n < 1 ? 16 : Math.max(1, n));
+                  set('font_size', Number.isNaN(n) || n < 1 ? 16 : Math.max(1, n));
                 }}
                     fullWidth={false}
                     inputWidth="64px"
@@ -360,8 +338,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>文字:</span>
                   <AdInput
                     type="number"
-                    value={String(letterSpacing)}
-                    onChange={(e) => setLetterSpacing(Number(e.target.value))}
+                    value={String(state.letter_spacing as number)}
+                    onChange={(e) => set('letter_spacing', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
@@ -371,8 +349,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>行:</span>
                   <AdInput
                     type="number"
-                    value={String(lineHeight)}
-                    onChange={(e) => setLineHeight(Math.max(0.5, Number(e.target.value)))}
+                    value={String(state.line_height as number)}
+                    onChange={(e) => set('line_height', Math.max(0.5, Number(e.target.value)))}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"
@@ -385,8 +363,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>水平:</span>
                   <AdInput
                     type="number"
-                    value={String(scaleX)}
-                    onChange={(e) => setScaleX(Math.max(0.01, Number(e.target.value)))}
+                    value={String(state.scale_x as number)}
+                    onChange={(e) => set('scale_x', Math.max(0.01, Number(e.target.value)))}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"
@@ -396,8 +374,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>垂直:</span>
                   <AdInput
                     type="number"
-                    value={String(scaleY)}
-                    onChange={(e) => setScaleY(Math.max(0.01, Number(e.target.value)))}
+                    value={String(state.scale_y as number)}
+                    onChange={(e) => set('scale_y', Math.max(0.01, Number(e.target.value)))}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"
@@ -408,8 +386,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>横:</span>
                   <AdToggleButtons
-                    value={textAlign}
-                    onChange={(v) => setTextAlign(v as 'left' | 'center' | 'right')}
+                    value={state.text_align as string}
+                    onChange={(v) => set('text_align', v)}
                     options={[
                       { value: 'left', label: '左' },
                       { value: 'center', label: '中央' },
@@ -420,8 +398,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>縦:</span>
                   <AdToggleButtons
-                    value={textVerticalAlign}
-                    onChange={(v) => setTextVerticalAlign(v as 'top' | 'middle' | 'bottom')}
+                    value={state.text_vertical_align as string}
+                    onChange={(v) => set('text_vertical_align', v)}
                     options={[
                       { value: 'top', label: '上' },
                       { value: 'middle', label: '中央' },
@@ -431,17 +409,17 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 </div>
               </AdSection>
               <AdSection label="テキスト色">
-                <AdColorPicker value={textColor} onChange={setTextColor} enableAlpha />
+                <AdColorPicker value={state.text_color as string} onChange={(c) => set('text_color', c)} enableAlpha />
               </AdSection>
               <AdSection label="背景色">
                 <AdCheckbox
                   checked={bgEnabled}
-                  onChange={setBgEnabled}
+                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
                   label="背景色を使用"
                 />
                 {bgEnabled && (
                   <div style={{ marginTop: '6px' }}>
-                    <AdColorPicker value={backgroundColor} onChange={setBackgroundColor} enableAlpha />
+                    <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
                   </div>
                 )}
               </AdSection>
@@ -450,16 +428,16 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
-                    value={String(posX)}
-                    onChange={(e) => setPosX(Number(e.target.value))}
+                    value={String(state.x as number)}
+                    onChange={(e) => set('x', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
-                    value={String(posY)}
-                    onChange={(e) => setPosY(Number(e.target.value))}
+                    value={String(state.y as number)}
+                    onChange={(e) => set('y', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
@@ -467,25 +445,25 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               <AdSection label="サイズ">
                 <AdCheckbox
-                  checked={!autoSize}
-                  onChange={(v) => setAutoSize(!v)}
+                  checked={!(state.auto_size as boolean)}
+                  onChange={(v) => set('auto_size', !v)}
                   label="サイズを指定"
                 />
-                {!autoSize && (
+                {!(state.auto_size as boolean) && (
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
                     <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                     <AdInput
                       type="number"
-                      value={String(width)}
-                      onChange={(e) => setWidth(Number(e.target.value))}
+                      value={String(state.width as number)}
+                      onChange={(e) => set('width', Number(e.target.value))}
                       fullWidth={false}
                       inputWidth="52px"
                     />
                     <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                     <AdInput
                       type="number"
-                      value={String(height)}
-                      onChange={(e) => setHeight(Number(e.target.value))}
+                      value={String(state.height as number)}
+                      onChange={(e) => set('height', Number(e.target.value))}
                       fullWidth={false}
                       inputWidth="52px"
                     />
@@ -496,25 +474,25 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
           )}
 
           {/* foreground: 画像 + サイズ */}
-          {type === 'foreground' && (
+          {(state.type as string) === 'foreground' && (
             <>
               <AdSection>
                 <AssetPicker
                   label="前景画像"
-                  currentUrl={imageUrl || null}
-                  onSelect={(url) => setImageUrl(url)}
+                  currentUrl={(state.image_url as string) || null}
+                  onSelect={(url) => set('image_url', url)}
                 />
               </AdSection>
-              {imageUrl && (
+              {(state.image_url as string) && (
                 <AdSection label="画像表示">
                   <AdToggleButtons
-                    value={imageFit}
+                    value={state.image_fit as string}
                     options={[
                       { value: 'contain', label: '全体表示' },
                       { value: 'cover', label: 'トリミング' },
                       { value: 'stretch', label: '引き伸ばし' },
                     ]}
-                    onChange={(v) => setImageFit(v as 'contain' | 'cover' | 'stretch')}
+                    onChange={(v) => set('image_fit', v)}
                   />
                 </AdSection>
               )}
@@ -523,16 +501,16 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
-                    value={String(posX)}
-                    onChange={(e) => setPosX(Number(e.target.value))}
+                    value={String(state.x as number)}
+                    onChange={(e) => set('x', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
-                    value={String(posY)}
-                    onChange={(e) => setPosY(Number(e.target.value))}
+                    value={String(state.y as number)}
+                    onChange={(e) => set('y', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
@@ -543,24 +521,24 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdInput
                     type="number"
-                    value={String(width)}
-                    onChange={(e) => setWidth(Number(e.target.value))}
+                    value={String(state.width as number)}
+                    onChange={(e) => set('width', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdInput
                     type="number"
-                    value={String(height)}
-                    onChange={(e) => setHeight(Number(e.target.value))}
+                    value={String(state.height as number)}
+                    onChange={(e) => set('height', Number(e.target.value))}
                     fullWidth={false}
                     inputWidth="52px"
                   />
                 </div>
               </AdSection>
               <AdSection label="ロック">
-                <AdCheckbox checked={positionLocked} onChange={setPositionLocked} label="位置を固定" />
-                <AdCheckbox checked={sizeLocked} onChange={setSizeLocked} label="サイズを固定" />
+                <AdCheckbox checked={state.position_locked as boolean} onChange={(v) => set('position_locked', v)} label="位置を固定" />
+                <AdCheckbox checked={state.size_locked as boolean} onChange={(v) => set('size_locked', v)} label="サイズを固定" />
               </AdSection>
             </>
           )}
@@ -568,19 +546,19 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
           {!isBackground && !isForeground && (
             <AdSection label="メモ">
               <AdTextArea
-                value={memo}
-                onChange={(e) => setMemo(e.target.value.slice(0, 2048))}
+                value={(state.memo as string) ?? ''}
+                onChange={(e) => set('memo', e.target.value.slice(0, 2048))}
                 placeholder="ホバー時に表示されるメモ（最大2048文字）"
                 rows={4}
               />
               <div style={{ textAlign: 'right', fontSize: '10px', color: theme.textMuted, marginTop: '2px' }}>
-                {memo.length} / 2048
+                {(((state.memo as string) ?? '').length)} / 2048
               </div>
             </AdSection>
           )}
 
           {/* ボタン */}
-          {!isNew && onDelete && type !== 'foreground' && (
+          {!isNew && onDelete && (state.type as string) !== 'foreground' && (
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
               <div style={{ marginRight: 'auto' }}>
                 <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }}>削除</AdButton>

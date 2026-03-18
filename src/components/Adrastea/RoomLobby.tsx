@@ -412,14 +412,14 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
     >
       {/* ヘッダー */}
       <div style={{ padding: '24px 32px 0', textAlign: 'center', position: 'relative' }}>
-        <h1 style={{ margin: '0 0 4px', fontSize: '1.4rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+        <h1 style={{ margin: '0 0 4px', fontSize: '1.6rem', fontWeight: 700, letterSpacing: '0.05em', fontFamily: "'Barlow Condensed', sans-serif" }}>
           Adrastea
           <span style={{ fontSize: '0.7rem', fontWeight: 400, color: theme.textMuted, marginLeft: '6px' }}>
             {ADRASTEA_STAGE} {ADRASTEA_VERSION}
           </span>
         </h1>
         <p style={{ margin: '0 0 20px', fontSize: '0.8rem', color: theme.textMuted }}>
-          TRPG盤面共有ツール
+          TRPGオンラインセッションツール
         </p>
         <div style={{ position: 'absolute', top: '24px', right: '32px', display: 'flex', gap: '8px', alignItems: 'center' }}>
           <button

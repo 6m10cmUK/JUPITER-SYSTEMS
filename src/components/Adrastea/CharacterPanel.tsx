@@ -5,6 +5,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
+import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
 
 interface CharacterPanelProps {
   characters: Character[];
@@ -41,6 +42,8 @@ export function CharacterPanel({
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; charId?: string } | null>(null);
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
   const canDelete = selectedCharIds.length > 0;
+
+  const throttledToggleBoardVisible = useThrottledCallback(onToggleBoardVisible);
 
   const iconBtnStyle: React.CSSProperties = {
     background: 'transparent',
@@ -90,6 +93,10 @@ export function CharacterPanel({
         e.preventDefault();
         const charEl = (e.target as HTMLElement).closest('[data-char-id]');
         const charId = charEl?.getAttribute('data-char-id') ?? undefined;
+        if (charId && !selectedCharIds.includes(charId)) {
+          onSelectedCharIdsChange([charId]);
+          onSelectCharacter(filteredCharacters.find(c => c.id === charId)!);
+        }
         setContextMenu({ x: e.clientX, y: e.clientY, charId });
       }}
       style={{ height: '100%' }}
@@ -223,7 +230,7 @@ export function CharacterPanel({
             {/* 表示/非表示ボタン */}
             <Tooltip label={char.board_visible !== false ? '非表示' : '表示'}>
               <button
-                onClick={(e) => { e.stopPropagation(); onToggleBoardVisible(char.id); }}
+                onClick={(e) => { e.stopPropagation(); throttledToggleBoardVisible(char.id); }}
                 style={{
                   ...iconBtnStyle,
                   color: char.board_visible !== false ? theme.textSecondary : theme.textMuted,
@@ -272,6 +279,7 @@ export function CharacterPanel({
               : selectedCharIds;
             return ids.length > 1 ? `${ids.length}件削除` : '削除';
           })(),
+          danger: true,
           disabled: !contextMenu?.charId && selectedCharIds.length === 0,
           onClick: () => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import type { Scene } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { useEntityEditor } from '../../hooks/useEntityEditor';
 import { AdInput, AdSlider, AdCheckbox, AdSection } from './ui';
 
 interface SceneEditorProps {
@@ -13,34 +14,30 @@ interface SceneEditorProps {
 
 export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: _onClose }: SceneEditorProps) {
   const ctx = useAdrasteaContext();
-  const [name, setName] = useState(scene?.name ?? '');
-  const [bgTransition, setBgTransition] = useState(scene?.bg_transition ?? 'none');
-  const [bgTransitionDuration, setBgTransitionDuration] = useState(scene?.bg_transition_duration ?? 500);
-  const [fgTransition, setFgTransition] = useState(scene?.fg_transition ?? 'none');
-  const [fgTransitionDuration, setFgTransitionDuration] = useState(scene?.fg_transition_duration ?? 500);
-  const [bgBlur, setBgBlur] = useState(scene?.bg_blur ?? true);
 
-  // 外部からの変更（シーンパネルでのリネーム等）をローカルstateに同期
-  useEffect(() => {
-    if (scene && scene.name !== undefined) {
-      setName(scene.name);
-    }
-  }, [scene?.name]);
-
-  useEffect(() => {
-    ctx.setPendingEdit(`scene:${scene?.id ?? 'new'}`, {
-      type: 'scene',
-      id: scene?.id ?? null,
-      data: {
-        name: name.trim() || '無題',
-        bg_transition: bgTransition,
-        bg_transition_duration: bgTransitionDuration,
-        fg_transition: fgTransition,
-        fg_transition_duration: fgTransitionDuration,
-        bg_blur: bgBlur,
-      },
-    });
-  }, [name, bgTransition, bgTransitionDuration, fgTransition, fgTransitionDuration, bgBlur, scene?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const { state, set } = useEntityEditor({
+    entity: scene as Record<string, unknown> | null | undefined,
+    entityId: scene?.id ?? null,
+    editType: 'scene',
+    fields: {
+      name:                   { debounce: true, defaultValue: '' },
+      bg_transition_duration: { debounce: true, defaultValue: 500 },
+      fg_transition_duration: { debounce: true, defaultValue: 500 },
+      bg_transition:          { immediate: true, defaultValue: 'none' },
+      fg_transition:          { immediate: true, defaultValue: 'none' },
+      bg_blur:                { immediate: true, defaultValue: true },
+    },
+    onDebounceSave: (key, data) => ctx.setPendingEdit(key, data as any),
+    onImmediateUpdate: (id, data) => ctx.updateScene(id, data as any),
+    buildSaveData: (s: any) => ({
+      name: ((s.name as string)?.trim()) || '無題',
+      bg_transition: s.bg_transition,
+      bg_transition_duration: s.bg_transition_duration,
+      fg_transition: s.fg_transition,
+      fg_transition_duration: s.fg_transition_duration,
+      bg_blur: s.bg_blur,
+    }),
+  });
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
@@ -58,8 +55,8 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
       {/* 名前 */}
       <AdSection label="シーン名">
         <AdInput
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={state.name as string}
+          onChange={(e) => set('name', e.target.value)}
           placeholder="シーン名"
         />
       </AdSection>
@@ -68,44 +65,44 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
       {/* 背景ぼかし */}
       <AdSection label="背景">
         <AdCheckbox
-          checked={bgBlur}
-          onChange={setBgBlur}
+          checked={state.bg_blur as boolean}
+          onChange={(v: boolean) => set('bg_blur', v)}
           label="ぼかし"
         />
       </AdSection>
 
       <AdSection label="背景トランジション">
         <AdCheckbox
-          checked={bgTransition === 'fade'}
-          onChange={(v) => setBgTransition(v ? 'fade' : 'none')}
+          checked={state.bg_transition === 'fade'}
+          onChange={(v) => set('bg_transition', v ? 'fade' : 'none')}
           label="フェード"
         />
-        {bgTransition === 'fade' && (
+        {state.bg_transition === 'fade' && (
           <AdSlider
             min={100}
             max={3000}
             step={100}
-            value={bgTransitionDuration}
-            onChange={setBgTransitionDuration}
-            displayValue={`${bgTransitionDuration}ms`}
+            value={state.bg_transition_duration as number}
+            onChange={(v) => set('bg_transition_duration', v)}
+            displayValue={`${state.bg_transition_duration}ms`}
           />
         )}
       </AdSection>
 
       <AdSection label="前景トランジション">
         <AdCheckbox
-          checked={fgTransition === 'fade'}
-          onChange={(v) => setFgTransition(v ? 'fade' : 'none')}
+          checked={state.fg_transition === 'fade'}
+          onChange={(v) => set('fg_transition', v ? 'fade' : 'none')}
           label="フェード"
         />
-        {fgTransition === 'fade' && (
+        {state.fg_transition === 'fade' && (
           <AdSlider
             min={100}
             max={3000}
             step={100}
-            value={fgTransitionDuration}
-            onChange={setFgTransitionDuration}
-            displayValue={`${fgTransitionDuration}ms`}
+            value={state.fg_transition_duration as number}
+            onChange={(v) => set('fg_transition_duration', v)}
+            displayValue={`${state.fg_transition_duration}ms`}
           />
         )}
       </AdSection>

@@ -94,6 +94,9 @@ export function ScenePanel({
         e.preventDefault();
         const sceneEl = (e.target as HTMLElement).closest('[data-scene-id]');
         const sceneId = sceneEl?.getAttribute('data-scene-id') ?? undefined;
+        if (sceneId) {
+          onSelectedSceneIdsChange([sceneId]); // 右クリックで選択を移す
+        }
         setContextMenu({ x: e.clientX, y: e.clientY, sceneId });
       }}
       style={{ height: '100%' }}
@@ -175,7 +178,8 @@ export function ScenePanel({
         <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }}>
         <SortableListItem
           id={scene.id}
-          isSelected={activeSceneId === scene.id || isSelected}
+          isActive={activeSceneId === scene.id}
+          isSelected={isSelected}
           onClick={(e) => handleRowClick(e, scene)}
           handleExtra={
             <div
@@ -293,6 +297,17 @@ export function ScenePanel({
       position={contextMenu ?? { x: 0, y: 0 }}
       items={[
         {
+          label: 'このシーンに切り替え',
+          disabled: !contextMenu?.sceneId || contextMenu.sceneId === activeSceneId,
+          onClick: () => {
+            if (contextMenu?.sceneId) {
+              onActivateScene(contextMenu.sceneId);
+            }
+            setContextMenu(null);
+          },
+        },
+        'separator',
+        {
           label: '編集',
           disabled: !contextMenu?.sceneId,
           onClick: () => {
@@ -301,6 +316,19 @@ export function ScenePanel({
               if (scene) {
                 onActivateScene(scene.id);
                 onEditScene(scene);
+              }
+            }
+            setContextMenu(null);
+          },
+        },
+        {
+          label: '名前を変更',
+          disabled: !contextMenu?.sceneId,
+          onClick: () => {
+            if (contextMenu?.sceneId) {
+              const scene = scenes.find(s => s.id === contextMenu.sceneId);
+              if (scene) {
+                startEdit(scene);
               }
             }
             setContextMenu(null);

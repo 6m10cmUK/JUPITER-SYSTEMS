@@ -2,7 +2,10 @@ import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useS
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
-import { DropdownMenu } from './ui';
+import { DropdownMenu, ConfirmModal } from './ui';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { useObjectContextMenu } from './useObjectContextMenu';
+import { usePermission } from '../../hooks/usePermission';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -81,6 +84,142 @@ interface DragState {
   origPxY: number;
 }
 
+// --- MemoPopupコンポーネント ---
+interface MemoPopupProps {
+  anchorRef: React.RefObject<Element | null>;
+  memo: string;
+  secretMemo?: string;
+  showSecret?: boolean;
+  popupRef: React.RefObject<HTMLDivElement | null>;
+  onScrollableChange?: (canScroll: boolean) => void;
+}
+
+const MemoPopup: React.FC<MemoPopupProps> = ({ anchorRef, memo, secretMemo, showSecret, popupRef, onScrollableChange }) => {
+  const [canScrollDown, setCanScrollDown] = useState(false);
+  const [canScrollUp, setCanScrollUp] = useState(false);
+  const [posStyle, setPosStyle] = useState<React.CSSProperties | null>(null);
+
+  useLayoutEffect(() => {
+    const anchor = anchorRef.current;
+    const popup = popupRef.current;
+    if (!anchor || !popup) return;
+
+    const rect = anchor.getBoundingClientRect();
+    const popupH = popup.offsetHeight;
+
+    // 水平: 右側に十分スペースがあれば右、なければ CSS right プロパティで左に出す
+    // 閾値を POPUP_WIDTH に揃える（ズレると幅が狭くなるバグが出る）
+    const POPUP_WIDTH = 380;
+    const rightAvail = window.innerWidth - rect.right - 16;
+    const leftAvail = rect.left - 16;
+    const goRight = rightAvail >= POPUP_WIDTH || (rightAvail >= leftAvail && rightAvail >= 100);
+    const maxW = Math.min(POPUP_WIDTH, goRight ? rightAvail : leftAvail);
+
+    // 垂直: 要素上端に合わせる。はみ出るなら上に詰める
+    let top = rect.top;
+    if (top + popupH > window.innerHeight - 8) {
+      top = Math.max(8, window.innerHeight - popupH - 8);
+    }
+
+    const hStyle: React.CSSProperties = goRight
+      ? { left: rect.right + 8 }
+      : { right: window.innerWidth - rect.left + 8 };
+
+    setPosStyle({ top, maxWidth: maxW, ...hStyle });
+  }, []); // マウント時1回のみ実行
+
+  // posStyle 確定後（maxWidth 適用済み）にスクロール可否を通知
+  useLayoutEffect(() => {
+    const popup = popupRef.current;
+    if (!popup || !posStyle) return;
+    const canScroll = popup.scrollHeight > popup.clientHeight;
+    onScrollableChange?.(canScroll);
+
+    const checkScroll = () => {
+      setCanScrollDown(popup.scrollTop + popup.clientHeight < popup.scrollHeight - 2);
+      setCanScrollUp(popup.scrollTop > 2);
+    };
+    checkScroll();
+    popup.addEventListener('scroll', checkScroll);
+    return () => popup.removeEventListener('scroll', checkScroll);
+  }, [posStyle, onScrollableChange]);
+
+  return createPortal(
+    <div style={{
+      position: 'fixed',
+      ...posStyle,
+      zIndex: 10000,
+      pointerEvents: 'none',
+      borderRadius: 4,
+      boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
+      overflow: 'hidden',
+      visibility: posStyle ? 'visible' : 'hidden',
+    }}>
+      <div ref={popupRef} style={{
+        background: 'rgba(0, 0, 0, 0.72)',
+        color: '#fff',
+        padding: '8px 10px',
+        fontSize: 10,
+        lineHeight: 1.5,
+        maxHeight: '50vh',
+        overflowY: 'auto',
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+        borderRadius: 4,
+      }}>
+        {memo && <div>{memo}</div>}
+        {showSecret && secretMemo && (
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.2)',
+            marginTop: memo ? 8 : 0,
+            paddingTop: memo ? 8 : 0,
+            color: 'rgba(255,200,100,0.9)',
+          }}>
+            {secretMemo}
+          </div>
+        )}
+      </div>
+      {canScrollUp && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 36,
+          background: 'linear-gradient(to top, transparent, rgba(0,0,0,0.72))',
+          borderRadius: '4px 4px 0 0',
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'center',
+          paddingTop: 4,
+          pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>▲</span>
+        </div>
+      )}
+      {canScrollDown && (
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 36,
+          background: 'linear-gradient(to bottom, transparent, rgba(0,0,0,0.72))',
+          borderRadius: '0 0 4px 4px',
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          paddingBottom: 4,
+          pointerEvents: 'none',
+        }}>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', lineHeight: 1 }}>▼</span>
+        </div>
+      )}
+    </div>,
+    document.body
+  );
+};
+
 // --- 共通オブジェクトWrapper ---
 const DomObjectWrapper = memo(function DomObjectWrapper({
   obj,
@@ -116,8 +255,43 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   const dragRef = useRef<DragState | null>(null);
   const resizeRef = useRef<ResizeState | null>(null);
   const [hovered, setHovered] = useState(false);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+  const [isInteracting, setIsInteracting] = useState(false);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const blockingRef = useRef(false);
+  const hasMemo = !!(obj.memo && (obj.type === 'panel' || obj.type === 'text'));
+
+  const { items: ctxMenuItems, confirmModal } = useObjectContextMenu([obj], {
+    onClose: () => setContextMenuPos(null),
+  });
+
+  const { can } = usePermission();
+
+  // ホバー終了・アンマウント時にカウンタをクリーンアップ
+  useEffect(() => {
+    if (!hovered || !hasMemo) {
+      if (blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    }
+    return () => {
+      if (blockingRef.current) {
+        __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+        blockingRef.current = false;
+      }
+    };
+  }, [hovered, hasMemo]);
+
+  const handleScrollableChange = useCallback((canScroll: boolean) => {
+    if (canScroll && !blockingRef.current) {
+      __blockBoardWheelCount++;
+      blockingRef.current = true;
+    } else if (!canScroll && blockingRef.current) {
+      __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+      blockingRef.current = false;
+    }
+  }, []);
 
   // ドラッグもリサイズもできないオブジェクトかどうか
   const canDrag = isDraggable && !obj.position_locked;
@@ -236,8 +410,10 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
 
         onMove(obj.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
         onResize(obj.id, Math.max(1, finalW / GRID_SIZE), Math.max(1, finalH / GRID_SIZE));
+        setIsInteracting(false);
       };
 
+      setIsInteracting(true);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
     } else if (isDraggable && !obj.position_locked) {
@@ -276,12 +452,14 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         el.style.top = `${finalY}px`;
 
         onMove(obj.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+        setIsInteracting(false);
       };
 
+      setIsInteracting(true);
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
     }
-  }, [obj.id, obj.position_locked, obj.size_locked, pxX, pxY, pxW, pxH, canDrag, canResize, isDraggable, isResizable, stageRef, onMove, onSelect, onResize]);
+  }, [obj.id, obj.position_locked, obj.size_locked, pxX, pxY, pxW, pxH, isDraggable, isResizable, stageRef, onMove, onSelect, onResize]);
 
   // エッジホバーでカーソル変更
   const handlePointerMove = useCallback((e: React.PointerEvent) => {
@@ -319,46 +497,54 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         pointerEvents: 'auto',
         boxShadow: selectionBoxShadow,
         cursor: canDrag ? 'move' : 'grab',
+        transition: isInteracting ? 'none' : 'left 0.2s ease-out, top 0.2s ease-out, width 0.2s ease-out, height 0.2s ease-out',
         ...extraStyle,
       }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onDoubleClick={handleDoubleClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => { setHovered(false); setCursorPos(null); }}
-      onMouseMove={(e) => { if (hovered) setCursorPos({ x: e.clientX, y: e.clientY }); }}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onContextMenu={can('object_edit') ? (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenuPos({ x: e.clientX, y: e.clientY });
+      } : undefined}
+      onWheel={(e) => {
+        if (hovered && obj.memo && popupRef.current) {
+          const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
+          if (canScroll) {
+            e.stopPropagation();
+            e.preventDefault();
+            popupRef.current.scrollTop += e.deltaY;
+          }
+        }
+      }}
     >
       {children}
 
-      {/* オブジェクトメモホバーポップアップ */}
-      {hovered && cursorPos && obj.memo && (obj.type === 'panel' || obj.type === 'text') && createPortal(
-        <div
-          ref={popupRef}
-          style={{
-            position: 'fixed',
-            left: Math.max(8, Math.min(cursorPos.x, window.innerWidth - 8)),
-            top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
-            transform: `translateX(-50%) ${cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? '' : 'translateY(-50%)'}`,
-            zIndex: 10000,
-            pointerEvents: 'none',
-            background: 'rgba(0, 0, 0, 0.72)',
-            color: '#fff',
-            padding: '8px 10px',
-            fontSize: 10,
-            lineHeight: 1.5,
-            maxWidth: 380,
-            maxHeight: '50vh',
-            overflow: 'hidden',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            borderRadius: 4,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-          }}
-        >
-          {obj.memo}
-        </div>,
-        document.body
+      {/* ホバー時の白オーバーレイ（移動可能オブジェクトのみ） */}
+      {hovered && canDrag && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'rgba(255,255,255,0.08)',
+          pointerEvents: 'none',
+        }} />
       )}
+
+      {/* オブジェクトメモホバーポップアップ */}
+      {hovered && obj.memo && (obj.type === 'panel' || obj.type === 'text') && (
+        <MemoPopup anchorRef={elRef as React.RefObject<Element | null>} memo={obj.memo} popupRef={popupRef} onScrollableChange={handleScrollableChange} />
+      )}
+
+      <DropdownMenu
+        mode="context"
+        open={contextMenuPos !== null}
+        onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
+        position={contextMenuPos ?? { x: 0, y: 0 }}
+        items={ctxMenuItems}
+      />
+      {confirmModal}
     </div>
   );
 });
@@ -562,16 +748,7 @@ const DomPanelObject = memo(function DomPanelObject({
             }}
             draggable={false}
           />
-        ) : (
-          <div style={{
-            width: '100%', height: '100%',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.4)', fontSize: 14,
-            userSelect: 'none',
-          }}>
-            {obj.name}
-          </div>
-        )}
+        ) : null}
       </div>
     </DomObjectWrapper>
   );
@@ -817,23 +994,22 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [pendingRemove, setPendingRemove] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const { addCharacter, removeCharacter } = useAdrasteaContext();
   const popupRef = useRef<HTMLDivElement>(null);
   const blockingRef = useRef(false);
   const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
+  const { can } = usePermission();
+  const canContextMenu = can('object_edit') || char.owner_id === currentUserId;
 
-  useLayoutEffect(() => {
-    if (hovered && hasMemo && popupRef.current) {
-      const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
-      if (canScroll && !blockingRef.current) {
-        __blockBoardWheelCount++;
-        blockingRef.current = true;
-      } else if (!canScroll && blockingRef.current) {
+  // ホバー終了・アンマウント時にカウンタをクリーンアップ
+  useEffect(() => {
+    if (!hovered || !hasMemo) {
+      if (blockingRef.current) {
         __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
         blockingRef.current = false;
       }
-    } else if (blockingRef.current) {
-      __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
-      blockingRef.current = false;
     }
     return () => {
       if (blockingRef.current) {
@@ -841,16 +1017,23 @@ const DomCharacterItem = memo(function DomCharacterItem({
         blockingRef.current = false;
       }
     };
-  }, [hovered, hasMemo, char.memo, char.secret_memo]);
+  }, [hovered, hasMemo]);
 
   const pxX = (char.board_x ?? 0) * GRID_SIZE;
-  // 足元基準: board_y は足元の y 座標を表す
-  // board_y + size が底辺位置となり、top = 底辺 - 高さ = (board_y + size) * GRID_SIZE - size * GRID_SIZE
-  // = board_y * GRID_SIZE なので pxY の計算値は変わらないが、
-  // 概念的に足元基準であることを明記する。
-  const pxY = (char.board_y ?? 0) * GRID_SIZE;
   const pxH = (char.size ?? 5) * GRID_SIZE;
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
+
+  // board_y は足元座標。上端 = 足元 - サイズ
+  const pxY = ((char.board_y ?? 0) - (char.size ?? 5)) * GRID_SIZE;
+
+  const handleScrollableChange = useCallback((canScroll: boolean) => {
+    if (canScroll && !blockingRef.current) {
+      __blockBoardWheelCount++;
+      blockingRef.current = true;
+    } else if (!canScroll && blockingRef.current) {
+      __blockBoardWheelCount = Math.max(0, __blockBoardWheelCount - 1);
+      blockingRef.current = false;
+    }
+  }, []);
 
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     const el = elRef.current;
@@ -869,6 +1052,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
       origPxX: pxX,
       origPxY: pxY,
     };
+    setIsDragging(true);
 
     const onPointerMove = (me: PointerEvent) => {
       const ds = dragRef.current;
@@ -885,12 +1069,14 @@ const DomCharacterItem = memo(function DomCharacterItem({
       window.removeEventListener('pointerup', onPointerUp);
       const ds = dragRef.current;
       dragRef.current = null;
+      setIsDragging(false);
       if (!ds || !el) return;
       const finalX = snapToGrid(parseFloat(el.style.left));
       const finalY = snapToGrid(parseFloat(el.style.top));
       el.style.left = `${finalX}px`;
       el.style.top = `${finalY}px`;
-      onUpdatePosition?.(char.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+      // finalY は上端。足元 = 上端 + 高さ
+      onUpdatePosition?.(char.id, finalX / GRID_SIZE, (finalY + pxH) / GRID_SIZE);
 
       // クリック検出: 移動量が5px未満なら選択
       const sp = startPosRef.current;
@@ -903,7 +1089,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
 
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
-  }, [char.id, pxX, pxY, stageRef, onUpdatePosition, onSelectCharacter]);
+  }, [char.id, pxX, pxY, pxH, stageRef, onUpdatePosition, onSelectCharacter]);
 
   return (
     <div
@@ -918,18 +1104,13 @@ const DomCharacterItem = memo(function DomCharacterItem({
         pointerEvents: char.board_visible !== false ? 'auto' : 'none',
         userSelect: 'none',
         filter: hovered ? 'drop-shadow(0 0 6px rgba(255,255,255,0.7))' : undefined,
-        transition: 'filter 0.1s, top 0.15s ease-out, height 0.15s ease-out',
+        transition: isDragging ? 'none' : 'filter 0.1s, left 0.2s ease-out, top 0.2s ease-out, height 0.2s ease-out',
         boxShadow: isSelected ? '0 0 0 3px rgba(255,255,255,0.5), 0 0 0 4.5px rgba(60,140,255,0.6)' : undefined,
         zIndex: zIndex,
       }}
       onPointerDown={handlePointerDown}
-      onPointerEnter={(e) => {
-        setHovered(true);
-        const rect = elRef.current?.getBoundingClientRect();
-        const centerX = rect ? rect.left + rect.width / 2 : e.clientX;
-        setCursorPos({ x: centerX, y: e.clientY });
-      }}
-      onPointerLeave={() => { setHovered(false); setCursorPos(null); }}
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
       onWheel={(e) => {
         if (hovered && hasMemo && popupRef.current) {
           const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
@@ -941,7 +1122,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         }
       }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
-      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
+      onContextMenu={canContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); } : undefined}
     >
       {blobSrc ? (
         <img
@@ -987,41 +1168,16 @@ const DomCharacterItem = memo(function DomCharacterItem({
         {char.name}
       </div>
 
-      {/* ホバーポップアップ（Portal: Board の transform 外に出してカーソル基準表示） */}
-      {hovered && cursorPos && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && createPortal(
-        <div ref={popupRef} style={{
-          position: 'fixed',
-          left: Math.max(8, Math.min(cursorPos.x, window.innerWidth - 8)),
-          top: Math.max(8, Math.min(cursorPos.y - 100, window.innerHeight - 8)),
-          transform: `translateX(-50%) ${cursorPos.y > window.innerHeight * 0.7 ? 'translateY(-100%)' : cursorPos.y < window.innerHeight * 0.3 ? '' : 'translateY(-50%)'}`,
-          zIndex: 10000,
-          pointerEvents: 'none',
-          background: 'rgba(0, 0, 0, 0.72)',
-          color: '#fff',
-          padding: '8px 10px',
-          fontSize: 10,
-          lineHeight: 1.5,
-          maxWidth: 380,
-          maxHeight: '50vh',
-          overflow: 'hidden',
-          whiteSpace: 'pre-wrap',
-          wordBreak: 'break-word',
-          borderRadius: 4,
-          boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
-        }}>
-          {char.memo && <div>{char.memo}</div>}
-          {currentUserId === char.owner_id && char.secret_memo && (
-            <div style={{
-              borderTop: '1px solid rgba(255,255,255,0.2)',
-              marginTop: char.memo ? 8 : 0,
-              paddingTop: char.memo ? 8 : 0,
-              color: 'rgba(255,200,100,0.9)',
-            }}>
-              {char.secret_memo}
-            </div>
-          )}
-        </div>,
-        document.body
+      {/* ホバーポップアップ（Portal: Board の transform 外に出して要素アンカー表示） */}
+      {hovered && (char.memo || (currentUserId === char.owner_id && char.secret_memo)) && (
+        <MemoPopup
+          anchorRef={elRef as React.RefObject<Element | null>}
+          memo={char.memo}
+          secretMemo={char.secret_memo}
+          showSecret={currentUserId === char.owner_id}
+          popupRef={popupRef}
+          onScrollableChange={handleScrollableChange}
+        />
       )}
 
       {/* コンテキストメニュー */}
@@ -1038,8 +1194,34 @@ const DomCharacterItem = memo(function DomCharacterItem({
               setContextMenuPos(null);
             },
           },
+          'separator',
+          {
+            label: '複製',
+            onClick: () => {
+              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = char as any;
+              addCharacter({ ...rest, name: `${char.name} (複製)` });
+              setContextMenuPos(null);
+            },
+          },
+          {
+            label: '削除',
+            danger: true,
+            onClick: () => {
+              setContextMenuPos(null);
+              setPendingRemove(true);
+            },
+          },
         ]}
       />
+      {pendingRemove && (
+        <ConfirmModal
+          message={`「${char.name}」を削除しますか？`}
+          confirmLabel="削除"
+          danger
+          onConfirm={() => { removeCharacter(char.id); setPendingRemove(false); }}
+          onCancel={() => setPendingRemove(false)}
+        />
+      )}
     </div>
   );
 });

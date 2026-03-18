@@ -6,12 +6,11 @@ import { AssetPicker } from './AssetPicker';
 interface OnboardingModalProps {
   defaultName: string;
   defaultImage: string | null;
-  isGuest: boolean;
   onComplete: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
   onSkip: () => Promise<void>;
 }
 
-export function OnboardingModal({ defaultName, defaultImage, isGuest, onComplete, onSkip }: OnboardingModalProps) {
+export function OnboardingModal({ defaultName, defaultImage, onComplete, onSkip }: OnboardingModalProps) {
   const [name, setName] = useState(defaultName);
   const [image, setImage] = useState<string | null>(defaultImage);
   const [saving, setSaving] = useState(false);
@@ -70,21 +69,11 @@ export function OnboardingModal({ defaultName, defaultImage, isGuest, onComplete
                 </div>
               )}
             </div>
-            {!isGuest && (
-              <AssetPicker
-                currentUrl={image}
-                onSelect={(url) => setImage(url)}
-                label="アバターを変更"
-              />
-            )}
-            {isGuest && (
-              <AdInput
-                value={image ?? ''}
-                onChange={(e) => setImage(e.target.value || null)}
-                placeholder="画像URL（省略可）"
-                style={{ fontSize: '0.8rem', marginTop: '4px' }}
-              />
-            )}
+            <AssetPicker
+              currentUrl={image}
+              onSelect={(url) => setImage(url)}
+              label="アバターを変更"
+            />
           </div>
         </div>
 

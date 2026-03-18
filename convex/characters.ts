@@ -24,8 +24,6 @@ function assertMinRole(role: RoomRole, required: RoomRole): void {
 export const listStats = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     return ctx.db
       .query("characters_stats")
       .withIndex("by_room", (q) => q.eq("room_id", args.room_id))
@@ -36,8 +34,6 @@ export const listStats = query({
 export const listBase = query({
   args: { room_id: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     return ctx.db
       .query("characters_base")
       .withIndex("by_room", (q) => q.eq("room_id", args.room_id))
@@ -48,8 +44,6 @@ export const listBase = query({
 export const getBase = query({
   args: { id: v.string() },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
     return ctx.db
       .query("characters_base")
       .filter((q) => q.eq(q.field("id"), args.id))
@@ -185,6 +179,30 @@ export const updateStats = mutation({
         throw new Error("Permission denied: can only edit own character");
       }
     }
+
+    await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
+  },
+});
+
+export const moveStats = mutation({
+  args: {
+    id: v.string(),
+    board_x: v.optional(v.number()),
+    board_y: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const { id, ...updates } = args;
+    const doc = await ctx.db
+      .query("characters_stats")
+      .filter((q) => q.eq(q.field("id"), id))
+      .first();
+    if (!doc) throw new Error("Character stats not found");
+
+    const role = await getRole(ctx, doc.room_id);
+    assertMinRole(role, 'user'); // user 以上なら誰のキャラでも移動OK
 
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
