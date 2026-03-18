@@ -20,7 +20,7 @@ interface AuthContextValue {
   updateProfile: (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+export const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useConvexAuth();
