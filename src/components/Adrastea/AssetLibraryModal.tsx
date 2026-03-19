@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { X, Plus, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
@@ -79,7 +80,8 @@ interface AssetLibraryModalProps {
 type AddMode = null | 'pick' | 'url';
 
 export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: AssetLibraryModalProps) {
-  const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets();
+  const { isDemo } = useAdrasteaContext();
+  const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets({ disabled: isDemo });
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);

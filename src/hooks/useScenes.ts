@@ -1,16 +1,27 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Scene, BoardObject } from '../types/adrastea.types';
+import type { ScenesInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 
 export type OnObjectsCreated = (objects: BoardObject[]) => void;
 
 export function useScenes(
   roomId: string,
-  onObjectsCreated?: OnObjectsCreated
+  options?: {
+    inject?: ScenesInject;
+    onObjectsCreated?: OnObjectsCreated;
+  }
 ) {
-  const scenesData = useQuery(api.scenes.list, { room_id: roomId });
+  const { inject, onObjectsCreated } = options ?? {};
+  const injectRef = useRef(inject);
+  injectRef.current = inject;
+
+  const scenesData = useQuery(
+    api.scenes.list,
+    inject ? 'skip' : { room_id: roomId }
+  );
   const createMutation = useMutation(api.scenes.create);
   const updateMutation = useMutation(api.scenes.update).withOptimisticUpdate(
     (localStore, args) => {
@@ -40,8 +51,11 @@ export function useScenes(
   );
   const createObjectBatchMutation = useMutation(api.objects.createBatch);
 
-  const loading = scenesData === undefined;
-  const scenes: Scene[] = useMemo(() => scenesData ?? [], [scenesData]);
+  const loading = inject ? false : scenesData === undefined;
+  const scenes: Scene[] = useMemo(
+    () => inject ? inject.data : (scenesData ?? []),
+    [inject, scenesData]
+  );
 
   const addScene = useCallback(
     async (
@@ -49,6 +63,7 @@ export function useScenes(
       duplicateFromSceneId?: string,
       allObjects?: BoardObject[]
     ) => {
+      const inj = injectRef.current;
       const id = genId();
       const now = Date.now();
       const newScene: Scene = {
@@ -67,8 +82,6 @@ export function useScenes(
         created_at: now,
         updated_at: now,
       };
-
-      await createMutation(newScene);
 
       const createdObjects: BoardObject[] = [];
 
@@ -123,27 +136,47 @@ export function useScenes(
         });
       }
 
-      if (createdObjects.length > 0) {
-        await createObjectBatchMutation({ objects: createdObjects });
-        onObjectsCreated?.(createdObjects);
+      if (inj) {
+        await inj.create(newScene);
+        if (createdObjects.length > 0) {
+          await inj.createObjectBatch(createdObjects);
+          onObjectsCreated?.(createdObjects);
+        }
+      } else {
+        await createMutation(newScene);
+        if (createdObjects.length > 0) {
+          await createObjectBatchMutation({ objects: createdObjects });
+          onObjectsCreated?.(createdObjects);
+        }
       }
 
       return { scene: newScene, objects: createdObjects };
     },
     [roomId, scenes.length, createMutation, createObjectBatchMutation, onObjectsCreated]
+    // ← inject は injectRef 経由なので deps に入れない
   );
 
   const updateScene = useCallback(
     async (sceneId: string, updates: Partial<Scene>) => {
-      const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
-      await updateMutation({ id: sceneId, ...rest });
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.update(sceneId, updates);
+      } else {
+        const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
+        await updateMutation({ id: sceneId, ...rest });
+      }
     },
     [updateMutation]
   );
 
   const removeScene = useCallback(
     async (sceneId: string) => {
-      await removeMutation({ id: sceneId });
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.remove(sceneId);
+      } else {
+        await removeMutation({ id: sceneId });
+      }
     },
     [removeMutation]
   );
@@ -154,8 +187,13 @@ export function useScenes(
 
   const reorderScenes = useCallback(
     async (orderedIds: string[]) => {
+      const inj = injectRef.current;
       const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await reorderMutation({ updates });
+      if (inj) {
+        await inj.reorder(updates);
+      } else {
+        await reorderMutation({ updates });
+      }
     },
     [reorderMutation]
   );
