@@ -1,14 +1,22 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { BoardObject } from '../types/adrastea.types';
+import type { ObjectsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 
 export function useObjects(
   roomId: string,
   activeSceneId: string | null,
+  options?: { inject?: ObjectsInject }
 ) {
-  const objectsData = useQuery(api.objects.list, { room_id: roomId });
+  const { inject } = options ?? {};
+  const injectRef = useRef(inject);
+  injectRef.current = inject;
+  const objectsData = useQuery(
+    api.objects.list,
+    inject ? 'skip' : { room_id: roomId }
+  );
   const createMutation = useMutation(api.objects.create);
   const updateMutation = useMutation(api.objects.update).withOptimisticUpdate(
     (localStore, args) => {
@@ -28,9 +36,15 @@ export function useObjects(
 
   const [optimisticObjects, setOptimisticObjects] = useState<BoardObject[]>([]);
 
-  const loading = objectsData === undefined;
+  const loading = inject ? false : objectsData === undefined;
 
   const allObjects: BoardObject[] = useMemo(() => {
+    if (inject) {
+      const serverIds = new Set(inject.data.map((o) => o.id));
+      const extras = optimisticObjects.filter((o) => !serverIds.has(o.id));
+      return [...inject.data, ...extras];
+    }
+    // 既存の Convex の処理
     const serverObjs = (objectsData ?? []).map((o) => ({
       id: o.id,
       room_id: o.room_id,
@@ -57,16 +71,17 @@ export function useObjects(
     const serverIds = new Set(serverObjs.map((o) => o.id));
     const extras = optimisticObjects.filter((o) => !serverIds.has(o.id));
     return [...serverObjs, ...extras];
-  }, [objectsData, optimisticObjects]);
+  }, [inject, objectsData, optimisticObjects]);
 
   useEffect(() => {
+    if (inject) return;
     if (!objectsData) return;
     const serverIds = new Set(objectsData.map((o) => o.id));
     setOptimisticObjects((prev) => {
       const filtered = prev.filter((o) => !serverIds.has(o.id));
       return filtered.length === prev.length ? prev : filtered;
     });
-  }, [objectsData]);
+  }, [inject, objectsData]);
 
   const activeObjects = useMemo(() => {
     if (!activeSceneId) return allObjects.filter((o) => o.global);
@@ -77,6 +92,7 @@ export function useObjects(
 
   const addObject = useCallback(
     async (data: Partial<BoardObject>): Promise<string> => {
+      const inj = injectRef.current;
       const type = data.type ?? 'panel';
       const now = Date.now();
       const id = (data as { id?: string }).id ?? genId();
@@ -107,7 +123,11 @@ export function useObjects(
         scale_x: data.scale_x ?? 1, scale_y: data.scale_y ?? 1,
         created_at: now, updated_at: now,
       };
-      await createMutation(newObj);
+      if (inj) {
+        await inj.create(newObj);
+      } else {
+        await createMutation(newObj);
+      }
       return id;
     },
     [roomId, allObjects.length, createMutation]
@@ -115,31 +135,51 @@ export function useObjects(
 
   const updateObject = useCallback(
     async (id: string, updates: Partial<BoardObject>): Promise<void> => {
-      const { id: _id, room_id: _rid, type: _t, created_at: _ca, ...rest } = updates as BoardObject;
-      await updateMutation({ id, ...rest } as any);
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.update(id, updates);
+      } else {
+        const { id: _id, room_id: _rid, type: _t, created_at: _ca, ...rest } = updates as BoardObject;
+        await updateMutation({ id, ...rest } as any);
+      }
     },
     [updateMutation]
   );
 
   const removeObject = useCallback(
     async (id: string): Promise<void> => {
+      const inj = injectRef.current;
       setOptimisticObjects((prev) => prev.filter((o) => o.id !== id));
-      await removeMutation({ id });
+      if (inj) {
+        await inj.remove(id);
+      } else {
+        await removeMutation({ id });
+      }
     },
     [removeMutation]
   );
 
   const reorderObjects = useCallback(
     async (orderedIds: string[]): Promise<void> => {
+      const inj = injectRef.current;
       const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await reorderMutation({ updates });
+      if (inj) {
+        await inj.reorder(updates);
+      } else {
+        await reorderMutation({ updates });
+      }
     },
     [reorderMutation]
   );
 
   const batchUpdateSort = useCallback(
     async (updates: { id: string; sort: number }[]): Promise<void> => {
-      await batchSortMutation({ updates });
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.batchUpdateSort(updates);
+      } else {
+        await batchSortMutation({ updates });
+      }
     },
     [batchSortMutation]
   );

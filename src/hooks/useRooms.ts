@@ -123,13 +123,103 @@ export function useRooms(_uid?: string) {
     // Convex useQuery が自動で最新データを返すため no-op
   }, []);
 
+  const createSceneMutation = useMutation(api.scenes.create);
+  const createObjectBatchMutation = useMutation(api.objects.createBatch);
+  const updateRoomMutation = useMutation(api.rooms.update);
+
   const addRoom = useCallback(
     async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
       const id = generateUUID();
+      const now = Date.now();
+
+      // 1. ルーム作成
       await createMutation({ id, name, dice_system, gm_can_see_secret_memo: false });
+
+      // 2. デフォルトシーン「メイン」を作成
+      const sceneId = generateUUID();
+      await createSceneMutation({
+        id: sceneId,
+        room_id: id,
+        name: 'メイン',
+        background_url: null,
+        foreground_url: null,
+        foreground_opacity: 0.5,
+        bg_transition: 'none',
+        bg_transition_duration: 500,
+        fg_transition: 'none',
+        fg_transition_duration: 500,
+        bg_blur: true,
+        sort_order: 0,
+        created_at: now,
+        updated_at: now,
+      });
+
+      // 3. 背景・前景・キャラクターレイヤーオブジェクトを自動生成
+      await createObjectBatchMutation({
+        objects: [
+          {
+            id: generateUUID(),
+            room_id: id,
+            type: 'background',
+            name: '背景',
+            global: false,
+            scene_ids: [sceneId],
+            x: -50, y: -50, width: 100, height: 100,
+            visible: true, opacity: 1, sort_order: 0, locked: true,
+            position_locked: false, size_locked: false,
+            image_url: null, image_asset_id: null,
+            background_color: '#333333', image_fit: 'cover',
+            text_content: null, font_size: 16, font_family: 'sans-serif',
+            letter_spacing: 0, line_height: 1.2, auto_size: true,
+            text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+            scale_x: 1, scale_y: 1,
+            created_at: now, updated_at: now,
+          },
+          {
+            id: generateUUID(),
+            room_id: id,
+            type: 'foreground',
+            name: '前景',
+            global: false,
+            scene_ids: [sceneId],
+            x: -24, y: -14, width: 48, height: 27,
+            visible: true, opacity: 1, sort_order: 100, locked: false,
+            position_locked: false, size_locked: false,
+            image_url: null, image_asset_id: null,
+            background_color: '#666666', image_fit: 'cover',
+            text_content: null, font_size: 16, font_family: 'sans-serif',
+            letter_spacing: 0, line_height: 1.2, auto_size: true,
+            text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+            scale_x: 1, scale_y: 1,
+            created_at: now, updated_at: now,
+          },
+          {
+            id: generateUUID(),
+            room_id: id,
+            type: 'characters_layer',
+            name: 'キャラクター',
+            global: true,
+            scene_ids: [],
+            x: 0, y: 0, width: 0, height: 0,
+            visible: true, opacity: 1, sort_order: 9999, locked: false,
+            position_locked: true, size_locked: true,
+            image_url: null, image_asset_id: null,
+            background_color: 'transparent', image_fit: 'cover',
+            text_content: null, font_size: 16, font_family: 'sans-serif',
+            letter_spacing: 0, line_height: 1.5, auto_size: false,
+            text_align: 'left', text_vertical_align: 'top', text_color: '#000000',
+            scale_x: 1, scale_y: 1,
+            created_at: now, updated_at: now,
+          },
+        ],
+      });
+
+      // 4. active_scene_id を設定
+      await updateRoomMutation({ id, active_scene_id: sceneId });
+
       return id;
     },
-    [createMutation]
+    [createMutation, createSceneMutation, createObjectBatchMutation, updateRoomMutation]
   );
 
   return { rooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms, addRoom };

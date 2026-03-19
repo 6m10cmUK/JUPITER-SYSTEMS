@@ -1,11 +1,16 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { BgmTrack } from '../types/adrastea.types';
+import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 
-export function useBgms(roomId: string) {
-  const bgmsData = useQuery(api.bgms.list, { room_id: roomId });
+export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
+  const { inject } = options ?? {};
+  const injectRef = useRef(inject);
+  injectRef.current = inject;
+
+  const bgmsData = useQuery(api.bgms.list, inject ? 'skip' : { room_id: roomId });
   const createMutation = useMutation(api.bgms.create);
   const updateMutation = useMutation(api.bgms.update).withOptimisticUpdate(
     (localStore, args) => {
@@ -21,8 +26,10 @@ export function useBgms(roomId: string) {
   );
   const removeMutation = useMutation(api.bgms.remove);
 
-  const loading = bgmsData === undefined;
+  const loading = inject ? false : bgmsData === undefined;
   const bgms: BgmTrack[] = useMemo(() => {
+    if (inject) return inject.data;
+
     const merged = (bgmsData ?? []).map((b) => ({
       id: b.id, name: b.name,
       bgm_type: b.bgm_type as BgmTrack['bgm_type'],
@@ -69,7 +76,7 @@ export function useBgms(roomId: string) {
     }
 
     return merged;
-  }, [bgmsData, roomId]);
+  }, [inject, bgmsData, roomId]);
 
   const removeFromLocalStorageOrder = useCallback((id: string) => {
     const storageKey = `adrastea-bgm-order-${roomId}`;
@@ -84,9 +91,10 @@ export function useBgms(roomId: string) {
 
   const addBgm = useCallback(
     async (data: Partial<Omit<BgmTrack, 'id'>>): Promise<string> => {
+      const inj = injectRef.current;
       const id = (data as { id?: string }).id ?? genId();
       const now = Date.now();
-      await createMutation({
+      const bgmData = {
         id, room_id: roomId,
         name: data.name ?? '新規BGM',
         bgm_type: data.bgm_type ?? null,
@@ -102,7 +110,12 @@ export function useBgms(roomId: string) {
         fade_duration: data.fade_duration ?? 500,
         sort_order: data.sort_order ?? bgms.length,
         created_at: now, updated_at: now,
-      });
+      };
+      if (inj) {
+        await inj.create(bgmData as BgmTrack);
+      } else {
+        await createMutation(bgmData);
+      }
       return id;
     },
     [roomId, bgms.length, createMutation]
@@ -110,6 +123,16 @@ export function useBgms(roomId: string) {
 
   const updateBgm = useCallback(
     async (id: string, updates: Partial<BgmTrack>): Promise<void> => {
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.update(id, updates);
+        const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
+        if ((merged as BgmTrack).scene_ids?.length === 0) {
+          await inj.remove(id);
+        }
+        return;
+      }
+
       const { id: _id, created_at: _ca, ...rest } = updates as BgmTrack;
       await updateMutation({ id, ...rest } as any);
       const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
@@ -123,8 +146,13 @@ export function useBgms(roomId: string) {
 
   const removeBgm = useCallback(
     async (id: string): Promise<void> => {
-      await removeMutation({ id });
-      removeFromLocalStorageOrder(id);
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.remove(id);
+      } else {
+        await removeMutation({ id });
+        removeFromLocalStorageOrder(id);
+      }
     },
     [removeMutation, removeFromLocalStorageOrder]
   );

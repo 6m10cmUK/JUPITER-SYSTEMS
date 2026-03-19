@@ -3,16 +3,24 @@ import { useQuery, useMutation } from 'convex/react';
 import { useAuthToken } from '@convex-dev/auth/react';
 import { api } from '../../convex/_generated/api';
 import type { ChatMessage } from '../types/adrastea.types';
+import type { ChatInject } from '../types/adrastea-persistence';
 import { rollDice } from '../services/diceRoller';
 import { genId } from '../utils/id';
 import { API_BASE_URL } from '../config/api';
 
-export function useAdrasteaChat(roomId: string) {
-  const messagesData = useQuery(api.messages.list, { room_id: roomId });
+export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject }) {
+  const { inject } = options ?? {};
+  const injectRef = useRef(inject);
+  injectRef.current = inject;
+
+  const messagesData = useQuery(
+    api.messages.list,
+    inject ? 'skip' : { room_id: roomId }
+  );
   const sendMutation = useMutation(api.messages.send);
   const token = useAuthToken();
 
-  const loading = messagesData === undefined;
+  const loading = inject ? false : messagesData === undefined;
 
   // ローカルキャッシュ: Convex から消えたメッセージも保持（archive 対策）
   const localCacheRef = useRef<Map<string, ChatMessage>>(new Map());
@@ -28,6 +36,7 @@ export function useAdrasteaChat(roomId: string) {
 
   // Convex メッセージを ChatMessage に変換してキャッシュにマージ
   const convexMessages: ChatMessage[] = useMemo(() => {
+    if (inject) return [];
     if (!messagesData) return [];
     const msgs = [...messagesData].reverse().map((m) => ({
       id: m.id,
@@ -46,10 +55,12 @@ export function useAdrasteaChat(roomId: string) {
       localCacheRef.current.set(msg.id, msg);
     }
     return msgs;
-  }, [messagesData]);
+  }, [inject, messagesData]);
 
   // 全メッセージ = Convex キャッシュ + D1 アーカイブ（ID重複排除、created_at ソート）
+  // inject モードでは inject.data をそのまま返す
   const messages: ChatMessage[] = useMemo(() => {
+    if (inject) return inject.data;
     const merged = new Map<string, ChatMessage>();
     // D1 アーカイブ（古い方が先）
     for (const msg of archivedMessages) {
@@ -64,7 +75,7 @@ export function useAdrasteaChat(roomId: string) {
       merged.set(msg.id, msg);
     }
     return Array.from(merged.values()).sort((a, b) => a.created_at - b.created_at);
-  }, [convexMessages, archivedMessages]);
+  }, [inject, convexMessages, archivedMessages]);
 
   const sendMessage = useCallback(
     async (
@@ -77,6 +88,10 @@ export function useAdrasteaChat(roomId: string) {
       channel?: string,
       allowedUserIds?: string[]
     ) => {
+      const inj = injectRef.current;
+      if (inj) {
+        return await inj.send(senderName, content, messageType, senderUid, senderAvatar, diceSystem, channel, allowedUserIds);
+      }
       try {
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
@@ -110,6 +125,7 @@ export function useAdrasteaChat(roomId: string) {
   );
 
   const loadMore = useCallback(async () => {
+    if (inject) return;
     if (loadingMore || !hasMore || !token) return;
     setLoadingMore(true);
     try {
@@ -157,19 +173,21 @@ export function useAdrasteaChat(roomId: string) {
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, hasMore, token, messages, roomId]);
+  }, [inject, loadingMore, hasMore, token, messages, roomId]);
 
   const clearMessages = useCallback(async () => {
-    // ローカルキャッシュとアーカイブもクリア
-    localCacheRef.current.clear();
-    setArchivedMessages([]);
+    if (!injectRef.current) {
+      // ローカルキャッシュとアーカイブもクリア
+      localCacheRef.current.clear();
+      setArchivedMessages([]);
+    }
   }, []);
 
   return {
     messages,
     loading,
-    loadingMore,
-    hasMore,
+    loadingMore: inject ? false : loadingMore,
+    hasMore: inject ? false : hasMore,
     sendMessage,
     loadMore,
     clearMessages,

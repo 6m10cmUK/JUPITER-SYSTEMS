@@ -1,12 +1,17 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { Character } from '../types/adrastea.types';
+import type { CharactersInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 
-export function useCharacters(roomId: string) {
-  const statsData = useQuery(api.characters.listStats, { room_id: roomId });
-  const baseData = useQuery(api.characters.listBase, { room_id: roomId });
+export function useCharacters(roomId: string, options?: { inject?: CharactersInject }) {
+  const { inject } = options ?? {};
+  const injectRef = useRef(inject);
+  injectRef.current = inject;
+
+  const statsData = useQuery(api.characters.listStats, inject ? 'skip' : { room_id: roomId });
+  const baseData = useQuery(api.characters.listBase, inject ? 'skip' : { room_id: roomId });
 
   const createMutation = useMutation(api.characters.create);
   const updateStatsMutation = useMutation(api.characters.updateStats);
@@ -14,11 +19,13 @@ export function useCharacters(roomId: string) {
   const updateBaseMutation = useMutation(api.characters.updateBase);
   const removeMutation = useMutation(api.characters.remove);
 
-  const loading = statsData === undefined || baseData === undefined;
+  const loading = inject ? false : (statsData === undefined || baseData === undefined);
   const [charOrderVersion, setCharOrderVersion] = useState(0);
   const [layerCharOrderVersion, setLayerCharOrderVersion] = useState(0);
 
   const characters: Character[] = useMemo(() => {
+    if (inject) return inject.data;
+
     if (!statsData || !baseData) return [];
 
     // Create map of base data for quick lookup
@@ -99,7 +106,7 @@ export function useCharacters(roomId: string) {
     });
 
     return overlaidCharacters;
-  }, [statsData, baseData, roomId, charOrderVersion]);
+  }, [inject, statsData, baseData, roomId, charOrderVersion]);
 
   const layerOrderedCharacters: Character[] = useMemo(() => {
     if (characters.length === 0) return [];
@@ -129,6 +136,7 @@ export function useCharacters(roomId: string) {
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
+      const inj = injectRef.current;
       const now = Date.now();
       const id = (data as { id?: string }).id ?? genId();
       const newChar: Character = {
@@ -157,7 +165,11 @@ export function useCharacters(roomId: string) {
         created_at: now,
         updated_at: now,
       };
-      await createMutation(newChar);
+      if (inj) {
+        await inj.create(newChar);
+      } else {
+        await createMutation(newChar);
+      }
       return newChar;
     },
     [roomId, characters.length, createMutation]
@@ -165,6 +177,12 @@ export function useCharacters(roomId: string) {
 
   const updateCharacter = useCallback(
     async (charId: string, updates: Partial<Character>): Promise<void> => {
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.update(charId, updates);
+        return;
+      }
+
       // Fields that belong in characters_stats
       const statsFields = [
         'name', 'color', 'active_image_index',
@@ -212,14 +230,24 @@ export function useCharacters(roomId: string) {
 
   const moveCharacter = useCallback(
     async (charId: string, updates: { board_x?: number; board_y?: number }): Promise<void> => {
-      await moveStatsMutation({ id: charId, ...updates });
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.move(charId, updates);
+      } else {
+        await moveStatsMutation({ id: charId, ...updates });
+      }
     },
     [moveStatsMutation]
   );
 
   const removeCharacter = useCallback(
     async (charId: string): Promise<void> => {
-      await removeMutation({ id: charId });
+      const inj = injectRef.current;
+      if (inj) {
+        await inj.remove(charId);
+      } else {
+        await removeMutation({ id: charId });
+      }
     },
     [removeMutation]
   );

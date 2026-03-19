@@ -229,6 +229,9 @@ export interface AdrasteaContextValue {
   // --- Toast ---
   toasts: { id: string; message: string; type: 'success' | 'error' }[];
   showToast: (message: string, type: 'success' | 'error') => void;
+
+  // --- Demo mode ---
+  isDemo?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +293,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     updateRoom(updates as Partial<Room>);
   }, [updateRoom]);
 
-  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, handleObjectsCreated);
+  const { scenes, loading: scenesLoading, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId, { onObjectsCreated: handleObjectsCreated });
   const { characters, layerOrderedCharacters, loading: charactersLoading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters } = useCharacters(roomId);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映

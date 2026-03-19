@@ -8,13 +8,16 @@ import { apiFetch } from '../config/api';
 // モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
 let assetCache: { uid: string; assets: Asset[] } | null = null;
 
-export function useAssets() {
+export function useAssets(options?: { disabled?: boolean }) {
+  const disabled = options?.disabled ?? false;
   const { user } = useAuth();
   const token = useAuthToken();
   const uid = user?.uid;
-  const cached = uid && assetCache?.uid === uid ? assetCache.assets : null;
+
+  // disabled モード（デモ）ではキャッシュを使わない
+  const cached = !disabled && uid && assetCache?.uid === uid ? assetCache.assets : null;
   const [assets, setAssetsRaw] = useState<Asset[]>(cached ?? []);
-  const [loading, setLoading] = useState(!cached);
+  const [loading, setLoading] = useState(!disabled && !cached);
 
   // setAssets のラッパー: state とキャッシュを同時に更新
   const setAssets: typeof setAssetsRaw = useCallback((action) => {
@@ -26,6 +29,10 @@ export function useAssets() {
   }, [uid]);
 
   const fetchAssets = useCallback(async () => {
+    if (disabled) {
+      setLoading(false);
+      return;
+    }
     if (!uid || !token) {
       setAssets([]);
       setLoading(false);
@@ -41,13 +48,14 @@ export function useAssets() {
     } finally {
       setLoading(false);
     }
-  }, [uid, token]);
+  }, [disabled, uid, token]);
 
   // キャッシュがあればフェッチをスキップ
   useEffect(() => {
+    if (disabled) return;
     if (uid && assetCache && assetCache.uid === uid) return;
     fetchAssets();
-  }, [fetchAssets, uid]);
+  }, [disabled, fetchAssets, uid]);
 
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
