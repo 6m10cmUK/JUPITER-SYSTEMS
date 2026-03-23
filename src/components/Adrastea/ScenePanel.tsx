@@ -355,6 +355,7 @@ export function ScenePanel({
               : selectedSceneIds;
             return ids.length > 1 ? `${ids.length}件複製` : '複製';
           })(),
+          shortcut: shortcutLabel('D'),
           disabled: !onDuplicateScenes || (!contextMenu?.sceneId && selectedSceneIds.length === 0),
           onClick: () => {
             const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
@@ -371,6 +372,7 @@ export function ScenePanel({
               : selectedSceneIds;
             return ids.length > 1 ? `${ids.length}件削除` : '削除';
           })(),
+          shortcut: 'Del',
           disabled: !contextMenu?.sceneId && selectedSceneIds.length === 0,
           onClick: () => {
             const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)

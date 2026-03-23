@@ -347,13 +347,13 @@ export function BgmPanel() {
     setPendingDeleteId(null);
   }, [pendingDeleteId, removeBgm]);
 
-  // Ctrl+C / Ctrl+V キーボードショートカット
+  // Ctrl+C / Ctrl+D / Backspace / Delete キーボードショートカット
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey)) return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-      if (e.key === 'c') {
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         if (window.getSelection()?.toString()) return;
         if (editingBgmId) {
           const track = bgms.find(b => b.id === editingBgmId);
@@ -363,11 +363,21 @@ export function BgmPanel() {
             showToast(`${track.name} をコピーしました`, 'success');
           }
         }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        if (editingBgmId) {
+          e.preventDefault();
+          handleDuplicate();
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (editingBgmId) {
+          e.preventDefault();
+          setPendingDeleteId(editingBgmId);
+        }
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [editingBgmId, bgms, showToast]);
+  }, [editingBgmId, bgms, showToast, handleDuplicate]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
@@ -519,12 +529,14 @@ export function BgmPanel() {
             },
             {
               label: '複製',
+              shortcut: shortcutLabel('D'),
               disabled: !contextMenu?.trackId,
               onClick: handleDuplicate,
             },
             'separator',
             {
               label: '削除',
+              shortcut: 'Del',
               danger: true,
               disabled: !contextMenu?.trackId,
               onClick: () => {

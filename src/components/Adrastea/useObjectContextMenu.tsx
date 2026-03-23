@@ -113,11 +113,13 @@ export function useObjectContextMenu(
     },
     {
       label: dupLabel,
+      shortcut: shortcutLabel('D'),
       disabled: !canDupOrDel || !canEdit,
       onClick: handleDuplicate,
     },
     {
       label: delLabel,
+      shortcut: 'Del',
       disabled: !canDupOrDel || !canEdit,
       danger: true,
       onClick: () => {

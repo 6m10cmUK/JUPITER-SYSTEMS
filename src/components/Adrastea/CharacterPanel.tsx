@@ -296,6 +296,7 @@ export function CharacterPanel({
               : selectedCharIds;
             return ids.length > 1 ? `${ids.length}件複製` : '複製';
           })(),
+          shortcut: shortcutLabel('D'),
           disabled: (() => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
               ? [contextMenu.charId]
@@ -327,6 +328,7 @@ export function CharacterPanel({
               : selectedCharIds;
             return ids.length > 1 ? `${ids.length}件削除` : '削除';
           })(),
+          shortcut: 'Del',
           danger: true,
           disabled: (() => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
