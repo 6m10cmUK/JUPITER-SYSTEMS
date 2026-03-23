@@ -27,7 +27,7 @@ export function useObjectContextMenu(
   targets: BoardObject[],
   { onClose, onAfterDuplicate, onPaste }: UseObjectContextMenuOptions
 ): UseObjectContextMenuResult {
-  const { addObject, updateObject, removeObject } = useAdrasteaContext();
+  const { addObject, updateObject, removeObject, undoRedo } = useAdrasteaContext();
   const { can } = usePermission();
   const canEdit = can('object_edit');
   const [pendingRemove, setPendingRemove] = useState<BoardObject[] | null>(null);
@@ -136,6 +136,19 @@ export function useObjectContextMenu(
         onPaste?.();
         onClose();
       },
+    },
+    'separator',
+    {
+      label: '元に戻す',
+      shortcut: shortcutLabel('Z'),
+      disabled: !undoRedo.canUndo || !canEdit,
+      onClick: () => { undoRedo.undo(); onClose(); },
+    },
+    {
+      label: 'やり直し',
+      shortcut: shortcutLabel('⇧Z'),
+      disabled: !undoRedo.canRedo || !canEdit,
+      onClick: () => { undoRedo.redo(); onClose(); },
     }
   );
 
