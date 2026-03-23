@@ -689,6 +689,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
                 }}
                 autoFocus
                 onClick={(e) => e.stopPropagation()}
+                maxLength={128}
                 style={{
                   flex: 1, minWidth: 0,
                   background: theme.bgDeep, border: `1px solid ${theme.border}`,

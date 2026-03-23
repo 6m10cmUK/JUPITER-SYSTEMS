@@ -271,6 +271,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTags(asset.id); }}
             placeholder="タグ（カンマ区切り）"
             autoFocus
+            maxLength={128}
             style={{ ...inputStyle, fontSize: '0.7rem', padding: '4px 6px', marginBottom: '4px' }}
           />
           <div style={{ display: 'flex', gap: '4px' }}>
@@ -419,6 +420,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddByUrl(); }}
               placeholder={activeTab === 'audio' ? 'https://... または YouTube URL' : 'https://...'}
               autoFocus
+              maxLength={256}
               style={inputStyle}
             />
             {activeTab === 'audio' && (
@@ -543,6 +545,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ファイル名・タグで検索..."
+            maxLength={128}
           />
         </div>
 
@@ -690,6 +693,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
                           onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(asset.id); if (e.key === 'Escape') { setEditingTitleId(null); setTitleInput(''); } }}
                           autoFocus
                           onClick={(e) => e.stopPropagation()}
+                          maxLength={128}
                           style={{
                             width: '100%', padding: '2px 6px', fontSize: '0.8rem',
                             background: theme.bgInput, border: `1px solid ${theme.borderInput}`,

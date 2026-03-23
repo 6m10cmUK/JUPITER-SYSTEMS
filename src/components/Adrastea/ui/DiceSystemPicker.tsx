@@ -145,6 +145,7 @@ export function DiceSystemPicker({
             onCompositionEnd={() => { composingRef.current = false; }}
             placeholder="システム名で検索..."
             autoFocus
+            maxLength={128}
             style={{
               padding: '4px 8px',
               fontSize: '12px',

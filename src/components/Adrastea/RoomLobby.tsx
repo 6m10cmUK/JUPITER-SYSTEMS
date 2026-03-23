@@ -479,6 +479,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="ルーム名・タグで検索..."
+          maxLength={128}
           style={{
             width: '100%',
             height: '28px',

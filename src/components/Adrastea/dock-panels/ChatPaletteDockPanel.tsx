@@ -5,7 +5,7 @@ import { theme } from '../../../styles/theme';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { AdModal } from '../ui';
 import { Pencil, Send } from 'lucide-react';
-import { resolveTemplateVars } from '../ChatInputPanel';
+import { resolveTemplateVars } from '../utils/chatEditorUtils';
 
 export function ChatPaletteDockPanel() {
   const { user } = useAuth();

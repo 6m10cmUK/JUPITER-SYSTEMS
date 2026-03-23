@@ -367,6 +367,7 @@ function LayoutSection({
             value={newLayoutName}
             onChange={(e) => setNewLayoutName(e.target.value)}
             placeholder="レイアウト名"
+            maxLength={128}
             style={{
               flex: 1,
               fontSize: '11px',

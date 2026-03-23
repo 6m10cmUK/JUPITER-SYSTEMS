@@ -104,6 +104,7 @@ export function ScenarioTextPanel({ texts, onAdd, onUpdate, onRemove, onReorderT
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder="タイトル"
+                  maxLength={128}
                 />
                 <textarea
                   style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }}
