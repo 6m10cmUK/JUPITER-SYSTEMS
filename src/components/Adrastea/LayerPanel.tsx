@@ -21,6 +21,8 @@ import {
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useObjectContextMenu } from './useObjectContextMenu';
+import { useCharacterContextMenu } from './useCharacterContextMenu';
+import { objectToClipboardJson } from '../../utils/clipboardImport';
 
 const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
   panel: ({ size = 14 }) => <Image size={size} />,
@@ -54,6 +56,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     setCharacterToOpenModal,
     panelSelection,
     setPanelSelection,
+    showToast,
   } = useAdrasteaContext();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -88,6 +91,46 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     },
   });
 
+  // キャラクター右クリックメニュー
+  const contextChar = contextMenu?.charId
+    ? layerOrderedCharacters.find(c => c.id === contextMenu.charId) ?? null
+    : null;
+  const { items: charCtxMenuItems, confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
+    currentUserId: '',
+    onClose: () => setContextMenu(null),
+    onDuplicate: async (c) => {
+      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
+      await addCharacter({ ...rest, name: `${c.name} (複製)` });
+    },
+    onRemove: (charId) => {
+      removeCharacter(charId);
+      setEditingCharacter(undefined);
+    },
+    onPaste,
+  });
+
+
+  // Ctrl+C でオブジェクトをコピー（キャラクターは CharacterDockPanel が処理）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      if (window.getSelection()?.toString()) return;
+      if (selectedObjectIds.length > 0) {
+        const obj = activeObjects.find(o =>
+          selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+        );
+        if (obj) {
+          e.preventDefault();
+          navigator.clipboard.writeText(objectToClipboardJson(obj));
+          showToast(`${obj.name} をコピーしました`, 'success');
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selectedObjectIds, activeObjects, showToast]);
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
   const activeObjectsRef = useRef(activeObjects);
@@ -145,19 +188,16 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
 
     if (dragSet.has(overId)) return;
 
-    // background 以外はすべて含める（characters_layer も含む）
+    // background のみ固定。characters_layer は他と同様に並び替え可能
     const allMovable = sortedObjects.filter(o => o.type !== 'background');
     const draggedItems = allMovable.filter(o => dragSet.has(o.id));
     const rest = allMovable.filter(o => !dragSet.has(o.id));
 
-    // characters_layer や background の上にドロップした場合は先頭として扱う
+    // background の上にドロップした場合は無視
     const overObj = sortedObjects.find(o => o.id === overId);
+    if (overObj?.type === 'background') return;
     let overIdx = rest.findIndex(o => o.id === overId);
-    if (overIdx < 0) {
-      if (!overObj || overObj.type === 'background') return;
-      // characters_layer の上にドロップ → 先頭（0番目）に挿入
-      overIdx = 0;
-    }
+    if (overIdx < 0) return;
 
     const activeOrigIdx = allMovable.findIndex(o => o.id === activeId);
     const overOrigIdx = allMovable.findIndex(o => o.id === overId);
@@ -378,8 +418,6 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
         const objId = objEl?.getAttribute('data-obj-id') ?? undefined;
         if (objId) {
-          const obj = activeObjects.find(o => o.id === objId);
-          if (obj?.type === 'foreground') return; // 前景はメニューなし
           // 右クリック時に選択を移す
           if (!selectedObjectIds.includes(objId)) {
             setSelectedObjectIds([objId]);
@@ -674,40 +712,13 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       open={contextMenu !== null}
       onOpenChange={(open) => { if (!open) setContextMenu(null); }}
       position={contextMenu ?? { x: 0, y: 0 }}
-      items={contextMenu?.charId ? [
-        {
-          label: '複製',
-          onClick: async () => {
-            const char = layerOrderedCharacters.find(c => c.id === contextMenu.charId);
-            if (char) {
-              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = char as any;
-              await addCharacter({ ...rest, name: `${char.name} (複製)` });
-            }
-            setContextMenu(null);
-          },
-        },
-        'separator',
-        {
-          label: '削除',
-          danger: true,
-          onClick: () => {
-            const char = layerOrderedCharacters.find(c => c.id === contextMenu.charId);
-            if (char) {
-              setPendingRemove({
-                msg: `キャラクター「${char.name}」を削除しますか？`,
-                action: () => {
-                  removeCharacter(char.id);
-                  setEditingCharacter(undefined);
-                },
-              });
-            }
-            setContextMenu(null);
-          },
-        },
-      ] : [
+      items={contextMenu?.charId ? charCtxMenuItems : [
         {
           label: '名前を変更',
-          disabled: !contextMenu?.objId,
+          disabled: !contextMenu?.objId || (() => {
+            const obj = activeObjects.find(o => o.id === contextMenu?.objId);
+            return !obj || obj.type === 'background' || obj.type === 'foreground' || obj.type === 'characters_layer';
+          })(),
           onClick: () => {
             if (contextMenu?.objId) {
               const obj = activeObjects.find(o => o.id === contextMenu.objId);
@@ -742,6 +753,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       />
     )}
     {ctxConfirmModal}
+    {charCtxConfirmModal}
     {pendingImageAdd && (
       <AssetLibraryModal
         onClose={() => setPendingImageAdd(null)}

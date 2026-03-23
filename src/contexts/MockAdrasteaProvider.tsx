@@ -49,7 +49,7 @@ export const MockAdrasteaProvider: React.FC<MockAdrasteaProviderProps> = ({
     mock.updateRoom(updates as Partial<Room>);
   }, [mock]);
 
-  // 各 hook を inject 付きで呼ぶ
+  // 各 hook を inject 付きで呼ぶ（characters_layer は useScenes 内で初回シーン作成時に自動生成）
   const {
     scenes,
     addScene, updateScene, removeScene, reorderScenes,

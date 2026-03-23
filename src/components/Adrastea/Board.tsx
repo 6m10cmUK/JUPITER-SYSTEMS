@@ -31,7 +31,6 @@ interface BoardProps {
   onUpdateCharacterBoardPosition?: (charId: string, x: number, y: number) => void;
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
-  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   onPaste?: () => void;
   currentUserId?: string;
   selectedObjectId?: string | null;
@@ -213,7 +212,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -345,6 +344,8 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
 
   // Stageクリック: メニュー閉じ + 背景オブジェクト選択
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    // 右クリック時はスキップ（onContextMenu で処理する）
+    if (e.evt.button === 2) return;
     if (contextMenuState) setContextMenuState(null);
     if (bgContextMenuState) setBgContextMenuState(null);
     // Stage 直接クリック（空白領域）→ 背景オブジェクトを選択
@@ -515,7 +516,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onUpdateCharacterBoardPosition={onUpdateCharacterBoardPosition}
         onSelectCharacter={onSelectCharacter}
         onDoubleClickCharacter={onDoubleClickCharacter}
-        onContextMenuCharacter={onContextMenuCharacter}
         selectedCharacterId={selectedCharacterId}
       />
       {/* 右クリックメニュー（駒用） */}
