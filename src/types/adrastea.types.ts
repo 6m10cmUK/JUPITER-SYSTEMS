@@ -45,6 +45,7 @@ export interface Scene {
   fg_transition: 'none' | 'fade';
   fg_transition_duration: number;
   bg_blur: boolean;
+  grid_visible?: boolean;
   sort_order: number;
   created_at: number;
   updated_at: number;

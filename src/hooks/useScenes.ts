@@ -78,6 +78,7 @@ export function useScenes(
         fg_transition: data.fg_transition ?? 'none',
         fg_transition_duration: data.fg_transition_duration ?? 500,
         bg_blur: data.bg_blur ?? true,
+        grid_visible: data.grid_visible ?? false,
         sort_order: data.sort_order ?? scenes.length,
         created_at: now,
         updated_at: now,

@@ -621,7 +621,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [dockviewApi, setDockviewApi] = useState<DockviewApi | null>(null);
 
   // --- Grid visibility ---
-  const [gridVisible, setGridVisible] = useState(true);
+  const [gridVisible, setGridVisible] = useState(false);
 
   // --- BGM master volume (localStorage) ---
   const [masterVolume, setMasterVolumeState] = useState(() => {
@@ -811,6 +811,15 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     return effectiveScenes.find((s) => s.id === effectiveSceneId) ?? null;
   }, [effectiveSceneId, effectiveScenes]);
 
+
+  // シーン切替時のみグリッド表示をシーン設定から反映
+  const prevSceneIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (activeScene?.id !== prevSceneIdRef.current) {
+      setGridVisible(activeScene?.grid_visible ?? false);
+      prevSceneIdRef.current = activeScene?.id ?? null;
+    }
+  }, [activeScene?.id, activeScene?.grid_visible]);
 
   // --- Permission guard ref ---
   const roomRoleRef = useRef(roomRole);

@@ -27,9 +27,15 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
       bg_transition:          { immediate: true, defaultValue: 'none' },
       fg_transition:          { immediate: true, defaultValue: 'none' },
       bg_blur:                { immediate: true, defaultValue: true },
+      grid_visible:           { immediate: true, defaultValue: false },
     },
     onDebounceSave: (key, data) => ctx.setPendingEdit(key, data as any),
-    onImmediateUpdate: (id, data) => ctx.updateScene(id, data as any),
+    onImmediateUpdate: async (id, data) => {
+      await ctx.updateScene(id, data as any);
+      if ('grid_visible' in (data as Record<string, unknown>)) {
+        ctx.setGridVisible(!!(data as Record<string, unknown>).grid_visible);
+      }
+    },
     buildSaveData: (s: any) => ({
       name: ((s.name as string)?.trim()) || '無題',
       bg_transition: s.bg_transition,
@@ -37,6 +43,7 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
       fg_transition: s.fg_transition,
       fg_transition_duration: s.fg_transition_duration,
       bg_blur: s.bg_blur,
+      grid_visible: s.grid_visible,
     }),
   });
 
@@ -107,6 +114,14 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: 
               displayValue={`${state.fg_transition_duration}ms`}
             />
           )}
+        </AdSection>
+
+        <AdSection label="グリッド">
+          <AdCheckbox
+            checked={!!state.grid_visible}
+            onChange={(v) => set('grid_visible', v)}
+            label="グリッド線を表示"
+          />
         </AdSection>
     </div>
   );
