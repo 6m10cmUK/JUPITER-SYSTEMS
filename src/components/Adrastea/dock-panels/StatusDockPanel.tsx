@@ -4,7 +4,7 @@ import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
-import { DropdownMenu } from '../ui';
+import { DropdownMenu, shortcutLabel } from '../ui/DropdownMenu';
 import { theme } from '../../../styles/theme';
 
 function isLightColor(hex: string): boolean {
@@ -394,6 +394,7 @@ export function StatusDockPanel() {
         items={[
           {
             label: '貼り付け',
+            shortcut: shortcutLabel('V'),
             onClick: () => {
               handlePaste();
               setContextMenuPos(null);

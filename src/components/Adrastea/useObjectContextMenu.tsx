@@ -4,6 +4,7 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { usePermission } from '../../hooks/usePermission';
 import { ConfirmModal } from './ui';
 import type { DropdownMenuEntry } from './ui/DropdownMenu';
+import { shortcutLabel } from './ui/DropdownMenu';
 import type { BoardObject } from '../../types/adrastea.types';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
 
@@ -101,6 +102,7 @@ export function useObjectContextMenu(
   items.push(
     {
       label: deletableTargets.length > 1 ? `${deletableTargets.length}件コピー` : 'コピー',
+      shortcut: shortcutLabel('C'),
       disabled: !canDupOrDel || !canEdit,
       onClick: () => {
         if (deletableTargets.length > 0) {
@@ -126,6 +128,7 @@ export function useObjectContextMenu(
     'separator',
     {
       label: '貼り付け',
+      shortcut: shortcutLabel('V'),
       disabled: !onPaste || !canEdit,
       onClick: () => {
         onPaste?.();
