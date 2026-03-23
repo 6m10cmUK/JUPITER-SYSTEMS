@@ -348,6 +348,7 @@ textarea {
 /* backdrop-filter は Konva canvas に効かないため、透明度だけで表現 */
 .dockview-theme-catppuccin .dv-resize-container.dv-floating-translucent {
   background: rgba(40, 40, 40, 0.85);
+  z-index: 20;
 }
 /* フローティング内のグループビューを透明にして外側の半透明背景を活かす */
 .dockview-theme-catppuccin .dv-groupview-floating {
@@ -355,8 +356,7 @@ textarea {
 }
 /* フローティング時はパネルコンテンツの背景も透明に */
 .dv-resize-container.dv-floating-translucent .dv-content-container > *,
-.dv-resize-container.dv-floating-translucent .dv-react-part > *,
-.dv-resize-container.dv-floating-translucent .dv-react-part div {
+.dv-resize-container.dv-floating-translucent .dv-react-part > * {
   background: transparent !important;
 }
 

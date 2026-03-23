@@ -76,7 +76,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       const isForeground = type === 'foreground';
       const data: Record<string, unknown> = {
         type,
-        name: isForeground ? '前景' : ((s.name as string)?.trim() || '無題'),
+        name: isForeground ? '前景' : ((s.name as string)?.trim() ?? ''),
         visible: s.visible,
         opacity: s.opacity,
       };

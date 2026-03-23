@@ -251,6 +251,7 @@ export function ScenePanel({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                minWidth: 0,
               }}
             >
               {editingId === scene.id ? (
