@@ -254,6 +254,7 @@ function parseSceneData(raw: unknown): { scene: Partial<Scene>; objects: Partial
   if (typeof obj.fg_transition === 'string') scene.fg_transition = obj.fg_transition as Scene['fg_transition'];
   if (typeof obj.fg_transition_duration === 'number') scene.fg_transition_duration = obj.fg_transition_duration;
   if (typeof obj.bg_blur === 'boolean') scene.bg_blur = obj.bg_blur;
+  if (typeof obj.grid_visible === 'boolean') scene.grid_visible = obj.grid_visible;
 
   const objects: Partial<BoardObject>[] = [];
   if (Array.isArray(obj.objects)) {
@@ -378,6 +379,7 @@ export async function pasteSceneFromClipboard(
       fg_transition: scene.fg_transition,
       fg_transition_duration: scene.fg_transition_duration,
       bg_blur: scene.bg_blur,
+      grid_visible: scene.grid_visible,
     }, '_paste_', []);
     if (!result) continue;
     const newSceneId = result.scene.id;

@@ -92,6 +92,11 @@ export function BoardDockPanel() {
           objects={ctx.activeObjects}
           activeScene={ctx.activeScene}
           gridVisible={ctx.gridVisible}
+          onToggleGrid={() => {
+            const next = !ctx.gridVisible;
+            ctx.setGridVisible(next);
+            if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { grid_visible: next });
+          }}
           characters={ctx.layerOrderedCharacters}
           currentUserId={user?.uid ?? ''}
           onUpdateCharacterBoardPosition={(charId, x, y) => ctx.moveCharacter(charId, { board_x: x, board_y: y })}

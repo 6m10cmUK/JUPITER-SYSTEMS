@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
-import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
+import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konva';
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import type { KonvaEventObject } from 'konva/lib/Node';
@@ -19,6 +19,7 @@ interface BoardProps {
   objects?: BoardObject[];
   activeScene?: Scene | null;
   gridVisible?: boolean;
+  onToggleGrid?: () => void;
   characters?: Character[];
   onMovePiece: (id: string, x: number, y: number) => void;
   onRemovePiece: (id: string) => void;
@@ -43,80 +44,61 @@ export const GRID_SIZE = 50;
 export const MIN_SCALE = 0.02;
 export const MAX_SCALE = 4;
 
-interface GridLinesProps {
-  stageRef: React.RefObject<StageType | null>;
-  width: number;
-  height: number;
-}
+// --- DOM グリッドオーバーレイ ---
+const DomGridOverlay = memo(function DomGridOverlay({ stageRef, width, height }: { stageRef: React.RefObject<StageType | null>; width: number; height: number }) {
+  const elRef = useRef<HTMLDivElement>(null);
 
-const GridLines = memo(function GridLines({ stageRef, width, height }: GridLinesProps) {
+  useEffect(() => {
+    let raf: number;
+    const update = () => {
+      const stage = stageRef.current;
+      const el = elRef.current;
+      if (!stage || !el) return;
+      const scale = stage.scaleX();
+      const sx = stage.x();
+      const sy = stage.y();
+
+      const minor = GRID_SIZE * 5 * scale;
+      const major = GRID_SIZE * 10 * scale;
+      const ox = sx % major;
+      const oy = sy % major;
+
+      // SVG パターン（細線 + 太線）
+      const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${major}' height='${major}'>`
+        + `<defs>`
+        + `<pattern id='minor' width='${minor}' height='${minor}' patternUnits='userSpaceOnUse'>`
+        + `<path d='M ${minor} 0 L 0 0 0 ${minor}' fill='none' stroke='rgba(255,255,255,0.15)' stroke-width='1'/>`
+        + `</pattern>`
+        + `<pattern id='major' width='${major}' height='${major}' patternUnits='userSpaceOnUse'>`
+        + `<rect width='${major}' height='${major}' fill='url(#minor)'/>`
+        + `<path d='M ${major} 0 L 0 0 0 ${major}' fill='none' stroke='rgba(255,255,255,0.25)' stroke-width='1'/>`
+        + `</pattern>`
+        + `</defs>`
+        + `<rect width='100%' height='100%' fill='url(#major)'/>`
+        + `</svg>`;
+
+      el.style.backgroundImage = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+      el.style.backgroundSize = `${major}px ${major}px`;
+      el.style.backgroundPosition = `${ox}px ${oy}px`;
+    };
+
+    const tick = () => { update(); raf = requestAnimationFrame(tick); };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [stageRef, width, height]);
+
   return (
-    <Shape
-      listening={false}
-      perfectDrawEnabled={false}
-      sceneFunc={(context) => {
-        const stage = stageRef.current;
-        if (!stage || width === 0 || height === 0) return;
-
-        const scale = stage.scaleX();
-        const sx = stage.x();
-        const sy = stage.y();
-
-        // ビューポートの論理座標範囲
-        const left = -sx / scale;
-        const top = -sy / scale;
-        const right = (width - sx) / scale;
-        const bottom = (height - sy) / scale;
-
-        const MINOR = GRID_SIZE * 5;
-        const MAJOR = GRID_SIZE * 10;
-        const lw = 1 / scale; // 常に1画面ピクセル
-
-        // 細線 (5マスごと)
-        context.beginPath();
-        context.strokeStyle = 'rgba(255,255,255,0.08)';
-        context.lineWidth = lw;
-        for (let x = Math.floor(left / MINOR) * MINOR; x <= right; x += MINOR) {
-          context.moveTo(x, top);
-          context.lineTo(x, bottom);
-        }
-        for (let y = Math.floor(top / MINOR) * MINOR; y <= bottom; y += MINOR) {
-          context.moveTo(left, y);
-          context.lineTo(right, y);
-        }
-        context.stroke();
-
-        // 太線 (10マスごと)
-        context.beginPath();
-        context.strokeStyle = 'rgba(255,255,255,0.18)';
-        context.lineWidth = lw;
-        for (let x = Math.floor(left / MAJOR) * MAJOR; x <= right; x += MAJOR) {
-          context.moveTo(x, top);
-          context.lineTo(x, bottom);
-        }
-        for (let y = Math.floor(top / MAJOR) * MAJOR; y <= bottom; y += MAJOR) {
-          context.moveTo(left, y);
-          context.lineTo(right, y);
-        }
-        context.stroke();
-
-        // 原点の十字線（ビューポート内にある場合のみ）
-        context.beginPath();
-        context.strokeStyle = 'rgba(255,255,255,0.25)';
-        context.lineWidth = lw;
-        if (left <= 0 && 0 <= right) {
-          context.moveTo(0, top);
-          context.lineTo(0, bottom);
-        }
-        if (top <= 0 && 0 <= bottom) {
-          context.moveTo(left, 0);
-          context.lineTo(right, 0);
-        }
-        context.stroke();
+    <div
+      ref={elRef}
+      style={{
+        position: 'absolute', inset: 0,
+        pointerEvents: 'none',
+        zIndex: 2,
       }}
     />
   );
 });
+
 
 const PieceImage = memo(function PieceImage({ url, width, height }: { url: string; width: number; height: number }) {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -212,7 +194,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onToggleGrid, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -450,12 +432,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onDragEnd={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grab'); }}
         style={{ backgroundColor: 'transparent', position: 'relative', zIndex: 1, cursor: 'grab' }}
       >
-        {/* 背景+グリッド: hitテスト不要 */}
-        {gridVisible && (
-          <Layer hitGraphEnabled={false} listening={false}>
-            <GridLines stageRef={stageRef} width={stageSize.width} height={stageSize.height} />
-          </Layer>
-        )}
+        {/* 背景レイヤー（グリッドは DomGridOverlay に移行） */}
         {/* インタラクティブ要素 */}
         <Layer>
           {/* コマ */}
@@ -518,6 +495,10 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onDoubleClickCharacter={onDoubleClickCharacter}
         selectedCharacterId={selectedCharacterId}
       />
+      {/* グリッドオーバーレイ（DomObjectOverlay の上、pointer-events: none） */}
+      {gridVisible && (
+        <DomGridOverlay stageRef={stageRef} width={stageSize.width} height={stageSize.height} />
+      )}
       {/* 右クリックメニュー（駒用） */}
       <DropdownMenu
         mode="context"
@@ -548,6 +529,14 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onOpenChange={(open) => { if (!open) setBgContextMenuState(null); }}
         position={bgContextMenuState ?? { x: 0, y: 0 }}
         items={[
+          {
+            label: gridVisible ? 'グリッドを非表示' : 'グリッドを表示',
+            onClick: () => {
+              onToggleGrid?.();
+              setBgContextMenuState(null);
+            },
+          },
+          'separator',
           {
             label: '貼り付け',
             shortcut: shortcutLabel('V'),

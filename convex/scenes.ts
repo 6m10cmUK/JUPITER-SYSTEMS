@@ -44,6 +44,7 @@ export const create = mutation({
     fg_transition: v.union(v.literal("none"), v.literal("fade")),
     fg_transition_duration: v.number(),
     bg_blur: v.boolean(),
+    grid_visible: v.optional(v.boolean()),
     sort_order: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
@@ -69,6 +70,7 @@ export const update = mutation({
     fg_transition: v.optional(v.union(v.literal("none"), v.literal("fade"))),
     fg_transition_duration: v.optional(v.number()),
     bg_blur: v.optional(v.boolean()),
+    grid_visible: v.optional(v.boolean()),
     sort_order: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
