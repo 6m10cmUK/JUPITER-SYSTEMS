@@ -11,7 +11,7 @@ import {
   Volume2, VolumeX,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
-import { bgmToClipboardJson, parseClipboardData } from '../../utils/clipboardImport';
+import { bgmToClipboardJson, parseClipboardData, pasteBgmToScene } from '../../utils/clipboardImport';
 
 const extractVideoId = (url: string): string => {
   const match = url.match(/(?:youtu\.be\/|v=)([^&\s]+)/);
@@ -333,7 +333,7 @@ export function BgmPanel() {
       const text = await navigator.clipboard.readText();
       const result = parseClipboardData(text);
       if (result?.type === 'bgm') {
-        await addBgm({ ...result.data, scene_ids: activeScene ? [activeScene.id] : [], auto_play_scene_ids: activeScene ? [activeScene.id] : [] });
+        await pasteBgmToScene(result.data, activeScene?.id ?? null, { bgms, updateBgm, addBgm });
         showToast(`BGM "${result.data.name ?? 'BGM'}" をインポートしました`, 'success');
       }
     } catch {

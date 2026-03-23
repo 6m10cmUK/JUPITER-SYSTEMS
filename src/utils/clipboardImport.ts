@@ -303,6 +303,31 @@ export function sceneToClipboardJson(scene: Scene, sceneObjects: BoardObject[], 
 }
 
 /**
+ * BGM をシーンにペーストする共通処理。
+ * 同じソースの既存トラックがあれば scene_ids に追加、なければ新規作成。
+ */
+export async function pasteBgmToScene(
+  data: Partial<BgmTrack>,
+  sceneId: string | null,
+  ctx: {
+    bgms: BgmTrack[];
+    updateBgm: (id: string, data: Partial<BgmTrack>) => Promise<void>;
+    addBgm: (data: Partial<BgmTrack>) => Promise<any>;
+  },
+): Promise<void> {
+  if (!sceneId) return; // シーンがなければ何もしない
+  const existing = ctx.bgms.find(b => b.bgm_source === data.bgm_source && b.bgm_type === data.bgm_type);
+  if (existing) {
+    await ctx.updateBgm(existing.id, {
+      scene_ids: existing.scene_ids.includes(sceneId) ? existing.scene_ids : [...existing.scene_ids, sceneId],
+      auto_play_scene_ids: existing.auto_play_scene_ids.includes(sceneId) ? existing.auto_play_scene_ids : [...existing.auto_play_scene_ids, sceneId],
+    });
+  } else {
+    await ctx.addBgm({ ...data, scene_ids: [sceneId], auto_play_scene_ids: [sceneId] });
+  }
+}
+
+/**
  * クリップボードからシーンをペーストする共通処理。
  */
 export async function pasteSceneFromClipboard(
@@ -332,15 +357,6 @@ export async function pasteSceneFromClipboard(
   const newSceneId = result.scene.id;
   const sorted = [...objects].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   await Promise.all(sorted.map(obj => ctx.addObject({ ...obj, scene_ids: [newSceneId] })));
-  await Promise.all(bgms.map(bgm => {
-    const existing = ctx.bgms.find(b => b.bgm_source === bgm.bgm_source && b.bgm_type === bgm.bgm_type);
-    if (existing) {
-      return ctx.updateBgm(existing.id, {
-        scene_ids: [...existing.scene_ids, newSceneId],
-        auto_play_scene_ids: [...existing.auto_play_scene_ids, newSceneId],
-      });
-    }
-    return ctx.addBgm({ ...bgm, scene_ids: [newSceneId], auto_play_scene_ids: [newSceneId] });
-  }));
+  await Promise.all(bgms.map(bgm => pasteBgmToScene(bgm, newSceneId, ctx)));
   await ctx.activateScene(newSceneId);
 }

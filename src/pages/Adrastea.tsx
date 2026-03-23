@@ -14,7 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
 import { ToastContainer } from '../components/Adrastea/ui/Toast';
 import { usePasteHandler } from '../hooks/usePasteHandler';
-import { pasteSceneFromClipboard } from '../utils/clipboardImport';
+import { pasteSceneFromClipboard, pasteBgmToScene } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
 
 /** 共通ローディング画面 */
@@ -71,7 +71,7 @@ function AdrasteaRoom() {
       return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
     },
     addScene: (data) => pasteSceneFromClipboard(data, ctx),
-    addBgm: (data) => ctx.addBgm({ ...data, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [], auto_play_scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] }),
+    addBgm: (data) => pasteBgmToScene(data, ctx.activeScene?.id ?? null, ctx),
     showToast: ctx.showToast,
   });
 
