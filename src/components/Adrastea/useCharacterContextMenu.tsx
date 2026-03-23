@@ -6,6 +6,7 @@ import type { Character } from '../../types/adrastea.types';
 import { usePermission } from '../../hooks/usePermission';
 import { hasRole } from '../../config/permissions';
 import { characterToClipboardJson } from '../../utils/clipboardImport';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { ConfirmModal } from './ui';
 
 interface UseCharacterContextMenuOptions {
@@ -30,6 +31,7 @@ export function useCharacterContextMenu(
   { currentUserId, onClose, onDuplicate, onRemove, onPaste }: UseCharacterContextMenuOptions
 ): UseCharacterContextMenuResult {
   const { can, roomRole } = usePermission();
+  const { undoRedo } = useAdrasteaContext();
   const [pendingRemove, setPendingRemove] = useState(false);
 
   const canEditChar = can('character_edit');
@@ -85,6 +87,21 @@ export function useCharacterContextMenu(
       onPaste?.();
       onClose();
     },
+  });
+
+  items.push('separator');
+
+  items.push({
+    label: '元に戻す',
+    shortcut: shortcutLabel('Z'),
+    disabled: !undoRedo.canUndo || !isSubOwnerPlus,
+    onClick: () => { undoRedo.undo(); onClose(); },
+  });
+  items.push({
+    label: 'やり直し',
+    shortcut: shortcutLabel('⇧Z'),
+    disabled: !undoRedo.canRedo || !isSubOwnerPlus,
+    onClick: () => { undoRedo.redo(); onClose(); },
   });
 
   const handleConfirmRemove = useCallback(() => {

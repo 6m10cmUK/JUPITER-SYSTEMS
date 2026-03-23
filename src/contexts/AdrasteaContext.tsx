@@ -33,6 +33,8 @@ import { RoomDataContext, UIStateContext } from './AdrasteaContexts';
 import type { RoomDataContextValue, UIStateContextValue } from './AdrasteaContexts';
 import { checkPermission, type PermissionKey } from '../config/permissions';
 import { useToast } from '../components/Adrastea/ui/Toast';
+import { useUndoRedo, type UndoRedoHandle } from '../hooks/useUndoRedo';
+import { computeDiffs, type UndoEntry } from '../utils/undoDiff';
 
 // ---------------------------------------------------------------------------
 // Panel selection types
@@ -230,6 +232,9 @@ export interface AdrasteaContextValue {
   toasts: { id: string; message: string; type: 'success' | 'error' }[];
   showToast: (message: string, type: 'success' | 'error') => void;
 
+  // --- Undo/Redo ---
+  undoRedo: UndoRedoHandle;
+
   // --- Demo mode ---
   isDemo?: boolean;
 }
@@ -369,6 +374,128 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       Promise.all(orphans.map(b => removeBgm(b.id)));
     }
   }, [initialLoadDone, bgms, removeBgm]);
+
+  // --- Undo/Redo ---
+  const undoRedo = useUndoRedo();
+  const prevObjectsRef = useRef<typeof allObjects>([]);
+  const prevCharactersRef = useRef<typeof characters>([]);
+  const prevScenesRef = useRef<typeof scenes>([]);
+  const prevBgmsRef = useRef<typeof bgms>([]);
+  const prevPiecesRef = useRef<typeof pieces>([]);
+  const undoReadyRef = useRef(false);
+
+  // initialLoadDone 時に prev を現在値で初期化（初期ロードの diff を積まない）
+  useEffect(() => {
+    if (!initialLoadDone || undoReadyRef.current) return;
+    prevObjectsRef.current = allObjects;
+    prevCharactersRef.current = characters;
+    prevScenesRef.current = scenes;
+    prevBgmsRef.current = bgms;
+    prevPiecesRef.current = pieces;
+    undoReadyRef.current = true;
+  }, [initialLoadDone, allObjects, characters, scenes, bgms, pieces]);
+
+  useEffect(() => {
+    if (!undoReadyRef.current) return;
+    if (undoRedo.isOperatingRef.current) { prevObjectsRef.current = allObjects; return; }
+    computeDiffs('object', prevObjectsRef.current, allObjects).forEach(d => undoRedo.push(d));
+    prevObjectsRef.current = allObjects;
+  }, [allObjects]);
+
+  useEffect(() => {
+    if (!undoReadyRef.current) return;
+    if (undoRedo.isOperatingRef.current) { prevCharactersRef.current = characters; return; }
+    computeDiffs('character', prevCharactersRef.current, characters).forEach(d => undoRedo.push(d));
+    prevCharactersRef.current = characters;
+  }, [characters]);
+
+  useEffect(() => {
+    if (!undoReadyRef.current) return;
+    if (undoRedo.isOperatingRef.current) { prevScenesRef.current = scenes; return; }
+    computeDiffs('scene', prevScenesRef.current, scenes).forEach(d => undoRedo.push(d));
+    prevScenesRef.current = scenes;
+  }, [scenes]);
+
+  useEffect(() => {
+    if (!undoReadyRef.current) return;
+    if (undoRedo.isOperatingRef.current) { prevBgmsRef.current = bgms; return; }
+    computeDiffs('bgm', prevBgmsRef.current, bgms).forEach(d => undoRedo.push(d));
+    prevBgmsRef.current = bgms;
+  }, [bgms]);
+
+  useEffect(() => {
+    if (!undoReadyRef.current) return;
+    if (undoRedo.isOperatingRef.current) { prevPiecesRef.current = pieces; return; }
+    computeDiffs('piece', prevPiecesRef.current, pieces).forEach(d => undoRedo.push(d));
+    prevPiecesRef.current = pieces;
+  }, [pieces]);
+
+  // undo/redo 実行
+  const executeUndoEntry = useCallback(async (entry: UndoEntry, direction: 'undo' | 'redo') => {
+    undoRedo.isOperatingRef.current = true;
+    const data = direction === 'undo' ? entry.before : entry.after;
+    try {
+      if (direction === 'undo' && entry.operation === 'add') {
+        // undo add = remove
+        switch (entry.entityType) {
+          case 'object': await removeObject(entry.entityId); break;
+          case 'character': await removeCharacter(entry.entityId); break;
+          case 'scene': await removeScene(entry.entityId); break;
+          case 'bgm': await removeBgm(entry.entityId); break;
+          case 'piece': await removePiece(entry.entityId); break;
+        }
+      } else if (direction === 'undo' && entry.operation === 'remove') {
+        // undo remove = re-add with same ID
+        switch (entry.entityType) {
+          case 'object': await addObject(data as any); break;
+          case 'character': await addCharacter(data as any); break;
+          case 'scene': await addScene(data as any); break;
+          case 'bgm': await addBgm(data as any); break;
+          case 'piece': await addPiece((data as any).label ?? '', (data as any).color ?? '#888', (data as any).x ?? 0, (data as any).y ?? 0); break;
+        }
+      } else if (direction === 'redo' && entry.operation === 'add') {
+        // redo add = re-add
+        switch (entry.entityType) {
+          case 'object': await addObject(data as any); break;
+          case 'character': await addCharacter(data as any); break;
+          case 'scene': await addScene(data as any); break;
+          case 'bgm': await addBgm(data as any); break;
+          case 'piece': await addPiece((data as any).label ?? '', (data as any).color ?? '#888', (data as any).x ?? 0, (data as any).y ?? 0); break;
+        }
+      } else if (direction === 'redo' && entry.operation === 'remove') {
+        // redo remove = remove again
+        switch (entry.entityType) {
+          case 'object': await removeObject(entry.entityId); break;
+          case 'character': await removeCharacter(entry.entityId); break;
+          case 'scene': await removeScene(entry.entityId); break;
+          case 'bgm': await removeBgm(entry.entityId); break;
+          case 'piece': await removePiece(entry.entityId); break;
+        }
+      } else {
+        // update (undo = before, redo = after)
+        switch (entry.entityType) {
+          case 'object': await updateObject(entry.entityId, data as any); break;
+          case 'character': await updateCharacter(entry.entityId, data as any); break;
+          case 'scene': await updateScene(entry.entityId, data as any); break;
+          case 'bgm': await updateBgm(entry.entityId, data as any); break;
+          case 'piece': await updatePiece(entry.entityId, data as any); break;
+        }
+      }
+    } finally {
+      setTimeout(() => { undoRedo.isOperatingRef.current = false; }, 500);
+    }
+  }, [addObject, removeObject, updateObject, addCharacter, removeCharacter, updateCharacter,
+      addScene, removeScene, updateScene, addBgm, removeBgm, updateBgm, addPiece, removePiece, updatePiece]);
+
+  const handleUndo = useCallback(() => {
+    const entry = undoRedo.undo();
+    if (entry) executeUndoEntry(entry, 'undo');
+  }, [undoRedo, executeUndoEntry]);
+
+  const handleRedo = useCallback(() => {
+    const entry = undoRedo.redo();
+    if (entry) executeUndoEntry(entry, 'redo');
+  }, [undoRedo, executeUndoEntry]);
 
   // --- Image preload（ローカルストレージ読み込み後に全画像を blobCache にプリロード） ---
   const preloadDoneRef = useRef(false);
@@ -934,6 +1061,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
       // Toast
       toasts, showToast,
+      // Undo/Redo
+      undoRedo: { ...undoRedo, undo: handleUndo, redo: handleRedo } as UndoRedoHandle,
     }),
     [
       roomId, roomRole,
@@ -966,6 +1095,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       clearAllEditing,
       registerPanel, unregisterPanel,
       toasts, showToast,
+      undoRedo, handleUndo, handleRedo,
     ],
   );
 

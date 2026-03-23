@@ -58,6 +58,24 @@ function AdrasteaRoom() {
   const { can } = usePermission();
   const isOwner = ctx.roomRole === 'owner';
 
+  // Undo/Redo キーバインド（sub_owner 以上のみ）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'z') return;
+      if (!can('object_edit')) return; // sub_owner 以上
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        ctx.undoRedo.redo();
+      } else {
+        ctx.undoRedo.undo();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [ctx.undoRedo, can]);
+
   // クリップボードインポート
   usePasteHandler({
     addCharacter: (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
