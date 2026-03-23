@@ -150,7 +150,8 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         );
         if (targets.length > 0) {
           e.preventDefault();
-          Promise.all(targets.map(o => removeObject(o.id)));
+          const msg = targets.length > 1 ? `${targets.length}件のオブジェクトを削除しますか？` : `「${targets[0].name}」を削除しますか？`;
+          setPendingRemove({ msg, action: () => Promise.all(targets.map(o => removeObject(o.id))) });
         }
       }
     };

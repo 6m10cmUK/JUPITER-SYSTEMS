@@ -1,4 +1,5 @@
-import { useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { ConfirmModal } from '../ui';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenePanel } from '../ScenePanel';
 import { sceneToClipboardJson, pasteSceneFromClipboard } from '../../../utils/clipboardImport';
@@ -7,6 +8,7 @@ import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 export function SceneDockPanel() {
   const ctx = useAdrasteaContext();
   const selectedSceneIds = ctx.panelSelection?.panel === 'scene' ? ctx.panelSelection.ids : [];
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
   const setSelectedSceneIds = useCallback((ids: string[]) => {
     ctx.setPanelSelection(ids.length > 0 ? { panel: 'scene', ids } : null);
   }, [ctx.setPanelSelection]);
@@ -145,7 +147,7 @@ export function SceneDockPanel() {
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         if (selectedSceneIds.length > 0 && selectedSceneIds.length < ctx.scenes.length) {
           e.preventDefault();
-          handleRemoveScenes(selectedSceneIds);
+          setPendingDeleteIds(selectedSceneIds);
         }
       }
     };
@@ -154,6 +156,7 @@ export function SceneDockPanel() {
   }, [selectedSceneIds, ctx.scenes.length, ctx.room?.active_scene_id, handleCopy, handleDuplicateScenes, handleRemoveScenes]);
 
   return (
+    <>
     <ScenePanel
       scenes={ctx.scenes}
       activeSceneId={ctx.room?.active_scene_id ?? null}
@@ -169,5 +172,15 @@ export function SceneDockPanel() {
       onCopy={handleCopy}
       onPaste={handlePaste}
     />
+    {pendingDeleteIds && (
+      <ConfirmModal
+        message={pendingDeleteIds.length > 1 ? `${pendingDeleteIds.length}件のシーンを削除しますか？` : 'このシーンを削除しますか？'}
+        confirmLabel="削除"
+        danger
+        onConfirm={() => { handleRemoveScenes(pendingDeleteIds); setPendingDeleteIds(null); }}
+        onCancel={() => setPendingDeleteIds(null)}
+      />
+    )}
+    </>
   );
 }

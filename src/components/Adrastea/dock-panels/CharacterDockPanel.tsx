@@ -5,7 +5,7 @@ import { characterToClipboardJson } from '../../../utils/clipboardImport';
 import { useThrottledCallback } from '../../../hooks/useThrottledUpdate';
 import { CharacterPanel } from '../CharacterPanel';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
-import { AdModal } from '../ui';
+import { AdModal, ConfirmModal } from '../ui';
 import type { Character } from '../../../types/adrastea.types';
 export function CharacterDockPanel() {
   const ctx = useAdrasteaContext();
@@ -15,6 +15,7 @@ export function CharacterDockPanel() {
     ctx.setPanelSelection(ids.length > 0 ? { panel: 'character', ids } : null);
   }, [ctx.setPanelSelection]);
   const editorRef = useRef<CharacterEditorHandle>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (ctx.characterToOpenModal) {
@@ -132,7 +133,7 @@ export function CharacterDockPanel() {
       } else if (e.key === 'Backspace' || e.key === 'Delete') {
         if (selectedCharIds.length > 0) {
           e.preventDefault();
-          handleRemoveCharacters(selectedCharIds);
+          setPendingDeleteIds(selectedCharIds);
         }
       }
     };
@@ -195,6 +196,15 @@ export function CharacterDockPanel() {
             onClose={handleModalClose}
           />
         </AdModal>
+      )}
+      {pendingDeleteIds && (
+        <ConfirmModal
+          message={pendingDeleteIds.length > 1 ? `${pendingDeleteIds.length}件のキャラクターを削除しますか？` : 'このキャラクターを削除しますか？'}
+          confirmLabel="削除"
+          danger
+          onConfirm={() => { handleRemoveCharacters(pendingDeleteIds); setPendingDeleteIds(null); }}
+          onCancel={() => setPendingDeleteIds(null)}
+        />
       )}
     </>
   );
