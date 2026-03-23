@@ -6,6 +6,7 @@ import { theme } from '../../styles/theme';
 import type { Scene } from '../../types/adrastea.types';
 import { Plus, Copy, Trash2 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
+import { shortcutLabel } from './ui/DropdownMenu';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -340,6 +341,7 @@ export function ScenePanel({
         },
         {
           label: 'コピー',
+          shortcut: shortcutLabel('C'),
           disabled: !contextMenu?.sceneId,
           onClick: () => {
             if (contextMenu?.sceneId) onCopy?.(contextMenu.sceneId);
@@ -386,6 +388,7 @@ export function ScenePanel({
         'separator',
         {
           label: '貼り付け',
+          shortcut: shortcutLabel('V'),
           disabled: !onPaste,
           onClick: () => {
             onPaste?.();

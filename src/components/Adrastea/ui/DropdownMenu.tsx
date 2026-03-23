@@ -2,10 +2,17 @@ import React, { useRef, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { theme } from '../../../styles/theme';
 
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent);
+const MOD = isMac ? '⌘' : 'Ctrl+';
+
+/** ショートカット文字列を生成（例: shortcutLabel('C') → '⌘C' or 'Ctrl+C'） */
+export const shortcutLabel = (key: string) => `${MOD}${key}`;
+
 export interface DropdownMenuItem {
   id?: string;
   icon?: React.ReactNode;
   label: string;
+  shortcut?: string;
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
@@ -232,7 +239,8 @@ export function DropdownMenu({
         itemContent = (
           <>
             {entry.icon && <span style={{ display: 'flex', alignItems: 'center' }}>{entry.icon}</span>}
-            <span>{entry.label}</span>
+            <span style={{ flex: 1, textAlign: 'left' }}>{entry.label}</span>
+            {entry.shortcut && <span style={{ fontSize: '10px', color: theme.textMuted, marginLeft: '16px', flexShrink: 0 }}>{entry.shortcut}</span>}
           </>
         );
       }

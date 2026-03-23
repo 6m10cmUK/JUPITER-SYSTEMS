@@ -19,6 +19,7 @@ import {
   ChevronRight, ChevronDown, Plus,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
+import { shortcutLabel } from './ui/DropdownMenu';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
@@ -734,6 +735,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         'separator',
         {
           label: '貼り付け',
+          shortcut: shortcutLabel('V'),
           disabled: !onPaste,
           onClick: () => {
             onPaste?.();

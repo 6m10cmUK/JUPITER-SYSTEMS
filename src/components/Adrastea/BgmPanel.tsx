@@ -4,7 +4,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
 import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
-import { DropdownMenu } from './ui/DropdownMenu';
+import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
   Play, Pause, Square, Trash2, Plus, Music,
@@ -513,6 +513,7 @@ export function BgmPanel() {
           items={[
             {
               label: 'コピー',
+              shortcut: shortcutLabel('C'),
               disabled: !contextMenu?.trackId,
               onClick: handleCopy,
             },
@@ -534,6 +535,7 @@ export function BgmPanel() {
             'separator',
             {
               label: '貼り付け',
+              shortcut: shortcutLabel('V'),
               onClick: handlePaste,
             },
           ]}

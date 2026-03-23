@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage, Shape } from 'react-konva';
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
-import { DropdownMenu } from './ui';
+import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
@@ -550,6 +550,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         items={[
           {
             label: '貼り付け',
+            shortcut: shortcutLabel('V'),
             onClick: () => {
               onPaste?.();
               setBgContextMenuState(null);

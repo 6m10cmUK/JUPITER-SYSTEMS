@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type React from 'react';
 import type { DropdownMenuEntry } from './ui/DropdownMenu';
+import { shortcutLabel } from './ui/DropdownMenu';
 import type { Character } from '../../types/adrastea.types';
 import { usePermission } from '../../hooks/usePermission';
 import { hasRole } from '../../config/permissions';
@@ -42,6 +43,7 @@ export function useCharacterContextMenu(
   // コピー（常に有効、char が存在すれば）
   items.push({
     label: 'コピー',
+    shortcut: shortcutLabel('C'),
     disabled: !char,
     onClick: () => {
       if (char) navigator.clipboard.writeText(characterToClipboardJson(char));
@@ -75,6 +77,7 @@ export function useCharacterContextMenu(
   // 貼り付け
   items.push({
     label: '貼り付け',
+    shortcut: shortcutLabel('V'),
     disabled: !onPaste || !canEditChar,
     onClick: () => {
       onPaste?.();

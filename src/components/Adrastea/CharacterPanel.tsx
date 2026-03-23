@@ -5,6 +5,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
+import { shortcutLabel } from './ui/DropdownMenu';
 import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
 import { usePermission } from '../../hooks/usePermission';
 import { hasRole } from '../../config/permissions';
@@ -276,6 +277,7 @@ export function CharacterPanel({
               : selectedCharIds;
             return ids.length > 1 ? `${ids.length}件コピー` : 'コピー';
           })(),
+          shortcut: shortcutLabel('C'),
           disabled: !contextMenu?.charId && selectedCharIds.length === 0,
           onClick: () => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
@@ -356,6 +358,7 @@ export function CharacterPanel({
         'separator',
         {
           label: '貼り付け',
+          shortcut: shortcutLabel('V'),
           disabled: !onPaste || !canEditChar,
           onClick: () => {
             onPaste?.();
