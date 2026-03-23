@@ -368,7 +368,7 @@ export function BgmPanel() {
           e.preventDefault();
           handleDuplicate();
         }
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'Delete') {
         if (editingBgmId) {
           e.preventDefault();
           setPendingDeleteId(editingBgmId);

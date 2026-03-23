@@ -130,7 +130,7 @@ export function CharacterDockPanel() {
           e.preventDefault();
           handleDuplicateCharacters(selectedCharIds);
         }
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'Delete') {
         if (selectedCharIds.length > 0) {
           e.preventDefault();
           setPendingDeleteIds(selectedCharIds);

@@ -158,7 +158,7 @@ export function SceneDockPanel() {
           e.preventDefault();
           handleDuplicateScenes(selectedSceneIds);
         }
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'Delete') {
         if (selectedSceneIds.length > 0 && selectedSceneIds.length < ctx.scenes.length) {
           e.preventDefault();
           setPendingDeleteIds(selectedSceneIds);
