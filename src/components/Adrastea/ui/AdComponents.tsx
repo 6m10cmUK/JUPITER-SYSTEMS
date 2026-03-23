@@ -27,6 +27,7 @@ export function AdInput({ label, fullWidth = true, inputWidth, style, id, ...pro
       {label && <label htmlFor={inputId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <input
         id={inputId}
+        maxLength={128}
         {...props}
         style={{
           height: HEIGHT,
@@ -541,6 +542,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
             </button>
             <input
               type="text"
+              maxLength={128}
               value={textInput}
               onChange={(e) => setTextInput(e.target.value)}
               onBlur={() => {
@@ -1002,6 +1004,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           <input
             ref={inputRef}
             type="text"
+            maxLength={128}
             value={singleProps.value}
             onChange={(e) => {
               singleProps.onChange(e.target.value);
@@ -1114,6 +1117,7 @@ export function AdComboBox(props: AdComboBoxProps) {
         <input
           ref={inputRef}
           type="text"
+          maxLength={128}
           value={input}
           onChange={(e) => {
             setInput(e.target.value);

@@ -263,6 +263,7 @@ export function ScenePanel({
                     if (e.key === 'Escape') setEditingId(null);
                   }}
                   autoFocus
+                  maxLength={128}
                   style={{
                     flex: 1, minWidth: 0,
                     background: theme.bgInput, border: `1px solid ${theme.border}`,

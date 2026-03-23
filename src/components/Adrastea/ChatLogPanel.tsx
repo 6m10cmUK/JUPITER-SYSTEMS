@@ -826,6 +826,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
               onBlur={handleCreateChannel}
               onKeyDown={handleKeyDown}
               placeholder="チャンネル名"
+              maxLength={128}
               style={{
                 padding: '4px 6px',
                 background: theme.bgInput,
