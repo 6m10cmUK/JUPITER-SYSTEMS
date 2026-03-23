@@ -149,7 +149,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         color: data.color ?? '#555555',
         sheet_url: data.sheet_url ?? null,
         initiative: data.initiative ?? 0,
-        size: data.size ?? 1,
+        size: data.size ?? 5,
         statuses: data.statuses ?? [],
         parameters: data.parameters ?? [],
         memo: data.memo ?? '',

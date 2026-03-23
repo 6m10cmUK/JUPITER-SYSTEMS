@@ -100,6 +100,11 @@ export function useScenes(
           });
         }
       } else {
+        // characters_layer の sort_order を参照し、前景をその下に配置
+        const charLayer = allObjects?.find(o => o.type === 'characters_layer');
+        const charLayerSort = charLayer?.sort_order ?? 9999;
+        const fgSort = Math.max(1, charLayerSort - 1);
+
         createdObjects.push({
           id: genId(),
           room_id: roomId,
@@ -125,7 +130,7 @@ export function useScenes(
           global: false,
           scene_ids: [id],
           x: -24, y: -14, width: 48, height: 27,
-          visible: true, opacity: 1, sort_order: 100, locked: false,
+          visible: true, opacity: 1, sort_order: fgSort, locked: false,
           position_locked: false, size_locked: false,
           image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
           text_content: null, font_size: 16, font_family: 'sans-serif',
@@ -134,6 +139,27 @@ export function useScenes(
           scale_x: 1, scale_y: 1,
           created_at: now, updated_at: now,
         });
+        // 初回シーン作成時のみ characters_layer を生成
+        if (scenes.length === 0) {
+          createdObjects.push({
+            id: genId(),
+            room_id: roomId,
+            type: 'characters_layer',
+            name: 'キャラクター',
+            global: true,
+            scene_ids: [],
+            x: 0, y: 0, width: 0, height: 0,
+            visible: true, opacity: 1, sort_order: 9999, locked: false,
+            position_locked: true, size_locked: true,
+            image_url: null, image_asset_id: null,
+            background_color: 'transparent', image_fit: 'cover',
+            text_content: null, font_size: 16, font_family: 'sans-serif',
+            letter_spacing: 0, line_height: 1.5, auto_size: false,
+            text_align: 'left', text_vertical_align: 'top', text_color: '#000000',
+            scale_x: 1, scale_y: 1,
+            created_at: now, updated_at: now,
+          });
+        }
       }
 
       if (inj) {

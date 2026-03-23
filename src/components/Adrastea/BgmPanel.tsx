@@ -11,6 +11,7 @@ import {
   Volume2, VolumeX,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
+import { bgmToClipboardJson, parseClipboardData } from '../../utils/clipboardImport';
 
 const extractVideoId = (url: string): string => {
   const match = url.match(/(?:youtu\.be\/|v=)([^&\s]+)/);
@@ -225,7 +226,7 @@ function BgmTrackRow({
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing, showToast } = useAdrasteaContext();
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
@@ -285,16 +286,19 @@ export function BgmPanel() {
     });
   }, [localBgms, updateBgm]);
 
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId: string } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId?: string } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [showAddPicker, setShowAddPicker] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
-  const handleContextMenu = useCallback((e: React.MouseEvent, trackId: string) => {
+  const handleContextMenu = useCallback((e: React.MouseEvent, trackId?: string) => {
     e.preventDefault();
-    clearAllEditing();
-    setEditingBgmId(trackId); // 右クリックで選択を移す
+    e.stopPropagation();
+    if (trackId) {
+      clearAllEditing();
+      setEditingBgmId(trackId);
+    }
     setContextMenu({ x: e.clientX, y: e.clientY, trackId });
   }, [clearAllEditing, setEditingBgmId]);
 
@@ -305,8 +309,18 @@ export function BgmPanel() {
     setRenamingId(null);
   }, [renamingId, renameValue, updateBgm]);
 
+  const handleCopy = useCallback(() => {
+    if (!contextMenu?.trackId) return;
+    const track = bgms.find(b => b.id === contextMenu.trackId);
+    if (track) {
+      navigator.clipboard.writeText(bgmToClipboardJson(track));
+      showToast(`${track.name} をコピーしました`, 'success');
+    }
+    setContextMenu(null);
+  }, [contextMenu, bgms, showToast]);
+
   const handleDuplicate = useCallback(async () => {
-    if (!contextMenu) return;
+    if (!contextMenu?.trackId) return;
     const track = bgms.find(b => b.id === contextMenu.trackId);
     if (!track) return;
     const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
@@ -314,11 +328,46 @@ export function BgmPanel() {
     setContextMenu(null);
   }, [contextMenu, bgms, addBgm]);
 
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const result = parseClipboardData(text);
+      if (result?.type === 'bgm') {
+        await addBgm({ ...result.data, scene_ids: activeScene ? [activeScene.id] : [], auto_play_scene_ids: activeScene ? [activeScene.id] : [] });
+        showToast(`BGM "${result.data.name ?? 'BGM'}" をインポートしました`, 'success');
+      }
+    } catch {
+      showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [addBgm, showToast, activeScene]);
+
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingDeleteId) return;
     await removeBgm(pendingDeleteId);
     setPendingDeleteId(null);
   }, [pendingDeleteId, removeBgm]);
+
+  // Ctrl+C / Ctrl+V キーボードショートカット
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      if (e.key === 'c') {
+        if (window.getSelection()?.toString()) return;
+        if (editingBgmId) {
+          const track = bgms.find(b => b.id === editingBgmId);
+          if (track) {
+            e.preventDefault();
+            navigator.clipboard.writeText(bgmToClipboardJson(track));
+            showToast(`${track.name} をコピーしました`, 'success');
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [editingBgmId, bgms, showToast]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
@@ -362,6 +411,10 @@ export function BgmPanel() {
 
   return (
     <>
+      <div
+        style={{ height: '100%' }}
+        onContextMenu={(e) => handleContextMenu(e)}
+      >
       <SortableListPanel
         title="BGM"
         titleIcon={<Music size={14} />}
@@ -449,6 +502,7 @@ export function BgmPanel() {
           />
         ))}
       </SortableListPanel>
+      </div>
 
       {contextMenu && (
         <DropdownMenu
@@ -458,17 +512,29 @@ export function BgmPanel() {
           position={{ x: contextMenu.x, y: contextMenu.y }}
           items={[
             {
+              label: 'コピー',
+              disabled: !contextMenu?.trackId,
+              onClick: handleCopy,
+            },
+            {
               label: '複製',
+              disabled: !contextMenu?.trackId,
               onClick: handleDuplicate,
             },
             'separator',
             {
               label: '削除',
               danger: true,
+              disabled: !contextMenu?.trackId,
               onClick: () => {
                 setContextMenu(null);
-                setPendingDeleteId(contextMenu.trackId);
+                if (contextMenu?.trackId) setPendingDeleteId(contextMenu.trackId);
               },
+            },
+            'separator',
+            {
+              label: '貼り付け',
+              onClick: handlePaste,
             },
           ]}
         />

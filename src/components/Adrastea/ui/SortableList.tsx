@@ -209,6 +209,7 @@ interface SortableListItemProps {
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
   handleExtra?: React.ReactNode;
+  leadingSlot?: React.ReactNode;
   children: React.ReactNode;
   itemStyle?: React.CSSProperties;
 }
@@ -223,6 +224,7 @@ export function SortableListItem({
   onClick,
   onDoubleClick,
   handleExtra,
+  leadingSlot,
   children,
   itemStyle,
 }: SortableListItemProps) {
@@ -266,6 +268,7 @@ export function SortableListItem({
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
+      {leadingSlot}
       {!disabled && !hideHandle && (
         <div
           style={{
