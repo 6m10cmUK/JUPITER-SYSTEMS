@@ -144,7 +144,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
             });
           }));
         }
-      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+      } else if (e.key === 'Delete') {
         const targets = activeObjects.filter(o =>
           selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
         );
