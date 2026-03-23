@@ -4,7 +4,7 @@ import { Bold, Italic, Strikethrough, Heading1 } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
-import { Tooltip } from './ui';
+import { Tooltip, DropdownMenu } from './ui';
 import { calcPopupPos } from '../../utils/calcPopupPos';
 import {
   highlightMarkup,
@@ -15,11 +15,19 @@ import {
   COLOR_TEXT_MUTED,
 } from './utils/chatEditorUtils';
 
+export interface ChatEditorChannel {
+  channel_id: string;
+  label: string;
+}
+
 export interface ChatEditorProps {
   characters?: Character[];
   onSend?: (text: string) => void;
   placeholder?: string;
   enterToSend?: boolean;
+  channels?: ChatEditorChannel[];
+  activeChannelId?: string;
+  onChannelChange?: (channelId: string) => void;
 }
 
 export interface ChatEditorHandle {
@@ -30,7 +38,7 @@ export interface ChatEditorHandle {
 }
 
 const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
-  ({ characters = [], onSend, placeholder = 'メッセージを入力...', enterToSend = true }, ref) => {
+  ({ characters = [], onSend, placeholder = 'メッセージを入力...', enterToSend = true, channels, activeChannelId, onChannelChange }, ref) => {
     const [isEmpty, setIsEmpty] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [suggestionIndex, setSuggestionIndex] = useState(-1);
@@ -357,7 +365,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
     }));
 
     return (
-      <>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {/* エディタコンテナ */}
         <div
           ref={editorContainerRef}
@@ -517,6 +525,35 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
 
           {/* スペーサー */}
           <div style={{ flex: 1 }} />
+
+          {/* チャンネル選択 */}
+          {channels && channels.length > 0 && (
+            <DropdownMenu
+              trigger={
+                <Tooltip label="チャンネル選択">
+                  <button
+                    className="adra-btn adra-tab"
+                    style={{
+                      padding: '4px 8px', border: `1px solid ${theme.borderSubtle}`,
+                      fontSize: '11px', cursor: 'pointer', outline: 'none',
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      flexShrink: 0, whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {channels.find(ch => ch.channel_id === activeChannelId)?.label ?? 'ch'}
+                  </button>
+                </Tooltip>
+              }
+              direction="up"
+              align="left"
+              items={channels.map(ch => ({
+                id: ch.channel_id,
+                label: ch.label,
+                onClick: () => onChannelChange?.(ch.channel_id),
+              }))}
+              selectedId={activeChannelId}
+            />
+          )}
         </div>
 
         {/* サジェストポップアップ */}
@@ -531,7 +568,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
               background: theme.bgElevated,
               border: `1px solid ${theme.border}`,
               boxShadow: theme.shadowMd,
-              zIndex: 10000,
+              zIndex: 10010,
               maxHeight: '160px',
               overflowY: 'auto',
             }}
@@ -561,7 +598,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
           </div>,
           document.body
         )}
-      </>
+      </div>
     );
   }
 );

@@ -987,6 +987,7 @@ function CharacterSubList({
                 alignItems: 'center',
                 gap: '6px',
                 flex: 1,
+                minWidth: 0,
               }}
             >
               {/* アバター（画像 or カラードット） */}

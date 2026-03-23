@@ -64,38 +64,47 @@ export function AdTextArea({ label, style, expandable, ...props }: AdTextAreaPro
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {(label || expandable) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          {label ? <label htmlFor={textareaId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label> : <div />}
-          {expandable && (
-            <button
-              type="button"
-              onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '0 2px', display: 'flex' }}
-            >
-              <Maximize2 size={12} />
-            </button>
-          )}
-        </div>
-      )}
-      <textarea
-        id={textareaId}
-        {...props}
-        style={{
-          padding: PADDING,
-          fontSize: FONT_SIZE,
-          background: theme.bgInput,
-          border: `1px solid ${theme.borderInput}`,
-          borderRadius: 0,
-          color: theme.textPrimary,
-          outline: 'none',
-          boxSizing: 'border-box',
-          width: '100%',
-          minHeight: '60px',
-          resize: 'vertical',
-          ...style,
-        }}
-      />
+      {label && <label htmlFor={textareaId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      <div style={{ position: 'relative' }}>
+        <textarea
+          id={textareaId}
+          {...props}
+          style={{
+            padding: PADDING,
+            fontSize: FONT_SIZE,
+            background: theme.bgInput,
+            border: `1px solid ${theme.borderInput}`,
+            borderRadius: 0,
+            color: theme.textPrimary,
+            outline: 'none',
+            boxSizing: 'border-box',
+            width: '100%',
+            minHeight: '60px',
+            resize: 'vertical',
+            ...style,
+          }}
+        />
+        {expandable && (
+          <button
+            type="button"
+            onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
+            style={{
+              position: 'absolute',
+              top: 2,
+              right: 2,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: theme.textMuted,
+              padding: '2px',
+              display: 'flex',
+              opacity: 0.6,
+            }}
+          >
+            <Maximize2 size={12} />
+          </button>
+        )}
+      </div>
       {expanded && createPortal(
         <div
           onClick={() => {
@@ -579,7 +588,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
             position: 'fixed',
             top: popPos?.top ?? -9999, left: popPos?.left ?? -9999,
             visibility: popPos ? 'visible' : 'hidden',
-            zIndex: 10000,
+            zIndex: 10010,
             background: theme.bgElevated, border: `1px solid ${theme.border}`,
             padding: '8px', display: 'flex', flexDirection: 'row', gap: '8px',
             boxShadow: theme.shadowMd,

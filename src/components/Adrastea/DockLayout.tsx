@@ -404,6 +404,7 @@ const DockviewInner = memo(function DockviewInner({
       tabComponents={{ boardTab: BoardTab }}
       onReady={onReady}
       theme={catppuccinTheme}
+      floatingGroupBounds="boundedWithinViewport"
       prefixHeaderActionsComponent={PrefixHeaderActions}
       rightHeaderActionsComponent={RightHeaderActions}
     />

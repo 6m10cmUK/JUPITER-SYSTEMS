@@ -118,35 +118,40 @@ export function DropdownMenu({
       return;
     }
 
-    if (mode === 'trigger' && align === 'right' && direction === 'down') {
-      // Adjust left to align menu's right with trigger's right
-      const menuWidth = menuRef.current.offsetWidth;
-      const triggerRect = triggerRef.current?.getBoundingClientRect();
+    const menuWidth = menuRef.current.offsetWidth;
+    const menuHeight = menuRef.current.offsetHeight;
+    const triggerRect = triggerRef.current?.getBoundingClientRect();
+    let { top, left } = menuPos;
 
-      if (triggerRect) {
-        const adjustedLeft = triggerRect.right - menuWidth;
-        setMenuPos((prev) => (prev ? { ...prev, left: adjustedLeft } : null));
+    if (mode === 'trigger' && triggerRect) {
+      // 水平位置: align='right' なら右揃え
+      if (align === 'right') {
+        left = triggerRect.right - menuWidth;
       }
-    } else if (mode === 'trigger' && direction === 'up') {
-      // Adjust top to position menu above trigger
-      const menuHeight = menuRef.current.offsetHeight;
-      const triggerRect = triggerRef.current?.getBoundingClientRect();
 
-      if (triggerRect) {
+      // 垂直位置: direction='up' ならトリガーの上
+      if (direction === 'up') {
         const marginGap = 4;
-        const adjustedTop = triggerRect.top - menuHeight - marginGap;
-        setMenuPos((prev) => (prev ? { ...prev, top: adjustedTop } : null));
+        top = triggerRect.top - menuHeight - marginGap;
       }
+
+      // ビューポートはみ出し補正
+      if (top + menuHeight > window.innerHeight - 8) {
+        top = Math.max(8, window.innerHeight - menuHeight - 8);
+      }
+      if (top < 8) top = 8;
+      if (left + menuWidth > window.innerWidth - 8) {
+        left = Math.max(8, window.innerWidth - menuWidth - 8);
+      }
+      if (left < 8) left = 8;
     } else if (mode === 'context') {
       // Adjust context menu to keep within viewport
-      const menuH = menuRef.current.offsetHeight;
-      const menuW = menuRef.current.offsetWidth;
-      let { top, left } = menuPos;
-      if (top + menuH > window.innerHeight - 8) top = Math.max(8, top - menuH);
-      if (left + menuW > window.innerWidth - 8) left = Math.max(8, left - menuW);
-      if (top !== menuPos.top || left !== menuPos.left) {
-        setMenuPos({ top, left });
-      }
+      if (top + menuHeight > window.innerHeight - 8) top = Math.max(8, top - menuHeight);
+      if (left + menuWidth > window.innerWidth - 8) left = Math.max(8, left - menuWidth);
+    }
+
+    if (top !== menuPos.top || left !== menuPos.left) {
+      setMenuPos({ top, left });
     }
 
     setMenuInitialized(true);
@@ -289,10 +294,12 @@ export function DropdownMenu({
               border: `1px solid ${theme.border}`,
               boxShadow: theme.shadowMd,
               borderRadius: '4px',
-              zIndex: 10001,
+              zIndex: 10010,
               padding: '4px 0',
               minWidth: '160px',
               width: 'max-content',
+              maxHeight: 'calc(100vh - 16px)',
+              overflowY: 'auto',
               visibility: menuInitialized ? 'visible' : 'hidden',
             }}
             onMouseLeave={() => setHoveredIndex(null)}
