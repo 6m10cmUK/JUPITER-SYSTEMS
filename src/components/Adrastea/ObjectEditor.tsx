@@ -5,6 +5,7 @@ import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useEntityEditor } from '../../hooks/useEntityEditor';
 import { AdInput, AdTextArea, AdButton, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
+import { Trash2 } from 'lucide-react';
 
 
 const FONT_OPTIONS = [
@@ -139,8 +140,10 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
     color: theme.textPrimary,
-    padding: '8px',
     boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
   };
 
   const title = isNew
@@ -155,6 +158,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
 
   return (
     <div style={panelStyle}>
+      <div style={{ flex: 1, overflow: 'auto', padding: '8px' }}>
       <h3 style={{ fontSize: '12px', fontWeight: 600, margin: '0 0 8px' }}>{title}</h3>
 
       {/* タイプ選択（新規のみ） */}
@@ -557,15 +561,16 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
             </AdSection>
           )}
 
-          {/* ボタン */}
-          {!isNew && onDelete && (state.type as string) !== 'foreground' && (
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <div style={{ marginRight: 'auto' }}>
-                <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }}>削除</AdButton>
-              </div>
-            </div>
-          )}
         </>
+      )}
+      </div>
+      {!isNew && onDelete && (state.type as string) !== 'foreground' && (state.type as string) !== 'background' && (
+        <div style={{ padding: '8px', borderTop: `1px solid ${theme.borderSubtle}`, flexShrink: 0 }}>
+          <AdButton variant="danger" onClick={() => { onDelete(); onClose(); }}>
+            <Trash2 size={14} style={{ marginRight: '4px' }} />
+            削除
+          </AdButton>
+        </div>
       )}
     </div>
   );

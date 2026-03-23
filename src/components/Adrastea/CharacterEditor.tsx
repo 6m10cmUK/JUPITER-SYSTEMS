@@ -4,6 +4,7 @@ import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { AdInput, AdTextArea, AdButton, AdColorPicker } from './ui';
 import { Trash2, Copy } from 'lucide-react';
+import { characterToClipboardJson } from '../../utils/clipboardImport';
 
 interface CharacterEditorProps {
   character?: Character | null;
@@ -42,6 +43,8 @@ function CharacterEditorComponent({
   // 盤面設定
   const [initiative, setInitiative] = useState(character?.initiative ?? 0);
   const [size, setSize] = useState(character?.size ?? 5);
+  const [boardX, setBoardX] = useState(character?.board_x ?? 0);
+  const [boardY, setBoardY] = useState(character?.board_y ?? 0);
 
   // ステータス
   const [statuses, setStatuses] = useState<PieceStatus[]>(character?.statuses ?? []);
@@ -53,6 +56,19 @@ function CharacterEditorComponent({
   const [memo, setMemo] = useState(character?.memo ?? '');
   const [secretMemo, setSecretMemo] = useState(character?.secret_memo ?? '');
   const [chatPalette, setChatPalette] = useState(character?.chat_palette ?? '');
+
+  // 保存済みスナップショット（dirty 判定用）
+  const savedRef = useRef(character);
+
+  // ボード上の移動を反映（外部変更なので savedRef も同期）
+  useEffect(() => {
+    setBoardX(character?.board_x ?? 0);
+    if (savedRef.current) savedRef.current = { ...savedRef.current, board_x: character?.board_x ?? 0 };
+  }, [character?.board_x]);
+  useEffect(() => {
+    setBoardY(character?.board_y ?? 0);
+    if (savedRef.current) savedRef.current = { ...savedRef.current, board_y: character?.board_y ?? 0 };
+  }, [character?.board_y]);
 
   // チャットパレットセクション用ref
   const chatPaletteRef = useRef<HTMLDivElement>(null);
@@ -68,6 +84,23 @@ function CharacterEditorComponent({
   const [isStatusPrivate, setIsStatusPrivate] = useState(character?.is_status_private ?? false);
   const [isHiddenOnBoard, setIsHiddenOnBoard] = useState(character?.is_hidden_on_board ?? false);
   const [isSpeechHidden, setIsSpeechHidden] = useState(character?.is_speech_hidden ?? false);
+
+  const isDirty = !character || (() => {
+    const c = savedRef.current;
+    if (!c) return true;
+    return name !== (c.name ?? '') || color !== (c.color ?? '#555555')
+      || sheetUrl !== (c.sheet_url ?? '') || initiative !== (c.initiative ?? 0)
+      || size !== (c.size ?? 5) || boardX !== (c.board_x ?? 0) || boardY !== (c.board_y ?? 0)
+      || memo !== (c.memo ?? '') || secretMemo !== (c.secret_memo ?? '')
+      || chatPalette !== (c.chat_palette ?? '')
+      || isStatusPrivate !== (c.is_status_private ?? false)
+      || isHiddenOnBoard !== (c.is_hidden_on_board ?? false)
+      || isSpeechHidden !== (c.is_speech_hidden ?? false)
+      || activeImageIndex !== (c.active_image_index ?? 0)
+      || JSON.stringify(images) !== JSON.stringify(c.images ?? [])
+      || JSON.stringify(statuses) !== JSON.stringify(c.statuses ?? [])
+      || JSON.stringify(parameters) !== JSON.stringify(c.parameters ?? []);
+  })();
 
   // ─── 立ち絵管理 ───
   const addImage = () => {
@@ -124,6 +157,8 @@ function CharacterEditorComponent({
       active_image_index: Math.min(activeImageIndex, Math.max(0, images.length - 1)),
       initiative,
       size,
+      board_x: boardX,
+      board_y: boardY,
       statuses,
       parameters,
       memo,
@@ -133,6 +168,13 @@ function CharacterEditorComponent({
       is_hidden_on_board: isHiddenOnBoard,
       is_speech_hidden: isSpeechHidden,
     });
+    // 保存済みスナップショットを更新
+    savedRef.current = {
+      ...character, name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
+      images, active_image_index: activeImageIndex, initiative, size, board_x: boardX, board_y: boardY,
+      statuses, parameters, memo, secret_memo: secretMemo, chat_palette: chatPalette,
+      is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
+    } as typeof character;
   };
 
   // useImperativeHandle で save メソッドを公開
@@ -151,6 +193,8 @@ function CharacterEditorComponent({
       active_image_index: activeImageIndex,
       initiative,
       size,
+      board_x: boardX,
+      board_y: boardY,
       statuses,
       parameters,
       memo,
@@ -278,9 +322,9 @@ function CharacterEditorComponent({
                       onSelect={(url) => updateImage(i, 'url', url)}
                     />
                   </div>
-                  <AdButton variant="danger" onClick={() => removeImage(i)}>
-                    削除
-                  </AdButton>
+                  <button onClick={() => removeImage(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>
+                    <Trash2 size={14} />
+                  </button>
                 </div>
                 <div style={{ width: '100%', marginTop: '4px' }}>
                   <AdInput
@@ -330,6 +374,25 @@ function CharacterEditorComponent({
               />
             </div>
           </div>
+
+          <div style={rowStyle}>
+            <div style={{ flex: 1 }}>
+              <AdInput
+                type="number"
+                label="X"
+                value={boardX}
+                onChange={(e) => setBoardX(Math.round(Number(e.target.value) * 100) / 100)}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <AdInput
+                type="number"
+                label="Y"
+                value={boardY}
+                onChange={(e) => setBoardY(Math.round(Number(e.target.value) * 100) / 100)}
+              />
+            </div>
+          </div>
         </div>
 
         {/* 4. ステータス */}
@@ -356,9 +419,9 @@ function CharacterEditorComponent({
                 onChange={(e) => updateStatus(i, 'max', Number(e.target.value))}
                 style={{ flex: 0, minWidth: '50px' }}
               />
-              <AdButton variant="danger" onClick={() => removeStatus(i)}>
-                削除
-              </AdButton>
+              <button onClick={() => removeStatus(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
           <AdButton variant="primary" onClick={addStatus}>
@@ -383,9 +446,9 @@ function CharacterEditorComponent({
                 placeholder="値"
                 style={{ flex: 1 }}
               />
-              <AdButton variant="danger" onClick={() => removeParameter(i)}>
-                削除
-              </AdButton>
+              <button onClick={() => removeParameter(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>
+                <Trash2 size={14} />
+              </button>
             </div>
           ))}
           <AdButton variant="primary" onClick={addParameter}>
@@ -470,14 +533,31 @@ function CharacterEditorComponent({
         borderTop: `1px solid ${theme.borderSubtle}`,
         flexShrink: 0,
       }}>
-        {/* 左側: 削除 */}
-        {character && onDelete && (
-          <AdButton variant="danger" onClick={onDelete}>
-            <Trash2 size={14} style={{ marginRight: '4px' }} />
-            削除
-          </AdButton>
-        )}
-        {!character && <div />}
+        {/* 左側: 削除 + コピー */}
+        <div style={{ display: 'flex', gap: '4px' }}>
+          {character && onDelete && (
+            <AdButton variant="danger" onClick={onDelete}>
+              <Trash2 size={14} style={{ marginRight: '4px' }} />
+              削除
+            </AdButton>
+          )}
+          {character && (
+            <AdButton variant="default" onClick={() => {
+              const data = {
+                ...character,
+                name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
+                images, active_image_index: activeImageIndex, initiative, size,
+                board_x: boardX, board_y: boardY, statuses, parameters,
+                memo, secret_memo: secretMemo, chat_palette: chatPalette,
+                is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
+              } as typeof character;
+              navigator.clipboard.writeText(characterToClipboardJson(data));
+            }}>
+              <Copy size={14} style={{ marginRight: '4px' }} />
+              コピー
+            </AdButton>
+          )}
+        </div>
 
         {/* 中央: 複製 */}
         {character && onDuplicate && (
@@ -492,7 +572,7 @@ function CharacterEditorComponent({
           <AdButton variant="default" onClick={() => _onClose?.()}>
             キャンセル
           </AdButton>
-          <AdButton variant="primary" onClick={handleSave}>
+          <AdButton variant={isDirty ? 'primary' : 'default'} onClick={handleSave}>
             保存
           </AdButton>
         </div>

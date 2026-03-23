@@ -75,17 +75,21 @@ export function PropertyDockPanel() {
             await ctx.addScene(data);
           }
         }}
+        onDelete={ctx.editingScene ? () => ctx.removeScene(ctx.editingScene!.id) : undefined}
         onClose={() => ctx.setEditingScene(undefined)}
       />
     );
   }
 
   // CharacterEditor
+  const liveEditingCharacter = ctx.editingCharacter?.id
+    ? ctx.characters.find(c => c.id === ctx.editingCharacter!.id) ?? ctx.editingCharacter
+    : ctx.editingCharacter;
   if (!content && ctx.editingCharacter !== undefined && ctx.roomId) {
     content = (
       <CharacterEditor
-        key={ctx.editingCharacter?.id ?? 'new-character'}
-        character={ctx.editingCharacter}
+        key={liveEditingCharacter?.id ?? 'new-character'}
+        character={liveEditingCharacter}
         roomId={ctx.roomId}
         currentUserId={user?.uid ?? ''}
         onSave={async (data) => {
@@ -95,6 +99,7 @@ export function PropertyDockPanel() {
             await ctx.addCharacter(data);
           }
         }}
+        onDelete={ctx.editingCharacter ? () => { ctx.removeCharacter(ctx.editingCharacter!.id); ctx.setEditingCharacter(undefined); } : undefined}
         onClose={() => ctx.setEditingCharacter(undefined)}
       />
     );
@@ -130,6 +135,7 @@ export function PropertyDockPanel() {
           track={track}
           activeSceneId={ctx.activeScene?.id ?? null}
           onUpdate={ctx.updateBgm}
+          onDelete={() => { ctx.removeBgm(track.id); ctx.setEditingBgmId(null); }}
           onClose={() => ctx.setEditingBgmId(null)}
         />
       );
