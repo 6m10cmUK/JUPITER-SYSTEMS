@@ -112,21 +112,33 @@ export function CharacterDockPanel() {
     });
   }, [ctx]);
 
-  // Ctrl+C でコピー
+  // Ctrl+C / Ctrl+D / Backspace / Delete
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-      if (window.getSelection()?.toString()) return;
-      if (selectedCharIds.length > 0) {
-        e.preventDefault();
-        handleCopy(selectedCharIds);
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (window.getSelection()?.toString()) return;
+        if (selectedCharIds.length > 0) {
+          e.preventDefault();
+          handleCopy(selectedCharIds);
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        if (selectedCharIds.length > 0) {
+          e.preventDefault();
+          handleDuplicateCharacters(selectedCharIds);
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        if (selectedCharIds.length > 0) {
+          e.preventDefault();
+          handleRemoveCharacters(selectedCharIds);
+        }
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedCharIds, handleCopy]);
+  }, [selectedCharIds, handleCopy, handleDuplicateCharacters, handleRemoveCharacters]);
 
   const handlePaste = useCallback(async () => {
     try {

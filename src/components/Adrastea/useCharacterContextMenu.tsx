@@ -54,6 +54,7 @@ export function useCharacterContextMenu(
   // 複製
   items.push({
     label: '複製',
+    shortcut: shortcutLabel('D'),
     disabled: !char || !canModify,
     onClick: () => {
       if (char && onDuplicate) onDuplicate(char);
@@ -64,6 +65,7 @@ export function useCharacterContextMenu(
   // 削除
   items.push({
     label: '削除',
+    shortcut: 'Del',
     danger: true,
     disabled: !char || !canModify,
     onClick: () => {

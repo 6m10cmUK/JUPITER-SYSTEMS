@@ -111,27 +111,52 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
   });
 
 
-  // Ctrl+C でオブジェクトをコピー（キャラクターは CharacterDockPanel が処理）
+  // Ctrl+C / Ctrl+D / Backspace / Delete でオブジェクト操作（キャラクターは CharacterDockPanel が処理）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-      if (window.getSelection()?.toString()) return;
-      if (selectedObjectIds.length > 0) {
-        const obj = activeObjects.find(o =>
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        if (window.getSelection()?.toString()) return;
+        if (selectedObjectIds.length > 0) {
+          const obj = activeObjects.find(o =>
+            selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+          );
+          if (obj) {
+            e.preventDefault();
+            navigator.clipboard.writeText(objectToClipboardJson(obj));
+            showToast(`${obj.name} をコピーしました`, 'success');
+          }
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
+        const targets = activeObjects.filter(o =>
           selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
         );
-        if (obj) {
+        if (targets.length > 0) {
           e.preventDefault();
-          navigator.clipboard.writeText(objectToClipboardJson(obj));
-          showToast(`${obj.name} をコピーしました`, 'success');
+          Promise.all(targets.map(obj => {
+            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
+            return addObject({
+              ...rest,
+              name: `${obj.name} (複製)`,
+              sort_order: obj.sort_order + 1,
+            });
+          }));
+        }
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        const targets = activeObjects.filter(o =>
+          selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+        );
+        if (targets.length > 0) {
+          e.preventDefault();
+          Promise.all(targets.map(o => removeObject(o.id)));
         }
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedObjectIds, activeObjects, showToast]);
+  }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast]);
 
   // Firestoreからデータが更新されたらローカルオーバーライドをクリア
   const activeObjectsRef = useRef(activeObjects);
