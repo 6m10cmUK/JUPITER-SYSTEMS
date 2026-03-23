@@ -185,3 +185,23 @@ export const deleteArchived = internalMutation({
     }
   },
 });
+
+/**
+ * ルーム内の全メッセージを削除（sub_owner 以上）
+ */
+export const clearByRoom = mutation({
+  args: { room_id: v.string() },
+  handler: async (ctx, args) => {
+    const role = await getRole(ctx, args.room_id);
+    assertMinRole(role, 'sub_owner');
+
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_room", (q) => q.eq("room_id", args.room_id))
+      .collect();
+
+    for (const msg of messages) {
+      await ctx.db.delete(msg._id);
+    }
+  },
+});

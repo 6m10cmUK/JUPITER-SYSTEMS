@@ -18,6 +18,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     inject ? 'skip' : { room_id: roomId }
   );
   const sendMutation = useMutation(api.messages.send);
+  const clearMutation = useMutation(api.messages.clearByRoom);
   const token = useAuthToken();
 
   const loading = inject ? false : messagesData === undefined;
@@ -176,12 +177,11 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   }, [inject, loadingMore, hasMore, token, messages, roomId]);
 
   const clearMessages = useCallback(async () => {
-    if (!injectRef.current) {
-      // ローカルキャッシュとアーカイブもクリア
-      localCacheRef.current.clear();
-      setArchivedMessages([]);
-    }
-  }, []);
+    if (injectRef.current) return;
+    await clearMutation({ room_id: roomId });
+    localCacheRef.current.clear();
+    setArchivedMessages([]);
+  }, [roomId, clearMutation]);
 
   return {
     messages,
