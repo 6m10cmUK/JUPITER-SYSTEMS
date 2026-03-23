@@ -110,9 +110,7 @@ export function PropertyDockPanel() {
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <Tooltip label="コピー">
             <button onClick={() => {
-              const sceneObjects = ctx.allObjects.filter(o => o.scene_ids.includes(liveScene.id));
-              const sceneBgms = ctx.bgms.filter(b => b.scene_ids.includes(liveScene.id));
-              navigator.clipboard.writeText(sceneToClipboardJson(liveScene, sceneObjects, sceneBgms));
+              navigator.clipboard.writeText(sceneToClipboardJson(liveScene, ctx.allObjects, ctx.bgms));
               ctx.showToast(`${liveScene.name} をコピーしました`, 'success');
             }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
           </Tooltip>

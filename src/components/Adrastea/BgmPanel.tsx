@@ -333,8 +333,9 @@ export function BgmPanel() {
       const text = await navigator.clipboard.readText();
       const result = parseClipboardData(text);
       if (result?.type === 'bgm') {
-        await pasteBgmToScene(result.data, activeScene?.id ?? null, { bgms, updateBgm, addBgm });
-        showToast(`BGM "${result.data.name ?? 'BGM'}" をインポートしました`, 'success');
+        await Promise.all(result.data.map(d => pasteBgmToScene(d, activeScene?.id ?? null, { bgms, updateBgm, addBgm })));
+        const count = result.data.length;
+        showToast(count > 1 ? `${count}件のBGMをインポートしました` : `BGM "${result.data[0]?.name ?? 'BGM'}" をインポートしました`, 'success');
       }
     } catch {
       showToast('クリップボードの読み取りに失敗しました', 'error');

@@ -20,7 +20,7 @@ interface ScenePanelProps {
   onUpdateSceneName: (sceneId: string, name: string) => void;
   onRemoveScenes: (sceneIds: string[]) => void;
   onReorderScenes?: (orderedIds: string[]) => void;
-  onCopy?: (sceneId: string) => void;
+  onCopy?: (sceneIds: string | string[]) => void;
   onPaste?: () => void;
 }
 
@@ -342,9 +342,12 @@ export function ScenePanel({
         {
           label: 'コピー',
           shortcut: shortcutLabel('C'),
-          disabled: !contextMenu?.sceneId,
+          disabled: !contextMenu?.sceneId && selectedSceneIds.length === 0,
           onClick: () => {
-            if (contextMenu?.sceneId) onCopy?.(contextMenu.sceneId);
+            const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
+              ? [contextMenu.sceneId]
+              : selectedSceneIds;
+            if (ids.length > 0) onCopy?.(ids);
             setContextMenu(null);
           },
         },

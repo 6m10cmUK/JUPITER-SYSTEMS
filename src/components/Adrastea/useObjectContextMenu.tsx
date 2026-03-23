@@ -106,7 +106,7 @@ export function useObjectContextMenu(
       disabled: !canDupOrDel || !canEdit,
       onClick: () => {
         if (deletableTargets.length > 0) {
-          navigator.clipboard.writeText(objectToClipboardJson(deletableTargets[0]));
+          navigator.clipboard.writeText(objectToClipboardJson(deletableTargets));
         }
         onClose();
       },

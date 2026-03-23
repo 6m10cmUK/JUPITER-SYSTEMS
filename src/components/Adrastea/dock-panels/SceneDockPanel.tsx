@@ -116,14 +116,13 @@ export function SceneDockPanel() {
     setSelectedSceneIds([]);
   }, [ctx.scenes, ctx.bgms, ctx.room?.active_scene_id, ctx.activateScene, ctx.removeScene, ctx.updateBgm, ctx.removeBgm]);
 
-  const handleCopy = useCallback((sceneId: string) => {
-    const scene = ctx.scenes.find(s => s.id === sceneId);
-    if (!scene) return;
-    const sceneObjects = ctx.allObjects.filter(o => o.scene_ids.includes(sceneId));
-    const sceneBgms = ctx.bgms.filter(b => b.scene_ids.includes(sceneId));
-    navigator.clipboard.writeText(sceneToClipboardJson(scene, sceneObjects, sceneBgms));
-    ctx.showToast(`${scene.name} をコピーしました`, 'success');
-  }, [ctx.scenes, ctx.allObjects, ctx.showToast]);
+  const handleCopy = useCallback((sceneIds: string | string[]) => {
+    const ids = Array.isArray(sceneIds) ? sceneIds : [sceneIds];
+    const scenes = ctx.scenes.filter(s => ids.includes(s.id));
+    if (scenes.length === 0) return;
+    navigator.clipboard.writeText(sceneToClipboardJson(scenes, ctx.allObjects, ctx.bgms));
+    ctx.showToast(scenes.length > 1 ? `${scenes.length}件のシーンをコピーしました` : `${scenes[0].name} をコピーしました`, 'success');
+  }, [ctx.scenes, ctx.allObjects, ctx.bgms, ctx.showToast]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -151,7 +150,7 @@ export function SceneDockPanel() {
         // シーンが明示的に選択されている場合のみコピー
         if (selectedSceneIds.length > 0) {
           e.preventDefault();
-          handleCopy(selectedSceneIds[0]);
+          handleCopy(selectedSceneIds);
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
         if (selectedSceneIds.length > 0) {
