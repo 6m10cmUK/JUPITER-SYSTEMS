@@ -1,9 +1,12 @@
 import { useEffect, useCallback } from 'react';
 import { parseClipboardData } from '../utils/clipboardImport';
-import type { Character } from '../types/adrastea.types';
+import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.types';
 
 export interface UsePasteHandlerOptions {
   addCharacter: (data: Partial<Character>) => Promise<any>;
+  addObject?: (data: Partial<BoardObject>) => Promise<any>;
+  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }) => Promise<any>;
+  addBgm?: (data: Partial<BgmTrack>) => Promise<any>;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
 
@@ -15,6 +18,9 @@ export async function handleClipboardImport(
   text: string,
   addCharacter: (data: Partial<Character>) => Promise<any>,
   showToast: (message: string, type: 'success' | 'error') => void,
+  addObject?: (data: Partial<BoardObject>) => Promise<any>,
+  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }) => Promise<any>,
+  addBgm?: (data: Partial<BgmTrack>) => Promise<any>,
 ): Promise<void> {
   const result = parseClipboardData(text);
 
@@ -38,13 +44,46 @@ export async function handleClipboardImport(
       showToast('インポートに失敗しました', 'error');
     }
   }
+
+  if (result.type === 'object') {
+    if (!addObject) return;
+    try {
+      await addObject(result.data);
+      const objName = result.data.name ?? 'オブジェクト';
+      showToast(`オブジェクト "${objName}" をインポートしました`, 'success');
+    } catch {
+      showToast('インポートに失敗しました', 'error');
+    }
+  }
+
+  if (result.type === 'scene') {
+    if (!addScene) return;
+    try {
+      await addScene(result.data);
+      const sceneName = result.data.scene.name ?? 'シーン';
+      showToast(`シーン "${sceneName}" をインポートしました`, 'success');
+    } catch {
+      showToast('インポートに失敗しました', 'error');
+    }
+  }
+
+  if (result.type === 'bgm') {
+    if (!addBgm) return;
+    try {
+      await addBgm(result.data);
+      const bgmName = result.data.name ?? 'BGM';
+      showToast(`BGM "${bgmName}" をインポートしました`, 'success');
+    } catch {
+      showToast('インポートに失敗しました', 'error');
+    }
+  }
 }
 
 /**
  * グローバル paste イベントを監視し、
  * クリップボード内容に応じてキャラクターインポートやトースト表示を行うフック
  */
-export function usePasteHandler({ addCharacter, showToast }: UsePasteHandlerOptions): void {
+export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, showToast }: UsePasteHandlerOptions): void {
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
       // テキスト入力中はスキップ（通常のペースト動作を妨げない）
@@ -72,9 +111,9 @@ export function usePasteHandler({ addCharacter, showToast }: UsePasteHandlerOpti
       e.preventDefault();
 
       // 非同期でインポート処理
-      handleClipboardImport(text, addCharacter, showToast);
+      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm);
     },
-    [addCharacter, showToast],
+    [addCharacter, addObject, addScene, addBgm, showToast],
   );
 
   useEffect(() => {

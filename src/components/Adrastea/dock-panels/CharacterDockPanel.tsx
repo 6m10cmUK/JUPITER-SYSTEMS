@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
-import { useAuth } from '../../../contexts/AuthContext';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
+import { characterToClipboardJson } from '../../../utils/clipboardImport';
 import { useThrottledCallback } from '../../../hooks/useThrottledUpdate';
 import { CharacterPanel } from '../CharacterPanel';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
@@ -9,7 +9,6 @@ import { AdModal } from '../ui';
 import type { Character } from '../../../types/adrastea.types';
 export function CharacterDockPanel() {
   const ctx = useAdrasteaContext();
-  const { user } = useAuth();
   const [modalChar, setModalChar] = useState<Character | null | undefined>(undefined);
   const selectedCharIds = ctx.panelSelection?.panel === 'character' ? ctx.panelSelection.ids : [];
   const setSelectedCharIds = useCallback((ids: string[]) => {
@@ -54,6 +53,7 @@ export function CharacterDockPanel() {
       const initPos = (modalChar as any)?._initBoardPos;
       ctx.addCharacter({
         ...data,
+        owner_id: ctx.user?.uid ?? '',
         board_visible: true,
         board_x: initPos?.x ?? 0,
         board_y: initPos?.y ?? 0,
@@ -74,9 +74,8 @@ export function CharacterDockPanel() {
   };
 
   const handleRemoveCharacters = (ids: string[]) => {
-    ids.forEach(id => ctx.removeCharacter(id));
+    Promise.all(ids.map(id => ctx.removeCharacter(id)));
     setSelectedCharIds([]);
-    // 削除対象に editingCharacter が含まれていたらクリア
     if (ctx.editingCharacter && ids.includes(ctx.editingCharacter.id)) {
       ctx.setEditingCharacter(undefined);
     }
@@ -84,13 +83,14 @@ export function CharacterDockPanel() {
 
   const handleDuplicateCharacters = (ids: string[]) => {
     const chars = ctx.characters.filter(c => ids.includes(c.id));
-    chars.forEach(char => {
+    Promise.all(chars.map(char => {
       const { id, _id, _creationTime, ...rest } = char as any;
-      ctx.addCharacter({
+      return ctx.addCharacter({
         ...rest,
+        owner_id: ctx.user?.uid ?? '',
         name: `${char.name} (コピー)`,
       });
-    });
+    }));
   };
 
   const handleToggleBoardVisibleRaw = useCallback((charId: string) => {
@@ -101,20 +101,54 @@ export function CharacterDockPanel() {
 
   const handleToggleBoardVisible = useThrottledCallback(handleToggleBoardVisibleRaw);
 
+  const handleCopy = useCallback((ids: string[]) => {
+    const chars = ctx.characters.filter(c => ids.includes(c.id));
+    if (chars.length === 0) return;
+    const json = characterToClipboardJson(chars[0]);
+    navigator.clipboard.writeText(json).then(() => {
+      ctx.showToast(`${chars[0].name} をコピーしました`, 'success');
+    }).catch(() => {
+      ctx.showToast('コピーに失敗しました', 'error');
+    });
+  }, [ctx]);
+
+  // Ctrl+C でコピー
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'c') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      if (window.getSelection()?.toString()) return;
+      if (selectedCharIds.length > 0) {
+        e.preventDefault();
+        handleCopy(selectedCharIds);
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selectedCharIds, handleCopy]);
+
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
-      await handleClipboardImport(text, ctx.addCharacter, ctx.showToast);
+      await handleClipboardImport(text, (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }), ctx.showToast, async (data) => {
+        const targetSort = data.sort_order ?? ctx.activeObjects.length;
+        const shifts = ctx.activeObjects
+          .filter(o => o.sort_order >= targetSort)
+          .map(o => ({ id: o.id, sort: o.sort_order + 1 }));
+        if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
+        return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
+      });
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
     }
-  }, [ctx.addCharacter, ctx.showToast]);
+  }, [ctx.addCharacter, ctx.addObject, ctx.showToast]);
 
   return (
     <>
       <CharacterPanel
         characters={ctx.characters}
-        currentUserId={user?.uid ?? ''}
+        currentUserId={ctx.user?.uid ?? ''}
         selectedCharId={ctx.editingCharacter?.id ?? null}
         selectedCharIds={selectedCharIds}
         onAddCharacter={handleAddCharacter}
@@ -126,6 +160,7 @@ export function CharacterDockPanel() {
         onReorderCharacters={ctx.reorderCharacters}
         onToggleBoardVisible={handleToggleBoardVisible}
         onPaste={handlePaste}
+        onCopy={handleCopy}
       />
       {modalChar !== undefined && ctx.roomId && (
         <AdModal
@@ -138,10 +173,10 @@ export function CharacterDockPanel() {
             key={modalChar?.id ?? 'new'}
             character={modalChar}
             roomId={ctx.roomId}
-            currentUserId={user?.uid ?? ''}
+            currentUserId={ctx.user?.uid ?? ''}
             onSave={handleSave}
             onDuplicate={(data) => {
-              ctx.addCharacter(data);
+              ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' });
               handleModalClose();
             }}
             onDelete={modalChar ? handleDelete : undefined}

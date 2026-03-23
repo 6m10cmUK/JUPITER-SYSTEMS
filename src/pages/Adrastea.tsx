@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
 import { ToastContainer } from '../components/Adrastea/ui/Toast';
 import { usePasteHandler } from '../hooks/usePasteHandler';
+import { pasteSceneFromClipboard } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
 
 /** 共通ローディング画面 */
@@ -58,7 +59,21 @@ function AdrasteaRoom() {
   const isOwner = ctx.roomRole === 'owner';
 
   // クリップボードインポート
-  usePasteHandler({ addCharacter: ctx.addCharacter, showToast: ctx.showToast });
+  usePasteHandler({
+    addCharacter: (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
+    addObject: async (data) => {
+      const targetSort = data.sort_order ?? ctx.activeObjects.length;
+      // 挿入位置以降を先にずらす
+      const shifts = ctx.activeObjects
+        .filter(o => o.sort_order >= targetSort)
+        .map(o => ({ id: o.id, sort: o.sort_order + 1 }));
+      if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
+      return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
+    },
+    addScene: (data) => pasteSceneFromClipboard(data, ctx),
+    addBgm: (data) => ctx.addBgm({ ...data, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [], auto_play_scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] }),
+    showToast: ctx.showToast,
+  });
 
   // メンバー管理（ownerのみ実データ取得）
   const members = useQuery(

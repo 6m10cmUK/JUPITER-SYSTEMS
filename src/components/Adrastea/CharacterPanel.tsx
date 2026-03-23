@@ -6,6 +6,8 @@ import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
 import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
+import { usePermission } from '../../hooks/usePermission';
+import { hasRole } from '../../config/permissions';
 
 interface CharacterPanelProps {
   characters: Character[];
@@ -20,6 +22,7 @@ interface CharacterPanelProps {
   onReorderCharacters?: (orderedIds: string[]) => void;
   onToggleBoardVisible: (charId: string) => void;
   onDuplicateCharacters?: (ids: string[]) => void;
+  onCopy?: (ids: string[]) => void;
   onPaste?: () => void;
 }
 
@@ -36,10 +39,13 @@ export function CharacterPanel({
   onReorderCharacters,
   onToggleBoardVisible,
   onDuplicateCharacters,
+  onCopy,
   onPaste,
 }: CharacterPanelProps) {
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; charId?: string } | null>(null);
+  const { can, roomRole } = usePermission();
+  const canEditChar = can('character_edit');
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
   const canDelete = selectedCharIds.length > 0;
 
@@ -107,19 +113,19 @@ export function CharacterPanel({
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label={selectedCharIds.length > 1 ? `${selectedCharIds.length}件複製` : '複製'}>
             <button
-              onClick={() => canDelete && onDuplicateCharacters?.(selectedCharIds)}
-              style={{ ...iconBtnStyle, color: theme.textSecondary, opacity: canDelete ? 1 : 0.3, pointerEvents: canDelete ? 'auto' : 'none' }}
+              onClick={() => canDelete && canEditChar && onDuplicateCharacters?.(selectedCharIds)}
+              style={{ ...iconBtnStyle, color: theme.textSecondary, opacity: (canDelete && canEditChar) ? 1 : 0.3, pointerEvents: (canDelete && canEditChar) ? 'auto' : 'none' }}
             >
               <Copy size={13} />
             </button>
           </Tooltip>
           <Tooltip label={selectedCharIds.length > 1 ? `${selectedCharIds.length}件削除` : '削除'}>
             <button
-              onClick={() => canDelete && setPendingRemove({
+              onClick={() => canDelete && canEditChar && setPendingRemove({
                 ids: selectedCharIds,
                 msg: selectedCharIds.length > 1 ? `${selectedCharIds.length}件のキャラクターを削除しますか？` : 'このキャラクターを削除しますか？',
               })}
-              style={{ ...iconBtnStyle, color: theme.danger, opacity: canDelete ? 1 : 0.3, pointerEvents: canDelete ? 'auto' : 'none' }}
+              style={{ ...iconBtnStyle, color: theme.danger, opacity: (canDelete && canEditChar) ? 1 : 0.3, pointerEvents: (canDelete && canEditChar) ? 'auto' : 'none' }}
             >
               <Trash2 size={13} />
             </button>
@@ -145,6 +151,15 @@ export function CharacterPanel({
             onClick={(e: React.MouseEvent) => handleRowClick(e, char)}
             onDoubleClick={() => onDoubleClickCharacter?.(char)}
             isSelected={char.id === selectedCharId || selectedCharIds.includes(char.id)}
+            leadingSlot={
+              <div style={{
+                width: '3px',
+                alignSelf: 'stretch',
+                background: char.color || '#555555',
+                borderRadius: '1px',
+                flexShrink: 0,
+              }} />
+            }
             handleExtra={
               <div
                 onClick={(e) => {
@@ -259,9 +274,40 @@ export function CharacterPanel({
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
               ? [contextMenu.charId]
               : selectedCharIds;
-            return ids.length > 1 ? `${ids.length}件複製` : '複製';
+            return ids.length > 1 ? `${ids.length}件コピー` : 'コピー';
           })(),
           disabled: !contextMenu?.charId && selectedCharIds.length === 0,
+          onClick: () => {
+            const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
+              ? [contextMenu.charId]
+              : selectedCharIds;
+            if (ids.length > 0) {
+              onCopy?.(ids);
+            }
+            setContextMenu(null);
+          },
+        },
+        {
+          label: (() => {
+            const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
+              ? [contextMenu.charId]
+              : selectedCharIds;
+            return ids.length > 1 ? `${ids.length}件複製` : '複製';
+          })(),
+          disabled: (() => {
+            const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
+              ? [contextMenu.charId]
+              : selectedCharIds;
+            if (ids.length === 0) return true;
+            if (!canEditChar) return true;
+            // sub_owner 以上なら全キャラ操作可能
+            if (hasRole(roomRole, 'sub_owner')) return false;
+            // user は自分のキャラのみ
+            return ids.some(id => {
+              const c = characters.find(ch => ch.id === id);
+              return c && c.owner_id !== currentUserId;
+            });
+          })(),
           onClick: () => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
               ? [contextMenu.charId]
@@ -280,7 +326,20 @@ export function CharacterPanel({
             return ids.length > 1 ? `${ids.length}件削除` : '削除';
           })(),
           danger: true,
-          disabled: !contextMenu?.charId && selectedCharIds.length === 0,
+          disabled: (() => {
+            const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
+              ? [contextMenu.charId]
+              : selectedCharIds;
+            if (ids.length === 0) return true;
+            if (!canEditChar) return true;
+            // sub_owner 以上なら全キャラ操作可能
+            if (hasRole(roomRole, 'sub_owner')) return false;
+            // user は自分のキャラのみ
+            return ids.some(id => {
+              const c = characters.find(ch => ch.id === id);
+              return c && c.owner_id !== currentUserId;
+            });
+          })(),
           onClick: () => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
               ? [contextMenu.charId]
@@ -297,7 +356,7 @@ export function CharacterPanel({
         'separator',
         {
           label: '貼り付け',
-          disabled: !onPaste,
+          disabled: !onPaste || !canEditChar,
           onClick: () => {
             onPaste?.();
             setContextMenu(null);

@@ -2,10 +2,11 @@ import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useS
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
-import { DropdownMenu, ConfirmModal } from './ui';
+import { DropdownMenu } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useObjectContextMenu } from './useObjectContextMenu';
-import { usePermission } from '../../hooks/usePermission';
+import { useCharacterContextMenu } from './useCharacterContextMenu';
+import { handleClipboardImport } from '../../hooks/usePasteHandler';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -33,7 +34,6 @@ interface DomObjectOverlayProps {
   currentUserId?: string;
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
-  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   selectedCharacterId?: string | null;
 }
 
@@ -261,11 +261,31 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   const blockingRef = useRef(false);
   const hasMemo = !!(obj.memo && (obj.type === 'panel' || obj.type === 'text'));
 
+  const ctx = useAdrasteaContext();
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      await handleClipboardImport(
+        text,
+        (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
+        ctx.showToast,
+        async (data) => {
+          const targetSort = data.sort_order ?? ctx.activeObjects.length;
+          const shifts = ctx.activeObjects
+            .filter(o => o.sort_order >= targetSort)
+            .map(o => ({ id: o.id, sort: o.sort_order + 1 }));
+          if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
+          return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
+        },
+      );
+    } catch {
+      ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [ctx]);
   const { items: ctxMenuItems, confirmModal } = useObjectContextMenu([obj], {
     onClose: () => setContextMenuPos(null),
+    onPaste: handlePaste,
   });
-
-  const { can } = usePermission();
 
   // ホバー終了・アンマウント時にカウンタをクリーンアップ
   useEffect(() => {
@@ -505,11 +525,11 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
       onDoubleClick={handleDoubleClick}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
-      onContextMenu={can('object_edit') ? (e) => {
+      onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
         setContextMenuPos({ x: e.clientX, y: e.clientY });
-      } : undefined}
+      }}
       onWheel={(e) => {
         if (hovered && obj.memo && popupRef.current) {
           const canScroll = popupRef.current.scrollHeight > popupRef.current.clientHeight;
@@ -927,7 +947,6 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   currentUserId,
   onSelectCharacter,
   onDoubleClickCharacter,
-  onContextMenuCharacter,
   selectedCharacterId,
   baseZIndex,
 }: {
@@ -937,7 +956,6 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   currentUserId?: string;
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
-  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   selectedCharacterId?: string | null;
   baseZIndex?: number;
 }) {
@@ -957,7 +975,6 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
           currentUserId={currentUserId}
           onSelectCharacter={onSelectCharacter}
           onDoubleClickCharacter={onDoubleClickCharacter}
-          onContextMenuCharacter={onContextMenuCharacter}
           isSelected={selectedCharacterId === char.id}
         />
       ))}
@@ -973,7 +990,6 @@ const DomCharacterItem = memo(function DomCharacterItem({
   currentUserId,
   onSelectCharacter,
   onDoubleClickCharacter,
-  onContextMenuCharacter,
   isSelected,
   zIndex,
 }: {
@@ -983,7 +999,6 @@ const DomCharacterItem = memo(function DomCharacterItem({
   currentUserId?: string;
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
-  onContextMenuCharacter?: (charId: string, e: React.MouseEvent) => void;
   isSelected?: boolean;
   zIndex?: number;
 }) {
@@ -994,14 +1009,22 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
-  const [pendingRemove, setPendingRemove] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const { addCharacter, removeCharacter } = useAdrasteaContext();
   const popupRef = useRef<HTMLDivElement>(null);
   const blockingRef = useRef(false);
   const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
-  const { can } = usePermission();
-  const canContextMenu = can('object_edit') || char.owner_id === currentUserId;
+  const { items: charCtxMenuItems, confirmModal: charConfirmModal } = useCharacterContextMenu(char, {
+    currentUserId: currentUserId ?? '',
+    onClose: () => setContextMenuPos(null),
+    onDuplicate: (c) => {
+      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
+      addCharacter({ ...rest, name: `${c.name} (複製)` });
+    },
+    onRemove: (charId) => {
+      removeCharacter(charId);
+    },
+  });
 
   // ホバー終了・アンマウント時にカウンタをクリーンアップ
   useEffect(() => {
@@ -1122,7 +1145,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
         }
       }}
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClickCharacter?.(char.id); }}
-      onContextMenu={canContextMenu ? (e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); } : undefined}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenuPos({ x: e.clientX, y: e.clientY }); }}
     >
       {blobSrc ? (
         <img
@@ -1186,42 +1209,9 @@ const DomCharacterItem = memo(function DomCharacterItem({
         open={contextMenuPos !== null}
         onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
         position={contextMenuPos ?? { x: 0, y: 0 }}
-        items={[
-          {
-            label: char.board_visible !== false ? '非表示にする' : '表示する',
-            onClick: () => {
-              onContextMenuCharacter?.(char.id, {} as React.MouseEvent);
-              setContextMenuPos(null);
-            },
-          },
-          'separator',
-          {
-            label: '複製',
-            onClick: () => {
-              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = char as any;
-              addCharacter({ ...rest, name: `${char.name} (複製)` });
-              setContextMenuPos(null);
-            },
-          },
-          {
-            label: '削除',
-            danger: true,
-            onClick: () => {
-              setContextMenuPos(null);
-              setPendingRemove(true);
-            },
-          },
-        ]}
+        items={charCtxMenuItems}
       />
-      {pendingRemove && (
-        <ConfirmModal
-          message={`「${char.name}」を削除しますか？`}
-          confirmLabel="削除"
-          danger
-          onConfirm={() => { removeCharacter(char.id); setPendingRemove(false); }}
-          onCancel={() => setPendingRemove(false)}
-        />
-      )}
+      {charConfirmModal}
     </div>
   );
 });
@@ -1313,7 +1303,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
   function DomObjectOverlay({
     objects, selectedObjectId, selectedObjectIds = [], activeScene,
     stageRef, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize,
-    characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter, onContextMenuCharacter,
+    characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter,
     selectedCharacterId,
   }, ref) {
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
@@ -1403,7 +1393,6 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     currentUserId={currentUserId}
                     onSelectCharacter={onSelectCharacter}
                     onDoubleClickCharacter={onDoubleClickCharacter}
-                    onContextMenuCharacter={onContextMenuCharacter}
                     selectedCharacterId={selectedCharacterId}
                     baseZIndex={baseZIndex}
                   />
