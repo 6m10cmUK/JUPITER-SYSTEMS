@@ -356,6 +356,20 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     }
   }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
 
+  // --- 浮きBGMトラックの自動クリーンアップ ---
+  const bgmCleanupDoneRef = useRef(false);
+  useEffect(() => {
+    if (bgmCleanupDoneRef.current || !initialLoadDone) return;
+    bgmCleanupDoneRef.current = true;
+    const sceneIdSet = new Set(scenes.map(s => s.id));
+    const orphans = bgms.filter(b =>
+      b.scene_ids.length === 0 || b.scene_ids.every(sid => !sceneIdSet.has(sid))
+    );
+    if (orphans.length > 0) {
+      Promise.all(orphans.map(b => removeBgm(b.id)));
+    }
+  }, [initialLoadDone, bgms, removeBgm]);
+
   // --- Image preload（ローカルストレージ読み込み後に全画像を blobCache にプリロード） ---
   const preloadDoneRef = useRef(false);
   useEffect(() => {
