@@ -63,6 +63,19 @@ export async function handleMessages(
     );
 
     await env.DB.batch(stmts);
+
+    // D1 上限: ルームあたり8192件を超えたら古いメッセージを削除
+    const MAX_D1_MESSAGES = 8192;
+    const countResult = await env.DB.prepare(
+      'SELECT COUNT(*) as cnt FROM messages WHERE room_id = ?'
+    ).bind(roomId).first<{ cnt: number }>();
+    const total = countResult?.cnt ?? 0;
+    if (total > MAX_D1_MESSAGES) {
+      await env.DB.prepare(
+        'DELETE FROM messages WHERE room_id = ? AND id IN (SELECT id FROM messages WHERE room_id = ? ORDER BY created_at ASC LIMIT ?)'
+      ).bind(roomId, roomId, total - MAX_D1_MESSAGES).run();
+    }
+
     return json({ ok: true, archived: body.messages.length }, headers);
   }
 
@@ -121,6 +134,18 @@ export async function handleMessages(
       }));
 
     return json({ messages: filtered, has_more: hasMore }, headers);
+  }
+
+  // DELETE /api/rooms/:id/messages — ルーム内全メッセージ削除
+  if (subResource === 'messages' && !action && request.method === 'DELETE') {
+    // 認証: user 認証 OR X-Archive-Secret ヘッダー
+    const archiveSecret = request.headers.get('X-Archive-Secret');
+    if (!user && !(archiveSecret && env.ARCHIVE_SECRET && archiveSecret === env.ARCHIVE_SECRET)) {
+      return json({ error: 'Unauthorized' }, headers, 401);
+    }
+
+    await env.DB.prepare('DELETE FROM messages WHERE room_id = ?').bind(roomId).run();
+    return json({ ok: true }, headers);
   }
 
   return new Response('Not Found', { status: 404, headers });

@@ -3,12 +3,12 @@ import { theme } from '../../../styles/theme';
 import { parseContent } from '../ChatLogPanel';
 
 interface MessagePopupProps {
-  message: { sender_name: string; content: string } | null;
+  message: { sender_name: string; content: string; sender_avatar?: string | null } | null;
   charColor?: string | null;
 }
 
 export function MessagePopup({ message, charColor }: MessagePopupProps) {
-  const [display, setDisplay] = useState<{ sender_name: string; content: string } | null>(null);
+  const [display, setDisplay] = useState<{ sender_name: string; content: string; sender_avatar?: string | null } | null>(null);
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible' | 'exit'>('hidden');
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevIdRef = useRef<string>('');
@@ -90,9 +90,18 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
           overflow: 'hidden',
         }}
       >
-        <span style={{ fontSize: '11px', fontWeight: 600, color: charColor || theme.textSecondary }}>
-          {display.sender_name}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {display.sender_avatar ? (
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor ?? undefined, flexShrink: 0, overflow: 'hidden' }}>
+              <img src={display.sender_avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+            </div>
+          ) : (
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor || theme.bgInput, flexShrink: 0 }} />
+          )}
+          <span style={{ fontSize: '11px', fontWeight: 600, color: charColor || theme.textSecondary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {display.sender_name}
+          </span>
+        </div>
         <span style={{
           fontSize: '13px',
           color: theme.textPrimary,

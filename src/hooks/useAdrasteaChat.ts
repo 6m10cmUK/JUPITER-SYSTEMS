@@ -178,10 +178,22 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   const clearMessages = useCallback(async () => {
     if (injectRef.current) return;
+    // Convex のメッセージを削除
     await clearMutation({ room_id: roomId });
+    // D1 アーカイブも削除
+    if (token) {
+      try {
+        await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (e) {
+        console.error('D1 メッセージ削除失敗:', e);
+      }
+    }
     localCacheRef.current.clear();
     setArchivedMessages([]);
-  }, [roomId, clearMutation]);
+  }, [roomId, clearMutation, token]);
 
   return {
     messages,
