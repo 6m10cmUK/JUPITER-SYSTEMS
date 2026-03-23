@@ -8,9 +8,9 @@ import { PieceEditor } from '../PieceEditor';
 import { BgmEditor } from '../BgmEditor';
 import type React from 'react';
 
-const scrollWrapperStyle: React.CSSProperties = {
+const wrapperStyle: React.CSSProperties = {
   height: '100%',
-  overflowY: 'auto',
+  overflow: 'hidden',
   boxSizing: 'border-box',
 };
 
@@ -144,5 +144,5 @@ export function PropertyDockPanel() {
 
   if (!content) return null;
 
-  return <div style={scrollWrapperStyle}>{content}</div>;
+  return <div style={wrapperStyle}>{content}</div>;
 }
