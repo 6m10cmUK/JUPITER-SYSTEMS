@@ -120,7 +120,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
         </div>
 
         <div style={sectionStyle}>
-          <AdTextArea label="メモ" value={memo} onChange={(e) => setMemo(e.target.value)} />
+          <AdTextArea expandable label="メモ" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </div>
 
         <div style={sectionStyle}>

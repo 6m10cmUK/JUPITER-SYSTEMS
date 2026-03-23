@@ -287,6 +287,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
             <>
               <AdSection label="テキスト内容">
                 <AdTextArea
+                  expandable
                   value={(state.text_content as string) ?? ''}
                   onChange={(e) => set('text_content', e.target.value)}
                   placeholder="表示するテキスト"
@@ -546,6 +547,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
           {!isBackground && !isForeground && (
             <AdSection label="メモ">
               <AdTextArea
+                expandable
                 value={(state.memo as string) ?? ''}
                 onChange={(e) => set('memo', e.target.value.slice(0, 2048))}
                 placeholder="ホバー時に表示されるメモ（最大2048文字）"
