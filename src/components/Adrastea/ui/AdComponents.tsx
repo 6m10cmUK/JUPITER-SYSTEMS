@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
-import { ChevronRight, ChevronDown, X, Palette } from 'lucide-react';
+import { ChevronRight, ChevronDown, X, Palette, Maximize2 } from 'lucide-react';
 import { calcPopupPos } from '../../../utils/calcPopupPos';
 import { DropdownMenu } from './DropdownMenu';
 
@@ -49,14 +49,34 @@ export function AdInput({ label, fullWidth = true, inputWidth, style, id, ...pro
 // ── AdTextArea ──
 interface AdTextAreaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
+  expandable?: boolean;
 }
 
-export function AdTextArea({ label, style, ...props }: AdTextAreaProps) {
+export function AdTextArea({ label, style, expandable, ...props }: AdTextAreaProps) {
   const autoId = useId();
   const textareaId = props.id || autoId;
+  const [expanded, setExpanded] = useState(false);
+  const [localValue, setLocalValue] = useState(String(props.value ?? ''));
+
+  // props.value が外部から変わったら同期
+  useEffect(() => { setLocalValue(String(props.value ?? '')); }, [props.value]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-      {label && <label htmlFor={textareaId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
+      {(label || expandable) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {label ? <label htmlFor={textareaId} style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label> : <div />}
+          {expandable && (
+            <button
+              type="button"
+              onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '0 2px', display: 'flex' }}
+            >
+              <Maximize2 size={12} />
+            </button>
+          )}
+        </div>
+      )}
       <textarea
         id={textareaId}
         {...props}
@@ -75,6 +95,63 @@ export function AdTextArea({ label, style, ...props }: AdTextAreaProps) {
           ...style,
         }}
       />
+      {expanded && createPortal(
+        <div
+          onClick={() => {
+            // 枠外クリックで閉じて反映
+            props.onChange?.({ target: { value: localValue } } as React.ChangeEvent<HTMLTextAreaElement>);
+            setExpanded(false);
+          }}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 10003,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '80vw', maxWidth: '700px', height: '60vh',
+              background: theme.bgSurface, borderRadius: '8px',
+              display: 'flex', flexDirection: 'column', overflow: 'hidden',
+              boxShadow: theme.shadowLg,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
+              <span style={{ fontSize: '13px', fontWeight: 600, color: theme.textPrimary }}>{label ?? 'テキスト編集'}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  props.onChange?.({ target: { value: localValue } } as React.ChangeEvent<HTMLTextAreaElement>);
+                  setExpanded(false);
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <textarea
+              value={localValue}
+              onChange={(e) => setLocalValue(e.target.value)}
+              maxLength={props.maxLength}
+              placeholder={props.placeholder}
+              style={{
+                flex: 1, padding: '12px', fontSize: '13px', lineHeight: 1.6,
+                background: theme.bgInput, color: theme.textPrimary,
+                border: 'none', outline: 'none', resize: 'none',
+                fontFamily: 'monospace',
+              }}
+              autoFocus
+            />
+            {props.maxLength && (
+              <div style={{ textAlign: 'right', fontSize: '10px', color: theme.textMuted, padding: '4px 12px', borderTop: `1px solid ${theme.borderSubtle}` }}>
+                {localValue.length} / {props.maxLength}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

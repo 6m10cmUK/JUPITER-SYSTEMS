@@ -486,6 +486,7 @@ function CharacterEditorComponent({
         <div style={sectionStyle}>
           <div style={labelStyle}>メモ</div>
           <AdTextArea
+            expandable
             value={memo}
             onChange={(e) => setMemo(e.target.value)}
             placeholder="キャラクターメモ（最大1024文字）"
@@ -501,6 +502,7 @@ function CharacterEditorComponent({
             自分だけが見えます
           </div>
           <AdTextArea
+            expandable
             value={secretMemo}
             onChange={(e) => setSecretMemo(e.target.value)}
             placeholder="秘密のメモ（最大1024文字）"
@@ -516,6 +518,7 @@ function CharacterEditorComponent({
             改行区切りでコマンドや定型文を登録
           </div>
           <AdTextArea
+            expandable
             value={chatPalette}
             onChange={(e) => setChatPalette(e.target.value)}
             placeholder="通常攻撃&#10;魔法&#10;防御&#10;（最大4096文字）"
