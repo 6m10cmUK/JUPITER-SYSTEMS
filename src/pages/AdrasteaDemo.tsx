@@ -8,7 +8,7 @@ import { ToastContainer } from '../components/Adrastea/ui/Toast';
 import { useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { usePermission } from '../hooks/usePermission';
 import { usePasteHandler } from '../hooks/usePasteHandler';
-import { pasteSceneFromClipboard } from '../utils/clipboardImport';
+import { pasteSceneFromClipboard, pasteBgmToScene } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
 
 function AdrasteaDemoRoom() {
@@ -27,7 +27,7 @@ function AdrasteaDemoRoom() {
       return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
     },
     addScene: (data) => pasteSceneFromClipboard(data, ctx),
-    addBgm: (data) => ctx.addBgm({ ...data, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [], auto_play_scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] }),
+    addBgm: (data) => pasteBgmToScene(data, ctx.activeScene?.id ?? null, ctx),
     showToast: ctx.showToast,
   });
 
