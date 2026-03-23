@@ -3,7 +3,8 @@ import type { Character, CharacterImage, PieceStatus, CharacterParameter } from 
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { AdInput, AdTextArea, AdButton, AdColorPicker } from './ui';
-import { Trash2, Copy } from 'lucide-react';
+import { Trash2, Clipboard, CopyPlus, X, Save } from 'lucide-react';
+import { Tooltip } from './ui/Tooltip';
 import { characterToClipboardJson } from '../../utils/clipboardImport';
 
 interface CharacterEditorProps {
@@ -533,48 +534,53 @@ function CharacterEditorComponent({
         borderTop: `1px solid ${theme.borderSubtle}`,
         flexShrink: 0,
       }}>
-        {/* 左側: 削除 + コピー */}
-        <div style={{ display: 'flex', gap: '4px' }}>
+        {/* 左側: 削除 + コピー + 複製 */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {character && onDelete && (
-            <AdButton variant="danger" onClick={onDelete}>
-              <Trash2 size={14} style={{ marginRight: '4px' }} />
-              削除
-            </AdButton>
+            <Tooltip label="削除">
+              <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.danger, padding: '4px', display: 'flex' }}>
+                <Trash2 size={16} />
+              </button>
+            </Tooltip>
           )}
           {character && (
-            <AdButton variant="default" onClick={() => {
-              const data = {
-                ...character,
-                name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
-                images, active_image_index: activeImageIndex, initiative, size,
-                board_x: boardX, board_y: boardY, statuses, parameters,
-                memo, secret_memo: secretMemo, chat_palette: chatPalette,
-                is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
-              } as typeof character;
-              navigator.clipboard.writeText(characterToClipboardJson(data));
-            }}>
-              <Copy size={14} style={{ marginRight: '4px' }} />
-              コピー
-            </AdButton>
+            <Tooltip label="コピー">
+              <button onClick={() => {
+                const data = {
+                  ...character,
+                  name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
+                  images, active_image_index: activeImageIndex, initiative, size,
+                  board_x: boardX, board_y: boardY, statuses, parameters,
+                  memo, secret_memo: secretMemo, chat_palette: chatPalette,
+                  is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
+                } as typeof character;
+                navigator.clipboard.writeText(characterToClipboardJson(data));
+              }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
+                <Clipboard size={16} />
+              </button>
+            </Tooltip>
+          )}
+          {character && onDuplicate && (
+            <Tooltip label="複製">
+              <button onClick={handleDuplicate} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
+                <CopyPlus size={16} />
+              </button>
+            </Tooltip>
           )}
         </div>
 
-        {/* 中央: 複製 */}
-        {character && onDuplicate && (
-          <AdButton variant="primary" onClick={handleDuplicate}>
-            <Copy size={14} style={{ marginRight: '4px' }} />
-            複製
-          </AdButton>
-        )}
-
         {/* 右側: キャンセル / 保存 */}
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <AdButton variant="default" onClick={() => _onClose?.()}>
-            キャンセル
-          </AdButton>
-          <AdButton variant={isDirty ? 'primary' : 'default'} onClick={handleSave}>
-            保存
-          </AdButton>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Tooltip label="キャンセル">
+            <button onClick={() => _onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
+              <X size={16} />
+            </button>
+          </Tooltip>
+          <Tooltip label="保存">
+            <button onClick={handleSave} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isDirty ? theme.accent : theme.textMuted, padding: '4px', display: 'flex' }}>
+              <Save size={16} />
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>
