@@ -1010,10 +1010,23 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const { addCharacter, removeCharacter } = useAdrasteaContext();
+  const ctx = useAdrasteaContext();
+  const { addCharacter, removeCharacter } = ctx;
   const popupRef = useRef<HTMLDivElement>(null);
   const blockingRef = useRef(false);
   const hasMemo = !!(char.memo || (currentUserId === char.owner_id && char.secret_memo));
+  const charHandlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      await handleClipboardImport(
+        text,
+        (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
+        ctx.showToast,
+      );
+    } catch {
+      ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [ctx]);
   const { items: charCtxMenuItems, confirmModal: charConfirmModal } = useCharacterContextMenu(char, {
     currentUserId: currentUserId ?? '',
     onClose: () => setContextMenuPos(null),
@@ -1024,6 +1037,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
     onRemove: (charId) => {
       removeCharacter(charId);
     },
+    onPaste: charHandlePaste,
   });
 
   // ホバー終了・アンマウント時にカウンタをクリーンアップ
