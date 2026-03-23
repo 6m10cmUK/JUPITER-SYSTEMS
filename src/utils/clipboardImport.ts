@@ -1,10 +1,10 @@
 import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.types';
 
 export type ClipboardParseResult =
-  | { type: 'character'; data: Partial<Character> }
-  | { type: 'object'; data: Partial<BoardObject> }
-  | { type: 'scene'; data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] } }
-  | { type: 'bgm'; data: Partial<BgmTrack> }
+  | { type: 'character'; data: Partial<Character>[]; }
+  | { type: 'object'; data: Partial<BoardObject>[]; }
+  | { type: 'scene'; data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[] }
+  | { type: 'bgm'; data: Partial<BgmTrack>[]; }
   | { type: 'unknown'; kind: string }
   | null;
 
@@ -37,26 +37,26 @@ export function parseClipboardData(text: string): ClipboardParseResult {
 
   // kind が character の場合
   if (kind === 'character') {
-    const data = parseCharacterData(obj.data);
-    return { type: 'character', data };
+    const items = Array.isArray(obj.data) ? obj.data.map(parseCharacterData) : [parseCharacterData(obj.data)];
+    return { type: 'character', data: items };
   }
 
   // kind が object の場合
   if (kind === 'object') {
-    const data = parseObjectData(obj.data);
-    return { type: 'object', data };
+    const items = Array.isArray(obj.data) ? obj.data.map(parseObjectData) : [parseObjectData(obj.data)];
+    return { type: 'object', data: items };
   }
 
   // kind が scene の場合
   if (kind === 'scene') {
-    const sceneData = parseSceneData(obj.data);
-    return { type: 'scene', data: sceneData };
+    const items = Array.isArray(obj.data) ? obj.data.map(parseSceneData) : [parseSceneData(obj.data)];
+    return { type: 'scene', data: items };
   }
 
   // kind が bgm の場合
   if (kind === 'bgm') {
-    const data = parseBgmData(obj.data);
-    return { type: 'bgm', data };
+    const items = Array.isArray(obj.data) ? obj.data.map(parseBgmData) : [parseBgmData(obj.data)];
+    return { type: 'bgm', data: items };
   }
 
   // kind が存在するが 'character' 以外の場合
@@ -181,10 +181,9 @@ function parseObjectData(raw: unknown): Partial<BoardObject> {
  * Character をクリップボード JSON 文字列に変換する。
  * Adrastea ネイティブフィールドをすべて含み、iachara 互換フィールドも付与する。
  */
-export function characterToClipboardJson(char: Character): string {
+function characterToData(char: Character): Record<string, unknown> {
   const { id, _id, _creationTime, room_id, owner_id, created_at, updated_at, sort_order, ...rest } = char as any;
   const data: Record<string, unknown> = { ...rest };
-  // iachara 互換フィールド
   data.iconUrl = char.images?.[char.active_image_index ?? 0]?.url ?? null;
   data.externalUrl = char.sheet_url ?? null;
   if (char.statuses && char.statuses.length > 0) {
@@ -196,6 +195,12 @@ export function characterToClipboardJson(char: Character): string {
   if (char.chat_palette) {
     data.commands = char.chat_palette;
   }
+  return data;
+}
+
+export function characterToClipboardJson(chars: Character | Character[]): string {
+  const arr = Array.isArray(chars) ? chars : [chars];
+  const data = arr.length === 1 ? characterToData(arr[0]) : arr.map(characterToData);
   return JSON.stringify({ kind: 'character', data });
 }
 
@@ -227,8 +232,10 @@ function objectToData(obj: BoardObject): Record<string, unknown> {
   return data;
 }
 
-export function objectToClipboardJson(obj: BoardObject): string {
-  return JSON.stringify({ kind: 'object', data: objectToData(obj) });
+export function objectToClipboardJson(objs: BoardObject | BoardObject[]): string {
+  const arr = Array.isArray(objs) ? objs : [objs];
+  const data = arr.length === 1 ? objectToData(arr[0]) : arr.map(objectToData);
+  return JSON.stringify({ kind: 'object', data });
 }
 
 /**
@@ -282,24 +289,42 @@ function parseBgmData(raw: unknown): Partial<BgmTrack> {
  * BgmTrack をクリップボード JSON 文字列に変換する。
  * scene_ids, auto_play_scene_ids, is_playing, is_paused 等の再生状態は含めない。
  */
-export function bgmToClipboardJson(bgm: BgmTrack): string {
+function bgmToData(bgm: BgmTrack): Record<string, unknown> {
   const { id, _id, _creationTime, room_id, created_at, updated_at, scene_ids, auto_play_scene_ids, is_playing, is_paused, sort_order, ...rest } = bgm as any;
-  return JSON.stringify({ kind: 'bgm', data: rest });
+  return rest;
+}
+
+export function bgmToClipboardJson(bgms: BgmTrack | BgmTrack[]): string {
+  const arr = Array.isArray(bgms) ? bgms : [bgms];
+  const data = arr.length === 1 ? bgmToData(arr[0]) : arr.map(bgmToData);
+  return JSON.stringify({ kind: 'bgm', data });
 }
 
 /**
  * Scene とそのシーンに属するオブジェクト群をクリップボード JSON に変換する。
  */
-export function sceneToClipboardJson(scene: Scene, sceneObjects: BoardObject[], sceneBgms: BgmTrack[] = []): string {
+function sceneToData(scene: Scene, sceneObjects: BoardObject[], sceneBgms: BgmTrack[]): Record<string, unknown> {
   const { id, _id, _creationTime, room_id, created_at, updated_at, sort_order, ...sceneRest } = scene as any;
   const objs = sceneObjects
     .filter(o => o.type !== 'characters_layer')
     .map(o => objectToData(o));
-  const bgms = sceneBgms.map(b => {
-    const { id: _bid, _id: _bid2, _creationTime: _bct, scene_ids, auto_play_scene_ids, is_playing, is_paused, sort_order: _bso, created_at: _bca, updated_at: _bua, ...rest } = b as any;
-    return rest;
+  const bgms = sceneBgms.map(b => bgmToData(b));
+  return { ...sceneRest, objects: objs, bgms };
+}
+
+export function sceneToClipboardJson(
+  scenes: Scene | Scene[],
+  allObjects: BoardObject[],
+  allBgms: BgmTrack[] = [],
+): string {
+  const arr = Array.isArray(scenes) ? scenes : [scenes];
+  const items = arr.map(s => {
+    const objs = allObjects.filter(o => o.scene_ids.includes(s.id));
+    const bgms = allBgms.filter(b => b.scene_ids.includes(s.id));
+    return sceneToData(s, objs, bgms);
   });
-  return JSON.stringify({ kind: 'scene', data: { ...sceneRest, objects: objs, bgms } });
+  const data = items.length === 1 ? items[0] : items;
+  return JSON.stringify({ kind: 'scene', data });
 }
 
 /**
@@ -331,7 +356,7 @@ export async function pasteBgmToScene(
  * クリップボードからシーンをペーストする共通処理。
  */
 export async function pasteSceneFromClipboard(
-  data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] },
+  items: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[],
   ctx: {
     addScene: (data: Partial<any>, dup?: string, objs?: BoardObject[]) => Promise<{ scene: { id: string } } | null>;
     addObject: (data: Partial<BoardObject>) => Promise<string>;
@@ -341,22 +366,25 @@ export async function pasteSceneFromClipboard(
     activateScene: (id: string | null) => void | Promise<void>;
   },
 ): Promise<void> {
-  const { scene, objects, bgms } = data;
-  const result = await ctx.addScene({
-    name: scene.name ? `${scene.name} (コピー)` : '新規シーン',
-    background_url: scene.background_url ?? null,
-    foreground_url: scene.foreground_url ?? null,
-    foreground_opacity: scene.foreground_opacity,
-    bg_transition: scene.bg_transition,
-    bg_transition_duration: scene.bg_transition_duration,
-    fg_transition: scene.fg_transition,
-    fg_transition_duration: scene.fg_transition_duration,
-    bg_blur: scene.bg_blur,
-  }, '_paste_', []);
-  if (!result) return;
-  const newSceneId = result.scene.id;
-  const sorted = [...objects].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  await Promise.all(sorted.map(obj => ctx.addObject({ ...obj, scene_ids: [newSceneId] })));
-  await Promise.all(bgms.map(bgm => pasteBgmToScene(bgm, newSceneId, ctx)));
-  await ctx.activateScene(newSceneId);
+  let lastSceneId: string | null = null;
+  for (const { scene, objects, bgms } of items) {
+    const result = await ctx.addScene({
+      name: scene.name ? `${scene.name} (コピー)` : '新規シーン',
+      background_url: scene.background_url ?? null,
+      foreground_url: scene.foreground_url ?? null,
+      foreground_opacity: scene.foreground_opacity,
+      bg_transition: scene.bg_transition,
+      bg_transition_duration: scene.bg_transition_duration,
+      fg_transition: scene.fg_transition,
+      fg_transition_duration: scene.fg_transition_duration,
+      bg_blur: scene.bg_blur,
+    }, '_paste_', []);
+    if (!result) continue;
+    const newSceneId = result.scene.id;
+    const sorted = [...objects].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    await Promise.all(sorted.map(obj => ctx.addObject({ ...obj, scene_ids: [newSceneId] })));
+    await Promise.all(bgms.map(bgm => pasteBgmToScene(bgm, newSceneId, ctx)));
+    lastSceneId = newSceneId;
+  }
+  if (lastSceneId) await ctx.activateScene(lastSceneId);
 }

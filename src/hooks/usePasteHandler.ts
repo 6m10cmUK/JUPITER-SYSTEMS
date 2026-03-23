@@ -5,7 +5,7 @@ import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.
 export interface UsePasteHandlerOptions {
   addCharacter: (data: Partial<Character>) => Promise<any>;
   addObject?: (data: Partial<BoardObject>) => Promise<any>;
-  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }) => Promise<any>;
+  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[]) => Promise<any>;
   addBgm?: (data: Partial<BgmTrack>) => Promise<any>;
   showToast: (message: string, type: 'success' | 'error') => void;
 }
@@ -19,7 +19,7 @@ export async function handleClipboardImport(
   addCharacter: (data: Partial<Character>) => Promise<any>,
   showToast: (message: string, type: 'success' | 'error') => void,
   addObject?: (data: Partial<BoardObject>) => Promise<any>,
-  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }) => Promise<any>,
+  addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[]) => Promise<any>,
   addBgm?: (data: Partial<BgmTrack>) => Promise<any>,
 ): Promise<void> {
   const result = parseClipboardData(text);
@@ -37,9 +37,9 @@ export async function handleClipboardImport(
 
   if (result.type === 'character') {
     try {
-      await addCharacter(result.data);
-      const charName = result.data.name ?? '不明';
-      showToast(`キャラクター "${charName}" をインポートしました`, 'success');
+      await Promise.all(result.data.map(d => addCharacter(d)));
+      const count = result.data.length;
+      showToast(count > 1 ? `${count}件のキャラクターをインポートしました` : `キャラクター "${result.data[0]?.name ?? '不明'}" をインポートしました`, 'success');
     } catch {
       showToast('インポートに失敗しました', 'error');
     }
@@ -48,9 +48,9 @@ export async function handleClipboardImport(
   if (result.type === 'object') {
     if (!addObject) return;
     try {
-      await addObject(result.data);
-      const objName = result.data.name ?? 'オブジェクト';
-      showToast(`オブジェクト "${objName}" をインポートしました`, 'success');
+      await Promise.all(result.data.map(d => addObject(d)));
+      const count = result.data.length;
+      showToast(count > 1 ? `${count}件のオブジェクトをインポートしました` : `オブジェクト "${result.data[0]?.name ?? 'オブジェクト'}" をインポートしました`, 'success');
     } catch {
       showToast('インポートに失敗しました', 'error');
     }
@@ -60,8 +60,8 @@ export async function handleClipboardImport(
     if (!addScene) return;
     try {
       await addScene(result.data);
-      const sceneName = result.data.scene.name ?? 'シーン';
-      showToast(`シーン "${sceneName}" をインポートしました`, 'success');
+      const count = result.data.length;
+      showToast(count > 1 ? `${count}件のシーンをインポートしました` : `シーン "${result.data[0]?.scene.name ?? 'シーン'}" をインポートしました`, 'success');
     } catch {
       showToast('インポートに失敗しました', 'error');
     }
@@ -70,9 +70,9 @@ export async function handleClipboardImport(
   if (result.type === 'bgm') {
     if (!addBgm) return;
     try {
-      await addBgm(result.data);
-      const bgmName = result.data.name ?? 'BGM';
-      showToast(`BGM "${bgmName}" をインポートしました`, 'success');
+      await Promise.all(result.data.map(d => addBgm(d)));
+      const count = result.data.length;
+      showToast(count > 1 ? `${count}件のBGMをインポートしました` : `BGM "${result.data[0]?.name ?? 'BGM'}" をインポートしました`, 'success');
     } catch {
       showToast('インポートに失敗しました', 'error');
     }

@@ -120,13 +120,13 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
         if (window.getSelection()?.toString()) return;
         if (selectedObjectIds.length > 0) {
-          const obj = activeObjects.find(o =>
+          const objs = activeObjects.filter(o =>
             selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
           );
-          if (obj) {
+          if (objs.length > 0) {
             e.preventDefault();
-            navigator.clipboard.writeText(objectToClipboardJson(obj));
-            showToast(`${obj.name} をコピーしました`, 'success');
+            navigator.clipboard.writeText(objectToClipboardJson(objs));
+            showToast(objs.length > 1 ? `${objs.length}件のオブジェクトをコピーしました` : `${objs[0].name} をコピーしました`, 'success');
           }
         }
       } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {

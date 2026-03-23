@@ -105,9 +105,9 @@ export function CharacterDockPanel() {
   const handleCopy = useCallback((ids: string[]) => {
     const chars = ctx.characters.filter(c => ids.includes(c.id));
     if (chars.length === 0) return;
-    const json = characterToClipboardJson(chars[0]);
+    const json = characterToClipboardJson(chars);
     navigator.clipboard.writeText(json).then(() => {
-      ctx.showToast(`${chars[0].name} をコピーしました`, 'success');
+      ctx.showToast(chars.length > 1 ? `${chars.length}件のキャラクターをコピーしました` : `${chars[0].name} をコピーしました`, 'success');
     }).catch(() => {
       ctx.showToast('コピーに失敗しました', 'error');
     });
