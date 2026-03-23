@@ -3,7 +3,7 @@ import type { Character, CharacterImage, PieceStatus, CharacterParameter } from 
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { AdInput, AdTextArea, AdButton, AdColorPicker } from './ui';
-import { Trash2, Clipboard, CopyPlus, X, Save } from 'lucide-react';
+import { Trash2, Clipboard, CopyPlus, Save } from 'lucide-react';
 import { Tooltip } from './ui/Tooltip';
 import { characterToClipboardJson } from '../../utils/clipboardImport';
 
@@ -16,10 +16,15 @@ interface CharacterEditorProps {
   onDelete?: () => void;
   onClose: () => void;
   initialSection?: string;
+  hideFooter?: boolean;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 export interface CharacterEditorHandle {
   save: () => void;
+  isDirty: boolean;
+  copyToClipboard: () => void;
+  duplicate: () => void;
 }
 
 function CharacterEditorComponent({
@@ -31,6 +36,8 @@ function CharacterEditorComponent({
   onDelete,
   onClose: _onClose,
   initialSection,
+  hideFooter,
+  onDirtyChange,
 }: CharacterEditorProps, ref: React.Ref<CharacterEditorHandle>) {
   // 基本情報
   const [name, setName] = useState(character?.name ?? '');
@@ -102,6 +109,9 @@ function CharacterEditorComponent({
       || JSON.stringify(statuses) !== JSON.stringify(c.statuses ?? [])
       || JSON.stringify(parameters) !== JSON.stringify(c.parameters ?? []);
   })();
+
+  // isDirty 変化を親に通知
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   // ─── 立ち絵管理 ───
   const addImage = () => {
@@ -178,9 +188,24 @@ function CharacterEditorComponent({
     } as typeof character;
   };
 
-  // useImperativeHandle で save メソッドを公開
+  const copyToClipboard = () => {
+    if (!character) return;
+    const data = {
+      ...character,
+      name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
+      images, active_image_index: activeImageIndex, initiative, size,
+      board_x: boardX, board_y: boardY, statuses, parameters,
+      memo, secret_memo: secretMemo, chat_palette: chatPalette,
+      is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
+    } as typeof character;
+    navigator.clipboard.writeText(characterToClipboardJson(data));
+  };
+
   useImperativeHandle(ref, () => ({
     save: handleSave,
+    get isDirty() { return isDirty; },
+    copyToClipboard,
+    duplicate: handleDuplicate,
   }));
 
   // ─── 複製 ───
@@ -525,64 +550,48 @@ function CharacterEditorComponent({
         </div>
       </div>
 
-      {/* フッターボタン */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingTop: '8px',
-        borderTop: `1px solid ${theme.borderSubtle}`,
-        flexShrink: 0,
-      }}>
-        {/* 左側: 削除 + コピー + 複製 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {character && onDelete && (
+      {/* フッターボタン（モーダル用。PropertyDockPanel では hideFooter=true） */}
+      {!hideFooter && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingTop: '8px',
+          borderTop: `1px solid ${theme.borderSubtle}`,
+          flexShrink: 0,
+        }}>
+          {/* 左: 削除 */}
+          {character && onDelete ? (
             <Tooltip label="削除">
               <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.danger, padding: '4px', display: 'flex' }}>
                 <Trash2 size={16} />
               </button>
             </Tooltip>
-          )}
-          {character && (
-            <Tooltip label="コピー">
-              <button onClick={() => {
-                const data = {
-                  ...character,
-                  name: name.trim() || '無名', color, sheet_url: sheetUrl.trim() || null,
-                  images, active_image_index: activeImageIndex, initiative, size,
-                  board_x: boardX, board_y: boardY, statuses, parameters,
-                  memo, secret_memo: secretMemo, chat_palette: chatPalette,
-                  is_status_private: isStatusPrivate, is_hidden_on_board: isHiddenOnBoard, is_speech_hidden: isSpeechHidden,
-                } as typeof character;
-                navigator.clipboard.writeText(characterToClipboardJson(data));
-              }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
-                <Clipboard size={16} />
+          ) : <div />}
+          {/* 右: コピー・複製・保存 */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {character && (
+              <Tooltip label="コピー">
+                <button onClick={copyToClipboard} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
+                  <Clipboard size={16} />
+                </button>
+              </Tooltip>
+            )}
+            {character && onDuplicate && (
+              <Tooltip label="複製">
+                <button onClick={handleDuplicate} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
+                  <CopyPlus size={16} />
+                </button>
+              </Tooltip>
+            )}
+            <Tooltip label="保存">
+              <button onClick={handleSave} style={{ background: isDirty ? theme.accent : 'none', border: 'none', cursor: 'pointer', color: isDirty ? '#fff' : theme.textMuted, padding: '4px', display: 'flex', borderRadius: '4px' }}>
+                <Save size={16} />
               </button>
             </Tooltip>
-          )}
-          {character && onDuplicate && (
-            <Tooltip label="複製">
-              <button onClick={handleDuplicate} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
-                <CopyPlus size={16} />
-              </button>
-            </Tooltip>
-          )}
+          </div>
         </div>
-
-        {/* 右側: キャンセル / 保存 */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="キャンセル">
-            <button onClick={() => _onClose?.()} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textSecondary, padding: '4px', display: 'flex' }}>
-              <X size={16} />
-            </button>
-          </Tooltip>
-          <Tooltip label="保存">
-            <button onClick={handleSave} style={{ background: 'none', border: 'none', cursor: 'pointer', color: isDirty ? theme.accent : theme.textMuted, padding: '4px', display: 'flex' }}>
-              <Save size={16} />
-            </button>
-          </Tooltip>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
