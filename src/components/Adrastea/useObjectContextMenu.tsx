@@ -1,13 +1,16 @@
 import { useState, useCallback } from 'react';
 import type React from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { usePermission } from '../../hooks/usePermission';
 import { ConfirmModal } from './ui';
 import type { DropdownMenuEntry } from './ui/DropdownMenu';
 import type { BoardObject } from '../../types/adrastea.types';
+import { objectToClipboardJson } from '../../utils/clipboardImport';
 
 interface UseObjectContextMenuOptions {
   onClose: () => void;
   onAfterDuplicate?: (newIds: string[]) => void;
+  onPaste?: () => void;
 }
 
 interface UseObjectContextMenuResult {
@@ -21,9 +24,11 @@ interface UseObjectContextMenuResult {
  */
 export function useObjectContextMenu(
   targets: BoardObject[],
-  { onClose, onAfterDuplicate }: UseObjectContextMenuOptions
+  { onClose, onAfterDuplicate, onPaste }: UseObjectContextMenuOptions
 ): UseObjectContextMenuResult {
   const { addObject, updateObject, removeObject } = useAdrasteaContext();
+  const { can } = usePermission();
+  const canEdit = can('object_edit');
   const [pendingRemove, setPendingRemove] = useState<BoardObject[] | null>(null);
 
   const deletableTargets = targets.filter(
@@ -32,25 +37,24 @@ export function useObjectContextMenu(
   const canDupOrDel = deletableTargets.length > 0;
 
   const handleDuplicate = useCallback(async () => {
-    const newIds: string[] = [];
-    for (const obj of deletableTargets) {
-      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
-      const newId = await addObject({
-        ...rest,
-        name: `${obj.name} (複製)`,
-        sort_order: obj.sort_order + 1,
-      });
-      if (newId) newIds.push(newId);
-    }
-    if (newIds.length > 0) onAfterDuplicate?.(newIds);
+    const newIds = await Promise.all(
+      deletableTargets.map(obj => {
+        const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
+        return addObject({
+          ...rest,
+          name: `${obj.name} (複製)`,
+          sort_order: obj.sort_order + 1,
+        });
+      })
+    );
+    const validIds = newIds.filter(Boolean);
+    if (validIds.length > 0) onAfterDuplicate?.(validIds);
     onClose();
   }, [deletableTargets, addObject, onAfterDuplicate, onClose]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!pendingRemove) return;
-    for (const obj of pendingRemove) {
-      removeObject(obj.id);
-    }
+    Promise.all(pendingRemove.map(obj => removeObject(obj.id)));
     setPendingRemove(null);
   }, [pendingRemove, removeObject]);
 
@@ -62,42 +66,69 @@ export function useObjectContextMenu(
   // 単体のみのメニュー
   if (targets.length === 1) {
     const obj = targets[0];
-    items.push({
-      label: obj.visible !== false ? '非表示にする' : '表示する',
-      onClick: () => {
-        updateObject(obj.id, { visible: obj.visible !== false ? false : true });
-        onClose();
-      },
-    });
-    items.push({
-      label: obj.position_locked ? '位置固定を解除' : '位置を固定',
-      onClick: () => {
-        updateObject(obj.id, { position_locked: !obj.position_locked });
-        onClose();
-      },
-    });
-    items.push({
-      label: obj.size_locked ? 'サイズ固定を解除' : 'サイズを固定',
-      onClick: () => {
-        updateObject(obj.id, { size_locked: !obj.size_locked });
-        onClose();
-      },
-    });
-    items.push('separator');
+    // 前景は表示/非表示のみ許可、背景・characters_layer はスキップ
+    if (obj.type !== 'background' && obj.type !== 'characters_layer') {
+      items.push({
+        label: obj.visible !== false ? '非表示にする' : '表示する',
+        disabled: !canEdit,
+        onClick: () => {
+          updateObject(obj.id, { visible: obj.visible !== false ? false : true });
+          onClose();
+        },
+      });
+    }
+    if (canDupOrDel) {
+      items.push({
+        label: obj.position_locked ? '位置固定を解除' : '位置を固定',
+        disabled: !canEdit,
+        onClick: () => {
+          updateObject(obj.id, { position_locked: !obj.position_locked });
+          onClose();
+        },
+      });
+      items.push({
+        label: obj.size_locked ? 'サイズ固定を解除' : 'サイズを固定',
+        disabled: !canEdit,
+        onClick: () => {
+          updateObject(obj.id, { size_locked: !obj.size_locked });
+          onClose();
+        },
+      });
+    }
+    if (items.length > 0) items.push('separator');
   }
 
   items.push(
     {
+      label: deletableTargets.length > 1 ? `${deletableTargets.length}件コピー` : 'コピー',
+      disabled: !canDupOrDel || !canEdit,
+      onClick: () => {
+        if (deletableTargets.length > 0) {
+          navigator.clipboard.writeText(objectToClipboardJson(deletableTargets[0]));
+        }
+        onClose();
+      },
+    },
+    {
       label: dupLabel,
-      disabled: !canDupOrDel,
+      disabled: !canDupOrDel || !canEdit,
       onClick: handleDuplicate,
     },
     {
       label: delLabel,
-      disabled: !canDupOrDel,
+      disabled: !canDupOrDel || !canEdit,
       danger: true,
       onClick: () => {
         setPendingRemove([...deletableTargets]);
+        onClose();
+      },
+    },
+    'separator',
+    {
+      label: '貼り付け',
+      disabled: !onPaste || !canEdit,
+      onClick: () => {
+        onPaste?.();
         onClose();
       },
     }
