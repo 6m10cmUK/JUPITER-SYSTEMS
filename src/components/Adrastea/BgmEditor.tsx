@@ -1,8 +1,7 @@
-import React from 'react';
 import type { BgmTrack } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
-import { AdSlider, AdCheckbox, AdSection, AdButton } from './ui';
-import { X, Trash2 } from 'lucide-react';
+import { AdSlider, AdCheckbox, AdSection } from './ui';
+import { X } from 'lucide-react';
 
 interface BgmEditorProps {
   track: BgmTrack;
@@ -12,7 +11,7 @@ interface BgmEditorProps {
   onClose: () => void;
 }
 
-export function BgmEditor({ track, activeSceneId, onUpdate, onDelete, onClose }: BgmEditorProps) {
+export function BgmEditor({ track, activeSceneId, onUpdate, onClose }: BgmEditorProps) {
   const isAutoPlay = activeSceneId ? track.auto_play_scene_ids.includes(activeSceneId) : false;
 
   const handleAutoPlayToggle = (checked: boolean) => {
@@ -23,24 +22,8 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onDelete, onClose }:
     onUpdate(track.id, { auto_play_scene_ids: next });
   };
 
-  const panelStyle: React.CSSProperties = {
-    background: theme.bgSurface,
-    padding: '0',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-  };
-
-  const contentStyle: React.CSSProperties = {
-    flex: 1,
-    overflow: 'auto',
-    padding: '8px',
-    minHeight: 0,
-  };
-
   return (
-    <div style={panelStyle}>
-      <div style={contentStyle}>
+    <div style={{ background: theme.bgSurface, padding: '8px' }}>
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -106,17 +89,6 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onDelete, onClose }:
             suffix="ms"
           />
         </AdSection>
-      </div>
-
-      {/* フッター削除ボタン */}
-      {onDelete && (
-        <div style={{ padding: '8px', borderTop: `1px solid ${theme.borderSubtle}`, flexShrink: 0 }}>
-          <AdButton variant="danger" onClick={onDelete}>
-            <Trash2 size={14} style={{ marginRight: '4px' }} />
-            削除
-          </AdButton>
-        </div>
-      )}
     </div>
   );
 }

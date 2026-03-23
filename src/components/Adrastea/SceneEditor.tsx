@@ -3,8 +3,7 @@ import type { Scene } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useEntityEditor } from '../../hooks/useEntityEditor';
-import { AdInput, AdSlider, AdCheckbox, AdSection, AdButton } from './ui';
-import { Trash2 } from 'lucide-react';
+import { AdInput, AdSlider, AdCheckbox, AdSection } from './ui';
 
 interface SceneEditorProps {
   scene?: Scene | null;
@@ -14,7 +13,7 @@ interface SceneEditorProps {
   onClose: () => void;
 }
 
-export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onDelete, onClose: _onClose }: SceneEditorProps) {
+export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onClose: _onClose }: SceneEditorProps) {
   const ctx = useAdrasteaContext();
 
   const { state, set } = useEntityEditor({
@@ -43,26 +42,14 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onDelete,
 
   const panelStyle: React.CSSProperties = {
     background: theme.bgSurface,
-    padding: '0',
+    padding: '8px',
     color: theme.textPrimary,
     boxSizing: 'border-box',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
   };
 
-  const contentStyle: React.CSSProperties = {
-    flex: 1,
-    overflow: 'auto',
-    padding: '8px',
-    minHeight: 0,
-  };
-
-  const canDelete = scene && ctx.scenes.length > 1;
 
   return (
     <div style={panelStyle}>
-      <div style={contentStyle}>
         <h3 style={{ fontSize: '12px', fontWeight: 600, margin: '0 0 8px' }}>
           {scene ? 'シーン編集' : '新規シーン'}
         </h3>
@@ -121,17 +108,6 @@ export function SceneEditor({ scene, roomId: _roomId, onSave: _onSave, onDelete,
             />
           )}
         </AdSection>
-      </div>
-
-      {/* フッター削除ボタン */}
-      {canDelete && onDelete && (
-        <div style={{ padding: '8px', borderTop: `1px solid ${theme.borderSubtle}`, flexShrink: 0 }}>
-          <AdButton variant="danger" onClick={onDelete}>
-            <Trash2 size={14} style={{ marginRight: '4px' }} />
-            削除
-          </AdButton>
-        </div>
-      )}
     </div>
   );
 }

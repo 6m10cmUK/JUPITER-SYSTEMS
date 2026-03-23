@@ -355,13 +355,17 @@ textarea {
 }
 /* フローティング時はパネルコンテンツの背景も透明に */
 .dv-resize-container.dv-floating-translucent .dv-content-container > *,
-.dv-resize-container.dv-floating-translucent .dv-react-part > * {
+.dv-resize-container.dv-floating-translucent .dv-react-part > *,
+.dv-resize-container.dv-floating-translucent .dv-react-part div {
   background: transparent !important;
 }
 
 /* パネルコンテンツ領域 */
 .dockview-theme-catppuccin .dv-content-container {
   overflow: hidden;
+}
+.dockview-theme-catppuccin .dv-react-part {
+  position: relative;
 }
 
 /* ColumnHeaderBar */
