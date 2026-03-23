@@ -99,8 +99,22 @@ export function SceneDockPanel() {
     }
 
     await Promise.all(sceneIds.map(id => ctx.removeScene(id)));
+
+    // 削除したシーンIDをBGMのscene_ids/auto_play_scene_idsから除去
+    for (const bgm of ctx.bgms) {
+      const newSceneIds = bgm.scene_ids.filter(sid => !removeSet.has(sid));
+      const newAutoPlay = bgm.auto_play_scene_ids.filter(sid => !removeSet.has(sid));
+      if (newSceneIds.length !== bgm.scene_ids.length || newAutoPlay.length !== bgm.auto_play_scene_ids.length) {
+        if (newSceneIds.length === 0) {
+          ctx.removeBgm(bgm.id);
+        } else {
+          ctx.updateBgm(bgm.id, { scene_ids: newSceneIds, auto_play_scene_ids: newAutoPlay });
+        }
+      }
+    }
+
     setSelectedSceneIds([]);
-  }, [ctx.scenes, ctx.room?.active_scene_id, ctx.activateScene, ctx.removeScene]);
+  }, [ctx.scenes, ctx.bgms, ctx.room?.active_scene_id, ctx.activateScene, ctx.removeScene, ctx.updateBgm, ctx.removeBgm]);
 
   const handleCopy = useCallback((sceneId: string) => {
     const scene = ctx.scenes.find(s => s.id === sceneId);
