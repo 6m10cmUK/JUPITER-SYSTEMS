@@ -8,6 +8,7 @@ import { ToastContainer } from '../components/Adrastea/ui/Toast';
 import { useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { usePermission } from '../hooks/usePermission';
 import { usePasteHandler } from '../hooks/usePasteHandler';
+import { pasteSceneFromClipboard } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
 
 function AdrasteaDemoRoom() {
@@ -15,7 +16,20 @@ function AdrasteaDemoRoom() {
   const { can } = usePermission();
   const isOwner = ctx.roomRole === 'owner';
 
-  usePasteHandler({ addCharacter: ctx.addCharacter, showToast: ctx.showToast });
+  usePasteHandler({
+    addCharacter: (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
+    addObject: async (data) => {
+      const targetSort = data.sort_order ?? ctx.activeObjects.length;
+      const shifts = ctx.activeObjects
+        .filter(o => o.sort_order >= targetSort)
+        .map(o => ({ id: o.id, sort: o.sort_order + 1 }));
+      if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
+      return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
+    },
+    addScene: (data) => pasteSceneFromClipboard(data, ctx),
+    addBgm: (data) => ctx.addBgm({ ...data, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [], auto_play_scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] }),
+    showToast: ctx.showToast,
+  });
 
   const handleAddPiece = React.useCallback((label: string, color: string) => {
     const center = ctx.getBoardCenter();

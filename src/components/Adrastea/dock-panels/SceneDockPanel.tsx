@@ -1,6 +1,8 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenePanel } from '../ScenePanel';
+import { sceneToClipboardJson, pasteSceneFromClipboard } from '../../../utils/clipboardImport';
+import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 
 export function SceneDockPanel() {
   const ctx = useAdrasteaContext();
@@ -31,7 +33,7 @@ export function SceneDockPanel() {
       const result = await ctx.addScene({
         name: '新しいシーン',
         sort_order: nextSortOrder,
-      });
+      }, undefined, ctx.allObjects);
       if (!result) continue;
       const newSceneId = result.scene.id;
       rebalanceSortOrder(newSceneId, nextSortOrder);
@@ -94,11 +96,52 @@ export function SceneDockPanel() {
       }
     }
 
-    for (const id of sceneIds) {
-      await ctx.removeScene(id);
-    }
+    await Promise.all(sceneIds.map(id => ctx.removeScene(id)));
     setSelectedSceneIds([]);
   }, [ctx.scenes, ctx.room?.active_scene_id, ctx.activateScene, ctx.removeScene]);
+
+  const handleCopy = useCallback((sceneId: string) => {
+    const scene = ctx.scenes.find(s => s.id === sceneId);
+    if (!scene) return;
+    const sceneObjects = ctx.allObjects.filter(o => o.scene_ids.includes(sceneId));
+    const sceneBgms = ctx.bgms.filter(b => b.scene_ids.includes(sceneId));
+    navigator.clipboard.writeText(sceneToClipboardJson(scene, sceneObjects, sceneBgms));
+    ctx.showToast(`${scene.name} をコピーしました`, 'success');
+  }, [ctx.scenes, ctx.allObjects, ctx.showToast]);
+
+  const handlePaste = useCallback(async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      await handleClipboardImport(
+        text,
+        (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
+        ctx.showToast,
+        undefined,
+        (data) => pasteSceneFromClipboard(data, ctx),
+      );
+    } catch {
+      ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
+    }
+  }, [ctx]);
+
+  // Ctrl+C / Ctrl+V
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      if (e.key === 'c') {
+        if (window.getSelection()?.toString()) return;
+        // シーンが明示的に選択されている場合のみコピー
+        if (selectedSceneIds.length > 0) {
+          e.preventDefault();
+          handleCopy(selectedSceneIds[0]);
+        }
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [selectedSceneIds, ctx.room?.active_scene_id, handleCopy, handlePaste]);
 
   return (
     <ScenePanel
@@ -113,6 +156,8 @@ export function SceneDockPanel() {
       onUpdateSceneName={(id, name) => ctx.updateScene(id, { name })}
       onRemoveScenes={handleRemoveScenes}
       onReorderScenes={ctx.reorderScenes}
+      onCopy={handleCopy}
+      onPaste={handlePaste}
     />
   );
 }

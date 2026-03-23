@@ -3,7 +3,6 @@ import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole, checkPermission } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
-import { useThrottledCallback } from '../../../hooks/useThrottledUpdate';
 import { Board } from '../Board';
 import { AssetLibraryModal } from '../AssetLibraryModal';
 import { MessagePopup } from '../ui/MessagePopup';
@@ -60,20 +59,18 @@ export function BoardDockPanel() {
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
-      await handleClipboardImport(text, ctx.addCharacter, ctx.showToast);
+      await handleClipboardImport(text, (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }), ctx.showToast, async (data) => {
+        const targetSort = data.sort_order ?? ctx.activeObjects.length;
+        const shifts = ctx.activeObjects
+          .filter(o => o.sort_order >= targetSort)
+          .map(o => ({ id: o.id, sort: o.sort_order + 1 }));
+        if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
+        return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
+      });
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
     }
-  }, [ctx.addCharacter, ctx.showToast]);
-
-  const handleToggleBoardVisibleRaw = useCallback((charId: string) => {
-    const char = ctx.characters.find(c => c.id === charId);
-    if (char) {
-      ctx.updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-    }
-  }, [ctx]);
-
-  const handleToggleBoardVisible = useThrottledCallback(handleToggleBoardVisibleRaw);
+  }, [ctx.addCharacter, ctx.addObject, ctx.showToast]);
 
   const latestMessage = useMemo(() => {
     if (!ctx.messages || ctx.messages.length === 0) return null;
@@ -104,6 +101,7 @@ export function BoardDockPanel() {
             if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
               ctx.clearAllEditing();
               ctx.setEditingCharacter(char);
+              ctx.setPanelSelection({ panel: 'character', ids: [charId] });
             }
           }}
           onDoubleClickCharacter={(charId) => {
@@ -112,9 +110,6 @@ export function BoardDockPanel() {
             if (char && (char.owner_id === user?.uid || isSubOwnerPlus)) {
               ctx.setCharacterToOpenModal(char);
             }
-          }}
-          onContextMenuCharacter={(charId, _e) => {
-            handleToggleBoardVisible(charId);
           }}
           onMovePiece={ctx.movePiece}
           onRemovePiece={ctx.removePiece}

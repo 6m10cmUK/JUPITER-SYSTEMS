@@ -19,6 +19,8 @@ interface ScenePanelProps {
   onUpdateSceneName: (sceneId: string, name: string) => void;
   onRemoveScenes: (sceneIds: string[]) => void;
   onReorderScenes?: (orderedIds: string[]) => void;
+  onCopy?: (sceneId: string) => void;
+  onPaste?: () => void;
 }
 
 export function ScenePanel({
@@ -33,6 +35,8 @@ export function ScenePanel({
   onUpdateSceneName,
   onRemoveScenes,
   onReorderScenes,
+  onCopy,
+  onPaste,
 }: ScenePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState('');
@@ -335,6 +339,14 @@ export function ScenePanel({
           },
         },
         {
+          label: 'コピー',
+          disabled: !contextMenu?.sceneId,
+          onClick: () => {
+            if (contextMenu?.sceneId) onCopy?.(contextMenu.sceneId);
+            setContextMenu(null);
+          },
+        },
+        {
           label: (() => {
             const ids = contextMenu?.sceneId && !selectedSceneIds.includes(contextMenu.sceneId)
               ? [contextMenu.sceneId]
@@ -368,6 +380,15 @@ export function ScenePanel({
                 msg: ids.length > 1 ? `${ids.length}件のシーンを削除しますか？` : 'このシーンを削除しますか？',
               });
             }
+            setContextMenu(null);
+          },
+        },
+        'separator',
+        {
+          label: '貼り付け',
+          disabled: !onPaste,
+          onClick: () => {
+            onPaste?.();
             setContextMenu(null);
           },
         },
