@@ -42,6 +42,7 @@ function StatusBar({
   const barColor = status.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
 
   const handleBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button !== 2) return; // 右クリックのみ
     e.preventDefault();
     e.stopPropagation();
     if (!canEdit) return;
@@ -93,6 +94,7 @@ function StatusBar({
         cursor: canEdit ? 'ew-resize' : 'default',
       }}
       onMouseDown={handleBarMouseDown}
+      onContextMenu={(e) => { e.preventDefault(); }}
     >
       <div style={{
         height: '100%',

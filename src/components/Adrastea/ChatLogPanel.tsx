@@ -735,6 +735,12 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         }}
       >
         <div
+          onWheel={(e) => {
+            if (e.deltaY !== 0) {
+              e.currentTarget.scrollLeft += e.deltaY * 0.3;
+              e.preventDefault();
+            }
+          }}
           style={{
             display: 'flex',
             gap: '2px',
