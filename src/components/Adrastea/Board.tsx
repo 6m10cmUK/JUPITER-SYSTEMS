@@ -44,6 +44,64 @@ export const GRID_SIZE = 50;
 export const MIN_SCALE = 0.02;
 export const MAX_SCALE = 4;
 
+// --- 背景レイヤー ---
+interface BgLayerData {
+  key: number;
+  url: string | null;
+  color: string;
+  blur: boolean;
+  opacity: number;
+  fadeOut?: boolean;
+}
+
+const BgLayer = memo(function BgLayer({ layer, duration }: { layer: BgLayerData; duration: number }) {
+  const blobSrc = useAnimatedBlobSrc(layer.url);
+  const [visible, setVisible] = useState(layer.fadeOut || duration <= 0);
+
+  // フェードアウト層: ref で opacity → 0
+  const fadeOutRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!layer.fadeOut || !fadeOutRef.current || duration <= 0) return;
+    const el = fadeOutRef.current;
+    requestAnimationFrame(() => {
+      el.style.transition = `opacity ${duration}ms ease`;
+      el.style.opacity = '0';
+    });
+  }, [layer.fadeOut, duration]);
+
+  // フェードイン層: blobSrc が来たら visible に
+  useEffect(() => {
+    if (layer.fadeOut || visible || duration <= 0) return;
+    if (blobSrc || layer.color !== 'transparent') {
+      requestAnimationFrame(() => setVisible(true));
+    }
+  }, [blobSrc, visible, layer.color, duration, layer.fadeOut]);
+
+  return (
+    <div
+      ref={layer.fadeOut ? fadeOutRef : undefined}
+      style={{
+        position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 0,
+        backgroundColor: layer.color,
+        // フェードアウト層: opacity は ref で操作するので initial 値のみ設定
+        // フェードイン層: visible state で制御
+        ...(layer.fadeOut
+          ? { opacity: layer.opacity }
+          : { opacity: visible ? layer.opacity : 0, transition: duration > 0 ? `opacity ${duration}ms ease` : undefined }
+        ),
+      }}
+    >
+      {blobSrc && (
+        <img src={blobSrc} alt="" style={{
+          width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block',
+          filter: layer.blur ? 'blur(8px)' : 'none',
+          transform: layer.blur ? 'scale(1.05)' : 'none',
+        }} />
+      )}
+    </div>
+  );
+});
+
 // --- DOM グリッドオーバーレイ ---
 const DomGridOverlay = memo(function DomGridOverlay({ stageRef, width, height }: { stageRef: React.RefObject<StageType | null>; width: number; height: number }) {
   const elRef = useRef<HTMLDivElement>(null);
@@ -201,6 +259,51 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const [contextMenuState, setContextMenuState] = useState<{ x: number; y: number; pieceId: string } | null>(null);
   const [bgContextMenuState, setBgContextMenuState] = useState<{ x: number; y: number } | null>(null);
 
+  // 背景クロスフェード: シーン切替時に旧背景をフェードアウト層に、新背景を新DOM でフェードイン
+  const bgTransitionDuration = activeScene?.bg_transition === 'fade' ? (activeScene.bg_transition_duration ?? 500) : 0;
+  // 背景オブジェクト
+  const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
+  const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
+  if (bgObject) {
+    prevBgRef.current = { url: bgObject.image_url, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
+  }
+
+  // 背景レイヤー管理: bgObject の image_url 変化でクロスフェード
+  const [bgLayers, setBgLayers] = useState<BgLayerData[]>([]);
+  const bgKeyRef = useRef(0);
+  const prevBgUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const url = bgObject?.image_url ?? null;
+    const color = bgObject?.background_color ?? 'transparent';
+    const opacity = bgObject?.opacity ?? 1;
+    const blur = !!activeScene?.bg_blur;
+
+    if (url === prevBgUrlRef.current) {
+      // 同じ画像: 既存のアクティブレイヤーを更新するだけ
+      setBgLayers(prev => prev.map(l => l.fadeOut ? l : { ...l, color, blur, opacity }));
+      return;
+    }
+
+    const prevUrl = prevBgUrlRef.current;
+    prevBgUrlRef.current = url;
+    const duration = bgTransitionDuration;
+
+    if (duration > 0 && prevUrl) {
+      // クロスフェード: 既存のフェードアウト中レイヤーを即削除、現行をフェードアウトに、新レイヤーを追加
+      bgKeyRef.current += 1;
+      setBgLayers(prev => [
+        ...prev.filter(l => !l.fadeOut).map(l => ({ ...l, fadeOut: true })),
+        { key: bgKeyRef.current, url, color, blur, opacity },
+      ]);
+      setTimeout(() => setBgLayers(prev => prev.filter(l => !l.fadeOut)), duration + 100);
+    } else {
+      // 即切替
+      bgKeyRef.current += 1;
+      setBgLayers([{ key: bgKeyRef.current, url, color, blur, opacity }]);
+    }
+  }, [bgObject?.image_url, bgObject?.background_color, bgObject?.opacity, activeScene?.bg_blur, bgTransitionDuration]);
+
   const fitToScreen = useCallback(() => {
     const stage = stageRef.current;
     if (!stage || stageSize.width === 0 || stageSize.height === 0) return;
@@ -344,20 +447,6 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     }
   }, [objects, onEditObject]);
 
-  // 背景オブジェクト（HTMLで描画 — ビューポート固定）
-  // フォールバック: シーン切替直後に背景オブジェクトが未到着の場合、前回の値を維持
-  const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
-  const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number }>({ url: null, color: null, opacity: 1 });
-  const bgObjectUrl = bgObject ? bgObject.image_url : prevBgRef.current.url;
-  const bgObjectColor = bgObject ? bgObject.background_color : prevBgRef.current.color;
-  const bgObjectOpacity = bgObject ? bgObject.opacity : prevBgRef.current.opacity;
-  // 背景が存在するときだけ前回値を更新
-  if (bgObject) {
-    prevBgRef.current = { url: bgObject.image_url, color: bgObject.background_color, opacity: bgObject.opacity };
-  }
-
-  // 背景ブラー画像 — 共有 Blob URL キャッシュ経由（シーン間で同じ画像なら GIF 再生継続）
-  const bgBlobSrc = useAnimatedBlobSrc(bgObjectUrl);
 
   // DOM オーバーレイの ref（rAF で Stage の transform に同期）
   const domLayerRef = useRef<HTMLDivElement>(null);
@@ -383,37 +472,14 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       ref={containerRef}
       style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}
     >
-      {/* 背景オブジェクト: ビューポート固定 */}
-      {(bgObjectUrl || bgObjectColor) && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundColor: bgObjectColor ?? 'transparent',
-            opacity: bgObjectOpacity,
-            pointerEvents: 'none',
-            zIndex: 0,
-            transition: activeScene?.bg_transition === 'fade'
-              ? `opacity ${activeScene.bg_transition_duration}ms ease`
-              : undefined,
-          }}
-        >
-          {bgBlobSrc && (
-            <img
-              src={bgBlobSrc}
-              alt=""
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                objectPosition: 'center center',
-                filter: activeScene?.bg_blur ? 'blur(8px)' : 'none',
-                transform: activeScene?.bg_blur ? 'scale(1.05)' : 'none',
-              }}
-            />
-          )}
-        </div>
-      )}
+      {/* 背景レイヤー（クロスフェード対応） */}
+      {bgLayers.map((layer) => (
+        <BgLayer
+          key={layer.key}
+          layer={layer}
+          duration={bgTransitionDuration}
+        />
+      ))}
       <Stage
         ref={stageRef}
         width={stageSize.width}
