@@ -851,6 +851,9 @@ const DomTextObject = memo(function DomTextObject({
 });
 
 // --- ForegroundObject (DOM版) ---
+// 前景のクロスフェード用: リマウント前の元画像 URL（R2 URL）を保持
+let _prevFgOriginalSrc: string | null = null;
+
 const DomForegroundObject = memo(function DomForegroundObject({
   obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex,
 }: {
@@ -862,53 +865,66 @@ const DomForegroundObject = memo(function DomForegroundObject({
   fadeInDuration?: number;
   baseZIndex?: number;
 }) {
-  const elRef = useRef<HTMLDivElement>(null);
   const blobSrc = useAnimatedBlobSrc(obj.image_url);
-  // 初回マウント時のみフェードインを実行（シーン継続時はスキップ）
-  const mountedRef = useRef(false);
+  const fgDuration = fadeInDuration ?? 0;
 
-  useEffect(() => {
-    if (!mountedRef.current && fadeInDuration && elRef.current) {
-      const el = elRef.current;
-      el.style.opacity = '0';
-      requestAnimationFrame(() => {
-        el.style.transition = `opacity ${fadeInDuration}ms ease`;
-        el.style.opacity = String(obj.opacity);
-      });
-    }
-    mountedRef.current = true;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // リマウント時のフェードアウト層
+  const [fadeOutSrc] = useState(() => {
+    const prev = _prevFgOriginalSrc;
+    return (fgDuration > 0 && prev && prev !== obj.image_url) ? prev : null;
+  });
+  const [showFadeOut, setShowFadeOut] = useState(!!fadeOutSrc);
 
-  // opacity 変更時は transition なしで即座に反映
+  // 常に最新の R2 URL を保持
+  useEffect(() => { if (obj.image_url) _prevFgOriginalSrc = obj.image_url; }, [obj.image_url]);
+  // フェードアウト層を duration 後に削除
   useEffect(() => {
-    if (mountedRef.current && elRef.current) {
-      elRef.current.style.opacity = String(obj.opacity);
+    if (showFadeOut && fgDuration > 0) {
+      const t = setTimeout(() => setShowFadeOut(false), fgDuration + 100);
+      return () => clearTimeout(t);
     }
-  }, [obj.opacity]);
+  }, [showFadeOut, fgDuration]);
 
   return (
-    <div ref={elRef}>
+    <div>
       <DomObjectWrapper
         obj={obj} isSelected={isSelected} isDraggable={false}
         isResizable={false} stageRef={stageRef}
         onMove={onMove} onSelect={onSelect} onEdit={onEdit}
         style={{ zIndex: baseZIndex }}
       >
-        <div style={{
-          width: '100%', height: '100%',
-          backgroundColor: obj.background_color ?? 'transparent',
-          overflow: 'hidden',
-        }}>
+        {/* 旧前景フェードアウト */}
+        {showFadeOut && fadeOutSrc && (
+          <img
+            ref={(el) => {
+              if (el) {
+                el.style.opacity = '1';
+                requestAnimationFrame(() => {
+                  el.style.transition = `opacity ${fgDuration}ms ease`;
+                  el.style.opacity = '0';
+                });
+              }
+            }}
+            src={fadeOutSrc}
+            alt=""
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit, display: 'block', zIndex: 0 }}
+          />
+        )}
+        {/* 新前景フェードイン */}
+        <div
+          ref={(el) => {
+            if (el && fgDuration > 0 && fadeOutSrc) {
+              el.style.opacity = '0';
+              requestAnimationFrame(() => {
+                el.style.transition = `opacity ${fgDuration}ms ease`;
+                el.style.opacity = String(obj.opacity);
+              });
+            }
+          }}
+          style={{ width: '100%', height: '100%', backgroundColor: obj.background_color ?? 'transparent', position: 'relative', zIndex: 1 }}
+        >
           {blobSrc && (
-            <img
-              src={blobSrc}
-              style={{
-                width: '100%', height: '100%',
-                objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit,
-                display: 'block',
-              }}
-              draggable={false}
-            />
+            <img src={blobSrc} alt="" style={{ width: '100%', height: '100%', objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit, display: 'block' }} draggable={false} />
           )}
         </div>
       </DomObjectWrapper>
