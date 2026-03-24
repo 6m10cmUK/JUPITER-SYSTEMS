@@ -110,6 +110,7 @@ export function CharacterPanel({
     >
       <SortableListPanel
       title="キャラクター"
+      onBackgroundClick={() => onSelectedCharIdsChange([])}
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label={selectedCharIds.length > 1 ? `${selectedCharIds.length}件複製` : '複製'}>

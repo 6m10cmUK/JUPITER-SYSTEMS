@@ -30,6 +30,7 @@ interface SortableListPanelProps {
   items: { id: string }[];
   onDragEnd?: (event: DragEndEvent) => void;
   onDragStart?: (event: DragStartEvent) => void;
+  onBackgroundClick?: () => void;
   emptyMessage?: string;
   children: React.ReactNode;
 }
@@ -42,6 +43,7 @@ export function SortableListPanel({
   items,
   onDragEnd,
   onDragStart,
+  onBackgroundClick,
   emptyMessage,
   children,
 }: SortableListPanelProps) {
@@ -115,7 +117,15 @@ export function SortableListPanel({
       </div>
 
       {/* List */}
-      <div ref={containerRef} style={{ flex: 1, overflowY: 'auto' }}>
+      <div
+        ref={containerRef}
+        style={{ flex: 1, overflowY: 'auto' }}
+        onClick={(e) => {
+          if (e.currentTarget === e.target && onBackgroundClick) {
+            onBackgroundClick();
+          }
+        }}
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}

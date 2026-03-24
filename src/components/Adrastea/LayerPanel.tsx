@@ -457,6 +457,10 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     >
     <SortableListPanel
       title="レイヤー"
+      onBackgroundClick={() => {
+        setSelectedObjectIds([]);
+        setPanelSelection(null);
+      }}
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
           <Tooltip label="複製">

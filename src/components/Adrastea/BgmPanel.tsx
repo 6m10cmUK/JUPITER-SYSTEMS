@@ -471,6 +471,9 @@ export function BgmPanel() {
       <SortableListPanel
         title="BGM"
         titleIcon={<span title="BGM"><Music size={14} /></span>}
+        onBackgroundClick={() => {
+          setEditingBgmId(null);
+        }}
         headerActions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <button

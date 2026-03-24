@@ -110,6 +110,7 @@ export function ScenePanel({
     >
     <SortableListPanel
       title="シーン"
+      onBackgroundClick={() => onSelectedSceneIdsChange([])}
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
           {onDuplicateScenes && (
