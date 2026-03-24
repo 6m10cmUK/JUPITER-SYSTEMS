@@ -41,6 +41,9 @@ export const create = mutation({
     content: v.string(),
     visible: v.boolean(),
     sort_order: v.number(),
+    speaker_character_id: v.optional(v.union(v.string(), v.null())),
+    speaker_name: v.optional(v.union(v.string(), v.null())),
+    channel_id: v.optional(v.union(v.string(), v.null())),
     created_at: v.number(),
     updated_at: v.number(),
   },
@@ -60,6 +63,9 @@ export const update = mutation({
     content: v.optional(v.string()),
     visible: v.optional(v.boolean()),
     sort_order: v.optional(v.number()),
+    speaker_character_id: v.optional(v.union(v.string(), v.null())),
+    speaker_name: v.optional(v.union(v.string(), v.null())),
+    channel_id: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

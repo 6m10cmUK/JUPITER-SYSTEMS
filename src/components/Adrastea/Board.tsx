@@ -2,6 +2,8 @@ import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, f
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konva';
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { objectToClipboardJson } from '../../utils/clipboardImport';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
@@ -253,6 +255,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
 }
 
 export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onToggleGrid, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
+  const ctx = useAdrasteaContext();
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -489,9 +492,15 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         onClick={handleStageClick}
         onDblClick={handleStageDblClick}
         onContextMenu={(e: KonvaEventObject<PointerEvent>) => {
-          if (e.target === e.target.getStage() && onPaste) {
+          if (e.target === e.target.getStage()) {
             e.evt.preventDefault();
             setBgContextMenuState({ x: e.evt.clientX, y: e.evt.clientY });
+            // 背景オブジェクトを選択してプロパティ表示
+            const bgObj = objects.find(o => o.type === 'background');
+            if (bgObj) {
+              ctx.setSelectedObjectIds([bgObj.id]);
+              ctx.setEditingObjectId(bgObj.id);
+            }
           }
         }}
         onDragStart={() => { stageRef.current?.container()?.style.setProperty('cursor', 'grabbing'); }}
@@ -594,24 +603,52 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
         open={bgContextMenuState !== null}
         onOpenChange={(open) => { if (!open) setBgContextMenuState(null); }}
         position={bgContextMenuState ?? { x: 0, y: 0 }}
-        items={[
-          {
-            label: gridVisible ? 'グリッドを非表示' : 'グリッドを表示',
-            onClick: () => {
-              onToggleGrid?.();
-              setBgContextMenuState(null);
+        items={(() => {
+          const bgObj = objects.find(o => o.type === 'background');
+          return [
+            {
+              label: gridVisible ? 'グリッドを非表示' : 'グリッドを表示',
+              onClick: () => {
+                onToggleGrid?.();
+                setBgContextMenuState(null);
+              },
             },
-          },
-          'separator',
-          {
-            label: '貼り付け',
-            shortcut: shortcutLabel('V'),
-            onClick: () => {
-              onPaste?.();
-              setBgContextMenuState(null);
+            'separator' as const,
+            {
+              label: 'コピー',
+              shortcut: shortcutLabel('C'),
+              disabled: !bgObj,
+              onClick: () => {
+                if (bgObj) {
+                  navigator.clipboard.writeText(objectToClipboardJson(bgObj));
+                  ctx.showToast('背景をコピーしました', 'success');
+                }
+                setBgContextMenuState(null);
+              },
             },
-          },
-        ]}
+            {
+              label: '貼り付け',
+              shortcut: shortcutLabel('V'),
+              onClick: () => {
+                onPaste?.();
+                setBgContextMenuState(null);
+              },
+            },
+            'separator' as const,
+            {
+              label: '元に戻す',
+              shortcut: shortcutLabel('Z'),
+              disabled: !ctx.undoRedo.canUndo,
+              onClick: () => { ctx.undoRedo.undo(); setBgContextMenuState(null); },
+            },
+            {
+              label: 'やり直し',
+              shortcut: shortcutLabel('⇧Z'),
+              disabled: !ctx.undoRedo.canRedo,
+              onClick: () => { ctx.undoRedo.redo(); setBgContextMenuState(null); },
+            },
+          ];
+        })()}
       />
       {children}
     </div>

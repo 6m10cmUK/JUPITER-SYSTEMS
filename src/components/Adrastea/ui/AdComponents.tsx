@@ -88,6 +88,7 @@ export function AdTextArea({ label, style, expandable, ...props }: AdTextAreaPro
           <button
             type="button"
             onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
+            title="テキストエリアを拡大"
             style={{
               position: 'absolute',
               top: 2,
@@ -482,13 +483,15 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
     const handler = (e: MouseEvent) => {
       if (popRef.current && !popRef.current.contains(e.target as Node) &&
           btnRef.current && !btnRef.current.contains(e.target as Node)) {
+        e.stopPropagation();
+        e.preventDefault();
         setOpen(false);
         setContextMenuOpen(false);
         onClose?.(rgbaToCss(rgba));
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', handler, true);
+    return () => document.removeEventListener('mousedown', handler, true);
   }, [open, rgba, onClose]);
 
   const handleChange = useCallback((c: RgbaColor) => {

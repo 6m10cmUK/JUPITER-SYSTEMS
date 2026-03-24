@@ -122,6 +122,8 @@ export interface UIStateContextValue {
   setEditingCutin: React.Dispatch<React.SetStateAction<Cutin | null | undefined>>;
   editingBgmId: string | null;
   setEditingBgmId: React.Dispatch<React.SetStateAction<string | null>>;
+  editingScenarioTextId: string | null;
+  setEditingScenarioTextId: React.Dispatch<React.SetStateAction<string | null>>;
   editingPieceId: string | null;
   setEditingPieceId: React.Dispatch<React.SetStateAction<string | null>>;
   editingObjectId: string | null | undefined;

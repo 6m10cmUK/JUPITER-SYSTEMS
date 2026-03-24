@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Bold, Italic, Strikethrough, Heading1 } from 'lucide-react';
+import { Bold, Italic, Strikethrough, Heading1, ChevronDown } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { AdColorPicker } from './ui/AdComponents';
@@ -25,6 +25,7 @@ export interface ChatEditorProps {
   onSend?: (text: string) => void;
   placeholder?: string;
   enterToSend?: boolean;
+  fillHeight?: boolean;
   channels?: ChatEditorChannel[];
   activeChannelId?: string;
   onChannelChange?: (channelId: string) => void;
@@ -38,11 +39,12 @@ export interface ChatEditorHandle {
 }
 
 const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
-  ({ characters = [], onSend, placeholder = 'メッセージを入力...', enterToSend = true, channels, activeChannelId, onChannelChange }, ref) => {
+  ({ characters = [], onSend, placeholder = 'メッセージを入力...', enterToSend = true, fillHeight = false, channels, activeChannelId, onChannelChange }, ref) => {
     const [isEmpty, setIsEmpty] = useState(true);
     const [suggestions, setSuggestions] = useState<string[]>([]);
     const [suggestionIndex, setSuggestionIndex] = useState(-1);
     const [suggestionPos, setSuggestionPos] = useState<{ top: number; left: number; width: number } | null>(null);
+    const [colorPickerValue, setColorPickerValue] = useState('#ff0000');
 
     const editorRef = useRef<HTMLDivElement>(null);
     const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -72,7 +74,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
       const lower = text.toLowerCase();
       const matched = paletteItems.filter((item) => item.toLowerCase().includes(lower));
       setSuggestions(matched);
-      setSuggestionIndex(-1);
+      setSuggestionIndex(matched.length > 0 ? 0 : -1);
     }, [paletteItems]);
 
     const applySuggestion = useCallback((text: string) => {
@@ -84,6 +86,8 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
       isUpdating.current = false;
       setIsEmpty(false);
       setSuggestions([]);
+      // input イベントを発火（外部の onInput ハンドラに変更を通知）
+      el.dispatchEvent(new Event('input', { bubbles: true }));
     }, []);
 
     const applyHighlight = useCallback(() => {
@@ -375,7 +379,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
             background: theme.bgInput,
             border: `1px solid ${theme.border}`,
             overflow: 'auto',
-            minHeight: '60px',
+            minHeight: fillHeight ? 0 : '60px',
           }}
         >
           <div
@@ -388,7 +392,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
             onKeyDown={handleKeyDown}
             onBeforeInput={handleBeforeInput}
             style={{
-              minHeight: '60px',
+              minHeight: fillHeight ? 0 : '60px',
               height: '100%',
               padding: '4px 6px',
               fontSize: '12px',
@@ -493,8 +497,8 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
                 <AdColorPicker
                   compact
                   enableAlpha={false}
-                  value="#ff0000"
-                  onChange={() => {}}
+                  value={colorPickerValue}
+                  onChange={setColorPickerValue}
                   onOpen={() => {
                     const el = editorRef.current;
                     if (el) {
@@ -541,6 +545,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
                     }}
                   >
                     {channels.find(ch => ch.channel_id === activeChannelId)?.label ?? 'ch'}
+                    <ChevronDown size={10} />
                   </button>
                 </Tooltip>
               }

@@ -26,6 +26,9 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
   const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
     id: t.id, room_id: t.room_id, title: t.title, content: t.content,
     visible: t.visible, sort_order: t.sort_order,
+    speaker_character_id: (t as any).speaker_character_id ?? null,
+    speaker_name: (t as any).speaker_name ?? null,
+    channel_id: (t as any).channel_id ?? null,
     created_at: t._creationTime, updated_at: t._creationTime,
   } as ScenarioText)), [textsData]);
 
@@ -38,6 +41,9 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
         title: data.title ?? '新規テキスト',
         content: data.content ?? '',
         visible: data.visible ?? false,
+        speaker_character_id: data.speaker_character_id ?? null,
+        speaker_name: data.speaker_name ?? null,
+        channel_id: data.channel_id ?? null,
         sort_order: data.sort_order ?? scenarioTexts.length,
         created_at: now, updated_at: now,
       };

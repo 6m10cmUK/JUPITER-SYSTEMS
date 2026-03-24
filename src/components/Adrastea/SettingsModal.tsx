@@ -49,7 +49,7 @@ const PANEL_DEFS: PanelDef[] = [
   { id: 'scene', component: 'scene', title: 'シーン', permission: 'panel_scene' },
   { id: 'layer', component: 'layer', title: 'レイヤー', permission: 'panel_layer' },
   { id: 'bgm', component: 'bgm', title: 'BGM', permission: 'panel_bgm' },
-  { id: 'scenarioText', component: 'scenarioText', title: 'テキスト (開発中)', permission: 'panel_scenarioText', disabled: true },
+  { id: 'scenarioText', component: 'scenarioText', title: 'テキストメモ', permission: 'panel_scenarioText' },
   { id: 'cutin', component: 'cutin', title: 'カットイン (開発中)', permission: 'panel_cutin', disabled: true },
 ];
 

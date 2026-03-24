@@ -50,23 +50,27 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
   }, [ctx.chatInjectText, ctx.setChatInjectText]);
 
 
-  // expanded 切り替え時にテキストを同期
+  // expanded 開くときにテキストを同期
   const prevExpandedRef = useRef(false);
   useEffect(() => {
     if (expanded && !prevExpandedRef.current) {
-      // 開く: メインのテキストをモーダルに転送
       requestAnimationFrame(() => {
         const text = editorRef.current?.getText() ?? '';
         modalEditorRef.current?.setText(text);
         modalEditorRef.current?.focus();
       });
-    } else if (!expanded && prevExpandedRef.current) {
-      // 閉じる: モーダルのテキストをメインに転送
-      const text = modalEditorRef.current?.getText() ?? '';
-      editorRef.current?.setText(text);
     }
     prevExpandedRef.current = expanded;
   }, [expanded]);
+
+  // 閉じる: アンマウント前にテキストを退避してから閉じる
+  const closeExpanded = useCallback(() => {
+    const text = modalEditorRef.current?.getText() ?? '';
+    setExpanded(false);
+    requestAnimationFrame(() => {
+      editorRef.current?.setText(text);
+    });
+  }, []);
 
   const handleSend = useCallback((text: string) => {
     const trimmedText = text.trim();
@@ -242,7 +246,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
         <button
           onClick={() => setExpanded(true)}
           style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '2px', display: 'flex', opacity: 0.6 }}
-          title="拡大"
+          title="テキストエリアを拡大"
         >
           <Maximize2 size={12} />
         </button>
@@ -253,7 +257,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
       {expanded && createPortal(
         <div
           style={{ position: 'fixed', inset: 0, zIndex: 10003, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={() => setExpanded(false)}
+          onClick={closeExpanded}
         >
           <div
             style={{
@@ -265,7 +269,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: theme.textPrimary }}>チャット入力</span>
-              <button type="button" onClick={() => setExpanded(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }} title="縮小">
+              <button type="button" onClick={closeExpanded} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }} title="縮小">
                 <Minimize2 size={16} />
               </button>
             </div>

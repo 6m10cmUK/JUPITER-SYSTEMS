@@ -7,6 +7,7 @@ import { ObjectEditor } from '../ObjectEditor';
 import { CutinEditor } from '../CutinEditor';
 import { PieceEditor } from '../PieceEditor';
 import { BgmEditor } from '../BgmEditor';
+import { ScenarioTextEditor } from '../ScenarioTextEditor';
 import { ConfirmModal, Tooltip } from '../ui';
 import { Trash2, Clipboard, CopyPlus, Save } from 'lucide-react';
 import { objectToClipboardJson, bgmToClipboardJson } from '../../../utils/clipboardImport';
@@ -179,6 +180,46 @@ export function PropertyDockPanel() {
             <button onClick={async () => {
               const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
               await ctx.addBgm({ ...rest, name: `${track.name} (複製)` });
+            }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
+          </Tooltip>
+        </div>
+      );
+    }
+  }
+
+  // ScenarioTextEditor
+  if (!content && ctx.editingScenarioTextId) {
+    const scenarioText = ctx.scenarioTexts.find((t) => t.id === ctx.editingScenarioTextId);
+    if (scenarioText) {
+      content = (
+        <ScenarioTextEditor
+          key={scenarioText.id}
+          text={scenarioText}
+          onUpdate={ctx.updateScenarioText}
+          onClose={() => ctx.setEditingScenarioTextId(null)}
+        />
+      );
+      onDelete = () => {
+        ctx.removeScenarioText(scenarioText.id);
+        ctx.setEditingScenarioTextId(null);
+      };
+      footer = (
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <Tooltip label="コピー">
+            <button onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify({ kind: 'scenario_text', data: { title: scenarioText.title, content: scenarioText.content, speaker_character_id: scenarioText.speaker_character_id, speaker_name: scenarioText.speaker_name, channel_id: scenarioText.channel_id } }));
+              ctx.showToast(`${scenarioText.title || 'テキストメモ'} をコピーしました`, 'success');
+            }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
+          </Tooltip>
+          <Tooltip label="複製">
+            <button onClick={async () => {
+              await ctx.addScenarioText({
+                title: `${scenarioText.title} (複製)`,
+                content: scenarioText.content,
+                speaker_character_id: scenarioText.speaker_character_id,
+                speaker_name: scenarioText.speaker_name,
+                channel_id: scenarioText.channel_id,
+              });
             }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
           </Tooltip>
         </div>

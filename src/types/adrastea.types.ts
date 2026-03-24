@@ -174,6 +174,9 @@ export interface ScenarioText {
   title: string;
   content: string;
   visible: boolean;
+  speaker_character_id: string | null;
+  speaker_name: string | null;
+  channel_id: string | null;
   sort_order: number;
   created_at: number;
   updated_at: number;
