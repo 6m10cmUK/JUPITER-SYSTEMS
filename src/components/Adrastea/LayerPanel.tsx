@@ -457,6 +457,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     >
     <SortableListPanel
       title="レイヤー"
+      subtitle={activeScene?.name}
       onBackgroundClick={() => {
         setSelectedObjectIds([]);
         setPanelSelection(null);

@@ -470,6 +470,7 @@ export function BgmPanel() {
       >
       <SortableListPanel
         title="BGM"
+        subtitle={activeScene?.name}
         titleIcon={<span title="BGM"><Music size={14} /></span>}
         onBackgroundClick={() => {
           setEditingBgmId(null);
