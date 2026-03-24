@@ -21,6 +21,9 @@ export async function handleClipboardImport(
   addObject?: (data: Partial<BoardObject>) => Promise<any>,
   addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[]) => Promise<any>,
   addBgm?: (data: Partial<BgmTrack>) => Promise<any>,
+  updateObject?: (id: string, data: Partial<BoardObject>) => Promise<void>,
+  allObjects?: BoardObject[],
+  activeSceneId?: string | null,
 ): Promise<void> {
   const result = parseClipboardData(text);
 
@@ -48,9 +51,23 @@ export async function handleClipboardImport(
   if (result.type === 'object') {
     if (!addObject) return;
     try {
-      await Promise.all(result.data.map(d => addObject(d)));
-      const count = result.data.length;
-      showToast(count > 1 ? `${count}件のオブジェクトをインポートしました` : `オブジェクト "${result.data[0]?.name ?? 'オブジェクト'}" をインポートしました`, 'success');
+      for (const d of result.data) {
+        if ((d.type === 'foreground' || d.type === 'background') && updateObject && allObjects && activeSceneId) {
+          // 前景/背景は既存を上書き
+          const existing = allObjects.find(o => o.type === d.type && o.scene_ids?.includes(activeSceneId));
+          if (existing) {
+            const { type: _t, name: _n, ...updates } = d;
+            await updateObject(existing.id, updates as Partial<BoardObject>);
+            showToast(`${d.type === 'foreground' ? '前景' : '背景'}を上書きしました`, 'success');
+            continue;
+          }
+        }
+        await addObject(d);
+      }
+      const nonFgBg = result.data.filter(d => d.type !== 'foreground' && d.type !== 'background');
+      if (nonFgBg.length > 0) {
+        showToast(nonFgBg.length > 1 ? `${nonFgBg.length}件のオブジェクトをインポートしました` : `オブジェクト "${nonFgBg[0]?.name ?? 'オブジェクト'}" をインポートしました`, 'success');
+      }
     } catch {
       showToast('インポートに失敗しました', 'error');
     }

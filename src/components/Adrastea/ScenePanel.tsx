@@ -16,7 +16,6 @@ interface ScenePanelProps {
   onActivateScene: (sceneId: string | null) => void;
   onAddScene: (count: number) => void;
   onDuplicateScenes?: (sceneIds: string[]) => void;
-  onEditScene: (scene: Scene) => void;
   onUpdateSceneName: (sceneId: string, name: string) => void;
   onRemoveScenes: (sceneIds: string[]) => void;
   onReorderScenes?: (orderedIds: string[]) => void;
@@ -33,7 +32,6 @@ export function ScenePanel({
   onActivateScene,
   onAddScene,
   onDuplicateScenes,
-  onEditScene,
   onUpdateSceneName,
   onRemoveScenes,
   onReorderScenes,
@@ -87,9 +85,8 @@ export function ScenePanel({
     } else {
       onSelectedSceneIdsChange([scene.id]);
       onActivateScene(scene.id);
-      onEditScene(scene);
     }
-  }, [scenes, selectedSceneIds, onSelectedSceneIdsChange, onActivateScene, onEditScene]);
+  }, [scenes, selectedSceneIds, onSelectedSceneIdsChange, onActivateScene]);
 
   const canDuplicate = onDuplicateScenes && selectedSceneIds.length > 0;
   const canDelete = selectedSceneIds.length > 0 && selectedSceneIds.length < scenes.length;
@@ -102,7 +99,7 @@ export function ScenePanel({
         const sceneEl = (e.target as HTMLElement).closest('[data-scene-id]');
         const sceneId = sceneEl?.getAttribute('data-scene-id') ?? undefined;
         if (sceneId) {
-          onSelectedSceneIdsChange([sceneId]); // 右クリックで選択を移す
+          onSelectedSceneIdsChange([sceneId]);
         }
         setContextMenu({ x: e.clientX, y: e.clientY, sceneId });
       }}
@@ -326,17 +323,6 @@ export function ScenePanel({
           },
         },
         'separator',
-        {
-          label: '編集',
-          disabled: !contextMenu?.sceneId,
-          onClick: () => {
-            if (contextMenu?.sceneId) {
-              const scene = scenes.find(s => s.id === contextMenu.sceneId);
-              if (scene) onEditScene(scene);
-            }
-            setContextMenu(null);
-          },
-        },
         {
           label: '名前を変更',
           disabled: !contextMenu?.sceneId,

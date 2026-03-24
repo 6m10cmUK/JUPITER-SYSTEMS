@@ -4,7 +4,8 @@ import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useEntityEditor } from '../../hooks/useEntityEditor';
-import { AdInput, AdTextArea, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons } from './ui';
+import { AdInput, AdTextArea, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons, AdSlider, FadeInIcon } from './ui';
+import { Droplets, Grid3X3 } from 'lucide-react';
 
 
 const FONT_OPTIONS = [
@@ -180,13 +181,41 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               onSelect={(url) => set('image_url', url)}
             />
           </AdSection>
-          <AdSection title="設定">
+
+          <div style={{ marginBottom: '12px' }}>
             <AdCheckbox
+              label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Grid3X3 size={14} style={{ color: ctx.gridVisible ? theme.accent : theme.textMuted }} />グリッド表示</span>}
               checked={ctx.gridVisible}
               onChange={ctx.setGridVisible}
-              label="グリッド表示"
             />
-          </AdSection>
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <AdCheckbox
+              label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Droplets size={14} style={{ color: ctx.activeScene?.bg_blur ? theme.accent : theme.textMuted }} />背景ぼかし</span>}
+              checked={!!ctx.activeScene?.bg_blur}
+              onChange={(v) => { if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { bg_blur: v }); }}
+            />
+          </div>
+
+          <div style={{ marginBottom: '12px' }}>
+            <AdCheckbox
+              label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FadeInIcon size={16} color={ctx.activeScene?.bg_transition === 'fade' ? theme.accent : theme.textMuted} />背景フェードイン</span>}
+              checked={ctx.activeScene?.bg_transition === 'fade'}
+              onChange={(v) => { if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { bg_transition: v ? 'fade' : 'none' }); }}
+            />
+          </div>
+          {ctx.activeScene?.bg_transition === 'fade' && (
+            <div style={{ marginBottom: '12px', paddingLeft: '20px' }}>
+              <AdSlider
+                label="時間"
+                min={100} max={3000} step={100}
+                value={ctx.activeScene?.bg_transition_duration ?? 500}
+                onChange={(v) => { if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { bg_transition_duration: v }); }}
+                suffix="ms"
+              />
+            </div>
+          )}
         </>
       )}
 
@@ -541,6 +570,25 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <AdCheckbox checked={state.position_locked as boolean} onChange={(v) => set('position_locked', v)} label="位置を固定" />
                 <AdCheckbox checked={state.size_locked as boolean} onChange={(v) => set('size_locked', v)} label="サイズを固定" />
               </AdSection>
+
+              <div style={{ marginBottom: '12px' }}>
+                <AdCheckbox
+                  label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FadeInIcon size={16} color={ctx.activeScene?.fg_transition === 'fade' ? theme.accent : theme.textMuted} />前景フェードイン</span>}
+                  checked={ctx.activeScene?.fg_transition === 'fade'}
+                  onChange={(v) => { if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { fg_transition: v ? 'fade' : 'none' }); }}
+                />
+              </div>
+              {ctx.activeScene?.fg_transition === 'fade' && (
+                <div style={{ marginBottom: '12px', paddingLeft: '20px' }}>
+                  <AdSlider
+                    label="時間"
+                    min={100} max={3000} step={100}
+                    value={ctx.activeScene?.fg_transition_duration ?? 500}
+                    onChange={(v) => { if (ctx.activeScene) ctx.updateScene(ctx.activeScene.id, { fg_transition_duration: v }); }}
+                    suffix="ms"
+                  />
+                </div>
+              )}
             </>
           )}
 

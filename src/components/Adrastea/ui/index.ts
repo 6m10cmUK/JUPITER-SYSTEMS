@@ -14,6 +14,8 @@ export {
   AdTagInput,
 } from './AdComponents';
 
+export { FadeInIcon } from './FadeInIcon';
+
 export { SortableListPanel, SortableListItem } from './SortableList';
 export { Tooltip } from './Tooltip';
 export { DropdownMenu } from './DropdownMenu';
