@@ -91,6 +91,9 @@ function AdrasteaRoom() {
     addScene: (data) => pasteSceneFromClipboard(data, ctx),
     addBgm: (data) => pasteBgmToScene(data, ctx.activeScene?.id ?? null, ctx),
     showToast: ctx.showToast,
+    updateObject: ctx.updateObject,
+    allObjects: ctx.activeObjects,
+    activeSceneId: ctx.activeScene?.id ?? null,
   });
 
   // メンバー管理（ownerのみ実データ取得）
@@ -148,36 +151,6 @@ function AdrasteaRoom() {
         <DockLayout />
       </div>
 
-      {/* 表示中のシナリオテキスト（画面下部オーバーレイ） */}
-      {ctx.scenarioTexts.filter((t) => t.visible).map((text) => (
-        <div
-          key={text.id}
-          style={{
-            position: 'absolute',
-            bottom: '60px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 18,
-            background: 'rgba(255,255,255,0.95)',
-            border: `1px solid ${theme.border}`,
-            borderRadius: 0,
-            padding: '16px 24px',
-            maxWidth: '600px',
-            maxHeight: '200px',
-            overflowY: 'auto',
-            color: theme.textPrimary,
-          }}
-        >
-          {text.title && (
-            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px', color: theme.warning }}>
-              {text.title}
-            </div>
-          )}
-          <div style={{ fontSize: '0.85rem', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-            {text.content}
-          </div>
-        </div>
-      ))}
 
       {/* カットインオーバーレイ（全画面演出） */}
       <CutinOverlay

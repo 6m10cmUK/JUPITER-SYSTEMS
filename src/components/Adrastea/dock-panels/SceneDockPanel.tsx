@@ -30,15 +30,47 @@ export function SceneDockPanel() {
   };
 
   const handleAddScene = async (count: number = 1) => {
+    // アクティブシーンの前景/背景設定を取得（画像以外）
+    const activeSceneId = ctx.room?.active_scene_id ?? null;
+    const activeBg = activeSceneId ? ctx.allObjects.find(o => o.type === 'background' && o.scene_ids.includes(activeSceneId)) : null;
+    const activeFg = activeSceneId ? ctx.allObjects.find(o => o.type === 'foreground' && o.scene_ids.includes(activeSceneId)) : null;
+    const activeSceneData = activeSceneId ? ctx.scenes.find(s => s.id === activeSceneId) : null;
+
     for (let i = 0; i < count; i++) {
       const nextSortOrder = getInsertSortOrder();
       const result = await ctx.addScene({
         name: '新しいシーン',
         sort_order: nextSortOrder,
+        bg_blur: activeSceneData?.bg_blur,
+        bg_transition: activeSceneData?.bg_transition,
+        bg_transition_duration: activeSceneData?.bg_transition_duration,
+        fg_transition: activeSceneData?.fg_transition,
+        fg_transition_duration: activeSceneData?.fg_transition_duration,
+        grid_visible: activeSceneData?.grid_visible,
       }, undefined, ctx.allObjects);
       if (!result) continue;
       const newSceneId = result.scene.id;
       rebalanceSortOrder(newSceneId, nextSortOrder);
+
+      // 新規シーンの背景/前景に設定を引き継ぎ（画像以外）
+      for (const newObj of result.objects) {
+        if (newObj.type === 'background' && activeBg) {
+          await ctx.updateObject(newObj.id, {
+            x: activeBg.x, y: activeBg.y, width: activeBg.width, height: activeBg.height,
+            background_color: activeBg.background_color, image_fit: activeBg.image_fit,
+            opacity: activeBg.opacity, locked: activeBg.locked,
+            position_locked: activeBg.position_locked, size_locked: activeBg.size_locked,
+          });
+        } else if (newObj.type === 'foreground' && activeFg) {
+          await ctx.updateObject(newObj.id, {
+            x: activeFg.x, y: activeFg.y, width: activeFg.width, height: activeFg.height,
+            background_color: activeFg.background_color, image_fit: activeFg.image_fit,
+            opacity: activeFg.opacity, locked: activeFg.locked,
+            position_locked: activeFg.position_locked, size_locked: activeFg.size_locked,
+          });
+        }
+      }
+
       if (i === count - 1) {
         setSelectedSceneIds([newSceneId]);
       }

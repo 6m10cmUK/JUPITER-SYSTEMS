@@ -86,6 +86,7 @@ export interface AdrasteaContextValue {
     messageType: ChatMessage['message_type'],
     characterName?: string,
     characterAvatar?: string | null,
+    channelOverride?: string,
   ) => void;
 
   // --- Active speaker character ---
@@ -174,6 +175,8 @@ export interface AdrasteaContextValue {
   setEditingCutin: React.Dispatch<React.SetStateAction<Cutin | null | undefined>>;
   editingBgmId: string | null;
   setEditingBgmId: React.Dispatch<React.SetStateAction<string | null>>;
+  editingScenarioTextId: string | null;
+  setEditingScenarioTextId: React.Dispatch<React.SetStateAction<string | null>>;
   editingPieceId: string | null;
   setEditingPieceId: React.Dispatch<React.SetStateAction<string | null>>;
   editingObjectId: string | null | undefined;
@@ -595,6 +598,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [editingObjectId, setEditingObjectId] = useState<string | null | undefined>(undefined);
   const [editingCutin, setEditingCutin] = useState<Cutin | null | undefined>(undefined);
   const [editingBgmId, setEditingBgmId] = useState<string | null>(null);
+  const [editingScenarioTextId, setEditingScenarioTextId] = useState<string | null>(null);
   const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
   const [activeChatChannel, setActiveChatChannel] = useState<string>('main');
   const [chatInjectText, setChatInjectText] = useState<string | null>(null);
@@ -844,6 +848,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       messageType: ChatMessage['message_type'],
       characterName?: string,
       characterAvatar?: string | null,
+      channelOverride?: string,
     ) => {
       const senderName = characterName ?? profile?.display_name ?? 'ユーザー';
       const senderAvatar = characterAvatar !== undefined ? characterAvatar : profile?.avatar_url;
@@ -854,7 +859,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
         user?.uid,
         senderAvatar,
         room?.dice_system,
-        activeChatChannel,
+        channelOverride ?? activeChatChannel,
       );
     },
     [sendMessage, profile, user, room?.dice_system, activeChatChannel],
@@ -877,13 +882,28 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setOptimisticSceneId(sceneId);
     setLocalSceneOverrides(new Map());
     setLocalObjectOverrides(new Map());
-    // 編集状態をクリア
-    setEditingPieceId(null);
-    setEditingObjectId(undefined);
-    setPanelSelection(prev => prev?.panel === 'layer' ? null : prev);
-    setEditingCharacter(undefined);
-    setEditingCutin(undefined);
-    setEditingBgmId(null);
+    // シーン切替時の編集状態制御
+    // オブジェクト: global/テキストは維持、前景/背景は遷移先の同タイプにアタッチ、それ以外はシーン存在チェック
+    setEditingObjectId(prev => {
+      if (!prev) return prev;
+      const obj = allObjects.find(o => o.id === prev);
+      if (!obj) return undefined;
+      if (obj.global || obj.type === 'text') return prev;
+      // 前景/背景: 遷移先シーンの同タイプオブジェクトに切り替え
+      if ((obj.type === 'foreground' || obj.type === 'background') && sceneId) {
+        const counterpart = allObjects.find(o => o.type === obj.type && o.scene_ids.includes(sceneId));
+        return counterpart?.id ?? undefined;
+      }
+      // その他: 遷移先シーンにも存在すれば維持
+      if (sceneId && obj.scene_ids.includes(sceneId)) return prev;
+      return undefined;
+    });
+    // BGM: 遷移先シーンにも設定されてれば維持
+    setEditingBgmId(prev => {
+      if (!prev || !sceneId) return null;
+      const bgm = bgms.find(b => b.id === prev);
+      return bgm?.scene_ids.includes(sceneId) ? prev : null;
+    });
     // room.active_scene_id を更新（スナップショット保存に反映）
     updateRoom({ active_scene_id: sceneId });
     // ローカルstateを更新
@@ -935,6 +955,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
+    setEditingScenarioTextId(null);
   }, []);
 
   const onAddObject = useCallback(() => {
@@ -1028,6 +1049,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       characterToOpenModal, setCharacterToOpenModal,
       editingCutin, setEditingCutin,
       editingBgmId, setEditingBgmId,
+      editingScenarioTextId, setEditingScenarioTextId,
       editingPieceId, setEditingPieceId,
       editingObjectId, setEditingObjectId,
       selectedObjectIds, setSelectedObjectIds,
@@ -1145,7 +1167,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const uiStateValue = useMemo<UIStateContextValue>(() => ({
     // UI editing state
     editingScene, setEditingScene, editingCharacter, setEditingCharacter, editingCutin, setEditingCutin,
-    editingBgmId, setEditingBgmId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
+    editingBgmId, setEditingBgmId, editingScenarioTextId, setEditingScenarioTextId, editingPieceId, setEditingPieceId, editingObjectId, setEditingObjectId,
     selectedObjectIds, setSelectedObjectIds,
     panelSelection, setPanelSelection,
     showRoomSettings: showSettings && settingsSection === 'room',
@@ -1166,7 +1188,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // 排他編集リセット
     clearAllEditing,
   }), [
-    editingScene, editingCharacter, editingCutin, editingBgmId, editingPieceId, editingObjectId, panelSelection,
+    editingScene, editingCharacter, editingCutin, editingBgmId, editingScenarioTextId, editingPieceId, editingObjectId, panelSelection,
     showSettings, settingsSection, setShowSettings,
     masterVolume, bgmMuted, gridVisible, dockviewApi, setPendingEdit, clearAllEditing, setSelectedObjectIds,
   ]);

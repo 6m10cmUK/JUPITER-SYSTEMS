@@ -224,6 +224,9 @@ export function useMockAdrasteaState() {
       content: data.content ?? '',
       visible: data.visible ?? true,
       sort_order: data.sort_order ?? 0,
+      speaker_character_id: data.speaker_character_id ?? null,
+      speaker_name: data.speaker_name ?? null,
+      channel_id: data.channel_id ?? null,
       created_at: now, updated_at: now,
     };
     setScenarioTexts(p => [...p, newText]);

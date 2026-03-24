@@ -8,6 +8,9 @@ export interface UsePasteHandlerOptions {
   addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[]) => Promise<any>;
   addBgm?: (data: Partial<BgmTrack>) => Promise<any>;
   showToast: (message: string, type: 'success' | 'error') => void;
+  updateObject?: (id: string, data: Partial<BoardObject>) => Promise<void>;
+  allObjects?: BoardObject[];
+  activeSceneId?: string | null;
 }
 
 /**
@@ -53,11 +56,16 @@ export async function handleClipboardImport(
     try {
       for (const d of result.data) {
         if ((d.type === 'foreground' || d.type === 'background') && updateObject && allObjects && activeSceneId) {
-          // 前景/背景は既存を上書き
-          const existing = allObjects.find(o => o.type === d.type && o.scene_ids?.includes(activeSceneId));
+          // 前景/背景は既存の画像・表示設定を上書き
+          const existing = allObjects.find(o => o.type === d.type && !o.global && o.scene_ids.includes(activeSceneId));
           if (existing) {
-            const { type: _t, name: _n, ...updates } = d;
-            await updateObject(existing.id, updates as Partial<BoardObject>);
+            const updates: Partial<BoardObject> = {};
+            if (d.image_url !== undefined) updates.image_url = d.image_url;
+            if (d.image_asset_id !== undefined) updates.image_asset_id = d.image_asset_id;
+            if (d.background_color !== undefined) updates.background_color = d.background_color;
+            if (d.image_fit !== undefined) updates.image_fit = d.image_fit;
+            if (d.opacity !== undefined) updates.opacity = d.opacity;
+            await updateObject(existing.id, updates);
             showToast(`${d.type === 'foreground' ? '前景' : '背景'}を上書きしました`, 'success');
             continue;
           }
@@ -100,7 +108,7 @@ export async function handleClipboardImport(
  * グローバル paste イベントを監視し、
  * クリップボード内容に応じてキャラクターインポートやトースト表示を行うフック
  */
-export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, showToast }: UsePasteHandlerOptions): void {
+export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, showToast, updateObject, allObjects, activeSceneId }: UsePasteHandlerOptions): void {
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
       // テキスト入力中はスキップ（通常のペースト動作を妨げない）
@@ -128,9 +136,9 @@ export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, sho
       e.preventDefault();
 
       // 非同期でインポート処理
-      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm);
+      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm, updateObject, allObjects, activeSceneId);
     },
-    [addCharacter, addObject, addScene, addBgm, showToast],
+    [addCharacter, addObject, addScene, addBgm, showToast, updateObject, allObjects, activeSceneId],
   );
 
   useEffect(() => {

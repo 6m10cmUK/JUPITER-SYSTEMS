@@ -19,7 +19,7 @@ import {
   ChevronRight, ChevronDown, Plus,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
-import { shortcutLabel } from './ui/DropdownMenu';
+// shortcutLabel は useObjectContextMenu 内で使用
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
@@ -90,6 +90,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       setSelectedObjectIds(newIds);
       setEditingObjectId(newIds[newIds.length - 1]);
     },
+    onPaste,
   });
 
   // キャラクター右クリックメニュー
@@ -121,7 +122,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         if (window.getSelection()?.toString()) return;
         if (selectedObjectIds.length > 0) {
           const objs = activeObjects.filter(o =>
-            selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+            selectedObjectIds.includes(o.id) && o.type !== 'characters_layer'
           );
           if (objs.length > 0) {
             e.preventDefault();
@@ -765,16 +766,6 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
           },
         },
         ...ctxMenuItems,
-        'separator',
-        {
-          label: '貼り付け',
-          shortcut: shortcutLabel('V'),
-          disabled: !onPaste,
-          onClick: () => {
-            onPaste?.();
-            setContextMenu(null);
-          },
-        },
       ]}
     />
 
