@@ -224,7 +224,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     // background の上にドロップした場合は無視
     const overObj = sortedObjects.find(o => o.id === overId);
     if (overObj?.type === 'background') return;
-    let overIdx = rest.findIndex(o => o.id === overId);
+    const overIdx = rest.findIndex(o => o.id === overId);
     if (overIdx < 0) return;
 
     const activeOrigIdx = allMovable.findIndex(o => o.id === activeId);
