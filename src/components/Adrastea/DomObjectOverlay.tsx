@@ -277,6 +277,11 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
           if (shifts.length > 0) await ctx.batchUpdateSort(shifts);
           return ctx.addObject({ ...data, sort_order: targetSort, scene_ids: ctx.activeScene ? [ctx.activeScene.id] : [] });
         },
+        undefined,
+        undefined,
+        ctx.updateObject,
+        ctx.activeObjects,
+        ctx.activeScene?.id ?? null,
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');

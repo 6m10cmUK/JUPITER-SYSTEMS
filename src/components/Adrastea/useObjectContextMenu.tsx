@@ -101,12 +101,12 @@ export function useObjectContextMenu(
 
   items.push(
     {
-      label: deletableTargets.length > 1 ? `${deletableTargets.length}件コピー` : 'コピー',
+      label: targets.length > 1 ? `${targets.length}件コピー` : 'コピー',
       shortcut: shortcutLabel('C'),
-      disabled: !canDupOrDel || !canEdit,
+      disabled: targets.length === 0 || !canEdit,
       onClick: () => {
-        if (deletableTargets.length > 0) {
-          navigator.clipboard.writeText(objectToClipboardJson(deletableTargets));
+        if (targets.length > 0) {
+          navigator.clipboard.writeText(objectToClipboardJson(targets));
         }
         onClose();
       },

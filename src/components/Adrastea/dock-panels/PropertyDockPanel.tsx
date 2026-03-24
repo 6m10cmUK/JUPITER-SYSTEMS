@@ -2,7 +2,6 @@ import { useState, useRef } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { theme } from '../../../styles/theme';
-import { SceneEditor } from '../SceneEditor';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
 import { ObjectEditor } from '../ObjectEditor';
 import { CutinEditor } from '../CutinEditor';
@@ -10,7 +9,7 @@ import { PieceEditor } from '../PieceEditor';
 import { BgmEditor } from '../BgmEditor';
 import { ConfirmModal, Tooltip } from '../ui';
 import { Trash2, Clipboard, CopyPlus, Save } from 'lucide-react';
-import { objectToClipboardJson, sceneToClipboardJson, bgmToClipboardJson } from '../../../utils/clipboardImport';
+import { objectToClipboardJson, bgmToClipboardJson } from '../../../utils/clipboardImport';
 import type React from 'react';
 
 const iconBtn = { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex' } as const;
@@ -82,48 +81,6 @@ export function PropertyDockPanel() {
     }
   }
 
-  // SceneEditor
-  if (!content && ctx.editingScene !== undefined && ctx.roomId) {
-    const liveScene = ctx.editingScene
-      ? ctx.scenes.find(s => s.id === ctx.editingScene!.id) ?? ctx.editingScene
-      : null;
-    content = (
-      <SceneEditor
-        key={liveScene?.id ?? 'new-scene'}
-        scene={liveScene}
-        roomId={ctx.roomId}
-        onSave={async (data) => {
-          if (ctx.editingScene) {
-            await ctx.updateScene(ctx.editingScene.id, data);
-          } else {
-            await ctx.addScene(data);
-          }
-        }}
-        onClose={() => ctx.setEditingScene(undefined)}
-      />
-    );
-    if (ctx.editingScene && ctx.scenes.length > 1) {
-      onDelete = () => { ctx.removeScene(ctx.editingScene!.id); ctx.setEditingScene(undefined); };
-    }
-    if (liveScene) {
-      footer = (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="コピー">
-            <button onClick={() => {
-              navigator.clipboard.writeText(sceneToClipboardJson(liveScene, ctx.allObjects, ctx.bgms));
-              ctx.showToast(`${liveScene.name} をコピーしました`, 'success');
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
-          </Tooltip>
-          <Tooltip label="複製">
-            <button onClick={async () => {
-              const result = await ctx.addScene({ name: `${liveScene.name} (複製)` }, liveScene.id, ctx.allObjects);
-              if (result) await ctx.activateScene(result.scene.id);
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
-          </Tooltip>
-        </div>
-      );
-    }
-  }
 
   // CharacterEditor
   const liveEditingCharacter = ctx.editingCharacter?.id

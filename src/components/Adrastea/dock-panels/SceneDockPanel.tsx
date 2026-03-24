@@ -139,6 +139,10 @@ export function SceneDockPanel() {
         ctx.showToast,
         undefined,
         (data) => pasteSceneFromClipboard(data, ctx),
+        undefined,
+        undefined,
+        undefined,
+        ctx.activeScene?.id ?? null,
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
@@ -184,7 +188,6 @@ export function SceneDockPanel() {
       onActivateScene={ctx.activateScene}
       onAddScene={handleAddScene}
       onDuplicateScenes={handleDuplicateScenes}
-      onEditScene={(scene) => { ctx.setEditingScene(scene); }}
       onUpdateSceneName={(id, name) => ctx.updateScene(id, { name })}
       onRemoveScenes={handleRemoveScenes}
       onReorderScenes={ctx.reorderScenes}
