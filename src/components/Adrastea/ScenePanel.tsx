@@ -332,10 +332,7 @@ export function ScenePanel({
           onClick: () => {
             if (contextMenu?.sceneId) {
               const scene = scenes.find(s => s.id === contextMenu.sceneId);
-              if (scene) {
-                onActivateScene(scene.id);
-                onEditScene(scene);
-              }
+              if (scene) onEditScene(scene);
             }
             setContextMenu(null);
           },

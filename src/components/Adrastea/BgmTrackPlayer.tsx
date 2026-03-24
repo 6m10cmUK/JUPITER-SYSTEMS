@@ -14,14 +14,6 @@ interface BgmTrackPlayerProps {
 export function BgmTrackPlayer({ track, fadeState, fadeDuration, masterVolume, onEnded, debugLog }: BgmTrackPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const ytPlayerRef = useRef<any>(null);
-  const fadeIntervalRef = useRef<number | null>(null);
-
-  const clearFadeInterval = useCallback(() => {
-    if (fadeIntervalRef.current) {
-      clearInterval(fadeIntervalRef.current);
-      fadeIntervalRef.current = null;
-    }
-  }, []);
 
   const setVolume = useCallback((vol: number) => {
     const effective = Math.max(0, Math.min(1, vol * masterVolume));
@@ -31,46 +23,47 @@ export function BgmTrackPlayer({ track, fadeState, fadeDuration, masterVolume, o
     }
   }, [masterVolume]);
 
-  // フェード処理
+  // フェード処理（requestAnimationFrame + 時間ベース補間）
+  const rafRef = useRef<number | null>(null);
+
+  const cancelFade = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+  }, []);
+
   useEffect(() => {
-    clearFadeInterval();
+    cancelFade();
 
     if (fadeState === 'none') {
       setVolume(track.bgm_volume);
       return;
     }
 
-    const step = 0.05;
-    // フェード全体をfade_duration msで完了するためのインターバル計算
-    const totalSteps = Math.ceil(1 / step);
     const duration = fadeDuration || (fadeState === 'in' ? track.fade_in_duration : 1000);
-    const stepInterval = Math.max(10, duration / totalSteps);
+    const startVol = fadeState === 'in' ? 0 : track.bgm_volume;
+    const endVol = fadeState === 'in' ? track.bgm_volume : 0;
+    const startTime = performance.now();
 
-    if (fadeState === 'in') {
-      let vol = 0;
-      setVolume(0);
-      fadeIntervalRef.current = window.setInterval(() => {
-        vol += step;
-        if (vol >= track.bgm_volume) {
-          vol = track.bgm_volume;
-          clearFadeInterval();
-        }
-        setVolume(vol);
-      }, stepInterval);
-    } else if (fadeState === 'out') {
-      let vol = track.bgm_volume;
-      fadeIntervalRef.current = window.setInterval(() => {
-        vol -= step;
-        if (vol <= 0) {
-          vol = 0;
-          clearFadeInterval();
-        }
-        setVolume(vol);
-      }, stepInterval);
-    }
+    setVolume(startVol);
 
-    return clearFadeInterval;
-  }, [fadeState, track.bgm_volume, track.fade_in_duration, fadeDuration, setVolume, clearFadeInterval]);
+    const tick = (now: number) => {
+      const elapsed = now - startTime;
+      const t = Math.min(1, elapsed / duration);
+      const vol = startVol + (endVol - startVol) * t;
+      setVolume(vol);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return cancelFade;
+  }, [fadeState, track.bgm_volume, track.fade_in_duration, fadeDuration, setVolume, cancelFade]);
 
   // ボリューム変更（フェード中でないとき）
   useEffect(() => {
@@ -107,8 +100,8 @@ export function BgmTrackPlayer({ track, fadeState, fadeDuration, masterVolume, o
 
   // クリーンアップ
   useEffect(() => {
-    return clearFadeInterval;
-  }, [clearFadeInterval]);
+    return cancelFade;
+  }, [cancelFade]);
 
   const extractVideoId = (source: string): string => {
     const match = source.match(/(?:youtu\.be\/|v=)([^&?\s]+)/);

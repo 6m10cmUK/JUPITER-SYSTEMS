@@ -24,6 +24,7 @@ import { theme } from '../../../styles/theme';
 // --- SortableListPanel ---
 interface SortableListPanelProps {
   title: string;
+  subtitle?: string;
   titleIcon?: React.ReactNode;
   headerActions?: React.ReactNode;
   footerActions?: React.ReactNode;
@@ -37,6 +38,7 @@ interface SortableListPanelProps {
 
 export function SortableListPanel({
   title,
+  subtitle,
   titleIcon,
   headerActions,
   footerActions,
@@ -108,6 +110,7 @@ export function SortableListPanel({
         }}>
           {titleIcon}
           {title}
+          {subtitle && <span style={{ fontWeight: 400, color: theme.textMuted, fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{subtitle}</span>}
         </span>
         {headerActions && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
