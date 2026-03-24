@@ -40,7 +40,6 @@ export function SceneDockPanel() {
       const newSceneId = result.scene.id;
       rebalanceSortOrder(newSceneId, nextSortOrder);
       if (i === count - 1) {
-        await ctx.activateScene(newSceneId);
         setSelectedSceneIds([newSceneId]);
       }
     }
@@ -87,7 +86,7 @@ export function SceneDockPanel() {
       }
       lastNewId = newSceneId;
     }
-    if (lastNewId) await ctx.activateScene(lastNewId);
+    if (lastNewId) setSelectedSceneIds([lastNewId]);
   }, [ctx.scenes, ctx.bgms, ctx.allObjects, ctx.addScene, ctx.updateBgm, ctx.activateScene]);
 
   const handleRemoveScenes = useCallback(async (sceneIds: string[]) => {
@@ -191,6 +190,7 @@ export function SceneDockPanel() {
       onReorderScenes={ctx.reorderScenes}
       onCopy={handleCopy}
       onPaste={handlePaste}
+      bgms={ctx.bgms}
     />
     {pendingDeleteIds && (
       <ConfirmModal

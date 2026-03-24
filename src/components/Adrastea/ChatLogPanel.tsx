@@ -370,7 +370,7 @@ function SortableChannelTab({
         border: 'none',
         borderBottom: isActive ? `2px solid ${theme.accent}` : '2px solid transparent',
         cursor: isDragging ? 'grabbing' : 'grab',
-        fontSize: '11px',
+        fontSize: '12px',
         fontWeight: isActive ? 600 : 400,
         whiteSpace: 'nowrap',
         flexShrink: 0,
@@ -646,7 +646,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           style={{
             textAlign: 'center',
             color: theme.textMuted,
-            fontSize: '11px',
+            fontSize: '12px',
             padding: '2px 0',
           }}
         >
@@ -772,7 +772,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 border: 'none',
                 borderBottom: activeChatChannel === ch.channel_id ? `2px solid ${theme.accent}` : '2px solid transparent',
                 cursor: 'pointer',
-                fontSize: '11px',
+                fontSize: '12px',
                 fontWeight: activeChatChannel === ch.channel_id ? 600 : 400,
                 whiteSpace: 'nowrap',
                 flexShrink: 0,
@@ -838,7 +838,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 background: theme.bgInput,
                 border: `1px solid ${theme.border}`,
                 color: theme.textPrimary,
-                fontSize: '11px',
+                fontSize: '12px',
                 flex: 1,
                 minWidth: '80px',
                 maxWidth: '150px',

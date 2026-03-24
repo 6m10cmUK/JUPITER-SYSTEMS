@@ -250,7 +250,7 @@ export function AdSelect({ label, options, ...props }: AdSelectProps) {
 
 // ── AdCheckbox ──
 interface AdCheckboxProps {
-  label: string;
+  label: React.ReactNode;
   checked: boolean;
   onChange: (checked: boolean) => void;
 }

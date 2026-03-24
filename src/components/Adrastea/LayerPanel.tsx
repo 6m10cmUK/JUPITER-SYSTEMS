@@ -529,6 +529,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
                   display: 'flex',
                   alignItems: 'center',
                 }}
+                title="追加"
               >
                 <Plus size={15} />
               </button>
@@ -641,7 +642,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: theme.bgBase,
                   lineHeight: 1,
                 }}

@@ -5,10 +5,11 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
 import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
+import { FadeInIcon } from './ui/FadeInIcon';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
   Play, Pause, Square, Trash2, Plus, Music,
-  Volume2, VolumeX,
+  Volume2, VolumeX, Repeat, Zap,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { bgmToClipboardJson, parseClipboardData, pasteBgmToScene } from '../../utils/clipboardImport';
@@ -60,7 +61,7 @@ function VolumeFader({ value, onChange }: { value: number; onChange: (v: number)
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'flex-end',
-        paddingRight: '4px', fontSize: '9px', color: theme.textMuted,
+        paddingRight: '4px', fontSize: '10px', color: theme.textMuted,
         pointerEvents: 'none',
       }}>
         {pct}%
@@ -83,6 +84,7 @@ function VolumeFader({ value, onChange }: { value: number; onChange: (v: number)
 // --- BgmTrackRow ---
 interface BgmTrackRowProps {
   track: BgmTrack;
+  currentSceneId: string;
   isEditing: boolean;
   onEdit: (id: string) => void;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
@@ -96,7 +98,7 @@ interface BgmTrackRowProps {
 }
 
 function BgmTrackRow({
-  track, isEditing, onEdit, onUpdate, onRemove, onContextMenu,
+  track, currentSceneId, isEditing, onEdit, onUpdate, onRemove, onContextMenu,
   renamingId, renameValue, onRenameChange, onRenameSubmit, onRenameCancel,
 }: BgmTrackRowProps) {
   const [localMuted, setLocalMuted] = useState(false);
@@ -113,14 +115,21 @@ function BgmTrackRow({
 
   const effectiveVolume = localMuted ? 0 : track.bgm_volume;
 
+  const isAutoPlay = currentSceneId ? track.auto_play_scene_ids.includes(currentSceneId) : false;
+  const trackTooltip = [
+    `シーン切替時自動再生: ${isAutoPlay ? 'オン' : 'オフ'}`,
+    `ループ再生: ${track.bgm_loop ? 'オン' : 'オフ'}`,
+    `フェードイン: ${track.fade_in ? `${track.fade_in_duration}ms` : 'オフ'}`,
+  ].join('\n');
+
   return (
-    <div onContextMenu={onContextMenu ? (e) => onContextMenu(e, track.id) : undefined}>
+    <div onContextMenu={onContextMenu ? (e) => onContextMenu(e, track.id) : undefined} title={trackTooltip}>
       <SortableListItem id={track.id} onClick={() => onEdit(track.id)} isSelected={isEditing}>
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Top row: controls */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: '2px',
-          marginBottom: '4px', fontSize: '11px',
+          marginBottom: '4px', fontSize: '12px',
         }}>
           {/* Play/Pause */}
           <button
@@ -137,7 +146,7 @@ function BgmTrackRow({
             }}
             title={track.is_playing && !track.is_paused ? '一時停止' : '再生'}
           >
-            {track.is_playing && !track.is_paused ? <Pause size={13} /> : <Play size={13} />}
+            {track.is_playing && !track.is_paused ? <Pause size={15} /> : <Play size={15} />}
           </button>
 
           {/* Stop */}
@@ -147,7 +156,7 @@ function BgmTrackRow({
             title="停止"
             disabled={!track.is_playing}
           >
-            <Square size={11} />
+            <Square size={13} />
           </button>
 
           {/* Track name */}
@@ -166,7 +175,7 @@ function BgmTrackRow({
               style={{
                 flex: 1, minWidth: 0,
                 background: theme.bgDeep, border: `1px solid ${theme.border}`,
-                color: theme.textPrimary, fontSize: '11px', padding: '1px 4px',
+                color: theme.textPrimary, fontSize: '12px', padding: '1px 4px',
                 outline: 'none',
               }}
             />
@@ -175,12 +184,43 @@ function BgmTrackRow({
               style={{
                 flex: 1, minWidth: 0,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                color: theme.textPrimary, fontSize: '11px',
+                color: theme.textPrimary, fontSize: '12px',
               }}
             >
               {track.name}
             </span>
           )}
+
+          <button
+            title="自動再生"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!currentSceneId) return;
+              const isAuto = track.auto_play_scene_ids.includes(currentSceneId);
+              onUpdate(track.id, {
+                auto_play_scene_ids: isAuto
+                  ? track.auto_play_scene_ids.filter(id => id !== currentSceneId)
+                  : [...track.auto_play_scene_ids, currentSceneId],
+              });
+            }}
+            style={{ ...iconBtn, color: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? theme.accent : theme.textMuted, opacity: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? 1 : 0.3 }}
+          >
+            <Zap size={13} />
+          </button>
+          <button
+            title="ループ"
+            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { bgm_loop: !track.bgm_loop }); }}
+            style={{ ...iconBtn, color: track.bgm_loop ? theme.accent : theme.textMuted, opacity: track.bgm_loop ? 1 : 0.3 }}
+          >
+            <Repeat size={13} />
+          </button>
+          <button
+            title={track.fade_in ? `フェードイン ${track.fade_in_duration}ms` : 'フェードインなし'}
+            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { fade_in: !track.fade_in }); }}
+            style={{ ...iconBtn, color: track.fade_in ? theme.accent : theme.textMuted, opacity: track.fade_in ? 1 : 0.3 }}
+          >
+            <FadeInIcon size={18} />
+          </button>
 
           {/* Remove from scene */}
           <button
@@ -188,7 +228,7 @@ function BgmTrackRow({
             onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
             title="このシーンから除去"
           >
-            <Trash2 size={11} />
+            <Trash2 size={13} />
           </button>
         </div>
 
@@ -206,7 +246,7 @@ function BgmTrackRow({
             }}
             title={localMuted ? 'ミュート解除' : 'ミュート'}
           >
-            {localMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
+            {localMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
 
           <div style={{ flex: 1 }}>
@@ -240,6 +280,7 @@ export function BgmPanel() {
 
   // ローカルstate で楽観的UI更新
   const [localBgms, setLocalBgms] = useState<BgmTrack[]>([]);
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
   const prevFilteredRef = useRef<BgmTrack[]>([]);
 
   useEffect(() => {
@@ -429,7 +470,7 @@ export function BgmPanel() {
       >
       <SortableListPanel
         title="BGM"
-        titleIcon={<Music size={14} />}
+        titleIcon={<span title="BGM"><Music size={14} /></span>}
         headerActions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
             <button
@@ -492,6 +533,7 @@ export function BgmPanel() {
           <BgmTrackRow
             key={track.id}
             track={track}
+            currentSceneId={currentSceneId}
             isEditing={editingBgmId === track.id}
             onEdit={handleEdit}
             onUpdate={updateBgm}
@@ -501,16 +543,7 @@ export function BgmPanel() {
             onRenameChange={setRenameValue}
             onRenameSubmit={handleRenameSubmit}
             onRenameCancel={() => setRenamingId(null)}
-            onRemove={(id) => {
-              const track = bgms.find(b => b.id === id);
-              if (!track || !currentSceneId) return;
-              updateBgm(id, {
-                scene_ids: track.scene_ids.filter(s => s !== currentSceneId),
-                auto_play_scene_ids: track.auto_play_scene_ids.filter(s => s !== currentSceneId),
-                is_playing: false,
-                is_paused: false,
-              });
-            }}
+            onRemove={(id) => setPendingRemoveId(id)}
           />
         ))}
       </SortableListPanel>
@@ -555,6 +588,30 @@ export function BgmPanel() {
           ]}
         />
       )}
+
+      {pendingRemoveId && (() => {
+        const removeTrack = bgms.find(b => b.id === pendingRemoveId);
+        return (
+          <ConfirmModal
+            message={`「${removeTrack?.name ?? 'BGM'}」をこのシーンから除去しますか？`}
+            confirmLabel="除去"
+            danger
+            onConfirm={() => {
+              const track = bgms.find(b => b.id === pendingRemoveId);
+              if (track && currentSceneId) {
+                updateBgm(pendingRemoveId, {
+                  scene_ids: track.scene_ids.filter(s => s !== currentSceneId),
+                  auto_play_scene_ids: track.auto_play_scene_ids.filter(s => s !== currentSceneId),
+                  is_playing: false,
+                  is_paused: false,
+                });
+              }
+              setPendingRemoveId(null);
+            }}
+            onCancel={() => setPendingRemoveId(null)}
+          />
+        );
+      })()}
 
       {pendingDeleteId && (() => {
         const delTrack = bgms.find(b => b.id === pendingDeleteId);

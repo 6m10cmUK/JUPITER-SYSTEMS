@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
-import type { Scene } from '../../types/adrastea.types';
+import type { Scene, BgmTrack } from '../../types/adrastea.types';
 import { Plus, Copy, Trash2 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
@@ -22,6 +22,7 @@ interface ScenePanelProps {
   onReorderScenes?: (orderedIds: string[]) => void;
   onCopy?: (sceneIds: string | string[]) => void;
   onPaste?: () => void;
+  bgms?: BgmTrack[];
 }
 
 export function ScenePanel({
@@ -38,6 +39,7 @@ export function ScenePanel({
   onReorderScenes,
   onCopy,
   onPaste,
+  bgms,
 }: ScenePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState('');
@@ -127,7 +129,7 @@ export function ScenePanel({
                 opacity: canDuplicate ? 1 : 0.3,
               }}
             >
-              <Copy size={13} />
+              <Copy size={15} />
             </button>
           )}
           <button
@@ -153,7 +155,7 @@ export function ScenePanel({
               opacity: canDelete ? 1 : 0.3,
             }}
           >
-            <Trash2 size={13} />
+            <Trash2 size={15} />
           </button>
           <button
             onClick={() => onAddScene(Math.max(1, selectedSceneIds.length))}
@@ -179,8 +181,21 @@ export function ScenePanel({
     >
       {scenes.map((scene) => {
         const isSelected = selectedSceneIds.includes(scene.id);
+        const sceneBgms = (bgms ?? []).filter(b => b.scene_ids.includes(scene.id));
+        const bgmNames = sceneBgms.map(b => b.name);
+        const bgmLabel = bgmNames.length === 0
+          ? 'なし'
+          : bgmNames.length <= 3
+            ? bgmNames.join(', ')
+            : `${bgmNames.slice(0, 3).join(', ')}...`;
+        const tooltip = [
+          `背景ぼかし: ${scene.bg_blur ? 'あり' : 'なし'}`,
+          `背景フェードイン: ${scene.bg_transition === 'fade' ? `${scene.bg_transition_duration}ms` : 'なし'}`,
+          `前景フェードイン: ${scene.fg_transition === 'fade' ? `${scene.fg_transition_duration}ms` : 'なし'}`,
+          `BGM: ${bgmLabel}`,
+        ].join('\n');
         return (
-        <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }}>
+        <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }} title={tooltip}>
         <SortableListItem
           id={scene.id}
           isActive={activeSceneId === scene.id}
@@ -206,7 +221,7 @@ export function ScenePanel({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '9px',
+                fontSize: '10px',
                 color: theme.bgBase,
                 lineHeight: 1,
               }}
@@ -216,29 +231,25 @@ export function ScenePanel({
           }
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px' }}>
-            {/* サムネイル */}
-            <div
-              style={{
-                height: '40px',
-                background: scene.foreground_url
-                  ? `url(${scene.foreground_url}) center/cover`
-                  : theme.bgInput,
-                cursor: 'pointer',
-                position: 'relative',
-              }}
-            >
-              {!scene.foreground_url && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: theme.textMuted,
-                    fontSize: '0.7rem',
-                  }}
-                >
+            {/* サムネイル: 斜め分割（左2/3 前景、右1/3 背景） */}
+            <div style={{ height: '40px', position: 'relative', overflow: 'hidden', background: theme.bgInput, cursor: 'pointer' }}>
+              {scene.background_url && (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: `url(${scene.background_url}) center/cover`,
+                  clipPath: 'polygon(75% 0, 100% 0, 100% 100%, 55% 100%)',
+                  filter: scene.bg_blur ? 'blur(3px)' : undefined,
+                }} />
+              )}
+              {scene.foreground_url && (
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: `url(${scene.foreground_url}) center/cover`,
+                  clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
+                }} />
+              )}
+              {!scene.foreground_url && !scene.background_url && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.textMuted, fontSize: '0.7rem' }}>
                   背景なし
                 </div>
               )}
@@ -268,7 +279,7 @@ export function ScenePanel({
                   style={{
                     flex: 1, minWidth: 0,
                     background: theme.bgInput, border: `1px solid ${theme.border}`,
-                    color: theme.textPrimary, fontSize: '11px', padding: '1px 4px',
+                    color: theme.textPrimary, fontSize: '12px', padding: '1px 4px',
                     outline: 'none',
                   }}
                 />
@@ -277,7 +288,7 @@ export function ScenePanel({
                   onDoubleClick={(e) => { e.stopPropagation(); startEdit(scene); }}
                   style={{
                     color: theme.textPrimary,
-                    fontSize: '11px',
+                    fontSize: '12px',
                     cursor: 'pointer',
                     flex: 1,
                     overflow: 'hidden',
