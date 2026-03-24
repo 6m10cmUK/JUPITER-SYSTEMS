@@ -206,8 +206,7 @@ export interface BgmTrack {
   is_paused: boolean;
   auto_play_scene_ids: string[];
   fade_in: boolean;
-  fade_out: boolean;
-  fade_duration: number;
+  fade_in_duration: number;
   sort_order: number;
   created_at: number;
   updated_at: number;

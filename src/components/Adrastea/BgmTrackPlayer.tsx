@@ -5,11 +5,13 @@ import type { BgmTrack } from '../../types/adrastea.types';
 interface BgmTrackPlayerProps {
   track: BgmTrack;
   fadeState: 'none' | 'in' | 'out';
+  fadeDuration?: number;
   masterVolume: number;
+  onEnded?: (trackId: string) => void;
   debugLog?: (msg: string) => void;
 }
 
-export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: BgmTrackPlayerProps) {
+export function BgmTrackPlayer({ track, fadeState, fadeDuration, masterVolume, onEnded, debugLog }: BgmTrackPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const ytPlayerRef = useRef<any>(null);
   const fadeIntervalRef = useRef<number | null>(null);
@@ -41,7 +43,8 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: Bgm
     const step = 0.05;
     // フェード全体をfade_duration msで完了するためのインターバル計算
     const totalSteps = Math.ceil(1 / step);
-    const stepInterval = Math.max(10, track.fade_duration / totalSteps);
+    const duration = fadeDuration || (fadeState === 'in' ? track.fade_in_duration : 1000);
+    const stepInterval = Math.max(10, duration / totalSteps);
 
     if (fadeState === 'in') {
       let vol = 0;
@@ -67,7 +70,7 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: Bgm
     }
 
     return clearFadeInterval;
-  }, [fadeState, track.bgm_volume, track.fade_duration, setVolume, clearFadeInterval]);
+  }, [fadeState, track.bgm_volume, track.fade_in_duration, fadeDuration, setVolume, clearFadeInterval]);
 
   // ボリューム変更（フェード中でないとき）
   useEffect(() => {
@@ -160,6 +163,7 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: Bgm
               // -1:unstarted, 0:ended, 1:playing, 2:paused, 3:buffering, 5:cued
               const stateNames: Record<number, string> = { '-1': 'unstarted', 0: 'ended', 1: 'playing', 2: 'paused', 3: 'buffering', 5: 'cued' };
               debugLog?.(`YT state: ${stateNames[e.data] ?? e.data} - "${track.name}"`);
+              if (e.data === 0 && !track.bgm_loop) onEnded?.(track.id);
             }}
             onError={(e) => {
               const errorNames: Record<number, string> = { 2: 'invalid param', 5: 'HTML5 error', 100: 'not found', 101: 'embed blocked', 150: 'embed blocked' };
@@ -175,6 +179,9 @@ export function BgmTrackPlayer({ track, fadeState, masterVolume, debugLog }: Bgm
           autoPlay={!track.is_paused}
           loop={track.bgm_loop}
           style={{ display: 'none' }}
+          onEnded={() => {
+            if (!track.bgm_loop) onEnded?.(track.id);
+          }}
           onCanPlayThrough={() => {
             // autoplay がブラウザにブロックされた場合、ユーザー操作時にリトライ
             const el = audioRef.current;

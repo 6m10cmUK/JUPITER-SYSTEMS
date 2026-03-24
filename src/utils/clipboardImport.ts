@@ -281,8 +281,7 @@ function parseBgmData(raw: unknown): Partial<BgmTrack> {
   if (typeof obj.bgm_volume === 'number') result.bgm_volume = obj.bgm_volume;
   if (typeof obj.bgm_loop === 'boolean') result.bgm_loop = obj.bgm_loop;
   if (typeof obj.fade_in === 'boolean') result.fade_in = obj.fade_in;
-  if (typeof obj.fade_out === 'boolean') result.fade_out = obj.fade_out;
-  if (typeof obj.fade_duration === 'number') result.fade_duration = obj.fade_duration;
+  if (typeof obj.fade_in_duration === 'number') result.fade_in_duration = obj.fade_in_duration;
   return result;
 }
 
@@ -364,10 +363,9 @@ export async function pasteSceneFromClipboard(
     bgms: BgmTrack[];
     updateBgm: (id: string, data: Partial<BgmTrack>) => Promise<void>;
     addBgm: (data: Partial<BgmTrack>) => Promise<any>;
-    activateScene: (id: string | null) => void | Promise<void>;
+
   },
 ): Promise<void> {
-  let lastSceneId: string | null = null;
   for (const { scene, objects, bgms } of items) {
     const result = await ctx.addScene({
       name: scene.name ? `${scene.name} (コピー)` : '新規シーン',
@@ -386,7 +384,6 @@ export async function pasteSceneFromClipboard(
     const sorted = [...objects].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     await Promise.all(sorted.map(obj => ctx.addObject({ ...obj, scene_ids: [newSceneId] })));
     await Promise.all(bgms.map(bgm => pasteBgmToScene(bgm, newSceneId, ctx)));
-    lastSceneId = newSceneId;
   }
-  if (lastSceneId) await ctx.activateScene(lastSceneId);
+  // シーン貼り付け時はアクティブシーンを切り替えない
 }

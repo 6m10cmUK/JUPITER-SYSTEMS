@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useMutation } from 'convex/react';
 import { api } from '../../convex/_generated/api';
 import type { BgmTrack } from '../types/adrastea.types';
@@ -26,21 +26,50 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   );
   const removeMutation = useMutation(api.bgms.remove);
 
+  // is_playing / is_paused のローカルオーバーライド
+  // Convex の楽観更新が振動するのを防ぐ
+  const [playbackOverrides, setPlaybackOverrides] = useState<
+    Map<string, { is_playing: boolean; is_paused: boolean }>
+  >(new Map());
+  const overrideTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  const setPlaybackOverride = useCallback((id: string, state: { is_playing: boolean; is_paused: boolean }) => {
+    setPlaybackOverrides(prev => new Map(prev).set(id, state));
+    // 既存タイマーをクリア
+    const existing = overrideTimersRef.current.get(id);
+    if (existing) clearTimeout(existing);
+    // 10秒後にオーバーライドを解除（Convex が確実に収束してるはず）
+    const timer = setTimeout(() => {
+      setPlaybackOverrides(prev => {
+        const next = new Map(prev);
+        next.delete(id);
+        return next;
+      });
+      overrideTimersRef.current.delete(id);
+    }, 10000);
+    overrideTimersRef.current.set(id, timer);
+  }, []);
+
   const loading = inject ? false : bgmsData === undefined;
   const bgms: BgmTrack[] = useMemo(() => {
     if (inject) return inject.data;
 
-    const merged = (bgmsData ?? []).map((b) => ({
-      id: b.id, name: b.name,
-      bgm_type: b.bgm_type as BgmTrack['bgm_type'],
-      bgm_source: (b as any).bgm_source ?? null,
-      bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,
-      scene_ids: b.scene_ids, is_playing: b.is_playing, is_paused: b.is_paused,
-      auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
-      fade_in: (b as any).fade_in ?? true, fade_out: (b as any).fade_out ?? true,
-      fade_duration: (b as any).fade_duration ?? 500,
-      sort_order: b.sort_order ?? 0, created_at: b._creationTime, updated_at: b._creationTime,
-    } as BgmTrack));
+    const merged = (bgmsData ?? []).map((b) => {
+      const override = playbackOverrides.get(b.id);
+      return {
+        id: b.id, name: b.name,
+        bgm_type: b.bgm_type as BgmTrack['bgm_type'],
+        bgm_source: (b as any).bgm_source ?? null,
+        bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,
+        scene_ids: b.scene_ids,
+        is_playing: override ? override.is_playing : b.is_playing,
+        is_paused: override ? override.is_paused : b.is_paused,
+        auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
+        fade_in: (b as any).fade_in ?? true,
+        fade_in_duration: (b as any).fade_in_duration ?? (b as any).fade_duration ?? 500,
+        sort_order: b.sort_order ?? 0, created_at: b._creationTime, updated_at: b._creationTime,
+      } as BgmTrack;
+    });
 
     // Load sort order from localStorage
     const storageKey = `adrastea-bgm-order-${roomId}`;
@@ -52,7 +81,6 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         const sorted: BgmTrack[] = [];
         const seenIds = new Set<string>();
 
-        // Add BGMs in saved order
         for (const id of orderedIds) {
           const bgm = idToBgm.get(id);
           if (bgm) {
@@ -61,7 +89,6 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
           }
         }
 
-        // Add remaining BGMs not in saved order at the end
         for (const bgm of merged) {
           if (!seenIds.has(bgm.id)) {
             sorted.push(bgm);
@@ -70,13 +97,12 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
 
         return sorted;
       } catch {
-        // If JSON parsing fails, return unsorted
         return merged;
       }
     }
 
     return merged;
-  }, [inject, bgmsData, roomId]);
+  }, [inject, bgmsData, playbackOverrides, roomId]);
 
   const removeFromLocalStorageOrder = useCallback((id: string) => {
     const storageKey = `adrastea-bgm-order-${roomId}`;
@@ -106,8 +132,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         is_paused: data.is_paused ?? false,
         auto_play_scene_ids: data.auto_play_scene_ids ?? [],
         fade_in: data.fade_in ?? true,
-        fade_out: data.fade_out ?? true,
-        fade_duration: data.fade_duration ?? 500,
+        fade_in_duration: data.fade_in_duration ?? 500,
         sort_order: data.sort_order ?? bgms.length,
         created_at: now, updated_at: now,
       };
@@ -123,6 +148,17 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
 
   const updateBgm = useCallback(
     async (id: string, updates: Partial<BgmTrack>): Promise<void> => {
+      // is_playing / is_paused の変更はローカルオーバーライドで即座に安定化
+      if ('is_playing' in updates || 'is_paused' in updates) {
+        const current = bgms.find((b) => b.id === id);
+        if (current) {
+          setPlaybackOverride(id, {
+            is_playing: updates.is_playing ?? current.is_playing,
+            is_paused: updates.is_paused ?? current.is_paused,
+          });
+        }
+      }
+
       const inj = injectRef.current;
       if (inj) {
         await inj.update(id, updates);
@@ -141,7 +177,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         removeFromLocalStorageOrder(id);
       }
     },
-    [bgms, updateMutation, removeMutation, removeFromLocalStorageOrder]
+    [bgms, updateMutation, removeMutation, removeFromLocalStorageOrder, setPlaybackOverride]
   );
 
   const removeBgm = useCallback(

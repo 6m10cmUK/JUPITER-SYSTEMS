@@ -153,7 +153,7 @@ export function ChatPaletteDockPanel() {
               padding: '4px 8px',
               borderRadius: 0,
               color: theme.textSecondary,
-              fontSize: '11px',
+              fontSize: '12px',
               cursor: 'pointer',
             }}
             title="チャットパレットを編集"

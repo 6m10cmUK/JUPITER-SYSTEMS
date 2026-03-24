@@ -117,7 +117,7 @@ export function CharacterPanel({
               onClick={() => canDelete && canEditChar && onDuplicateCharacters?.(selectedCharIds)}
               style={{ ...iconBtnStyle, color: theme.textSecondary, opacity: (canDelete && canEditChar) ? 1 : 0.3, pointerEvents: (canDelete && canEditChar) ? 'auto' : 'none' }}
             >
-              <Copy size={13} />
+              <Copy size={15} />
             </button>
           </Tooltip>
           <Tooltip label={selectedCharIds.length > 1 ? `${selectedCharIds.length}件削除` : '削除'}>
@@ -128,7 +128,7 @@ export function CharacterPanel({
               })}
               style={{ ...iconBtnStyle, color: theme.danger, opacity: (canDelete && canEditChar) ? 1 : 0.3, pointerEvents: (canDelete && canEditChar) ? 'auto' : 'none' }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={15} />
             </button>
           </Tooltip>
           <Tooltip label="キャラクター追加">
@@ -136,7 +136,7 @@ export function CharacterPanel({
               onClick={onAddCharacter}
               style={{ ...iconBtnStyle, color: theme.accent }}
             >
-              <Plus size={14} />
+              <Plus size={16} />
             </button>
           </Tooltip>
         </div>
@@ -182,7 +182,7 @@ export function CharacterPanel({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontSize: '9px',
+                  fontSize: '10px',
                   color: theme.bgBase,
                   lineHeight: 1,
                   flexShrink: 0,
@@ -255,7 +255,7 @@ export function CharacterPanel({
                   opacity: char.board_visible !== false ? 1 : 0.4,
                 }}
               >
-                {char.board_visible !== false ? <Eye size={13} /> : <EyeOff size={13} />}
+                {char.board_visible !== false ? <Eye size={15} /> : <EyeOff size={15} />}
               </button>
             </Tooltip>
           </SortableListItem>

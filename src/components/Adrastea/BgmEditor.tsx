@@ -1,7 +1,8 @@
 import type { BgmTrack } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
-import { AdSlider, AdCheckbox, AdSection } from './ui';
-import { X } from 'lucide-react';
+import { AdSlider, AdCheckbox } from './ui';
+import { X, Zap, Repeat } from 'lucide-react';
+import { FadeInIcon } from './ui/FadeInIcon';
 
 interface BgmEditorProps {
   track: BgmTrack;
@@ -52,7 +53,7 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onClose }: BgmEditor
         {/* Auto play */}
         <div style={{ marginBottom: '12px' }}>
           <AdCheckbox
-            label="シーン切替時に自動再生"
+            label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Zap size={14} style={{ color: isAutoPlay ? theme.accent : theme.textMuted }} />シーン切替時に自動再生</span>}
             checked={isAutoPlay}
             onChange={handleAutoPlayToggle}
           />
@@ -61,34 +62,31 @@ export function BgmEditor({ track, activeSceneId, onUpdate, onClose }: BgmEditor
         {/* Loop */}
         <div style={{ marginBottom: '12px' }}>
           <AdCheckbox
-            label="ループ再生"
+            label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Repeat size={14} style={{ color: track.bgm_loop ? theme.accent : theme.textMuted }} />ループ再生</span>}
             checked={track.bgm_loop}
             onChange={(val) => onUpdate(track.id, { bgm_loop: val })}
           />
         </div>
 
-        {/* Fade */}
-        <AdSection label="フェード">
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
-            <AdCheckbox
-              label="イン"
-              checked={track.fade_in}
-              onChange={(val) => onUpdate(track.id, { fade_in: val })}
-            />
-            <AdCheckbox
-              label="アウト"
-              checked={track.fade_out}
-              onChange={(val) => onUpdate(track.id, { fade_out: val })}
+        {/* Fade in */}
+        <div style={{ marginBottom: '12px' }}>
+          <AdCheckbox
+            label={<span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><FadeInIcon size={16} color={track.fade_in ? theme.accent : theme.textMuted} />フェードイン</span>}
+            checked={track.fade_in}
+            onChange={(val) => onUpdate(track.id, { fade_in: val })}
+          />
+        </div>
+        {track.fade_in && (
+          <div style={{ marginBottom: '12px', paddingLeft: '20px' }}>
+            <AdSlider
+              label="時間"
+              value={track.fade_in_duration}
+              min={100} max={3000} step={100}
+              onChange={(val) => onUpdate(track.id, { fade_in_duration: val })}
+              suffix="ms"
             />
           </div>
-          <AdSlider
-            label="時間"
-            value={track.fade_duration}
-            min={100} max={3000} step={100}
-            onChange={(val) => onUpdate(track.id, { fade_duration: val })}
-            suffix="ms"
-          />
-        </AdSection>
+        )}
     </div>
   );
 }

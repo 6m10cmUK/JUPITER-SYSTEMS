@@ -265,7 +265,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: theme.textPrimary }}>チャット入力</span>
-              <button type="button" onClick={() => setExpanded(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }}>
+              <button type="button" onClick={() => setExpanded(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }} title="縮小">
                 <Minimize2 size={16} />
               </button>
             </div>
