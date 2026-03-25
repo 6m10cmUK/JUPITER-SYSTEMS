@@ -418,6 +418,7 @@ export const MockAdrasteaProvider: React.FC<MockAdrasteaProviderProps> = ({
     undoRedo: { ...undoRedo, undo: handleUndo, redo: handleRedo },
 
     // Keyboard actions ref
+    resolveAssetId: () => null,
     keyboardActionsRef: { current: {} },
 
     // Demo mode

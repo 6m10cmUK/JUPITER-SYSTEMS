@@ -36,7 +36,7 @@ export const create = mutation({
     id: v.string(),
     room_id: v.string(),
     name: v.string(),
-    image_url: v.union(v.string(), v.null()),
+    image_asset_id: v.union(v.string(), v.null()),
     text: v.string(),
     animation: v.union(v.literal("slide"), v.literal("fade"), v.literal("zoom")),
     duration: v.number(),
@@ -59,7 +59,7 @@ export const update = mutation({
   args: {
     id: v.string(),
     name: v.optional(v.string()),
-    image_url: v.optional(v.union(v.string(), v.null())),
+    image_asset_id: v.optional(v.union(v.string(), v.null())),
     text: v.optional(v.string()),
     animation: v.optional(v.union(v.literal("slide"), v.literal("fade"), v.literal("zoom"))),
     duration: v.optional(v.number()),

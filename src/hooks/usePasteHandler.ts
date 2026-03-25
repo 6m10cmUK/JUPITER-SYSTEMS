@@ -64,7 +64,6 @@ export async function handleClipboardImport(
           const existing = allObjects.find(o => o.type === d.type && !o.global && o.scene_ids.includes(activeSceneId));
           if (existing) {
             const updates: Partial<BoardObject> = {};
-            if (d.image_url !== undefined) updates.image_url = d.image_url;
             if (d.image_asset_id !== undefined) updates.image_asset_id = d.image_asset_id;
             if (d.background_color !== undefined) updates.background_color = d.background_color;
             if (d.image_fit !== undefined) updates.image_fit = d.image_fit;
@@ -74,7 +73,8 @@ export async function handleClipboardImport(
             continue;
           }
         }
-        await addObject({ ...d, name: d.name ? generateDuplicateName(d.name) : undefined });
+        const objToAdd = { ...d, name: d.name ? generateDuplicateName(d.name) : undefined };
+        await addObject(objToAdd);
       }
       const nonFgBg = result.data.filter(d => d.type !== 'foreground' && d.type !== 'background');
       if (nonFgBg.length > 0) {

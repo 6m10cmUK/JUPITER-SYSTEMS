@@ -27,7 +27,7 @@ const DEMO_ROOM: Room = {
   name: 'Adrastea デモ',
   active_scene_id: 'demo-scene-1',
   active_cutin: null,
-  foreground_url: null,
+  thumbnail_asset_id: null,
   dice_system: 'DiceBot',
   gm_can_see_secret_memo: true,
   default_login_role: 'guest',
@@ -254,7 +254,7 @@ export function useMockAdrasteaState() {
     const newPiece: Piece = {
       id, room_id: 'demo-room-001',
       x, y, width: 5, height: 5,
-      image_url: null, label, color,
+      image_asset_id: null, label, color,
       z_index: 0, statuses: [], initiative: 0, memo: '',
       character_id: null, created_at: Date.now(),
     };

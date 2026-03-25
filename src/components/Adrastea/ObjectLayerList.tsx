@@ -452,9 +452,9 @@ export function ObjectLayerList({
             }}>
               {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
             </span>
-            {obj.image_url && (
+            {obj.image_asset_id && (
               <img
-                src={obj.image_url}
+                src={obj.image_asset_id}
                 alt=""
                 style={{
                   flexShrink: 0,

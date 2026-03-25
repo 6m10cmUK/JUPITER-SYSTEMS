@@ -128,7 +128,7 @@ function parseCharacterData(raw: unknown): Partial<Character> {
 
   // --- iachara 互換フォールバック ---
   if (!result.images && typeof obj.iconUrl === 'string' && obj.iconUrl) {
-    result.images = [{ url: obj.iconUrl, label: 'メイン' }];
+    result.images = [{ asset_id: obj.iconUrl, label: 'メイン' }];
     result.active_image_index = 0;
   }
   if (result.sheet_url === undefined && (typeof obj.externalUrl === 'string' || obj.externalUrl === null)) {
@@ -181,8 +181,9 @@ function parseObjectData(raw: unknown): Partial<BoardObject> {
   if (typeof obj.opacity === 'number') result.opacity = obj.opacity;
   if (typeof obj.position_locked === 'boolean') result.position_locked = obj.position_locked;
   if (typeof obj.size_locked === 'boolean') result.size_locked = obj.size_locked;
-  if (typeof obj.image_url === 'string' || obj.image_url === null) result.image_url = obj.image_url as string | null;
-  if (typeof obj.image_asset_id === 'string' || obj.image_asset_id === null) result.image_asset_id = obj.image_asset_id as string | null;
+  if (typeof obj.image_asset_id === 'string' || obj.image_asset_id === null) {
+    result.image_asset_id = obj.image_asset_id as string | null;
+  }
   if (typeof obj.background_color === 'string') result.background_color = obj.background_color;
   if (typeof obj.image_fit === 'string') result.image_fit = obj.image_fit as BoardObject['image_fit'];
   if (typeof obj.text_content === 'string' || obj.text_content === null) result.text_content = obj.text_content as string | null;
@@ -221,7 +222,7 @@ function stripMeta<T extends Record<string, unknown>>(obj: T, extraKeys: string[
  */
 function characterToData(char: Character): Record<string, unknown> {
   const data: Record<string, unknown> = stripMeta(char as any, ['owner_id']);
-  data.iconUrl = char.images?.[char.active_image_index ?? 0]?.url ?? null;
+  data.iconUrl = char.images?.[char.active_image_index ?? 0]?.asset_id ?? null;
   data.externalUrl = char.sheet_url ?? null;
   if (char.statuses && char.statuses.length > 0) {
     data.status = char.statuses.map(s => ({ label: s.label, value: s.value, max: s.max }));
@@ -261,7 +262,7 @@ function objectToData(obj: BoardObject): Record<string, unknown> {
     });
   } else {
     Object.assign(data, {
-      image_url: obj.image_url, image_asset_id: obj.image_asset_id,
+      image_asset_id: obj.image_asset_id,
       background_color: obj.background_color, image_fit: obj.image_fit,
       scale_x: obj.scale_x, scale_y: obj.scale_y,
     });
@@ -283,8 +284,8 @@ function parseSceneData(raw: unknown): { scene: Partial<Scene>; objects: Partial
   const obj = raw as Record<string, unknown>;
   const scene: Partial<Scene> = {};
   if (typeof obj.name === 'string') scene.name = obj.name;
-  if (typeof obj.background_url === 'string' || obj.background_url === null) scene.background_url = obj.background_url as string | null;
-  if (typeof obj.foreground_url === 'string' || obj.foreground_url === null) scene.foreground_url = obj.foreground_url as string | null;
+  if (typeof obj.background_asset_id === 'string' || obj.background_asset_id === null) scene.background_asset_id = obj.background_asset_id as string | null;
+  if (typeof obj.foreground_asset_id === 'string' || obj.foreground_asset_id === null) scene.foreground_asset_id = obj.foreground_asset_id as string | null;
   if (typeof obj.foreground_opacity === 'number') scene.foreground_opacity = obj.foreground_opacity;
   if (typeof obj.bg_transition === 'string') scene.bg_transition = obj.bg_transition as Scene['bg_transition'];
   if (typeof obj.bg_transition_duration === 'number') scene.bg_transition_duration = obj.bg_transition_duration;
@@ -405,8 +406,8 @@ export async function pasteSceneFromClipboard(
   for (const { scene, objects, bgms } of items) {
     const result = await ctx.addScene({
       name: scene.name ? `${scene.name} (コピー)` : '新規シーン',
-      background_url: scene.background_url ?? null,
-      foreground_url: scene.foreground_url ?? null,
+      background_asset_id: scene.background_asset_id ?? null,
+      foreground_asset_id: scene.foreground_asset_id ?? null,
       foreground_opacity: scene.foreground_opacity,
       bg_transition: scene.bg_transition,
       bg_transition_duration: scene.bg_transition_duration,

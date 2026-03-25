@@ -319,8 +319,8 @@ function CharacterEditorComponent({
                   />
                   <div style={{ flex: 1 }}>
                     <AssetPicker
-                      currentUrl={img.url || null}
-                      onSelect={(url) => updateImage(i, 'url', url)}
+                      currentUrl={img.asset_id || null}
+                      onSelect={(url) => updateImage(i, 'asset_id', url)}
                     />
                   </div>
                   <button onClick={() => removeImage(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>

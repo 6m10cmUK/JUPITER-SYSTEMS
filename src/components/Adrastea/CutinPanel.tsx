@@ -79,9 +79,9 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onReord
         <SortableListItem key={cutin.id} id={cutin.id}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              {cutin.image_url ? (
+              {cutin.image_asset_id ? (
                 <img
-                  src={cutin.image_url}
+                  src={cutin.image_asset_id}
                   alt=""
                   style={{ width: '36px', height: '36px', borderRadius: 0, objectFit: 'cover', flexShrink: 0 }}
                 />

@@ -13,6 +13,7 @@ import { useUndoRedo, type UndoRedoHandle } from '../hooks/useUndoRedo';
 import { useChannels } from '../hooks/useChannels';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
+import { resolveAssetId } from '../hooks/useAssets';
 import type { Piece, Scene, Character, BoardObject, BgmTrack } from '../types/adrastea.types';
 
 // ---------------------------------------------------------------------------
@@ -180,6 +181,8 @@ export interface AdrasteaContextValue {
   showToast: (message: string, type: 'success' | 'error') => void;
   // Undo/Redo
   undoRedo: UndoRedoHandle;
+  // Asset resolution
+  resolveAssetId: (assetId: string | null | undefined) => string | null;
   // Keyboard shortcut actions (ref-based registry)
   keyboardActionsRef: React.MutableRefObject<KeyboardActions>;
   // Demo mode
@@ -438,6 +441,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       toasts,
       showToast,
       undoRedo,
+      resolveAssetId,
       keyboardActionsRef,
     };
   }, [

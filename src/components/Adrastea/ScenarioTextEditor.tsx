@@ -146,8 +146,8 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                     background: (() => {
                       const c = ctx.characters.find(ch => ch.id === text.speaker_character_id);
                       if (!c) return undefined;
-                      const url = c.images[c.active_image_index]?.url;
-                      return url ? `url(${url}) top center/cover ${c.color}` : c.color;
+                      const asset_id = c.images[c.active_image_index]?.asset_id;
+                      return asset_id ? `url(${asset_id}) top center/cover ${c.color}` : c.color;
                     })(),
                     border: `1px solid ${theme.border}`, flexShrink: 0, cursor: 'pointer',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -155,7 +155,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                   }}
                   title="キャラクター選択"
                 >
-                  {!text.speaker_character_id || !ctx.characters.find(c => c.id === text.speaker_character_id)?.images[ctx.characters.find(c => c.id === text.speaker_character_id)!.active_image_index]?.url ? (
+                  {!text.speaker_character_id || !ctx.characters.find(c => c.id === text.speaker_character_id)?.images[ctx.characters.find(c => c.id === text.speaker_character_id)!.active_image_index]?.asset_id ? (
                     <User size={14} color={theme.textSecondary} />
                   ) : null}
                 </button>
@@ -178,8 +178,8 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                       width: '20px', height: '20px', borderRadius: '50%',
                       background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                     }}>
-                      {char?.images[char.active_image_index]?.url && (
-                        <img src={char.images[char.active_image_index].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                      {char?.images[char.active_image_index]?.asset_id && (
+                        <img src={char.images[char.active_image_index].asset_id ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                       )}
                     </div>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.label}</span>

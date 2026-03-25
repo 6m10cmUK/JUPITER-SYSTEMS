@@ -577,7 +577,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
 });
 
 // --- アニメーション画像の Blob URL 共有キャッシュ ---
-// 同じ image_url に対して同一の Blob URL を返すことで、シーン切り替え時に
+// 同じ image_asset_id に対して同一の Blob URL を返すことで、シーン切り替え時に
 // GIF/APNG アニメーションを途中から再生し続ける。
 // refCount で参照管理し、どのコンポーネントも使わなくなったら遅延 revoke する。
 // 遅延があるので、シーンA→B で同じ画像が両方にある場合は Blob URL が維持され再生継続。
@@ -751,7 +751,7 @@ const DomPanelObject = memo(function DomPanelObject({
   onResize?: (id: string, w: number, h: number) => void;
   baseZIndex?: number;
 }) {
-  const blobSrc = useAnimatedBlobSrc(obj.image_url);
+  const blobSrc = useAnimatedBlobSrc(obj.image_asset_id);
 
   return (
     <DomObjectWrapper
@@ -872,18 +872,18 @@ const DomForegroundObject = memo(function DomForegroundObject({
   fadeInDuration?: number;
   baseZIndex?: number;
 }) {
-  const blobSrc = useAnimatedBlobSrc(obj.image_url);
+  const blobSrc = useAnimatedBlobSrc(obj.image_asset_id);
   const fgDuration = fadeInDuration ?? 0;
 
   // リマウント時のフェードアウト層
   const [fadeOutSrc] = useState(() => {
     const prev = _prevFgOriginalSrc;
-    return (fgDuration > 0 && prev && prev !== obj.image_url) ? prev : null;
+    return (fgDuration > 0 && prev && prev !== obj.image_asset_id) ? prev : null;
   });
   const [showFadeOut, setShowFadeOut] = useState(!!fadeOutSrc);
 
-  // 常に最新の R2 URL を保持
-  useEffect(() => { if (obj.image_url) _prevFgOriginalSrc = obj.image_url; }, [obj.image_url]);
+  // 常に最新の asset_id を保持
+  useEffect(() => { if (obj.image_asset_id) _prevFgOriginalSrc = obj.image_asset_id; }, [obj.image_asset_id]);
   // フェードアウト層を duration 後に削除
   useEffect(() => {
     if (showFadeOut && fgDuration > 0) {
@@ -1025,8 +1025,8 @@ const DomCharacterItem = memo(function DomCharacterItem({
   isSelected?: boolean;
   zIndex?: number;
 }) {
-  const imageUrl = char.images[char.active_image_index]?.url ?? null;
-  const blobSrc = useAnimatedBlobSrc(imageUrl);
+  const imageAssetId = char.images[char.active_image_index]?.asset_id ?? null;
+  const blobSrc = useAnimatedBlobSrc(imageAssetId);
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -1255,19 +1255,19 @@ const DomCharacterItem = memo(function DomCharacterItem({
 });
 
 // --- 安定 key 生成 ---
-// シーン間で DOM を使い回すため、obj.id ではなく type + image_url + 座標近接性で key を割り当てる。
-// 同じ type & 同じ image_url のオブジェクト同士を優先マッチし、GIF アニメーションを継続させる。
-// 同じ image_url が複数ある場合は座標が近い順でインデックスを付与。
+// シーン間で DOM を使い回すため、obj.id ではなく type + image_asset_id + 座標近接性で key を割り当てる。
+// 同じ type & 同じ image_asset_id のオブジェクト同士を優先マッチし、GIF アニメーションを継続させる。
+// 同じ image_asset_id が複数ある場合は座標が近い順でインデックスを付与。
 interface PrevSlotInfo { x: number; y: number }
 
 function generateStableKeys(
   objects: BoardObject[],
   prevSlots: React.MutableRefObject<Map<string, PrevSlotInfo>>,
 ): { obj: BoardObject; stableKey: string }[] {
-  // type + image_url でグループ化
+  // type + image_asset_id でグループ化
   const groups = new Map<string, BoardObject[]>();
   for (const obj of objects) {
-    const groupKey = `${obj.type}:${obj.image_asset_id ?? obj.image_url ?? ''}`;
+    const groupKey = `${obj.type}:${obj.image_asset_id ?? ''}`;
     const arr = groups.get(groupKey);
     if (arr) arr.push(obj);
     else groups.set(groupKey, [obj]);

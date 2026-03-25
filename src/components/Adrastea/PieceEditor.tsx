@@ -18,7 +18,7 @@ const STATUS_COLORS = [theme.statusRed, theme.statusBlue, theme.statusGreen, the
 export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _onClose }: PieceEditorProps) {
   const [label, setLabel] = useState(piece.label);
   const [color, setColor] = useState(piece.color);
-  const [imageUrl, setImageUrl] = useState(piece.image_url ?? '');
+  const [imageAssetId, setImageAssetId] = useState(piece.image_asset_id ?? '');
   const [initiative, setInitiative] = useState(piece.initiative);
   const [memo, setMemo] = useState(piece.memo);
   const [statuses, setStatuses] = useState<PieceStatus[]>(piece.statuses ?? []);
@@ -43,7 +43,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
       if (char) {
         setLabel(char.name);
         setColor(char.color);
-        setImageUrl(char.images[char.active_image_index]?.url ?? '');
+        setImageAssetId(char.images[char.active_image_index]?.asset_id ?? '');
         setStatuses(char.statuses.length > 0 ? [...char.statuses] : statuses);
       }
     }
@@ -53,7 +53,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
     onSave(piece.id, {
       label,
       color,
-      image_url: imageUrl || null,
+      image_asset_id: imageAssetId || null,
       initiative,
       memo,
       statuses,
@@ -100,8 +100,8 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
           <div style={sectionStyle}>
             <AssetPicker
               label="コマ画像"
-              currentUrl={imageUrl || null}
-              onSelect={(url) => setImageUrl(url)}
+              currentUrl={imageAssetId || null}
+              onSelect={(url) => setImageAssetId(url)}
             />
           </div>
         )}
