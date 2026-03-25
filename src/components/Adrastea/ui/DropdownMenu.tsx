@@ -70,6 +70,7 @@ export function DropdownMenu({
 
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const submenuRef = useRef<HTMLDivElement>(null);
   const submenuItemRef = useRef<Map<number, HTMLButtonElement>>(new Map());
   const submenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -198,28 +199,23 @@ export function DropdownMenu({
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as Node;
 
+      const inMenu = menuRef.current?.contains(target);
+      const inSubmenu = submenuRef.current?.contains(target);
+
       if (mode === 'trigger') {
-        // Trigger mode: check both trigger and menu
-        if (triggerRef.current?.contains(target)) {
-          return; // Toggle handled by onClick
-        }
-        if (menuRef.current?.contains(target)) {
-          return; // Item click handled by button onClick
-        }
-        // Outside both: close
+        if (triggerRef.current?.contains(target)) return;
+        if (inMenu || inSubmenu) return;
         setIsOpenInternal(false);
         setMenuPos(null);
         setHoveredIndex(null);
         setOpenSubmenuIndex(null);
         setSubmenuPos(null);
       } else if (mode === 'context') {
-        // Context mode: only check menu
-        if (!menuRef.current?.contains(target)) {
-          onOpenChange?.(false);
-          setHoveredIndex(null);
-          setOpenSubmenuIndex(null);
-          setSubmenuPos(null);
-        }
+        if (inMenu || inSubmenu) return;
+        onOpenChange?.(false);
+        setHoveredIndex(null);
+        setOpenSubmenuIndex(null);
+        setSubmenuPos(null);
       }
     };
 
@@ -480,6 +476,7 @@ export function DropdownMenu({
     isOpen && openSubmenuIndex !== null && submenuPos
       ? createPortal(
           <div
+            ref={submenuRef}
             style={{
               position: 'fixed',
               top: `${submenuPos.top}px`,
