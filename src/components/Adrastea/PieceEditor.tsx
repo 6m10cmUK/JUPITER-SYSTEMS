@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Piece, PieceStatus, Character } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { X } from 'lucide-react';
 import { AdInput, AdTextArea, AdButton, AdSelect, AdColorPicker } from './ui';
 
@@ -16,6 +17,7 @@ interface PieceEditorProps {
 const STATUS_COLORS = [theme.statusRed, theme.statusBlue, theme.statusGreen, theme.statusYellow];
 
 export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _onClose }: PieceEditorProps) {
+  const ctx = useAdrasteaContext();
   const [label, setLabel] = useState(piece.label);
   const [color, setColor] = useState(piece.color);
   const [imageAssetId, setImageAssetId] = useState(piece.image_asset_id ?? '');
@@ -100,8 +102,8 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
           <div style={sectionStyle}>
             <AssetPicker
               label="コマ画像"
-              currentUrl={imageAssetId || null}
-              onSelect={(url) => setImageAssetId(url)}
+              currentUrl={ctx.resolveAssetId(imageAssetId) || null}
+              onSelect={(_url, assetId) => setImageAssetId(assetId || '')}
             />
           </div>
         )}

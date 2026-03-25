@@ -62,7 +62,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       visible:            { immediate: true, defaultValue: true },
       position_locked:    { immediate: true, defaultValue: false },
       size_locked:        { immediate: true, defaultValue: false },
-      image_url:          { immediate: true, defaultValue: '' },
+      image_asset_id:     { immediate: true, defaultValue: null },
       image_fit:          { immediate: true, defaultValue: 'contain' },
       background_color:   { immediate: true, defaultValue: '#1e1e2e' },
       auto_size:          { immediate: true, defaultValue: true },
@@ -84,7 +84,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       if (type === 'panel') {
         data.x = s.x;
         data.y = s.y;
-        data.image_url = s.image_url || null;
+        data.image_asset_id = s.image_asset_id || null;
         data.background_color = s.background_color && s.background_color !== 'transparent'
           ? s.background_color : 'transparent';
         data.width = s.width;
@@ -115,12 +115,12 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       } else if (type === 'foreground') {
         data.x = s.x;
         data.y = s.y;
-        data.image_url = s.image_url || null;
+        data.image_asset_id = s.image_asset_id || null;
         data.width = s.width;
         data.height = s.height;
         data.image_fit = s.image_fit;
       } else if (type === 'background') {
-        data.image_url = s.image_url || null;
+        data.image_asset_id = s.image_asset_id || null;
         data.opacity = s.opacity;
         data.visible = s.visible;
       }
@@ -177,8 +177,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         <>
           <AdSection title="背景画像">
             <AssetPicker
-              currentUrl={(state.image_url as string) || null}
-              onSelect={(url) => set('image_url', url)}
+              currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
+              onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
             />
           </AdSection>
 
@@ -235,11 +235,11 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AdSection>
                 <AssetPicker
                   label="画像"
-                  currentUrl={(state.image_url as string) || null}
-                  onSelect={(url) => set('image_url', url)}
+                  currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
+                  onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
                 />
               </AdSection>
-              {(state.image_url as string) && (
+              {(state.image_asset_id as string) && (
                 <AdSection label="画像表示">
                   <AdToggleButtons
                     value={state.image_fit as string}
@@ -509,11 +509,11 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AdSection>
                 <AssetPicker
                   label="前景画像"
-                  currentUrl={(state.image_url as string) || null}
-                  onSelect={(url) => set('image_url', url)}
+                  currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
+                  onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
                 />
               </AdSection>
-              {(state.image_url as string) && (
+              {(state.image_asset_id as string) && (
                 <AdSection label="画像表示">
                   <AdToggleButtons
                     value={state.image_fit as string}
