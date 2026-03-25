@@ -70,17 +70,19 @@ export function parseClipboardData(text: string): ClipboardParseResult {
 
   // kind が scenario_text の場合
   if (kind === 'scenario_text') {
-    const raw = obj.data as Record<string, unknown> | undefined;
-    if (raw && typeof raw === 'object') {
-      const d: ScenarioTextClipData = {
-        title: typeof raw.title === 'string' ? raw.title : undefined,
-        content: typeof raw.content === 'string' ? raw.content : undefined,
-        speaker_character_id: typeof raw.speaker_character_id === 'string' ? raw.speaker_character_id : null,
-        speaker_name: typeof raw.speaker_name === 'string' ? raw.speaker_name : null,
-        channel_id: typeof raw.channel_id === 'string' ? raw.channel_id : null,
+    const parseOne = (raw: unknown): ScenarioTextClipData => {
+      if (typeof raw !== 'object' || raw === null) return {};
+      const r = raw as Record<string, unknown>;
+      return {
+        title: typeof r.title === 'string' ? r.title : undefined,
+        content: typeof r.content === 'string' ? r.content : undefined,
+        speaker_character_id: typeof r.speaker_character_id === 'string' ? r.speaker_character_id : null,
+        speaker_name: typeof r.speaker_name === 'string' ? r.speaker_name : null,
+        channel_id: typeof r.channel_id === 'string' ? r.channel_id : null,
       };
-      return { type: 'scenario_text', data: [d] };
-    }
+    };
+    const items = Array.isArray(obj.data) ? obj.data.map(parseOne) : [parseOne(obj.data)];
+    return { type: 'scenario_text', data: items };
   }
 
   // kind が存在するが対応していない場合
