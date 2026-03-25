@@ -291,7 +291,7 @@ function CharacterEditorComponent({
             <div style={{ flex: 1 }}>
               <AdInput
                 label="外部URL"
-                value={state.sheet_url as string}
+                value={(state.sheet_url as string) ?? ''}
                 onChange={(e) => set('sheet_url', e.target.value)}
                 placeholder="キャラクターシートURL等"
               />
