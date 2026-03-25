@@ -3,12 +3,12 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
-import { SortableListPanel, SortableListItem, ConfirmModal } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { FadeInIcon } from './ui/FadeInIcon';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
-  Play, Pause, Square, Trash2, Plus, Music,
+  Play, Pause, Square, Trash2, Plus, Music, Copy,
   Volume2, VolumeX, Repeat, Zap,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -88,7 +88,6 @@ interface BgmTrackRowProps {
   isEditing: boolean;
   onEdit: (id: string) => void;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
-  onRemove: (id: string) => void;
   onContextMenu?: (e: React.MouseEvent, id: string) => void;
   renamingId?: string | null;
   renameValue?: string;
@@ -98,7 +97,7 @@ interface BgmTrackRowProps {
 }
 
 function BgmTrackRow({
-  track, currentSceneId, isEditing, onEdit, onUpdate, onRemove, onContextMenu,
+  track, currentSceneId, isEditing, onEdit, onUpdate, onContextMenu,
   renamingId, renameValue, onRenameChange, onRenameSubmit, onRenameCancel,
 }: BgmTrackRowProps) {
   const [localMuted, setLocalMuted] = useState(false);
@@ -221,15 +220,6 @@ function BgmTrackRow({
           >
             <FadeInIcon size={18} />
           </button>
-
-          {/* Remove from scene */}
-          <button
-            style={{ ...iconBtn, color: theme.danger }}
-            onClick={(e) => { e.stopPropagation(); onRemove(track.id); }}
-            title="このシーンから除去"
-          >
-            <Trash2 size={13} />
-          </button>
         </div>
 
         {/* Fader row */}
@@ -307,7 +297,6 @@ export function BgmPanel() {
   }, [localBgms, reorderBgms]);
 
   const hasPlaying = localBgms.some(b => b.is_playing && !b.is_paused);
-  const hasPaused = localBgms.some(b => b.is_playing && b.is_paused);
   const hasAnyPlaying = localBgms.some(b => b.is_playing);
 
   const handleBulkPlay = useCallback(() => {
@@ -476,57 +465,80 @@ export function BgmPanel() {
           setEditingBgmId(null);
         }}
         headerActions={
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-            <button
-              onClick={handleBulkPlay}
-              disabled={localBgms.length === 0}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', padding: '2px',
-                color: hasPlaying ? theme.accent : theme.textSecondary,
-                opacity: localBgms.length === 0 ? 0.3 : 1,
-              }}
-              title="全て再生"
-            >
-              <Play size={13} />
-            </button>
-            <button
-              onClick={handleBulkPause}
-              disabled={!hasPlaying}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', padding: '2px',
-                color: hasPaused ? theme.accent : theme.textSecondary,
-                opacity: !hasPlaying ? 0.3 : 1,
-              }}
-              title="全て一時停止"
-            >
-              <Pause size={13} />
-            </button>
-            <button
-              onClick={handleBulkStop}
-              disabled={!hasAnyPlaying}
-              style={{
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', padding: '2px',
-                color: theme.textSecondary,
-                opacity: !hasAnyPlaying ? 0.3 : 1,
-              }}
-              title="全て停止"
-            >
-              <Square size={11} />
-            </button>
-            <button
-              onClick={() => setShowAddPicker(true)}
-              style={{
-                background: 'transparent', border: 'none',
-                color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
-                padding: '2px',
-              }}
-              title="トラック追加"
-            >
-              <Plus size={15} />
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+            <Tooltip label={hasPlaying ? "全て一時停止" : "全て再生"}>
+              <button
+                onClick={hasPlaying ? handleBulkPause : handleBulkPlay}
+                disabled={localBgms.length === 0}
+                style={{
+                  background: 'transparent', border: 'none', cursor: localBgms.length > 0 ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', padding: '2px 4px',
+                  color: hasAnyPlaying ? theme.accent : theme.textSecondary,
+                  opacity: localBgms.length === 0 ? 0.3 : 1,
+                }}
+              >
+                {hasPlaying ? <Pause size={15} /> : <Play size={15} />}
+              </button>
+            </Tooltip>
+            <Tooltip label="全て停止">
+              <button
+                onClick={handleBulkStop}
+                disabled={!hasAnyPlaying}
+                style={{
+                  background: 'transparent', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', padding: '2px 4px',
+                  color: !hasAnyPlaying && localBgms.length > 0 ? theme.accent : theme.textSecondary,
+                  opacity: localBgms.length === 0 ? 0.3 : 1,
+                }}
+              >
+                <Square size={13} />
+              </button>
+            </Tooltip>
+            <div style={{ width: '1px', height: '14px', background: theme.border, margin: '0 2px', flexShrink: 0 }} />
+            <Tooltip label="複製">
+              <button
+                onClick={() => {
+                  if (!editingBgmId) return;
+                  const track = bgms.find(b => b.id === editingBgmId);
+                  if (!track) return;
+                  const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+                  addBgm({ ...rest, name: `${track.name} (複製)` });
+                }}
+                disabled={!editingBgmId}
+                style={{
+                  background: 'transparent', border: 'none', cursor: editingBgmId ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', padding: '2px 4px',
+                  color: theme.textSecondary, opacity: editingBgmId ? 1 : 0.3,
+                }}
+              >
+                <Copy size={15} />
+              </button>
+            </Tooltip>
+            <Tooltip label="シーンから除去">
+              <button
+                onClick={() => editingBgmId && setPendingRemoveId(editingBgmId)}
+                disabled={!editingBgmId}
+                style={{
+                  background: 'transparent', border: 'none', cursor: editingBgmId ? 'pointer' : 'default',
+                  display: 'flex', alignItems: 'center', padding: '2px 4px',
+                  color: theme.danger, opacity: editingBgmId ? 1 : 0.3,
+                }}
+              >
+                <Trash2 size={15} />
+              </button>
+            </Tooltip>
+            <Tooltip label="トラック追加">
+              <button
+                onClick={() => setShowAddPicker(true)}
+                style={{
+                  background: 'transparent', border: 'none',
+                  color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  padding: '2px 4px',
+                }}
+              >
+                <Plus size={15} />
+              </button>
+            </Tooltip>
           </div>
         }
         items={localBgms}
@@ -547,7 +559,6 @@ export function BgmPanel() {
             onRenameChange={setRenameValue}
             onRenameSubmit={handleRenameSubmit}
             onRenameCancel={() => setRenamingId(null)}
-            onRemove={(id) => setPendingRemoveId(id)}
           />
         ))}
       </SortableListPanel>
