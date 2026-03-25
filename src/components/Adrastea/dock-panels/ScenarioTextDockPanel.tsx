@@ -1,26 +1,29 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenarioTextPanel } from '../ScenarioTextPanel';
 import { generateDuplicateName } from '../../../utils/nameUtils';
 
 export function ScenarioTextDockPanel() {
   const ctx = useAdrasteaContext();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   useEffect(() => {
     ctx.registerPanel('scenarioText');
     return () => ctx.unregisterPanel('scenarioText');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const selectedId = ctx.panelSelection?.panel === 'scenario_text' ? ctx.panelSelection.ids[0] ?? null : null;
+
   return (
     <ScenarioTextPanel
       texts={ctx.scenarioTexts}
       selectedId={selectedId}
       onSelect={(id) => {
-        setSelectedId(id);
+        ctx.setPanelSelection({ panel: 'scenario_text', ids: [id] });
         ctx.clearAllEditing();
         ctx.setEditingScenarioTextId(id);
       }}
+      keyboardActionsRef={ctx.keyboardActionsRef}
+      panelSelection={ctx.panelSelection}
       onAdd={() => {
         const lastChannel = ctx.scenarioTexts.length > 0
           ? ctx.scenarioTexts[ctx.scenarioTexts.length - 1].channel_id

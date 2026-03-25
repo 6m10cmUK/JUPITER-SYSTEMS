@@ -19,6 +19,8 @@ interface ScenarioTextPanelProps {
   onDuplicate?: (textId: string) => void;
   onPaste?: () => void;
   channels?: { channel_id: string; label: string }[];
+  keyboardActionsRef?: React.MutableRefObject<{ copy?: () => void; duplicate?: () => void; delete?: () => void }>;
+  panelSelection?: { panel: string; ids: string[] } | null;
 }
 
 export function ScenarioTextPanel({
@@ -33,6 +35,8 @@ export function ScenarioTextPanel({
   onDuplicate,
   onPaste,
   channels,
+  keyboardActionsRef,
+  panelSelection,
 }: ScenarioTextPanelProps) {
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; textId?: string } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -47,37 +51,24 @@ export function ScenarioTextPanel({
     onReorderTexts(reordered.map(t => t.id));
   }, [texts, onReorderTexts]);
 
-  // キーボードショートカット
+  // キーボードアクション登録
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (selectedId && onCopy) {
-          e.preventDefault();
-          onCopy(selectedId);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        if (selectedId && onDuplicate) {
-          e.preventDefault();
-          onDuplicate(selectedId);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        if (onPaste) {
-          e.preventDefault();
-          onPaste();
-        }
-      } else if (e.key === 'Delete') {
+    if (!keyboardActionsRef || !selectedId) return;
+    keyboardActionsRef.current = {
+      copy: () => onCopy?.(selectedId),
+      duplicate: () => onDuplicate?.(selectedId),
+      delete: () => {
         if (selectedId) {
-          e.preventDefault();
           setPendingDeleteId(selectedId);
         }
+      },
+    };
+    return () => {
+      if (panelSelection?.panel === 'scenario_text') {
+        keyboardActionsRef.current = {};
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedId, onCopy, onDuplicate, onPaste]);
+  }, [selectedId, onCopy, onDuplicate, keyboardActionsRef, panelSelection]);
 
   const iconBtn: React.CSSProperties = {
     background: 'transparent',
