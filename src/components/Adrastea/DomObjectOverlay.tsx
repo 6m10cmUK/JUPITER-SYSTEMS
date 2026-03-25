@@ -291,6 +291,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   const { items: ctxMenuItems, confirmModal } = useObjectContextMenu([obj], {
     onClose: () => setContextMenuPos(null),
     onPaste: handlePaste,
+    showUndoRedo: true,
   });
 
   // ホバー終了・アンマウント時にカウンタをクリーンアップ

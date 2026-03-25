@@ -7,11 +7,13 @@ import type { DropdownMenuEntry } from './ui/DropdownMenu';
 import { shortcutLabel } from './ui/DropdownMenu';
 import type { BoardObject } from '../../types/adrastea.types';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
+import { generateDuplicateName } from '../../utils/nameUtils';
 
 interface UseObjectContextMenuOptions {
   onClose: () => void;
   onAfterDuplicate?: (newIds: string[]) => void;
   onPaste?: () => void;
+  showUndoRedo?: boolean;
 }
 
 interface UseObjectContextMenuResult {
@@ -25,7 +27,7 @@ interface UseObjectContextMenuResult {
  */
 export function useObjectContextMenu(
   targets: BoardObject[],
-  { onClose, onAfterDuplicate, onPaste }: UseObjectContextMenuOptions
+  { onClose, onAfterDuplicate, onPaste, showUndoRedo = false }: UseObjectContextMenuOptions
 ): UseObjectContextMenuResult {
   const { addObject, updateObject, removeObject, undoRedo } = useAdrasteaContext();
   const { can } = usePermission();
@@ -43,7 +45,7 @@ export function useObjectContextMenu(
         const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
         return addObject({
           ...rest,
-          name: `${obj.name} (複製)`,
+          name: generateDuplicateName(obj.name),
           sort_order: obj.sort_order + 1,
         });
       })
@@ -137,20 +139,25 @@ export function useObjectContextMenu(
         onClose();
       },
     },
-    'separator',
-    {
-      label: '元に戻す',
-      shortcut: shortcutLabel('Z'),
-      disabled: !undoRedo.canUndo || !canEdit,
-      onClick: () => { undoRedo.undo(); onClose(); },
-    },
-    {
-      label: 'やり直し',
-      shortcut: shortcutLabel('⇧Z'),
-      disabled: !undoRedo.canRedo || !canEdit,
-      onClick: () => { undoRedo.redo(); onClose(); },
-    }
   );
+
+  if (showUndoRedo) {
+    items.push(
+      'separator',
+      {
+        label: '元に戻す',
+        shortcut: shortcutLabel('Z'),
+        disabled: !undoRedo.canUndo || !canEdit,
+        onClick: () => { undoRedo.undo(); onClose(); },
+      },
+      {
+        label: 'やり直し',
+        shortcut: shortcutLabel('⇧Z'),
+        disabled: !undoRedo.canRedo || !canEdit,
+        onClick: () => { undoRedo.redo(); onClose(); },
+      }
+    );
+  }
 
   const deleteMsg = pendingRemove
     ? pendingRemove.length > 1
