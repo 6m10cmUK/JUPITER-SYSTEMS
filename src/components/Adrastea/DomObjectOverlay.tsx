@@ -7,6 +7,7 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { handleClipboardImport } from '../../hooks/usePasteHandler';
+import { generateDuplicateName } from '../../utils/nameUtils';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -1053,12 +1054,13 @@ const DomCharacterItem = memo(function DomCharacterItem({
     onClose: () => setContextMenuPos(null),
     onDuplicate: (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      addCharacter({ ...rest, name: `${c.name} (複製)` });
+      addCharacter({ ...rest, name: generateDuplicateName(c.name) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);
     },
     onPaste: charHandlePaste,
+    showUndoRedo: true,
   });
 
   // ホバー終了・アンマウント時にカウンタをクリーンアップ
