@@ -318,6 +318,14 @@ export function ScenePanel({
           ?? (selectedSceneIds.length === 1 ? selectedSceneIds[0] : undefined);
         return [
         {
+          label: '新規作成',
+          onClick: () => {
+            onAddScene(1);
+            setContextMenu(null);
+          },
+        },
+        'separator',
+        {
           label: 'このシーンに切り替え',
           disabled: !singleTargetId || singleTargetId === activeSceneId,
           onClick: () => {

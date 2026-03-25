@@ -237,6 +237,14 @@ export function ScenarioTextPanel({
           const hasTarget = targetIds.length > 0;
           return [
           {
+            label: '新規作成',
+            onClick: () => {
+              onAdd();
+              setContextMenu(null);
+            },
+          },
+          'separator' as any,
+          {
             label: 'コピー',
             shortcut: shortcutLabel('C'),
             disabled: !hasTarget,
@@ -264,7 +272,7 @@ export function ScenarioTextPanel({
               setContextMenu(null);
             },
           },
-        ];
+        ] as any;
         })()
         .concat([
           'separator' as any,
@@ -277,7 +285,7 @@ export function ScenarioTextPanel({
               setContextMenu(null);
             },
           },
-        ])}
+        ] as any)}
       />
 
       {pendingDeleteIds && (

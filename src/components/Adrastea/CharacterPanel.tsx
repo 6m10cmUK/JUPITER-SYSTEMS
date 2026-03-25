@@ -271,6 +271,14 @@ export function CharacterPanel({
       position={contextMenu ?? { x: 0, y: 0 }}
       items={[
         {
+          label: '新規作成',
+          onClick: () => {
+            onAddCharacter();
+            setContextMenu(null);
+          },
+        },
+        'separator',
+        {
           label: (() => {
             const ids = contextMenu?.charId && !selectedCharIds.includes(contextMenu.charId)
               ? [contextMenu.charId]
