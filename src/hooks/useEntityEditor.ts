@@ -39,6 +39,8 @@ interface UseEntityEditorReturn<T> {
   setMany: (updates: Partial<T>) => void;
   /** 未保存の debounce 編集があるか */
   isDirty: boolean;
+  /** debounce 待機中の編集を即座に保存 */
+  flush: () => void;
 }
 
 // --- Implementation ---
@@ -55,6 +57,9 @@ export function useEntityEditor<T extends Record<string, unknown>>(
 
   // ローカル編集値（entity との差分のみ保持）
   const [localEdits, setLocalEdits] = useState<Partial<T>>({});
+
+  // ローカル編集値の ref 版（flush 時に参照）
+  const localEditsRef = useRef<Partial<T>>({});
 
   // debounce 中のフィールドを追跡（外部同期のブロック用）
   const debouncingFieldsRef = useRef<Set<string>>(new Set());
@@ -92,6 +97,11 @@ export function useEntityEditor<T extends Record<string, unknown>>(
   // --- マージ済み state ---
   // 優先度: localEdits > entity > defaults
   const state = { ...defaults.current, ...(entity ?? {}), ...localEdits } as T;
+
+  // --- localEdits と localEditsRef を同期 ---
+  useEffect(() => {
+    localEditsRef.current = localEdits;
+  });
 
   // --- 外部同期: entity が変わったら、debounce 中でないフィールドを同期 ---
   const prevEntityRef = useRef<T | null | undefined>(undefined);
@@ -215,14 +225,36 @@ export function useEntityEditor<T extends Record<string, unknown>>(
   // --- isDirty ---
   const isDirty = Object.keys(localEdits).length > 0;
 
+  // --- flush: debounce 待機中の編集を即座に保存 ---
+  const flush = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    if (debouncingFieldsRef.current.size === 0) return;
+
+    const currentOpts = optsRef.current;
+    const currentState = {
+      ...defaults.current,
+      ...(currentOpts.entity ?? {}),
+      ...localEditsRef.current,
+    } as T;
+    const saveData = currentOpts.buildSaveData(currentState);
+    const key = `${currentOpts.editType}:${currentOpts.entityId ?? 'new'}`;
+    currentOpts.onDebounceSave(key, {
+      type: currentOpts.editType,
+      id: currentOpts.entityId,
+      data: saveData,
+    });
+    debouncingFieldsRef.current.clear();
+  }, []);
+
   // --- cleanup ---
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      flush();
     };
-  }, []);
+  }, [flush]);
 
-  return { state, set, setMany, isDirty };
+  return { state, set, setMany, isDirty, flush };
 }

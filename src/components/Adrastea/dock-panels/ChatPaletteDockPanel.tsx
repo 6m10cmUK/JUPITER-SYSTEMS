@@ -106,7 +106,7 @@ export function ChatPaletteDockPanel() {
                 style={{
                   padding: '4px 6px',
                   borderRadius: 0,
-                  color: theme.textMuted,
+                  color: theme.accent,
                   cursor: 'pointer',
                   flexShrink: 0,
                   display: 'flex',
@@ -114,7 +114,7 @@ export function ChatPaletteDockPanel() {
                 }}
                 title="送信"
               >
-                <Send size={10} />
+                <Send size={14} />
               </button>
               <button
                 className="adra-btn adra-btn--ghost"
@@ -178,10 +178,6 @@ export function ChatPaletteDockPanel() {
             roomId={ctx.roomId}
             currentUserId={user?.uid ?? ''}
             initialSection="chat_palette"
-            onSave={(data) => {
-              ctx.updateCharacter(activeCharacter.id, data);
-              setShowEditor(false);
-            }}
             onClose={() => setShowEditor(false)}
           />
         </AdModal>

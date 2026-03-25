@@ -9,8 +9,9 @@ import { PieceEditor } from '../PieceEditor';
 import { BgmEditor } from '../BgmEditor';
 import { ScenarioTextEditor } from '../ScenarioTextEditor';
 import { ConfirmModal, Tooltip } from '../ui';
-import { Trash2, Clipboard, CopyPlus, Save } from 'lucide-react';
+import { Trash2, Clipboard, CopyPlus } from 'lucide-react';
 import { objectToClipboardJson, bgmToClipboardJson } from '../../../utils/clipboardImport';
+import { generateDuplicateName } from '../../../utils/nameUtils';
 import type React from 'react';
 
 const iconBtn = { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex' } as const;
@@ -38,7 +39,6 @@ export function PropertyDockPanel() {
   const { user } = useAuth();
   const [pendingDelete, setPendingDelete] = useState<{ msg: string; action: () => void } | null>(null);
   const charEditorRef = useRef<CharacterEditorHandle>(null);
-  const [charDirty, setCharDirty] = useState(false);
 
   let content: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -89,7 +89,7 @@ export function PropertyDockPanel() {
           onCopy={() => { navigator.clipboard.writeText(objectToClipboardJson(obj)); ctx.showToast(`${obj.name} をコピーしました`, 'success'); }}
           onDuplicate={async () => {
             const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
-            await ctx.addObject({ ...rest, name: `${obj.name} (複製)`, sort_order: obj.sort_order + 1 });
+            await ctx.addObject({ ...rest, name: generateDuplicateName(obj.name), sort_order: obj.sort_order + 1 });
           }}
         />
       );
@@ -109,15 +109,6 @@ export function PropertyDockPanel() {
         character={liveEditingCharacter}
         roomId={ctx.roomId}
         currentUserId={user?.uid ?? ''}
-        hideFooter
-        onDirtyChange={setCharDirty}
-        onSave={async (data) => {
-          if (ctx.editingCharacter) {
-            await ctx.updateCharacter(ctx.editingCharacter.id, data);
-          } else {
-            await ctx.addCharacter(data);
-          }
-        }}
         onDuplicate={(data) => ctx.addCharacter(data)}
         onClose={() => ctx.setEditingCharacter(undefined)}
       />
@@ -126,16 +117,7 @@ export function PropertyDockPanel() {
       <PropertyFooterActions
         onCopy={() => charEditorRef.current?.copyToClipboard()}
         onDuplicate={() => charEditorRef.current?.duplicate()}
-      >
-        <Tooltip label="保存">
-          <button onClick={() => charEditorRef.current?.save()} style={{
-            ...iconBtn,
-            color: charDirty ? '#fff' : theme.textMuted,
-            background: charDirty ? theme.accent : 'none',
-            borderRadius: '4px',
-          }}><Save size={16} /></button>
-        </Tooltip>
-      </PropertyFooterActions>
+      />
     ) : null;
     if (ctx.editingCharacter) {
       onDelete = () => { ctx.removeCharacter(ctx.editingCharacter!.id); ctx.setEditingCharacter(undefined); };
@@ -214,7 +196,7 @@ export function PropertyDockPanel() {
           }}
           onDuplicate={async () => {
             await ctx.addScenarioText({
-              title: `${scenarioText.title} (複製)`,
+              title: generateDuplicateName(scenarioText.title),
               content: scenarioText.content,
               speaker_character_id: scenarioText.speaker_character_id,
               speaker_name: scenarioText.speaker_name,
