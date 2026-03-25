@@ -11,6 +11,8 @@ import { checkPermission, type PermissionKey } from '../config/permissions';
 import { useToast } from '../components/Adrastea/ui/Toast';
 import { useUndoRedo, type UndoRedoHandle } from '../hooks/useUndoRedo';
 import { useChannels } from '../hooks/useChannels';
+import { useScenarioTexts } from '../hooks/useScenarioTexts';
+import { useCutins } from '../hooks/useCutins';
 import type { Piece, Scene, Character, BoardObject, BgmTrack } from '../types/adrastea.types';
 
 // ---------------------------------------------------------------------------
@@ -50,6 +52,7 @@ export interface AdrasteaContextValue {
   sendMessage: any;
   loadMore: any;
   clearMessages: any;
+  openSecretDice: any;
   handleSendMessage: (
     content: string,
     messageType: any,
@@ -204,6 +207,16 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // NOTE: 実装簡略化のため機能削除
   }, []);
 
+  // --- ScenarioTexts & Cutins (lazy-load 廃止、常時ロード) ---
+  const {
+    scenarioTexts, addScenarioText, updateScenarioText,
+    removeScenarioText, reorderScenarioTexts,
+  } = useScenarioTexts(roomId);
+  const {
+    cutins, addCutin, updateCutin, removeCutin,
+    reorderCutins, triggerCutin, clearCutin,
+  } = useCutins(roomId);
+
   // --- Permission guard ref ---
   const roomRoleRef = useRef(roomRole);
   roomRoleRef.current = roomRole;
@@ -308,6 +321,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       sendMessage: async () => {},
       loadMore: async () => {},
       clearMessages: async () => {},
+      openSecretDice: async () => {},
       handleSendMessage: () => {},
       activeSpeakerCharId: null,
       setActiveSpeakerCharId: () => {},
@@ -341,18 +355,18 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       reorderObjects: async () => {},
       batchUpdateSort: async () => {},
       injectOptimistic: () => {},
-      scenarioTexts: [],
-      addScenarioText: async () => '',
-      updateScenarioText: async () => {},
-      removeScenarioText: async () => {},
-      reorderScenarioTexts: async () => {},
-      cutins: [],
-      addCutin: async () => '',
-      updateCutin: async () => {},
-      removeCutin: async () => {},
-      reorderCutins: async () => {},
-      triggerCutin: async () => {},
-      clearCutin: async () => {},
+      scenarioTexts,
+      addScenarioText,
+      updateScenarioText,
+      removeScenarioText,
+      reorderScenarioTexts,
+      cutins,
+      addCutin,
+      updateCutin,
+      removeCutin,
+      reorderCutins,
+      triggerCutin,
+      clearCutin,
       bgms: [],
       addBgm: async () => '',
       updateBgm: async () => {},
@@ -419,6 +433,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     characterToOpenModal, boardRef, profile, user, signOut, updateProfile, onAddObject, deleteRoom,
     withPermission, isLoading, loadingProgress, loadingSteps, setPendingEdit, registerPanel,
     unregisterPanel, toasts, showToast, undoRedo,
+    scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
+    cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
   ]);
 
   return (
@@ -426,9 +442,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       roomId={roomId}
       initialLoadDone={true}
       withPermission={withPermission}
-      activeSpeakerCharId={null}
-      setActiveSpeakerCharId={() => {}}
-      handleSendMessage={() => {}}
+      user={user}
+      activeChatChannel={activeChatChannel}
     >
       <UIStateProvider setPendingEdit={setPendingEdit}>
         <AdrasteaContext.Provider value={value}>
@@ -484,6 +499,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       sendMessage: roomDataCtx.sendMessage,
       loadMore: roomDataCtx.loadMore,
       clearMessages: roomDataCtx.clearMessages,
+      openSecretDice: roomDataCtx.openSecretDice,
       handleSendMessage: roomDataCtx.handleSendMessage,
       activeSpeakerCharId: roomDataCtx.activeSpeakerCharId,
       setActiveSpeakerCharId: roomDataCtx.setActiveSpeakerCharId,
@@ -498,6 +514,8 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       updateCharacter: roomDataCtx.updateCharacter,
       removeCharacter: roomDataCtx.removeCharacter,
       reorderCharacters: roomDataCtx.reorderCharacters,
+      layerOrderedCharacters: roomDataCtx.layerOrderedCharacters,
+      reorderLayerCharacters: roomDataCtx.reorderLayerCharacters,
       allObjects: roomDataCtx.allObjects,
       activeObjects: roomDataCtx.activeObjects,
       addObject: roomDataCtx.addObject,
@@ -507,18 +525,6 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       reorderObjects: roomDataCtx.reorderObjects,
       batchUpdateSort: roomDataCtx.batchUpdateSort,
       injectOptimistic: roomDataCtx.injectOptimistic,
-      scenarioTexts: roomDataCtx.scenarioTexts,
-      addScenarioText: roomDataCtx.addScenarioText,
-      updateScenarioText: roomDataCtx.updateScenarioText,
-      removeScenarioText: roomDataCtx.removeScenarioText,
-      reorderScenarioTexts: roomDataCtx.reorderScenarioTexts,
-      cutins: roomDataCtx.cutins,
-      addCutin: roomDataCtx.addCutin,
-      updateCutin: roomDataCtx.updateCutin,
-      removeCutin: roomDataCtx.removeCutin,
-      reorderCutins: roomDataCtx.reorderCutins,
-      triggerCutin: roomDataCtx.triggerCutin,
-      clearCutin: roomDataCtx.clearCutin,
       bgms: roomDataCtx.bgms,
       addBgm: roomDataCtx.addBgm,
       updateBgm: roomDataCtx.updateBgm,

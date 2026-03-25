@@ -362,9 +362,10 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   useEffect(() => {
     if (initializedRef.current || stageSize.width === 0 || stageSize.height === 0) return;
     if (!stageRef.current) return;
+    if (objects.length === 0) return;
     fitToScreen();
     initializedRef.current = true;
-  }, [stageSize, fitToScreen]);
+  }, [stageSize, fitToScreen, objects]);
 
   // ResizeObserverでビューポート追従
   useEffect(() => {

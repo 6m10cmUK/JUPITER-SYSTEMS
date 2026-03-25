@@ -109,7 +109,7 @@ export function ScenePanel({
       title="シーン"
       onBackgroundClick={() => onSelectedSceneIdsChange([])}
       headerActions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           {onDuplicateScenes && (
             <button
               onClick={() => onDuplicateScenes(selectedSceneIds)}
@@ -119,9 +119,9 @@ export function ScenePanel({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: theme.accent,
+                color: theme.textSecondary,
                 cursor: canDuplicate ? 'pointer' : 'default',
-                padding: '2px',
+                padding: '2px 4px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: canDuplicate ? 1 : 0.3,
@@ -147,7 +147,7 @@ export function ScenePanel({
               border: 'none',
               color: theme.danger,
               cursor: canDelete ? 'pointer' : 'default',
-              padding: '2px',
+              padding: '2px 4px',
               display: 'flex',
               alignItems: 'center',
               opacity: canDelete ? 1 : 0.3,
@@ -164,7 +164,7 @@ export function ScenePanel({
               border: 'none',
               color: theme.accent,
               cursor: 'pointer',
-              padding: '2px',
+              padding: '2px 4px',
               display: 'flex',
               alignItems: 'center',
             }}

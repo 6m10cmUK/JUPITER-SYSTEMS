@@ -12,7 +12,7 @@ import { theme } from '../../styles/theme';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
-  Trash2, Copy,
+  Trash2, Copy, Plus,
 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, DropdownMenu, Tooltip } from './ui';
 import { useObjectContextMenu } from './useObjectContextMenu';
@@ -28,16 +28,16 @@ const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>>
 
 interface ObjectLayerListProps {
   onPaste?: () => void;
-  onAdd?: (global: boolean, type: BoardObjectType) => void;
   onImageAdd?: (global: boolean) => void;
   onRemoveRequest?: (msg: string, action: () => void) => void;
+  characterSection?: React.ReactNode;
 }
 
 export function ObjectLayerList({
   onPaste,
-  onAdd,
   onImageAdd,
   onRemoveRequest,
+  characterSection,
 }: ObjectLayerListProps) {
   const {
     activeObjects,
@@ -55,6 +55,7 @@ export function ObjectLayerList({
     canDuplicate,
     getDeletableIds,
     handleDuplicate,
+    handleAdd,
   } = useLayerOperations();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -248,8 +249,12 @@ export function ObjectLayerList({
     >
     <SortableListPanel
       title="レイヤー"
+      onBackgroundClick={() => {
+        setSelectedObjectIds([]);
+        setEditingObjectId(undefined);
+      }}
       headerActions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="複製">
             <button
               type="button"
@@ -258,15 +263,15 @@ export function ObjectLayerList({
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: theme.accent,
+                color: theme.textSecondary,
                 cursor: hasDuplicateTargets ? 'pointer' : 'default',
-                padding: '2px',
+                padding: '2px 4px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasDuplicateTargets ? 1 : 0.3,
               }}
             >
-              <Copy size={13} />
+              <Copy size={15} />
             </button>
           </Tooltip>
           <Tooltip label="削除">
@@ -279,13 +284,13 @@ export function ObjectLayerList({
                 border: 'none',
                 color: theme.danger,
                 cursor: hasRemoveTargets ? 'pointer' : 'default',
-                padding: '2px',
+                padding: '2px 4px',
                 display: 'flex',
                 alignItems: 'center',
                 opacity: hasRemoveTargets ? 1 : 0.3,
               }}
             >
-              <Trash2 size={13} />
+              <Trash2 size={15} />
             </button>
           </Tooltip>
           <DropdownMenu
@@ -297,21 +302,21 @@ export function ObjectLayerList({
                   border: 'none',
                   color: theme.accent,
                   cursor: 'pointer',
-                  padding: '2px',
+                  padding: '2px 4px',
                   display: 'flex',
                   alignItems: 'center',
                 }}
                 title="追加"
               >
-                +
+                <Plus size={15} />
               </button>
             }
             items={[
-              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => onImageAdd?.(false) },
-              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => onAdd?.(false, 'text') },
+              { icon: <Image size={15} />, label: 'シーン画像追加', onClick: () => onImageAdd?.(false) },
+              { icon: <Type size={15} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
               'separator',
-              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => onImageAdd?.(true) },
-              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => onAdd?.(true, 'text') },
+              { icon: <Image size={15} />, label: 'ルーム画像追加', onClick: () => onImageAdd?.(true) },
+              { icon: <Type size={15} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
             ]}
           />
         </div>
@@ -330,11 +335,26 @@ export function ObjectLayerList({
           && obj.id !== activeDragId;
         const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
 
-        // characters_layer は表示しない
-        if (obj.type === 'characters_layer') return null;
+        // characters_layer の位置にキャラクターセクションを描画
+        if (obj.type === 'characters_layer') {
+          return characterSection ? (
+            <div key={obj.id} style={{ display: 'contents' }}>
+              {characterSection}
+            </div>
+          ) : null;
+        }
 
         return (
-          <div key={obj.id} data-obj-id={obj.id} style={{ display: 'contents' }}>
+          <div
+            key={obj.id}
+            data-obj-id={obj.id}
+            style={{ display: 'contents' }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setContextMenu({ x: e.clientX, y: e.clientY, objId: obj.id });
+            }}
+          >
           <SortableListItem
             id={obj.id}
             disabled={obj.type === 'background'}

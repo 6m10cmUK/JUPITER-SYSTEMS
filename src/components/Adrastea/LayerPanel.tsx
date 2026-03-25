@@ -7,6 +7,7 @@ import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
 import { ObjectLayerList } from './ObjectLayerList';
 import { CharacterLayerSection } from './CharacterLayerSection';
+import { generateDuplicateName } from '../../utils/nameUtils';
 
 export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
   const {
@@ -40,7 +41,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     onClose: () => setContextCharId(null),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      await addCharacter({ ...rest, name: `${c.name} (複製)` });
+      await addCharacter({ ...rest, name: generateDuplicateName(c.name) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);
@@ -77,7 +78,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
             const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
             return addObject({
               ...rest,
-              name: `${obj.name} (複製)`,
+              name: generateDuplicateName(obj.name),
               sort_order: obj.sort_order + 1,
             });
           }));
@@ -150,32 +151,34 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     }
   }, []);
 
+  const characterSectionNode = (
+    <CharacterLayerSection
+      characters={layerOrderedCharacters}
+      selectedCharIds={selectedCharIds}
+      onSelectCharacter={() => {}}
+      onCharacterContextMenu={(charId) => {
+        setContextCharId(charId);
+      }}
+      onContextMenuClose={() => setContextCharId(null)}
+      onDoubleClickCharacter={(charId) => {
+        const char = layerOrderedCharacters.find(c => c.id === charId);
+        if (char) setCharacterToOpenModal(char);
+      }}
+    />
+  );
+
   return (
     <>
     <div
       onContextMenu={handleContextMenu}
-      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
+      style={{ height: '100%', overflow: 'auto' }}
     >
       <ObjectLayerList
         onPaste={onPaste}
         onImageAdd={handleImageAdd}
         onRemoveRequest={handleRemoveRequest}
+        characterSection={characterSectionNode}
       />
-      <div style={{ flex: '0 0 auto' }}>
-        <CharacterLayerSection
-          characters={layerOrderedCharacters}
-          selectedCharIds={selectedCharIds}
-          onSelectCharacter={() => {}}
-          onCharacterContextMenu={(charId) => {
-            setContextCharId(charId);
-          }}
-          onContextMenuClose={() => setContextCharId(null)}
-          onDoubleClickCharacter={(charId) => {
-            const char = layerOrderedCharacters.find(c => c.id === charId);
-            if (char) setCharacterToOpenModal(char);
-          }}
-        />
-      </div>
     </div>
 
     {pendingRemove && (
