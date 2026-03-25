@@ -538,15 +538,31 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           </div>
         )}
 
-        {/* 検索バー */}
-        <div style={{ marginBottom: '8px' }}>
+        {/* 検索バー + フォルダから追加 */}
+        <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
           <input
-            style={inputStyle}
+            style={{ ...inputStyle, flex: 1 }}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="ファイル名・タグで検索..."
             maxLength={128}
           />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{
+              background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+              borderRadius: 0, color: theme.textSecondary, cursor: 'pointer',
+              padding: '0 12px', fontSize: '0.8rem', whiteSpace: 'nowrap',
+              display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+            }}
+          >
+            <Upload size={14} />
+            {uploading ? 'アップロード中...' : 'ファイルから追加'}
+          </button>
+        </div>
+        <div style={{ fontSize: '0.85rem', color: theme.textMuted, marginBottom: '8px' }}>
+          ドラッグ＆ドロップでもアップロードできます
         </div>
 
         {/* エラーバナー */}
