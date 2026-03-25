@@ -449,6 +449,7 @@ export function BgmPanel() {
   return (
     <>
       <div
+        data-selection-panel
         style={{ height: '100%' }}
         onContextMenu={(e) => handleContextMenu(e)}
       >
