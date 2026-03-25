@@ -1,10 +1,19 @@
 import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.types';
 
+export interface ScenarioTextClipData {
+  title?: string;
+  content?: string;
+  speaker_character_id?: string | null;
+  speaker_name?: string | null;
+  channel_id?: string | null;
+}
+
 export type ClipboardParseResult =
   | { type: 'character'; data: Partial<Character>[]; }
   | { type: 'object'; data: Partial<BoardObject>[]; }
   | { type: 'scene'; data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[] }
   | { type: 'bgm'; data: Partial<BgmTrack>[]; }
+  | { type: 'scenario_text'; data: ScenarioTextClipData[]; }
   | { type: 'unknown'; kind: string }
   | null;
 
@@ -59,7 +68,22 @@ export function parseClipboardData(text: string): ClipboardParseResult {
     return { type: 'bgm', data: items };
   }
 
-  // kind が存在するが 'character' 以外の場合
+  // kind が scenario_text の場合
+  if (kind === 'scenario_text') {
+    const raw = obj.data as Record<string, unknown> | undefined;
+    if (raw && typeof raw === 'object') {
+      const d: ScenarioTextClipData = {
+        title: typeof raw.title === 'string' ? raw.title : undefined,
+        content: typeof raw.content === 'string' ? raw.content : undefined,
+        speaker_character_id: typeof raw.speaker_character_id === 'string' ? raw.speaker_character_id : null,
+        speaker_name: typeof raw.speaker_name === 'string' ? raw.speaker_name : null,
+        channel_id: typeof raw.channel_id === 'string' ? raw.channel_id : null,
+      };
+      return { type: 'scenario_text', data: [d] };
+    }
+  }
+
+  // kind が存在するが対応していない場合
   if (typeof kind === 'string') {
     return { type: 'unknown', kind };
   }

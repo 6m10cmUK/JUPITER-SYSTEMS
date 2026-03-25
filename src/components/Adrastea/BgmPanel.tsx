@@ -257,7 +257,7 @@ function BgmTrackRow({
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing, showToast } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing, showToast, panelSelection, setPanelSelection, keyboardActionsRef } = useAdrasteaContext();
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
@@ -283,7 +283,8 @@ export function BgmPanel() {
   const handleEdit = useCallback((id: string) => {
     clearAllEditing();
     setEditingBgmId(id);
-  }, [clearAllEditing, setEditingBgmId]);
+    setPanelSelection({ panel: 'bgm', ids: [id] });
+  }, [clearAllEditing, setEditingBgmId, setPanelSelection]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -379,37 +380,31 @@ export function BgmPanel() {
     setPendingDeleteId(null);
   }, [pendingDeleteId, removeBgm]);
 
-  // Ctrl+C / Ctrl+D / Backspace / Delete キーボードショートカット
+  // グローバルキーボードショートカットにハンドラ登録
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (window.getSelection()?.toString()) return;
-        if (editingBgmId) {
+    if (editingBgmId) {
+      keyboardActionsRef.current = {
+        copy: () => {
           const track = bgms.find(b => b.id === editingBgmId);
           if (track) {
-            e.preventDefault();
             navigator.clipboard.writeText(bgmToClipboardJson(track));
             showToast(`${track.name} をコピーしました`, 'success');
           }
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        if (editingBgmId) {
-          e.preventDefault();
-          handleDuplicate();
-        }
-      } else if (e.key === 'Delete') {
-        if (editingBgmId) {
-          e.preventDefault();
-          setPendingDeleteId(editingBgmId);
-        }
+        },
+        duplicate: handleDuplicate,
+        delete: () => {
+          if (editingBgmId) {
+            setPendingDeleteId(editingBgmId);
+          }
+        },
+      };
+    }
+    return () => {
+      if (panelSelection?.panel === 'bgm') {
+        keyboardActionsRef.current = {};
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [editingBgmId, bgms, showToast, handleDuplicate]);
+  }, [editingBgmId, bgms, showToast, handleDuplicate, panelSelection, keyboardActionsRef]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;

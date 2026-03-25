@@ -79,12 +79,13 @@ export const UIStateProvider: React.FC<UIStateProviderProps> = ({
   const clearAllEditing = React.useCallback(() => {
     setEditingPieceId(null);
     setEditingObjectId(undefined);
-    setPanelSelection(null);
     setEditingScene(undefined);
     setEditingCharacter(undefined);
     setEditingCutin(undefined);
     setEditingBgmId(null);
     setEditingScenarioTextId(null);
+    // NOTE: panelSelection は clearAllEditing では触らない。
+    // 選択状態は setPanelSelection で排他的に管理する。
   }, []);
 
   // --- Context value ---

@@ -182,34 +182,25 @@ export function SceneDockPanel() {
     }
   }, [ctx]);
 
-  // Ctrl+C / Ctrl+D / Backspace / Delete
+  // グローバルキーボードショートカットにハンドラ登録
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (window.getSelection()?.toString()) return;
-        // シーンが明示的に選択されている場合のみコピー
-        if (selectedSceneIds.length > 0) {
-          e.preventDefault();
-          handleCopy(selectedSceneIds);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        if (selectedSceneIds.length > 0) {
-          e.preventDefault();
-          handleDuplicateScenes(selectedSceneIds);
-        }
-      } else if (e.key === 'Delete') {
-        if (selectedSceneIds.length > 0 && selectedSceneIds.length < ctx.scenes.length) {
-          e.preventDefault();
-          setPendingDeleteIds(selectedSceneIds);
-        }
+    if (selectedSceneIds.length > 0) {
+      ctx.keyboardActionsRef.current = {
+        copy: () => handleCopy(selectedSceneIds),
+        duplicate: () => handleDuplicateScenes(selectedSceneIds),
+        delete: () => {
+          if (selectedSceneIds.length > 0 && selectedSceneIds.length < ctx.scenes.length) {
+            setPendingDeleteIds(selectedSceneIds);
+          }
+        },
+      };
+    }
+    return () => {
+      if (ctx.panelSelection?.panel === 'scene') {
+        ctx.keyboardActionsRef.current = {};
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedSceneIds, ctx.scenes.length, ctx.room?.active_scene_id, handleCopy, handleDuplicateScenes, handleRemoveScenes]);
+  }, [selectedSceneIds, ctx.scenes.length, handleCopy, handleDuplicateScenes, ctx.panelSelection]);
 
   return (
     <>

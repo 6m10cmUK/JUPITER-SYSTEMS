@@ -14,6 +14,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
 import { ToastContainer } from '../components/Adrastea/ui/Toast';
 import { usePasteHandler } from '../hooks/usePasteHandler';
+import { useGlobalKeyboardShortcuts } from '../hooks/useGlobalKeyboardShortcuts';
 import { pasteSceneFromClipboard, pasteBgmToScene } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
 
@@ -87,6 +88,9 @@ function AdrasteaRoom() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [ctx.undoRedo, can]);
 
+  // グローバルキーボードショートカット（Ctrl+C/D/Delete）
+  useGlobalKeyboardShortcuts();
+
   // クリップボードインポート
   usePasteHandler({
     addCharacter: (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
@@ -101,6 +105,7 @@ function AdrasteaRoom() {
     },
     addScene: (data) => pasteSceneFromClipboard(data, ctx),
     addBgm: (data) => pasteBgmToScene(data, ctx.activeScene?.id ?? null, ctx),
+    addScenarioText: (data) => ctx.addScenarioText(data),
     showToast: ctx.showToast,
     updateObject: ctx.updateObject,
     allObjects: ctx.activeObjects,

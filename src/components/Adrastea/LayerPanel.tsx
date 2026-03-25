@@ -24,6 +24,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     setCharacterToOpenModal,
     getBoardCenter,
     removeObject,
+    keyboardActionsRef,
   } = useAdrasteaContext();
 
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
@@ -50,53 +51,51 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     onPaste,
   });
 
-  // Ctrl+C / Ctrl+D / Backspace / Delete でオブジェクト操作
+  // グローバルキーボードショートカットにハンドラ登録
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (window.getSelection()?.toString()) return;
-        if (selectedObjectIds.length > 0) {
+    if (selectedObjectIds.length > 0 && panelSelection?.panel === 'layer') {
+      keyboardActionsRef.current = {
+        copy: () => {
           const objs = activeObjects.filter(o =>
             selectedObjectIds.includes(o.id) && o.type !== 'characters_layer'
           );
           if (objs.length > 0) {
-            e.preventDefault();
             navigator.clipboard.writeText(objectToClipboardJson(objs));
             showToast(objs.length > 1 ? `${objs.length}件のオブジェクトをコピーしました` : `${objs[0].name} をコピーしました`, 'success');
           }
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        const targets = activeObjects.filter(o =>
-          selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
-        );
-        if (targets.length > 0) {
-          e.preventDefault();
-          Promise.all(targets.map(obj => {
-            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
-            return addObject({
-              ...rest,
-              name: generateDuplicateName(obj.name),
-              sort_order: obj.sort_order + 1,
-            });
-          }));
-        }
-      } else if (e.key === 'Delete') {
-        const targets = activeObjects.filter(o =>
-          selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
-        );
-        if (targets.length > 0) {
-          e.preventDefault();
-          const msg = targets.length > 1 ? `${targets.length}件のオブジェクトを削除しますか？` : `「${targets[0].name}」を削除しますか？`;
-          setPendingRemove({ msg, action: () => Promise.all(targets.map(o => removeObject(o.id))) });
-        }
+        },
+        duplicate: () => {
+          const targets = activeObjects.filter(o =>
+            selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+          );
+          if (targets.length > 0) {
+            Promise.all(targets.map(obj => {
+              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
+              return addObject({
+                ...rest,
+                name: generateDuplicateName(obj.name),
+                sort_order: obj.sort_order + 1,
+              });
+            }));
+          }
+        },
+        delete: () => {
+          const targets = activeObjects.filter(o =>
+            selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
+          );
+          if (targets.length > 0) {
+            const msg = targets.length > 1 ? `${targets.length}件のオブジェクトを削除しますか？` : `「${targets[0].name}」を削除しますか？`;
+            setPendingRemove({ msg, action: () => Promise.all(targets.map(o => removeObject(o.id))) });
+          }
+        },
+      };
+    }
+    return () => {
+      if (panelSelection?.panel === 'layer') {
+        keyboardActionsRef.current = {};
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast]);
+  }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast, panelSelection, keyboardActionsRef]);
 
   const handleImageAdd = useCallback((global: boolean) => {
     setPendingImageAdd({ global });

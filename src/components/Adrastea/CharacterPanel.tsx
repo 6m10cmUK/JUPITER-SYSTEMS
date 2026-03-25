@@ -13,7 +13,6 @@ import { hasRole } from '../../config/permissions';
 interface CharacterPanelProps {
   characters: Character[];
   currentUserId: string;
-  selectedCharId?: string | null;
   selectedCharIds: string[];
   onAddCharacter: () => void;
   onSelectCharacter: (char: Character) => void;
@@ -30,7 +29,6 @@ interface CharacterPanelProps {
 export function CharacterPanel({
   characters,
   currentUserId,
-  selectedCharId,
   selectedCharIds,
   onAddCharacter,
   onSelectCharacter,
@@ -152,7 +150,7 @@ export function CharacterPanel({
             id={char.id}
             onClick={(e: React.MouseEvent) => handleRowClick(e, char)}
             onDoubleClick={() => onDoubleClickCharacter?.(char)}
-            isSelected={char.id === selectedCharId || selectedCharIds.includes(char.id)}
+            isSelected={selectedCharIds.includes(char.id)}
             leadingSlot={
               <div style={{
                 width: '3px',
