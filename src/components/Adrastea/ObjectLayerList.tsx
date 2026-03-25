@@ -262,8 +262,12 @@ export function ObjectLayerList({
   return (
     <div
       data-selection-panel
+      style={{ minHeight: '100%' }}
       onContextMenu={(e) => {
-        // 子要素のstopPropagationで止まらなかった場合 = 空白エリアの右クリック
+        const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
+        if (objEl) return;
+        const charEl = (e.target as HTMLElement).closest('[data-char-id]');
+        if (charEl) return;
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY });
       }}
