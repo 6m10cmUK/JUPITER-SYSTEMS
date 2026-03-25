@@ -48,6 +48,7 @@ export function ObjectLayerList({
     setSelectedObjectIds,
     clearAllEditing,
     setEditingCharacter,
+    removeObject,
   } = useAdrasteaContext();
 
   const {
@@ -233,7 +234,7 @@ export function ObjectLayerList({
       const msg = ids.length > 1 ? `${ids.length}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
       onRemoveRequest(msg, () => {
         for (const id of ids) {
-          activeObjects.find(o => o.id === id);
+          removeObject(id);
         }
       });
     }
