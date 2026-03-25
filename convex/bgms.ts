@@ -55,7 +55,16 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     const role = await getRole(ctx, args.room_id);
     assertMinRole(role, 'sub_owner');
-    await ctx.db.insert("bgms", args);
+
+    // Range validation: clamp numeric fields
+    const data = { ...args };
+    data.bgm_volume = Math.max(0, Math.min(1, data.bgm_volume));
+    data.sort_order = Math.max(0, Math.floor(data.sort_order));
+    if (data.fade_in_duration !== undefined) {
+      data.fade_in_duration = Math.max(0, data.fade_in_duration);
+    }
+
+    await ctx.db.insert("bgms", data);
   },
 });
 
@@ -86,6 +95,18 @@ export const update = mutation({
     if (!doc) throw new Error("BGM not found");
     const role = await getRole(ctx, doc.room_id);
     assertMinRole(role, 'sub_owner');
+
+    // Range validation: clamp numeric fields
+    if (updates.bgm_volume !== undefined) {
+      updates.bgm_volume = Math.max(0, Math.min(1, updates.bgm_volume));
+    }
+    if (updates.sort_order !== undefined) {
+      updates.sort_order = Math.max(0, Math.floor(updates.sort_order));
+    }
+    if (updates.fade_in_duration !== undefined) {
+      updates.fade_in_duration = Math.max(0, updates.fade_in_duration);
+    }
+
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
 });

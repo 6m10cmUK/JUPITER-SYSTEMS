@@ -15,6 +15,24 @@ import type React from 'react';
 
 const iconBtn = { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex' } as const;
 
+function PropertyFooterActions({ onCopy, onDuplicate, children }: {
+  onCopy: () => void;
+  onDuplicate: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <Tooltip label="コピー">
+        <button onClick={onCopy} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
+      </Tooltip>
+      <Tooltip label="複製">
+        <button onClick={onDuplicate} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
+      </Tooltip>
+      {children}
+    </div>
+  );
+}
+
 export function PropertyDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
@@ -67,17 +85,13 @@ export function PropertyDockPanel() {
     }
     if (obj && canDelete) {
       footer = (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="コピー">
-            <button onClick={() => { navigator.clipboard.writeText(objectToClipboardJson(obj)); ctx.showToast(`${obj.name} をコピーしました`, 'success'); }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
-          </Tooltip>
-          <Tooltip label="複製">
-            <button onClick={async () => {
-              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
-              await ctx.addObject({ ...rest, name: `${obj.name} (複製)`, sort_order: obj.sort_order + 1 });
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
-          </Tooltip>
-        </div>
+        <PropertyFooterActions
+          onCopy={() => { navigator.clipboard.writeText(objectToClipboardJson(obj)); ctx.showToast(`${obj.name} をコピーしました`, 'success'); }}
+          onDuplicate={async () => {
+            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
+            await ctx.addObject({ ...rest, name: `${obj.name} (複製)`, sort_order: obj.sort_order + 1 });
+          }}
+        />
       );
     }
   }
@@ -108,18 +122,11 @@ export function PropertyDockPanel() {
         onClose={() => ctx.setEditingCharacter(undefined)}
       />
     );
-    footer = (
-      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-        {liveEditingCharacter && (
-          <Tooltip label="コピー">
-            <button onClick={() => charEditorRef.current?.copyToClipboard()} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
-          </Tooltip>
-        )}
-        {liveEditingCharacter && (
-          <Tooltip label="複製">
-            <button onClick={() => charEditorRef.current?.duplicate()} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
-          </Tooltip>
-        )}
+    footer = liveEditingCharacter ? (
+      <PropertyFooterActions
+        onCopy={() => charEditorRef.current?.copyToClipboard()}
+        onDuplicate={() => charEditorRef.current?.duplicate()}
+      >
         <Tooltip label="保存">
           <button onClick={() => charEditorRef.current?.save()} style={{
             ...iconBtn,
@@ -128,8 +135,8 @@ export function PropertyDockPanel() {
             borderRadius: '4px',
           }}><Save size={16} /></button>
         </Tooltip>
-      </div>
-    );
+      </PropertyFooterActions>
+    ) : null;
     if (ctx.editingCharacter) {
       onDelete = () => { ctx.removeCharacter(ctx.editingCharacter!.id); ctx.setEditingCharacter(undefined); };
     }
@@ -172,17 +179,13 @@ export function PropertyDockPanel() {
       );
       onDelete = () => { ctx.removeBgm(track.id); ctx.setEditingBgmId(null); };
       footer = (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="コピー">
-            <button onClick={() => { navigator.clipboard.writeText(bgmToClipboardJson(track)); ctx.showToast(`${track.name} をコピーしました`, 'success'); }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
-          </Tooltip>
-          <Tooltip label="複製">
-            <button onClick={async () => {
-              const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-              await ctx.addBgm({ ...rest, name: `${track.name} (複製)` });
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
-          </Tooltip>
-        </div>
+        <PropertyFooterActions
+          onCopy={() => { navigator.clipboard.writeText(bgmToClipboardJson(track)); ctx.showToast(`${track.name} をコピーしました`, 'success'); }}
+          onDuplicate={async () => {
+            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+            await ctx.addBgm({ ...rest, name: `${track.name} (複製)` });
+          }}
+        />
       );
     }
   }
@@ -204,25 +207,21 @@ export function PropertyDockPanel() {
         ctx.setEditingScenarioTextId(null);
       };
       footer = (
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="コピー">
-            <button onClick={() => {
-              navigator.clipboard.writeText(JSON.stringify({ kind: 'scenario_text', data: { title: scenarioText.title, content: scenarioText.content, speaker_character_id: scenarioText.speaker_character_id, speaker_name: scenarioText.speaker_name, channel_id: scenarioText.channel_id } }));
-              ctx.showToast(`${scenarioText.title || 'テキストメモ'} をコピーしました`, 'success');
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><Clipboard size={16} /></button>
-          </Tooltip>
-          <Tooltip label="複製">
-            <button onClick={async () => {
-              await ctx.addScenarioText({
-                title: `${scenarioText.title} (複製)`,
-                content: scenarioText.content,
-                speaker_character_id: scenarioText.speaker_character_id,
-                speaker_name: scenarioText.speaker_name,
-                channel_id: scenarioText.channel_id,
-              });
-            }} style={{ ...iconBtn, color: theme.textSecondary }}><CopyPlus size={16} /></button>
-          </Tooltip>
-        </div>
+        <PropertyFooterActions
+          onCopy={() => {
+            navigator.clipboard.writeText(JSON.stringify({ kind: 'scenario_text', data: { title: scenarioText.title, content: scenarioText.content, speaker_character_id: scenarioText.speaker_character_id, speaker_name: scenarioText.speaker_name, channel_id: scenarioText.channel_id } }));
+            ctx.showToast(`${scenarioText.title || 'テキストメモ'} をコピーしました`, 'success');
+          }}
+          onDuplicate={async () => {
+            await ctx.addScenarioText({
+              title: `${scenarioText.title} (複製)`,
+              content: scenarioText.content,
+              speaker_character_id: scenarioText.speaker_character_id,
+              speaker_name: scenarioText.speaker_name,
+              channel_id: scenarioText.channel_id,
+            });
+          }}
+        />
       );
     }
   }

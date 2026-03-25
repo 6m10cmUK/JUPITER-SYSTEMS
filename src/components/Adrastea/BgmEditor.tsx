@@ -8,7 +8,6 @@ interface BgmEditorProps {
   track: BgmTrack;
   activeSceneId: string | null;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
-  onDelete?: () => void;
   onClose: () => void;
 }
 

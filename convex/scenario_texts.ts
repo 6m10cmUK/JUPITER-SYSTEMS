@@ -52,7 +52,12 @@ export const create = mutation({
     if (!identity) throw new Error("Not authenticated");
     const role = await getRole(ctx, args.room_id);
     assertMinRole(role, 'sub_owner');
-    await ctx.db.insert("scenario_texts", args);
+
+    // Range validation: clamp numeric fields
+    const data = { ...args };
+    data.sort_order = Math.max(0, Math.floor(data.sort_order));
+
+    await ctx.db.insert("scenario_texts", data);
   },
 });
 
@@ -78,6 +83,12 @@ export const update = mutation({
     if (!doc) throw new Error("ScenarioText not found");
     const role = await getRole(ctx, doc.room_id);
     assertMinRole(role, 'sub_owner');
+
+    // Range validation: clamp numeric fields
+    if (updates.sort_order !== undefined) {
+      updates.sort_order = Math.max(0, Math.floor(updates.sort_order));
+    }
+
     await ctx.db.patch(doc._id, { ...updates, updated_at: Date.now() });
   },
 });
@@ -131,7 +142,9 @@ export const reorder = mutation({
       if (doc.room_id !== roomId) {
         throw new Error("Cannot reorder documents across different rooms");
       }
-      await ctx.db.patch(doc._id, { sort_order, updated_at: now });
+      // Range validation: clamp sort_order
+      const clampedSortOrder = Math.max(0, Math.floor(sort_order));
+      await ctx.db.patch(doc._id, { sort_order: clampedSortOrder, updated_at: now });
     }
   },
 });
