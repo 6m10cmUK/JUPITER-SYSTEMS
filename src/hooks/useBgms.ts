@@ -96,7 +96,8 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         }
 
         return sorted;
-      } catch {
+      } catch (e) {
+        console.warn('[useBgms] Failed to parse from localStorage:', e instanceof Error ? e.message : e);
         return merged;
       }
     }
@@ -112,7 +113,9 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       const orderedIds = JSON.parse(savedOrder) as string[];
       const filtered = orderedIds.filter((oid) => oid !== id);
       localStorage.setItem(storageKey, JSON.stringify(filtered));
-    } catch { /* ignore */ }
+    } catch (e) {
+      console.warn('[useBgms] Failed to parse from localStorage:', e instanceof Error ? e.message : e);
+    }
   }, [roomId]);
 
   const addBgm = useCallback(

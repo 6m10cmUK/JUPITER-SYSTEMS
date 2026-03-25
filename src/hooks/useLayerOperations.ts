@@ -1,0 +1,178 @@
+import { useCallback } from 'react';
+import { useThrottledCallback } from './useThrottledUpdate';
+import { useAdrasteaContext } from '../contexts/AdrasteaContext';
+import type { BoardObject, BoardObjectType } from '../types/adrastea.types';
+
+export function useLayerOperations() {
+  const {
+    activeObjects,
+    addObject,
+    updateObject,
+    removeObject,
+    selectedObjectIds,
+    setSelectedObjectIds,
+    setEditingObjectId,
+    editingObjectId,
+    clearAllEditing,
+    getBoardCenter,
+    activeScene,
+    layerOrderedCharacters,
+    updateCharacter,
+    addCharacter,
+    removeCharacter,
+    setEditingCharacter,
+    editingCharacter,
+  } = useAdrasteaContext();
+
+  // 削除可能なIDリスト（複数選択時は対象全体、単一時はそのIDのみ）
+  const getDeletableIds = useCallback((triggerObjId: string): string[] => {
+    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(triggerObjId)) {
+      return selectedObjectIds.filter(id => {
+        const o = activeObjects.find(o => o.id === id);
+        return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
+      });
+    }
+    return [triggerObjId];
+  }, [selectedObjectIds, activeObjects]);
+
+  // 複製可能判定
+  const canDuplicate = useCallback((id: string) => {
+    const o = activeObjects.find(o => o.id === id);
+    return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
+  }, [activeObjects]);
+
+  // オブジェクト削除
+  const handleRemoveObjectRaw = useCallback((obj: BoardObject) => {
+    if (obj.type === 'background') return;
+    const ids = getDeletableIds(obj.id);
+    if (ids.length === 0) return;
+    return {
+      msg: ids.length > 1 ? `${ids.length}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？',
+      action: () => {
+        for (const id of ids) removeObject(id);
+        if (ids.length > 1 || editingObjectId === obj.id) clearAllEditing();
+      },
+    };
+  }, [getDeletableIds, removeObject, editingObjectId, clearAllEditing]);
+
+  // オブジェクト複製
+  const handleDuplicate = useCallback(async () => {
+    // キャラクター選択中かつオブジェクトが選択されていない場合
+    if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
+      const { id, created_at, updated_at, ...rest } = editingCharacter;
+      await addCharacter({ ...rest, name: `${editingCharacter.name} (複製)` });
+      return;
+    }
+
+    const targets = selectedObjectIds.length > 0
+      ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
+      : editingObjectId
+        ? activeObjects.filter(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
+        : [];
+    if (targets.length === 0) return;
+    const newIds: string[] = [];
+    for (const obj of targets) {
+      const { id, created_at, updated_at, ...rest } = obj;
+      const newObjId = await addObject({
+        ...rest,
+        name: `${obj.name} (複製)`,
+        sort_order: obj.sort_order + 1,
+      });
+      if (newObjId) newIds.push(newObjId);
+    }
+    if (newIds.length > 0) {
+      setSelectedObjectIds(newIds);
+      setEditingObjectId(newIds[newIds.length - 1]);
+    }
+  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId, editingCharacter, addCharacter]);
+
+  // 表示切替（オブジェクト）
+  const handleToggleVisibleRaw = useCallback((obj: BoardObject) => {
+    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
+      const newVisible = !obj.visible;
+      for (const id of selectedObjectIds) {
+        const o = activeObjects.find(o => o.id === id);
+        if (o) updateObject(id, { visible: newVisible });
+      }
+    } else {
+      updateObject(obj.id, { visible: !obj.visible });
+    }
+  }, [selectedObjectIds, activeObjects, updateObject]);
+  const handleToggleVisible = useThrottledCallback(handleToggleVisibleRaw);
+
+  // 表示切替（キャラクター）
+  const handleToggleCharVisibleRaw = useCallback((charId: string) => {
+    const char = layerOrderedCharacters.find(c => c.id === charId);
+    if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
+  }, [layerOrderedCharacters, updateCharacter]);
+  const handleToggleCharVisible = useThrottledCallback(handleToggleCharVisibleRaw);
+
+  // オブジェクト追加
+  const handleAdd = useCallback(async (global: boolean, type: BoardObjectType, imageData?: { url: string; width?: number; height?: number }) => {
+    const center = getBoardCenter();
+    const nonBg = activeObjects.filter(o => o.type !== 'background');
+    let sortOrder: number;
+    if (editingObjectId) {
+      const selected = nonBg.find(o => o.id === editingObjectId);
+      sortOrder = selected ? selected.sort_order + 1 : (nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0);
+    } else {
+      sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
+    }
+
+    // 画像の比率からグリッド単位のサイズを算出
+    let width = 4;
+    let height = 4;
+    if (imageData?.width && imageData?.height) {
+      const maxGridSize = 10; // 最大10マス
+      const aspect = imageData.width / imageData.height;
+      if (aspect >= 1) {
+        width = maxGridSize;
+        height = Math.max(1, Math.round(maxGridSize / aspect));
+      } else {
+        height = maxGridSize;
+        width = Math.max(1, Math.round(maxGridSize * aspect));
+      }
+    }
+
+    const newObjId = await addObject({
+      type,
+      name: type === 'text' ? '新規テキスト' : '新規オブジェクト',
+      x: center.x,
+      y: center.y,
+      width,
+      height,
+      sort_order: sortOrder,
+      global,
+      scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
+      ...(imageData ? { image_url: imageData.url } : {}),
+    });
+    if (newObjId) {
+      setSelectedObjectIds([newObjId]);
+      setEditingObjectId(newObjId);
+    }
+  }, [activeObjects, editingObjectId, getBoardCenter, activeScene, addObject, setSelectedObjectIds, setEditingObjectId]);
+
+  // キャラクター削除確認用（複製と同じく確認メッセージを返す）
+  const handleRemoveCharacter = useCallback((charId: string) => {
+    const char = layerOrderedCharacters.find(c => c.id === charId);
+    if (!char) return null;
+    return {
+      msg: `キャラクター「${char.name}」を削除しますか？`,
+      action: () => {
+        removeCharacter(charId);
+        setEditingCharacter(undefined);
+      },
+    };
+  }, [layerOrderedCharacters, removeCharacter, setEditingCharacter]);
+
+  return {
+    getDeletableIds,
+    canDuplicate,
+    handleRemoveObject: handleRemoveObjectRaw,
+    handleDuplicate,
+    handleToggleVisible,
+    handleToggleCharVisible,
+    handleAdd,
+    handleRemoveCharacter,
+  };
+}
