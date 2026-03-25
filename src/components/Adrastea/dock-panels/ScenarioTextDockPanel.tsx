@@ -11,16 +11,18 @@ export function ScenarioTextDockPanel() {
     return () => ctx.unregisterPanel('scenarioText');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedId = ctx.panelSelection?.panel === 'scenario_text' ? ctx.panelSelection.ids[0] ?? null : null;
+  const selectedIds = ctx.panelSelection?.panel === 'scenario_text' ? ctx.panelSelection.ids : [];
 
   return (
     <ScenarioTextPanel
       texts={ctx.scenarioTexts}
-      selectedId={selectedId}
-      onSelect={(id) => {
+      selectedIds={selectedIds}
+      onSelectIds={(ids) => {
         ctx.clearAllEditing();
-        ctx.setPanelSelection({ panel: 'scenario_text', ids: [id] });
-        ctx.setEditingScenarioTextId(id);
+        ctx.setPanelSelection(ids.length > 0 ? { panel: 'scenario_text', ids } : null);
+        if (ids.length === 1) {
+          ctx.setEditingScenarioTextId(ids[0]);
+        }
       }}
       keyboardActionsRef={ctx.keyboardActionsRef}
       panelSelection={ctx.panelSelection}
@@ -30,7 +32,9 @@ export function ScenarioTextDockPanel() {
           : 'info';
         ctx.addScenarioText({ title: '新規テキストメモ', content: '', channel_id: lastChannel });
       }}
-      onRemove={ctx.removeScenarioText}
+      onRemove={(ids) => {
+        ids.forEach(id => ctx.removeScenarioText(id));
+      }}
       onReorderTexts={ctx.reorderScenarioTexts}
       onSendToChat={(textId) => {
         const t = ctx.scenarioTexts.find(st => st.id === textId);
@@ -41,24 +45,34 @@ export function ScenarioTextDockPanel() {
         const charAvatar = char?.images[char.active_image_index]?.url ?? null;
         ctx.handleSendMessage(t.content, msgType, charName, charAvatar, t.channel_id ?? undefined);
       }}
-      onCopy={(textId) => {
-        const t = ctx.scenarioTexts.find(st => st.id === textId);
-        if (!t) return;
-        navigator.clipboard.writeText(JSON.stringify({
-          kind: 'scenario_text',
-          data: { title: t.title, content: t.content, speaker_character_id: t.speaker_character_id, speaker_name: t.speaker_name, channel_id: t.channel_id },
-        }));
-        ctx.showToast(`${t.title || 'テキストメモ'} をコピーしました`, 'success');
+      onCopy={(ids) => {
+        const items = ctx.scenarioTexts.filter(t => ids.includes(t.id));
+        if (items.length === 0) return;
+        if (items.length === 1) {
+          const t = items[0];
+          navigator.clipboard.writeText(JSON.stringify({
+            kind: 'scenario_text',
+            data: { title: t.title, content: t.content, speaker_character_id: t.speaker_character_id, speaker_name: t.speaker_name, channel_id: t.channel_id },
+          }));
+          ctx.showToast(`${t.title || 'テキストメモ'} をコピーしました`, 'success');
+        } else {
+          navigator.clipboard.writeText(JSON.stringify({
+            kind: 'scenario_text',
+            data: items.map(t => ({ title: t.title, content: t.content, speaker_character_id: t.speaker_character_id, speaker_name: t.speaker_name, channel_id: t.channel_id })),
+          }));
+          ctx.showToast(`${items.length}件のテキストメモをコピーしました`, 'success');
+        }
       }}
-      onDuplicate={(textId) => {
-        const t = ctx.scenarioTexts.find(st => st.id === textId);
-        if (!t) return;
-        ctx.addScenarioText({
-          title: generateDuplicateName(t.title),
-          content: t.content,
-          speaker_character_id: t.speaker_character_id,
-          speaker_name: t.speaker_name,
-          channel_id: t.channel_id,
+      onDuplicate={(ids) => {
+        const items = ctx.scenarioTexts.filter(t => ids.includes(t.id));
+        items.forEach(t => {
+          ctx.addScenarioText({
+            title: generateDuplicateName(t.title),
+            content: t.content,
+            speaker_character_id: t.speaker_character_id,
+            speaker_name: t.speaker_name,
+            channel_id: t.channel_id,
+          });
         });
       }}
       onPaste={async () => {
