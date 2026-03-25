@@ -24,11 +24,17 @@ export function CharacterDockPanel() {
     }
   }, [ctx.characterToOpenModal, ctx]);
 
-  const handleAddCharacter = () => {
+  const handleAddCharacter = async () => {
     ctx.clearAllEditing();
     const center = ctx.getBoardCenter();
-    ctx.setEditingCharacter(null);
-    setModalChar({ _initBoardPos: center } as any);
+    const newChar = await ctx.addCharacter({
+      owner_id: ctx.user?.uid ?? '',
+      board_visible: true,
+      board_x: center?.x ?? 0,
+      board_y: center?.y ?? 0,
+    });
+    ctx.setEditingCharacter(newChar);
+    setModalChar(newChar);
   };
 
   const handleSelectCharacter = (char: Character) => {
