@@ -15,6 +15,7 @@ interface UseCharacterContextMenuOptions {
   onDuplicate?: (char: Character) => void;
   onRemove?: (charId: string) => void;
   onPaste?: () => void;
+  showUndoRedo?: boolean;
 }
 
 interface UseCharacterContextMenuResult {
@@ -28,7 +29,7 @@ interface UseCharacterContextMenuResult {
  */
 export function useCharacterContextMenu(
   char: Character | null,
-  { currentUserId, onClose, onDuplicate, onRemove, onPaste }: UseCharacterContextMenuOptions
+  { currentUserId, onClose, onDuplicate, onRemove, onPaste, showUndoRedo = false }: UseCharacterContextMenuOptions
 ): UseCharacterContextMenuResult {
   const { can, roomRole } = usePermission();
   const { undoRedo } = useAdrasteaContext();
@@ -89,20 +90,21 @@ export function useCharacterContextMenu(
     },
   });
 
-  items.push('separator');
-
-  items.push({
-    label: '元に戻す',
-    shortcut: shortcutLabel('Z'),
-    disabled: !undoRedo.canUndo || !isSubOwnerPlus,
-    onClick: () => { undoRedo.undo(); onClose(); },
-  });
-  items.push({
-    label: 'やり直し',
-    shortcut: shortcutLabel('⇧Z'),
-    disabled: !undoRedo.canRedo || !isSubOwnerPlus,
-    onClick: () => { undoRedo.redo(); onClose(); },
-  });
+  if (showUndoRedo) {
+    items.push('separator');
+    items.push({
+      label: '元に戻す',
+      shortcut: shortcutLabel('Z'),
+      disabled: !undoRedo.canUndo || !isSubOwnerPlus,
+      onClick: () => { undoRedo.undo(); onClose(); },
+    });
+    items.push({
+      label: 'やり直し',
+      shortcut: shortcutLabel('⇧Z'),
+      disabled: !undoRedo.canRedo || !isSubOwnerPlus,
+      onClick: () => { undoRedo.redo(); onClose(); },
+    });
+  }
 
   const handleConfirmRemove = useCallback(() => {
     if (char) {
