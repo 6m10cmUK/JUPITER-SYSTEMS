@@ -572,6 +572,14 @@ export function BgmPanel() {
             const hasTarget = !!targetId;
             return [
             {
+              label: '新規作成',
+              onClick: () => {
+                setShowAddPicker(true);
+                setContextMenu(null);
+              },
+            },
+            'separator',
+            {
               label: 'コピー',
               shortcut: shortcutLabel('C'),
               disabled: !hasTarget,
