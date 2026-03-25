@@ -336,13 +336,21 @@ export function ObjectLayerList({
           && obj.id !== activeDragId;
         const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
 
-        // characters_layer の位置にキャラクターセクションを描画
+        // characters_layer の位置にキャラクターセクションを描画（DnDドロップターゲットとして機能させる）
         if (obj.type === 'characters_layer') {
-          return characterSection ? (
-            <div key={obj.id} style={{ display: 'contents' }}>
-              {characterSection}
-            </div>
-          ) : null;
+          return (
+            <SortableListItem
+              key={obj.id}
+              id={obj.id}
+              hideHandle
+              isSelected={false}
+              itemStyle={{ padding: 0 }}
+            >
+              <div style={{ width: '100%' }}>
+                {characterSection}
+              </div>
+            </SortableListItem>
+          );
         }
 
         return (
