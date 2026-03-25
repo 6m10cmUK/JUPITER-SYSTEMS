@@ -44,25 +44,12 @@ export function CharacterDockPanel() {
 
   const handleModalCloseWithSave = () => {
     editorRef.current?.save();
-    // handleSave が handleModalClose() を呼ぶので追加の close は不要
-  };
-
-  const handleSave = (data: Partial<Character>) => {
-    if (modalChar && modalChar.id) {
-      ctx.updateCharacter(modalChar.id, data);
-    } else {
-      const initPos = (modalChar as any)?._initBoardPos;
-      ctx.addCharacter({
-        ...data,
-        owner_id: ctx.user?.uid ?? '',
-        board_visible: true,
-        board_x: initPos?.x ?? 0,
-        board_y: initPos?.y ?? 0,
-      });
-    }
     handleModalClose();
   };
 
+  // CharacterEditor が内部で削除を処理するため、現在は使用されていないが、
+  // 将来的に他の削除UX（コンテキストメニューなど）で使用される可能性がある
+  // @ts-expect-error: 将来的な削除UX対応のため保持
   const handleDelete = () => {
     if (modalChar) {
       ctx.removeCharacter(modalChar.id);
@@ -197,12 +184,10 @@ export function CharacterDockPanel() {
             character={modalChar}
             roomId={ctx.roomId}
             currentUserId={ctx.user?.uid ?? ''}
-            onSave={handleSave}
             onDuplicate={(data) => {
               ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' });
               handleModalClose();
             }}
-            onDelete={modalChar ? handleDelete : undefined}
             onClose={handleModalClose}
           />
         </AdModal>
