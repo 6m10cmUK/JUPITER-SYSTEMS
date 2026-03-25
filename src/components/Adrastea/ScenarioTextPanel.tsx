@@ -118,6 +118,7 @@ export function ScenarioTextPanel({
       >
         <SortableListPanel
           title="テキストメモ"
+          onBackgroundClick={() => onSelectIds([])}
           headerActions={
             <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
               <Tooltip label="複製">
