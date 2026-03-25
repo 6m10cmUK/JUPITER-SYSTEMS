@@ -104,6 +104,7 @@ export function ScenarioTextPanel({
   return (
     <>
       <div
+        data-selection-panel
         onContextMenu={(e) => {
           e.preventDefault();
           const el = (e.target as HTMLElement).closest('[data-text-id]');

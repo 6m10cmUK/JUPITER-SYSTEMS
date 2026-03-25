@@ -94,6 +94,7 @@ export function CharacterPanel({
   return (
     <>
     <div
+      data-selection-panel
       onContextMenu={(e) => {
         e.preventDefault();
         const charEl = (e.target as HTMLElement).closest('[data-char-id]');

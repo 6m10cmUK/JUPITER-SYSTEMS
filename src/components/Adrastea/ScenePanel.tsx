@@ -94,6 +94,7 @@ export function ScenePanel({
   return (
     <>
     <div
+      data-selection-panel
       onContextMenu={(e) => {
         e.preventDefault();
         const sceneEl = (e.target as HTMLElement).closest('[data-scene-id]');

@@ -260,11 +260,14 @@ export function ObjectLayerList({
   };
 
   return (
-    <div onContextMenu={(e) => {
-      // 子要素のstopPropagationで止まらなかった場合 = 空白エリアの右クリック
-      e.preventDefault();
-      setContextMenu({ x: e.clientX, y: e.clientY });
-    }}>
+    <div
+      data-selection-panel
+      onContextMenu={(e) => {
+        // 子要素のstopPropagationで止まらなかった場合 = 空白エリアの右クリック
+        e.preventDefault();
+        setContextMenu({ x: e.clientX, y: e.clientY });
+      }}
+    >
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
