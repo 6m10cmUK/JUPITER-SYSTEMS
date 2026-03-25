@@ -444,6 +444,7 @@ export function DropdownMenu({
       ? createPortal(
           <div
             ref={menuRef}
+            data-selection-panel
             style={{
               position: 'fixed',
               top: `${menuPos.top}px`,
@@ -477,6 +478,7 @@ export function DropdownMenu({
       ? createPortal(
           <div
             ref={submenuRef}
+            data-selection-panel
             style={{
               position: 'fixed',
               top: `${submenuPos.top}px`,
