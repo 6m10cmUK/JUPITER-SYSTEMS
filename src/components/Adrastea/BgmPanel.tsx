@@ -409,7 +409,7 @@ export function BgmPanel() {
     if (targetIds.length === 0) return;
     const tracks = bgms.filter(b => targetIds.includes(b.id));
     if (tracks.length > 0) {
-      navigator.clipboard.writeText(bgmToClipboardJson(tracks[0]));
+      navigator.clipboard.writeText(bgmToClipboardJson(tracks));
       showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
     }
     setContextMenu(null);
@@ -455,7 +455,7 @@ export function BgmPanel() {
         copy: () => {
           const tracks = bgms.filter(b => selectedIds.includes(b.id));
           if (tracks.length > 0) {
-            navigator.clipboard.writeText(bgmToClipboardJson(tracks[0]));
+            navigator.clipboard.writeText(bgmToClipboardJson(tracks));
             showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
           }
         },
