@@ -67,7 +67,7 @@ export function ScenarioTextDockPanel() {
           const parsed = JSON.parse(text);
           if (parsed?.kind === 'scenario_text' && parsed.data) {
             await ctx.addScenarioText({
-              title: parsed.data.title ? `${parsed.data.title} (コピー)` : '新規テキストメモ',
+              title: parsed.data.title ? generateDuplicateName(parsed.data.title) : '新規テキストメモ',
               content: parsed.data.content ?? '',
               speaker_character_id: parsed.data.speaker_character_id ?? null,
               speaker_name: parsed.data.speaker_name ?? null,
