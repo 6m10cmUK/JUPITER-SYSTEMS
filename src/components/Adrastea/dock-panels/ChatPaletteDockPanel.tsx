@@ -102,22 +102,6 @@ export function ChatPaletteDockPanel() {
             >
               <button
                 className="adra-btn adra-btn--ghost"
-                onClick={() => handleSendPaletteMessage(item)}
-                style={{
-                  padding: '4px 6px',
-                  borderRadius: 0,
-                  color: theme.accent,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title="送信"
-              >
-                <Send size={14} />
-              </button>
-              <button
-                className="adra-btn adra-btn--ghost"
                 onClick={() => ctx.setChatInjectText(item)}
                 style={{
                   padding: '6px 4px',
@@ -136,6 +120,22 @@ export function ChatPaletteDockPanel() {
                 title={item}
               >
                 {item}
+              </button>
+              <button
+                className="adra-btn adra-btn--ghost"
+                onClick={() => handleSendPaletteMessage(item)}
+                style={{
+                  padding: '4px 6px',
+                  borderRadius: 0,
+                  color: theme.accent,
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+                title="送信"
+              >
+                <Send size={14} />
               </button>
             </div>
           ))}
