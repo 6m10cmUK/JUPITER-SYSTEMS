@@ -100,33 +100,25 @@ export function CharacterDockPanel() {
     });
   }, [ctx]);
 
-  // Ctrl+C / Ctrl+D / Backspace / Delete
+  // グローバルキーボードショートカットにハンドラ登録
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        if (window.getSelection()?.toString()) return;
-        if (selectedCharIds.length > 0) {
-          e.preventDefault();
-          handleCopy(selectedCharIds);
-        }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'd') {
-        if (selectedCharIds.length > 0) {
-          e.preventDefault();
-          handleDuplicateCharacters(selectedCharIds);
-        }
-      } else if (e.key === 'Delete') {
-        if (selectedCharIds.length > 0) {
-          e.preventDefault();
-          setPendingDeleteIds(selectedCharIds);
-        }
+    if (selectedCharIds.length > 0) {
+      ctx.keyboardActionsRef.current = {
+        copy: () => handleCopy(selectedCharIds),
+        duplicate: () => handleDuplicateCharacters(selectedCharIds),
+        delete: () => {
+          if (selectedCharIds.length > 0) {
+            setPendingDeleteIds(selectedCharIds);
+          }
+        },
+      };
+    }
+    return () => {
+      if (ctx.panelSelection?.panel === 'character') {
+        ctx.keyboardActionsRef.current = {};
       }
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [selectedCharIds, handleCopy, handleDuplicateCharacters, handleRemoveCharacters]);
+  }, [selectedCharIds, handleCopy, handleDuplicateCharacters, ctx.panelSelection]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -159,7 +151,6 @@ export function CharacterDockPanel() {
       <CharacterPanel
         characters={ctx.characters}
         currentUserId={ctx.user?.uid ?? ''}
-        selectedCharId={ctx.editingCharacter?.id ?? null}
         selectedCharIds={selectedCharIds}
         onAddCharacter={handleAddCharacter}
         onSelectCharacter={handleSelectCharacter}

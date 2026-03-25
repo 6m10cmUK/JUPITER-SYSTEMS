@@ -18,8 +18,8 @@ export function ScenarioTextDockPanel() {
       texts={ctx.scenarioTexts}
       selectedId={selectedId}
       onSelect={(id) => {
-        ctx.setPanelSelection({ panel: 'scenario_text', ids: [id] });
         ctx.clearAllEditing();
+        ctx.setPanelSelection({ panel: 'scenario_text', ids: [id] });
         ctx.setEditingScenarioTextId(id);
       }}
       keyboardActionsRef={ctx.keyboardActionsRef}

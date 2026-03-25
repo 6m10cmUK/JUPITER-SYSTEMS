@@ -19,7 +19,13 @@ import type { Piece, Scene, Character, BoardObject, BgmTrack } from '../types/ad
 // Types (kept from original)
 // ---------------------------------------------------------------------------
 
-export type PanelSelectionType = 'scene' | 'character' | 'layer';
+export type PanelSelectionType = 'scene' | 'character' | 'layer' | 'bgm' | 'scenario_text';
+
+export interface KeyboardActions {
+  copy?: () => void;
+  duplicate?: () => void;
+  delete?: () => void;
+}
 export interface PanelSelection {
   panel: PanelSelectionType;
   ids: string[];
@@ -174,6 +180,8 @@ export interface AdrasteaContextValue {
   showToast: (message: string, type: 'success' | 'error') => void;
   // Undo/Redo
   undoRedo: UndoRedoHandle;
+  // Keyboard shortcut actions (ref-based registry)
+  keyboardActionsRef: React.MutableRefObject<KeyboardActions>;
   // Demo mode
   isDemo?: boolean;
 }
@@ -260,6 +268,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
 
   // --- Undo/Redo ---
   const undoRedo = useUndoRedo();
+
+  // --- Keyboard actions ref ---
+  const keyboardActionsRef = useRef<KeyboardActions>({});
 
   // --- Auto-save edits ---
   const debounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -427,6 +438,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       toasts,
       showToast,
       undoRedo,
+      keyboardActionsRef,
     };
   }, [
     roomId, roomRole, activeChatChannel, chatInjectText, channels, upsertChannel, deleteChannel,

@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
 import { parseClipboardData } from '../utils/clipboardImport';
+import type { ScenarioTextClipData } from '../utils/clipboardImport';
 import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.types';
 
 export interface UsePasteHandlerOptions {
@@ -7,6 +8,7 @@ export interface UsePasteHandlerOptions {
   addObject?: (data: Partial<BoardObject>) => Promise<any>;
   addScene?: (data: { scene: Partial<Scene>; objects: Partial<BoardObject>[]; bgms: Partial<BgmTrack>[] }[]) => Promise<any>;
   addBgm?: (data: Partial<BgmTrack>) => Promise<any>;
+  addScenarioText?: (data: ScenarioTextClipData) => Promise<any>;
   showToast: (message: string, type: 'success' | 'error') => void;
   updateObject?: (id: string, data: Partial<BoardObject>) => Promise<void>;
   allObjects?: BoardObject[];
@@ -27,6 +29,7 @@ export async function handleClipboardImport(
   updateObject?: (id: string, data: Partial<BoardObject>) => Promise<void>,
   allObjects?: BoardObject[],
   activeSceneId?: string | null,
+  addScenarioText?: (data: ScenarioTextClipData) => Promise<any>,
 ): Promise<void> {
   const result = parseClipboardData(text);
 
@@ -102,13 +105,30 @@ export async function handleClipboardImport(
       showToast('インポートに失敗しました', 'error');
     }
   }
+
+  if (result.type === 'scenario_text') {
+    if (!addScenarioText) return;
+    try {
+      await Promise.all(result.data.map(d => addScenarioText({
+        title: d.title ? `${d.title} (コピー)` : '新規テキストメモ',
+        content: d.content ?? '',
+        speaker_character_id: d.speaker_character_id ?? null,
+        speaker_name: d.speaker_name ?? null,
+        channel_id: d.channel_id ?? null,
+      })));
+      const count = result.data.length;
+      showToast(count > 1 ? `${count}件のテキストメモをインポートしました` : 'テキストメモを貼り付けました', 'success');
+    } catch {
+      showToast('インポートに失敗しました', 'error');
+    }
+  }
 }
 
 /**
  * グローバル paste イベントを監視し、
  * クリップボード内容に応じてキャラクターインポートやトースト表示を行うフック
  */
-export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, showToast, updateObject, allObjects, activeSceneId }: UsePasteHandlerOptions): void {
+export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId }: UsePasteHandlerOptions): void {
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
       // テキスト入力中はスキップ（通常のペースト動作を妨げない）
@@ -136,9 +156,9 @@ export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, sho
       e.preventDefault();
 
       // 非同期でインポート処理
-      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm, updateObject, allObjects, activeSceneId);
+      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm, updateObject, allObjects, activeSceneId, addScenarioText);
     },
-    [addCharacter, addObject, addScene, addBgm, showToast, updateObject, allObjects, activeSceneId],
+    [addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId],
   );
 
   useEffect(() => {
