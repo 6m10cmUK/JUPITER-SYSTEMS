@@ -16,6 +16,7 @@ export interface DropdownMenuItem {
   onClick: () => void;
   disabled?: boolean;
   danger?: boolean;
+  children?: DropdownMenuEntry[];
 }
 
 export type DropdownMenuEntry = DropdownMenuItem | 'separator';
@@ -63,9 +64,13 @@ export function DropdownMenu({
   const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [menuInitialized, setMenuInitialized] = useState(false);
+  const [openSubmenuIndex, setOpenSubmenuIndex] = useState<number | null>(null);
+  const [submenuPos, setSubmenuPos] = useState<{ top: number; left: number } | null>(null);
+  const [hoveredSubmenuIndex, setHoveredSubmenuIndex] = useState<number | null>(null);
 
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const submenuItemRef = useRef<Map<number, HTMLButtonElement>>(new Map());
 
   // mode='trigger' 時は内部状態、mode='context' 時は外部状態を使用
   const isOpen = mode === 'context' ? (externalOpen ?? false) : isOpenInternal;
@@ -80,6 +85,8 @@ export function DropdownMenu({
       } else {
         setMenuPos(null);
         setHoveredIndex(null);
+        setOpenSubmenuIndex(null);
+        setSubmenuPos(null);
       }
     }
   };
@@ -187,11 +194,15 @@ export function DropdownMenu({
         setIsOpenInternal(false);
         setMenuPos(null);
         setHoveredIndex(null);
+        setOpenSubmenuIndex(null);
+        setSubmenuPos(null);
       } else if (mode === 'context') {
         // Context mode: only check menu
         if (!menuRef.current?.contains(target)) {
           onOpenChange?.(false);
           setHoveredIndex(null);
+          setOpenSubmenuIndex(null);
+          setSubmenuPos(null);
         }
       }
     };
@@ -209,15 +220,19 @@ export function DropdownMenu({
         setIsOpenInternal(false);
         setMenuPos(null);
         setHoveredIndex(null);
+        setOpenSubmenuIndex(null);
+        setSubmenuPos(null);
       } else if (mode === 'context') {
         onOpenChange?.(false);
         setHoveredIndex(null);
+        setOpenSubmenuIndex(null);
+        setSubmenuPos(null);
       }
     }
   };
 
   // --- Render menu items ---
-  const renderMenuItems = () => {
+  const renderMenuItems = (depth: number = 0) => {
     return items.map((entry, index) => {
       if (entry === 'separator') {
         return (
@@ -233,12 +248,13 @@ export function DropdownMenu({
       }
 
       const isDisabled = entry.disabled ?? false;
+      const hasChildren = entry.children && entry.children.length > 0;
       const isHovered = hoveredIndex === index;
       const isSelected = selectedId !== undefined && entry.id === selectedId;
 
       // Custom render or default
       let itemContent: React.ReactNode;
-      if (renderItem) {
+      if (renderItem && depth === 0) {
         itemContent = renderItem(entry, isSelected);
       } else {
         itemContent = (
@@ -246,16 +262,55 @@ export function DropdownMenu({
             {entry.icon && <span style={{ display: 'flex', alignItems: 'center' }}>{entry.icon}</span>}
             <span style={{ flex: 1, textAlign: 'left' }}>{entry.label}</span>
             {entry.shortcut && <span style={{ fontSize: '10px', color: theme.textMuted, marginLeft: '16px', flexShrink: 0 }}>{entry.shortcut}</span>}
+            {hasChildren && <span style={{ fontSize: '10px', color: theme.textMuted, marginLeft: '8px', flexShrink: 0 }}>▶</span>}
           </>
         );
       }
 
+      const handleItemMouseEnter = () => {
+        if (!isDisabled) {
+          setHoveredIndex(index);
+          if (hasChildren) {
+            setOpenSubmenuIndex(index);
+            setHoveredSubmenuIndex(null);
+          }
+        }
+      };
+
+      const handleItemMouseLeave = () => {
+        if (!hasChildren) {
+          setHoveredIndex(null);
+          setOpenSubmenuIndex(null);
+          setSubmenuPos(null);
+        } else {
+          // Keep open for submenu
+          setHoveredIndex(null);
+        }
+      };
+
       return (
         <button
           key={entry.id ? `item-${entry.id}` : `item-${index}`}
-          onClick={() => handleItemClick(entry)}
-          onMouseEnter={() => !isDisabled && setHoveredIndex(index)}
-          onMouseLeave={() => setHoveredIndex(null)}
+          ref={(el) => {
+            if (el) {
+              submenuItemRef.current.set(index, el);
+            }
+          }}
+          onClick={() => {
+            if (hasChildren) {
+              // Toggle submenu on click
+              if (openSubmenuIndex === index) {
+                setOpenSubmenuIndex(null);
+                setSubmenuPos(null);
+              } else {
+                setOpenSubmenuIndex(index);
+              }
+            } else {
+              handleItemClick(entry);
+            }
+          }}
+          onMouseEnter={handleItemMouseEnter}
+          onMouseLeave={handleItemMouseLeave}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -280,6 +335,96 @@ export function DropdownMenu({
     });
   };
 
+  // --- Render submenu items ---
+  const renderSubmenuItems = () => {
+    if (openSubmenuIndex === null) return null;
+
+    const parentEntry = items[openSubmenuIndex];
+    if (parentEntry === 'separator' || !parentEntry.children || parentEntry.children.length === 0) {
+      return null;
+    }
+
+    return parentEntry.children.map((subEntry, subIndex) => {
+      if (subEntry === 'separator') {
+        return (
+          <div
+            key={`sub-separator-${subIndex}`}
+            style={{
+              height: '1px',
+              background: theme.border,
+              margin: '4px 0',
+            }}
+          />
+        );
+      }
+
+      const isDisabled = subEntry.disabled ?? false;
+      const isHovered = hoveredSubmenuIndex === subIndex;
+      const isSelected = selectedId !== undefined && subEntry.id === selectedId;
+
+      const itemContent = (
+        <>
+          {subEntry.icon && <span style={{ display: 'flex', alignItems: 'center' }}>{subEntry.icon}</span>}
+          <span style={{ flex: 1, textAlign: 'left' }}>{subEntry.label}</span>
+          {subEntry.shortcut && <span style={{ fontSize: '10px', color: theme.textMuted, marginLeft: '16px', flexShrink: 0 }}>{subEntry.shortcut}</span>}
+        </>
+      );
+
+      return (
+        <button
+          key={subEntry.id ? `sub-item-${subEntry.id}` : `sub-item-${subIndex}`}
+          onClick={() => handleItemClick(subEntry)}
+          onMouseEnter={() => !isDisabled && setHoveredSubmenuIndex(subIndex)}
+          onMouseLeave={() => setHoveredSubmenuIndex(null)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 12px',
+            fontSize: '12px',
+            color: subEntry.danger ? theme.danger : theme.textPrimary,
+            cursor: isDisabled ? 'default' : 'pointer',
+            background:
+              isSelected || (isHovered && !isDisabled) ? theme.bgHover : 'transparent',
+            border: 'none',
+            width: '100%',
+            opacity: isDisabled ? 0.4 : 1,
+            pointerEvents: isDisabled ? 'none' : 'auto',
+            transition: 'background-color 0.15s ease-in-out',
+          }}
+          disabled={isDisabled}
+        >
+          {itemContent}
+        </button>
+      );
+    });
+  };
+
+  // --- Calculate submenu position ---
+  useEffect(() => {
+    if (openSubmenuIndex === null) {
+      setSubmenuPos(null);
+      return;
+    }
+
+    const parentButton = submenuItemRef.current.get(openSubmenuIndex);
+    if (!parentButton) {
+      setSubmenuPos(null);
+      return;
+    }
+
+    const parentRect = parentButton.getBoundingClientRect();
+    let subLeft = parentRect.right + 2;
+    const subTop = parentRect.top;
+
+    // Fallback to left side if right side is out of viewport
+    if (subLeft + 160 > window.innerWidth - 8) {
+      subLeft = parentRect.left - 160 - 2;
+    }
+
+    setSubmenuPos({ top: subTop, left: Math.max(8, subLeft) });
+  }, [openSubmenuIndex]);
+
   // --- Menu portal ---
   const menuElement =
     isOpen && menuPos
@@ -302,7 +447,11 @@ export function DropdownMenu({
               overflowY: 'auto',
               visibility: menuInitialized ? 'visible' : 'hidden',
             }}
-            onMouseLeave={() => setHoveredIndex(null)}
+            onMouseLeave={() => {
+              setHoveredIndex(null);
+              setOpenSubmenuIndex(null);
+              setSubmenuPos(null);
+            }}
           >
             {renderMenuItems()}
           </div>,
@@ -310,13 +459,50 @@ export function DropdownMenu({
         )
       : null;
 
+  // --- Submenu portal ---
+  const submenuElement =
+    isOpen && openSubmenuIndex !== null && submenuPos
+      ? createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              top: `${submenuPos.top}px`,
+              left: `${submenuPos.left}px`,
+              background: theme.bgElevated,
+              border: `1px solid ${theme.border}`,
+              boxShadow: theme.shadowMd,
+              borderRadius: '4px',
+              zIndex: 10011,
+              padding: '4px 0',
+              minWidth: '160px',
+              width: 'max-content',
+              maxHeight: 'calc(100vh - 16px)',
+              overflowY: 'auto',
+            }}
+            onMouseLeave={() => {
+              setOpenSubmenuIndex(null);
+              setSubmenuPos(null);
+              setHoveredSubmenuIndex(null);
+            }}
+          >
+            {renderSubmenuItems()}
+          </div>,
+          document.body
+        )
+      : null;
+
   // --- Render based on mode ---
   if (mode === 'context') {
-    // Context mode: menu only
-    return menuElement;
+    // Context mode: menu + submenu only
+    return (
+      <>
+        {menuElement}
+        {submenuElement}
+      </>
+    );
   }
 
-  // Trigger mode: trigger + menu
+  // Trigger mode: trigger + menu + submenu
   return (
     <>
       <div
@@ -327,6 +513,7 @@ export function DropdownMenu({
         {trigger}
       </div>
       {menuElement}
+      {submenuElement}
     </>
   );
 }
