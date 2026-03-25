@@ -49,6 +49,7 @@ export function ObjectLayerList({
     clearAllEditing,
     setEditingCharacter,
     removeObject,
+    panelSelection,
   } = useAdrasteaContext();
 
   const {
@@ -57,6 +58,7 @@ export function ObjectLayerList({
     getDeletableIds,
     handleDuplicate,
     handleAdd,
+    handleRemoveCharacter,
   } = useLayerOperations();
 
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
@@ -208,13 +210,14 @@ export function ObjectLayerList({
     onPaste,
   });
 
-  const hasDuplicateTargets = selectedObjectIds.length > 0
-    ? selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+  const selectedCharIds = panelSelection?.panel === 'character' ? panelSelection.ids : [];
+  const hasCharSelection = selectedCharIds.length > 0;
 
-  const hasRemoveTargets = selectedObjectIds.length > 0
-    ? selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : false;
+  const hasDuplicateTargets = hasCharSelection
+    || (selectedObjectIds.length > 0 ? selectedObjectIds.every(canDuplicate) : editingObjectId ? canDuplicate(editingObjectId) : false);
+
+  const hasRemoveTargets = hasCharSelection
+    || (selectedObjectIds.length > 0 ? selectedObjectIds.every(canDuplicate) : editingObjectId ? canDuplicate(editingObjectId) : false);
 
   const iconBtnStyle: React.CSSProperties = {
     border: 'none',
@@ -230,6 +233,16 @@ export function ObjectLayerList({
   };
 
   const onRemove = () => {
+    // キャラクター選択中
+    if (hasCharSelection) {
+      const charId = selectedCharIds[0];
+      const result = handleRemoveCharacter(charId);
+      if (result && onRemoveRequest) {
+        onRemoveRequest(result.msg, result.action);
+      }
+      return;
+    }
+    // オブジェクト選択中
     const target = selectedObjectIds.length > 0
       ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
       : editingObjectId
