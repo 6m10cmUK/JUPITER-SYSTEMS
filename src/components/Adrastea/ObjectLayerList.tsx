@@ -544,32 +544,15 @@ export function ObjectLayerList({
         const canRename = renameTarget && renameTarget.type !== 'background' && renameTarget.type !== 'foreground' && renameTarget.type !== 'characters_layer';
         return [
           {
-            label: 'シーン画像追加',
-            onClick: () => {
-              onImageAdd?.(false);
-              setContextMenu(null);
-            },
-          },
-          {
-            label: 'シーンテキスト追加',
-            onClick: () => {
-              handleAdd(false, 'text');
-              setContextMenu(null);
-            },
-          },
-          {
-            label: 'ルーム画像追加',
-            onClick: () => {
-              onImageAdd?.(true);
-              setContextMenu(null);
-            },
-          },
-          {
-            label: 'ルームテキスト追加',
-            onClick: () => {
-              handleAdd(true, 'text');
-              setContextMenu(null);
-            },
+            label: '新規作成',
+            onClick: () => {},
+            children: [
+              { label: 'シーン画像', onClick: () => { onImageAdd?.(false); setContextMenu(null); } },
+              { label: 'シーンテキスト', onClick: () => { handleAdd(false, 'text'); setContextMenu(null); } },
+              'separator',
+              { label: 'ルーム画像', onClick: () => { onImageAdd?.(true); setContextMenu(null); } },
+              { label: 'ルームテキスト', onClick: () => { handleAdd(true, 'text'); setContextMenu(null); } },
+            ],
           },
           'separator',
           {
