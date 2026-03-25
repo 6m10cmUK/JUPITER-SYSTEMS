@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { Cutin } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
+import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { AdInput, AdButton, AdSection, AdSlider, AdColorPicker, AdToggleButtons } from './ui';
 
 interface CutinEditorProps {
@@ -13,6 +14,7 @@ interface CutinEditorProps {
 }
 
 export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose }: CutinEditorProps) {
+  const ctx = useAdrasteaContext();
   const [name, setName] = useState(cutin?.name ?? '');
   const [imageAssetId, setImageAssetId] = useState(cutin?.image_asset_id ?? '');
   const [text, setText] = useState(cutin?.text ?? '');
@@ -53,8 +55,8 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
       <AdSection>
         <AssetPicker
           label="演出画像"
-          currentUrl={imageAssetId || null}
-          onSelect={(url) => setImageAssetId(url)}
+          currentUrl={ctx.resolveAssetId(imageAssetId) || null}
+          onSelect={(_url, assetId) => setImageAssetId(assetId || '')}
         />
       </AdSection>
 

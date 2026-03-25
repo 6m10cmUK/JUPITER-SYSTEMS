@@ -17,6 +17,7 @@ import type * as characters from "../characters.js";
 import type * as cutins from "../cutins.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
+import type * as migrate_assets from "../migrate_assets.js";
 import type * as migrations from "../migrations.js";
 import type * as objects from "../objects.js";
 import type * as pieces from "../pieces.js";
@@ -42,6 +43,7 @@ declare const fullApi: ApiFromModules<{
   cutins: typeof cutins;
   http: typeof http;
   messages: typeof messages;
+  migrate_assets: typeof migrate_assets;
   migrations: typeof migrations;
   objects: typeof objects;
   pieces: typeof pieces;

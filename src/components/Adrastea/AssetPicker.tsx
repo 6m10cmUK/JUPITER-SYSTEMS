@@ -9,7 +9,7 @@ import { AssetLibraryModal } from './AssetLibraryModal';
 
 interface AssetPickerProps {
   currentUrl?: string | null;
-  onSelect: (url: string) => void;
+  onSelect: (url: string, assetId?: string) => void;
   label?: string;
 }
 
@@ -73,8 +73,8 @@ export function AssetPicker({ currentUrl, onSelect, label }: AssetPickerProps) {
 
       {showModal && (
         <AssetLibraryModal
-          onSelect={(url) => {
-            onSelect(url);
+          onSelect={(url, assetId) => {
+            onSelect(url, assetId);
             setShowModal(false);
           }}
           onClose={() => setShowModal(false)}
