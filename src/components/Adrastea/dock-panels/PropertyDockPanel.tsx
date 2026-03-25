@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { theme } from '../../../styles/theme';
@@ -40,6 +40,27 @@ export function PropertyDockPanel() {
   const [pendingDelete, setPendingDelete] = useState<{ msg: string; action: () => void } | null>(null);
   const charEditorRef = useRef<CharacterEditorHandle>(null);
 
+  // シーン切替時: fg/bg 編集中なら新シーンの同タイプに差し替え、それ以外はクリア
+  const effectiveEditingObjectId = useMemo(() => {
+    if (!ctx.editingObjectId) return ctx.editingObjectId;
+    if (ctx.activeObjects.find(o => o.id === ctx.editingObjectId)) return ctx.editingObjectId;
+    // activeObjects に見つからない → シーンが切り替わった
+    const oldObj = ctx.allObjects.find(o => o.id === ctx.editingObjectId);
+    if (oldObj && (oldObj.type === 'foreground' || oldObj.type === 'background')) {
+      // fg/bg は新シーンの同タイプに差し替え
+      const newObj = ctx.activeObjects.find(o => o.type === oldObj.type);
+      if (newObj) return newObj.id;
+    }
+    // シーンオブジェクト等 → クリア
+    return undefined;
+  }, [ctx.editingObjectId, ctx.activeObjects, ctx.allObjects]);
+
+  useEffect(() => {
+    if (effectiveEditingObjectId !== ctx.editingObjectId) {
+      ctx.setEditingObjectId(effectiveEditingObjectId);
+    }
+  }, [effectiveEditingObjectId]);
+
   let content: React.ReactNode = null;
   let footer: React.ReactNode = null;
   let onDelete: (() => void) | undefined;
@@ -62,17 +83,20 @@ export function PropertyDockPanel() {
   }
 
   // ObjectEditor
-  if (!content && ctx.editingObjectId !== undefined && ctx.roomId) {
-    const obj = ctx.editingObjectId ? ctx.activeObjects.find((o) => o.id === ctx.editingObjectId) ?? null : null;
-    const canDelete = ctx.editingObjectId && obj && obj.type !== 'foreground' && obj.type !== 'background' && obj.type !== 'characters_layer';
+  if (!content && effectiveEditingObjectId !== undefined && ctx.roomId) {
+    const obj = effectiveEditingObjectId ? ctx.activeObjects.find((o) => o.id === effectiveEditingObjectId) ?? null : null;
+    const canDelete = effectiveEditingObjectId && obj && obj.type !== 'foreground' && obj.type !== 'background' && obj.type !== 'characters_layer';
+    // fg/bg はシーン切替時に ID が変わるが type ベースのキーで remount を防止
+    const editorKey = obj && (obj.type === 'foreground' || obj.type === 'background')
+      ? `scene-${obj.type}` : (effectiveEditingObjectId ?? 'new-object');
     content = (
       <ObjectEditor
-        key={ctx.editingObjectId ?? 'new-object'}
+        key={editorKey}
         object={obj}
         roomId={ctx.roomId}
         onSave={async (data) => {
-          if (ctx.editingObjectId) {
-            await ctx.updateObject(ctx.editingObjectId, data);
+          if (effectiveEditingObjectId) {
+            await ctx.updateObject(effectiveEditingObjectId, data);
           } else {
             await ctx.addObject(data);
           }
@@ -81,7 +105,7 @@ export function PropertyDockPanel() {
       />
     );
     if (canDelete) {
-      onDelete = () => { ctx.removeObject(ctx.editingObjectId!); ctx.setEditingObjectId(undefined); };
+      onDelete = () => { ctx.removeObject(effectiveEditingObjectId!); ctx.setEditingObjectId(undefined); };
     }
     if (obj && canDelete) {
       footer = (
