@@ -86,8 +86,8 @@ export function SceneDockPanel() {
       const result = await ctx.addScene(
         {
           name: generateDuplicateName(scene.name),
-          background_url: scene.background_url ?? null,
-          foreground_url: scene.foreground_url ?? null,
+          background_asset_id: scene.background_asset_id ?? null,
+          foreground_asset_id: scene.foreground_asset_id ?? null,
           foreground_opacity: scene.foreground_opacity,
           bg_transition: scene.bg_transition,
           bg_transition_duration: scene.bg_transition_duration,

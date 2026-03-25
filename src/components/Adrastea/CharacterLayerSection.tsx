@@ -247,9 +247,9 @@ export function CharacterLayerSection({
                   background: char.color ?? theme.textMuted,
                   overflow: 'hidden',
                 }}>
-                  {char.images[char.active_image_index]?.url ? (
+                  {char.images[char.active_image_index]?.asset_id ? (
                     <img
-                      src={char.images[char.active_image_index].url}
+                      src={char.images[char.active_image_index].asset_id ?? ''}
                       alt={char.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
                     />

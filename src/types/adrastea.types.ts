@@ -24,7 +24,7 @@ export interface Room {
   name: string;
   description?: string;
   active_scene_id: string | null;
-  foreground_url: string | null;
+  thumbnail_asset_id?: string | null;
   active_cutin: ActiveCutin | null;
   dice_system: string;
   gm_can_see_secret_memo: boolean;
@@ -37,8 +37,8 @@ export interface Scene {
   id: string;
   room_id: string;
   name: string;
-  background_url: string | null;
-  foreground_url: string | null;
+  background_asset_id?: string | null;
+  foreground_asset_id?: string | null;
   foreground_opacity: number;
   bg_transition: 'none' | 'fade';
   bg_transition_duration: number;
@@ -59,7 +59,7 @@ export interface PieceStatus {
 }
 
 export interface CharacterImage {
-  url: string;
+  asset_id: string | null;
   label: string;
 }
 
@@ -75,9 +75,9 @@ export interface Piece {
   y: number;
   width: number;
   height: number;
-  image_url: string | null;
   label: string;
   color: string;
+  image_asset_id: string | null;
   z_index: number;
   statuses: PieceStatus[];
   initiative: number;
@@ -140,7 +140,6 @@ export interface BoardObject {
   size_locked: boolean;
 
   // panel用
-  image_url: string | null;
   image_asset_id: string | null;
   background_color: string;
   image_fit: 'contain' | 'cover' | 'stretch';
@@ -184,7 +183,7 @@ export interface Cutin {
   id: string;
   room_id: string;
   name: string;
-  image_url: string | null;
+  image_asset_id?: string | null;
   text: string;
   animation: 'slide' | 'fade' | 'zoom';
   duration: number;
@@ -200,6 +199,7 @@ export interface BgmTrack {
   name: string;
   bgm_type: 'youtube' | 'url' | 'upload' | null;
   bgm_source: string | null;
+  bgm_asset_id?: string | null;
   bgm_volume: number;
   bgm_loop: boolean;
   scene_ids: string[];

@@ -11,7 +11,7 @@ export interface Room {
   name: string;
   dice_system: string;
   tags: string[];
-  thumbnail_url: string | null;
+  thumbnail_asset_id: string | null;
   created_at: number;
   updated_at: number;
 }
@@ -80,7 +80,7 @@ export function useRooms(_uid?: string) {
         name: r.name ?? '',
         dice_system: r.dice_system ?? 'DiceBot',
         tags: loadRoomTags(r.id),
-        thumbnail_url: (r as any).foreground_url ?? null,
+        thumbnail_asset_id: (r as any).thumbnail_asset_id ?? null,
         created_at: r.created_at ?? r._creationTime ?? 0,
         updated_at: r.updated_at ?? r._creationTime ?? 0,
       }))
@@ -141,8 +141,8 @@ export function useRooms(_uid?: string) {
         id: sceneId,
         room_id: id,
         name: 'メイン',
-        background_url: null,
-        foreground_url: null,
+        background_asset_id: null,
+        foreground_asset_id: null,
         foreground_opacity: 0.5,
         bg_transition: 'none',
         bg_transition_duration: 500,
@@ -167,7 +167,7 @@ export function useRooms(_uid?: string) {
             x: -50, y: -50, width: 100, height: 100,
             visible: true, opacity: 1, sort_order: 0,
             position_locked: false, size_locked: false,
-            image_url: null, image_asset_id: null,
+            image_asset_id: null,
             background_color: '#333333', image_fit: 'cover',
             text_content: null, font_size: 16, font_family: 'sans-serif',
             letter_spacing: 0, line_height: 1.2, auto_size: true,
@@ -185,7 +185,7 @@ export function useRooms(_uid?: string) {
             x: -24, y: -14, width: 48, height: 27,
             visible: true, opacity: 1, sort_order: 100,
             position_locked: false, size_locked: false,
-            image_url: null, image_asset_id: null,
+            image_asset_id: null,
             background_color: '#666666', image_fit: 'cover',
             text_content: null, font_size: 16, font_family: 'sans-serif',
             letter_spacing: 0, line_height: 1.2, auto_size: true,
@@ -203,7 +203,7 @@ export function useRooms(_uid?: string) {
             x: 0, y: 0, width: 0, height: 0,
             visible: true, opacity: 1, sort_order: 9999,
             position_locked: true, size_locked: true,
-            image_url: null, image_asset_id: null,
+            image_asset_id: null,
             background_color: 'transparent', image_fit: 'cover',
             text_content: null, font_size: 16, font_family: 'sans-serif',
             letter_spacing: 0, line_height: 1.5, auto_size: false,

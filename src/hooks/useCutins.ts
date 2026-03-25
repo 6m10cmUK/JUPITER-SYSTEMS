@@ -42,7 +42,7 @@ export function useCutins(
     if (inject) return inject.data;
     return (cutinsData ?? []).map((c) => ({
       id: c.id, room_id: c.room_id, name: c.name,
-      image_url: (c as any).image_url ?? null, text: c.text,
+      image_asset_id: (c as any).image_asset_id ?? null, text: c.text,
       animation: c.animation as Cutin['animation'],
       duration: c.duration, text_color: c.text_color,
       background_color: c.background_color,
@@ -58,7 +58,7 @@ export function useCutins(
       const newCutin: Cutin = {
         id, room_id: roomId,
         name: data.name ?? '新規カットイン',
-        image_url: data.image_url ?? null, text: data.text ?? '',
+        image_asset_id: data.image_asset_id ?? null, text: data.text ?? '',
         animation: data.animation ?? 'slide',
         duration: data.duration ?? 3000,
         text_color: data.text_color ?? '#ffffff',
@@ -69,7 +69,7 @@ export function useCutins(
       if (inj) {
         await inj.create(newCutin);
       } else {
-        await createMutation(newCutin);
+        await createMutation(newCutin as any);
       }
       return newCutin;
     },

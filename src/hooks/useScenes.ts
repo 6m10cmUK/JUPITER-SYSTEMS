@@ -73,8 +73,8 @@ export function useScenes(
         id,
         room_id: roomId,
         name: data.name ?? '新しいシーン',
-        background_url: data.background_url ?? null,
-        foreground_url: data.foreground_url ?? null,
+        background_asset_id: data.background_asset_id ?? null,
+        foreground_asset_id: data.foreground_asset_id ?? null,
         foreground_opacity: data.foreground_opacity ?? 0.5,
         bg_transition: data.bg_transition ?? 'none',
         bg_transition_duration: data.bg_transition_duration ?? 500,
@@ -119,7 +119,7 @@ export function useScenes(
           x: -50, y: -50, width: 100, height: 100,
           visible: true, opacity: 1, sort_order: 0,
           position_locked: false, size_locked: false,
-          image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
+          image_asset_id: null, background_color: '#333333', image_fit: 'cover',
           text_content: null, font_size: 16, font_family: 'sans-serif',
           letter_spacing: 0, line_height: 1.2, auto_size: true,
           text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
@@ -136,7 +136,7 @@ export function useScenes(
           x: -24, y: -14, width: 48, height: 27,
           visible: true, opacity: 1, sort_order: fgSort,
           position_locked: false, size_locked: false,
-          image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
+          image_asset_id: null, background_color: '#666666', image_fit: 'cover',
           text_content: null, font_size: 16, font_family: 'sans-serif',
           letter_spacing: 0, line_height: 1.2, auto_size: true,
           text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
@@ -155,7 +155,7 @@ export function useScenes(
             x: 0, y: 0, width: 0, height: 0,
             visible: true, opacity: 1, sort_order: 9999,
             position_locked: true, size_locked: true,
-            image_url: null, image_asset_id: null,
+            image_asset_id: null,
             background_color: 'transparent', image_fit: 'cover',
             text_content: null, font_size: 16, font_family: 'sans-serif',
             letter_spacing: 0, line_height: 1.5, auto_size: false,
@@ -173,7 +173,7 @@ export function useScenes(
           onObjectsCreated?.(createdObjects);
         }
       } else {
-        await createMutation(newScene);
+        await createMutation(newScene as any);
         if (createdObjects.length > 0) {
           await createObjectBatchMutation({ objects: createdObjects });
           onObjectsCreated?.(createdObjects);

@@ -232,22 +232,22 @@ export function ScenePanel({
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px' }}>
             {/* サムネイル: 斜め分割（左2/3 前景、右1/3 背景） */}
             <div style={{ height: '40px', position: 'relative', overflow: 'hidden', background: theme.bgInput, cursor: 'pointer' }}>
-              {scene.background_url && (
+              {scene.background_asset_id && (
                 <div style={{
                   position: 'absolute', inset: 0,
-                  background: `url(${scene.background_url}) center/cover`,
+                  background: `url(${scene.background_asset_id}) center/cover`,
                   clipPath: 'polygon(75% 0, 100% 0, 100% 100%, 55% 100%)',
                   filter: scene.bg_blur ? 'blur(3px)' : undefined,
                 }} />
               )}
-              {scene.foreground_url && (
+              {scene.foreground_asset_id && (
                 <div style={{
                   position: 'absolute', inset: 0,
-                  background: `url(${scene.foreground_url}) center/cover`,
+                  background: `url(${scene.foreground_asset_id}) center/cover`,
                   clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
                 }} />
               )}
-              {!scene.foreground_url && !scene.background_url && (
+              {!scene.foreground_asset_id && !scene.background_asset_id && (
                 <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.textMuted, fontSize: '0.7rem' }}>
                   背景なし
                 </div>

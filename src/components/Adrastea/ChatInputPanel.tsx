@@ -78,7 +78,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
     const charName = senderName.trim() || 'noname';
     if (senderName.trim()) localStorage.setItem('adrastea-last-sender', senderName.trim());
-    const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.url ?? null;
+    const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.asset_id ?? null;
 
     const resolved = resolveTemplateVars(trimmedText, selectedCharacterForIcon);
     onSendMessage(resolved, 'chat', charName, charAvatar);
@@ -128,8 +128,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                   height: '28px',
                   borderRadius: '50%',
                   background: selectedCharacterForIcon
-                    ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url
-                      ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url}) top center/cover ${selectedCharacterForIcon.color}`
+                    ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id
+                      ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id}) top center/cover ${selectedCharacterForIcon.color}`
                       : selectedCharacterForIcon.color
                     : undefined,
                   border: `1px solid ${theme.border}`,
@@ -143,7 +143,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 }}
                 title="キャラクター選択"
               >
-                {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.url ? (
+                {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id ? (
                   <User size={14} color={theme.textSecondary} />
                 ) : null}
               </button>
@@ -167,8 +167,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                     width: '20px', height: '20px', borderRadius: '50%',
                     background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                   }}>
-                    {char?.images[char.active_image_index]?.url && (
-                      <img src={char.images[char.active_image_index].url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                    {char?.images[char.active_image_index]?.asset_id && (
+                      <img src={char.images[char.active_image_index].asset_id ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                     )}
                   </div>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.label}</span>

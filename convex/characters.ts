@@ -57,7 +57,7 @@ export const create = mutation({
     room_id: v.string(),
     owner_id: v.string(),
     name: v.string(),
-    images: v.array(v.object({ url: v.string(), label: v.string() })),
+    images: v.array(v.object({ asset_id: v.union(v.string(), v.null()), label: v.string() })),
     active_image_index: v.number(),
     color: v.string(),
     sheet_url: v.union(v.string(), v.null()),
@@ -208,7 +208,7 @@ export const moveStats = mutation({
 export const updateBase = mutation({
   args: {
     id: v.string(),
-    images: v.optional(v.array(v.object({ url: v.string(), label: v.string() }))),
+    images: v.optional(v.array(v.object({ asset_id: v.union(v.string(), v.null()), label: v.string() }))),
     memo: v.optional(v.string()),
     secret_memo: v.optional(v.string()),
     chat_palette: v.optional(v.string()),

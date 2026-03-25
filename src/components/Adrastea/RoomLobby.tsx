@@ -103,9 +103,7 @@ function SortableRoomCard({
         onClick={onEnter}
         style={{
           height: '120px',
-          background: room.thumbnail_url
-            ? `url(${room.thumbnail_url}) center/cover no-repeat`
-            : `linear-gradient(135deg, ${theme.accentGradientFrom} 0%, ${theme.accentGradientTo} 100%)`,
+          background: `linear-gradient(135deg, ${theme.accentGradientFrom} 0%, ${theme.accentGradientTo} 100%)`,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -113,9 +111,7 @@ function SortableRoomCard({
           borderBottom: `1px solid ${theme.border}`,
         }}
       >
-        {!room.thumbnail_url && (
-          <span style={{ fontSize: '28px', color: theme.textMuted, opacity: 0.3 }}>🎲</span>
-        )}
+        <span style={{ fontSize: '28px', color: theme.textMuted, opacity: 0.3 }}>🎲</span>
       </div>
 
       {/* 情報エリア */}

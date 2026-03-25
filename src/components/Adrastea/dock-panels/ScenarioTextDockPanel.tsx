@@ -47,7 +47,7 @@ export function ScenarioTextDockPanel() {
         const char = t.speaker_character_id ? ctx.characters.find(c => c.id === t.speaker_character_id) : null;
         const msgType = 'chat' as const;
         const charName = t.speaker_name || char?.name;
-        const charAvatar = char?.images[char.active_image_index]?.url ?? null;
+        const charAvatar = char?.images[char.active_image_index]?.asset_id ?? null;
         ctx.handleSendMessage(t.content, msgType, charName, charAvatar, t.channel_id ?? undefined);
       }}
       onCopy={(ids) => {

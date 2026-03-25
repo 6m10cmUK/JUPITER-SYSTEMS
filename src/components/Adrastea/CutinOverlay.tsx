@@ -147,9 +147,9 @@ export function CutinOverlay({ cutins, activeCutin, onCutinEnd }: CutinOverlayPr
           maxWidth: '80vw',
         }}
       >
-        {currentCutin.image_url && (
+        {currentCutin.image_asset_id && (
           <img
-            src={currentCutin.image_url}
+            src={currentCutin.image_asset_id}
             alt=""
             style={{
               maxWidth: '400px',

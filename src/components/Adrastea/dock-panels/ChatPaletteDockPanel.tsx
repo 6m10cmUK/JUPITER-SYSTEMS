@@ -26,7 +26,7 @@ export function ChatPaletteDockPanel() {
   const handleSendPaletteMessage = (text: string) => {
     if (!activeCharacter) return;
     const resolved = resolveTemplateVars(text, activeCharacter);
-    ctx.handleSendMessage(resolved, 'chat', activeCharacter.name, activeCharacter.images[activeCharacter.active_image_index]?.url ?? null);
+    ctx.handleSendMessage(resolved, 'chat', activeCharacter.name, activeCharacter.images[activeCharacter.active_image_index]?.asset_id ?? null);
   };
 
   const handleModalCloseWithSave = () => {

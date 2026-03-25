@@ -14,7 +14,7 @@ interface CutinEditorProps {
 
 export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose }: CutinEditorProps) {
   const [name, setName] = useState(cutin?.name ?? '');
-  const [imageUrl, setImageUrl] = useState(cutin?.image_url ?? '');
+  const [imageAssetId, setImageAssetId] = useState(cutin?.image_asset_id ?? '');
   const [text, setText] = useState(cutin?.text ?? '');
   const [animation, setAnimation] = useState<Cutin['animation']>(cutin?.animation ?? 'slide');
   const [duration, setDuration] = useState(cutin?.duration ?? 3000);
@@ -24,7 +24,7 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
   const handleSave = () => {
     onSave({
       name: name.trim() || '無題',
-      image_url: imageUrl || null,
+      image_asset_id: imageAssetId || null,
       text,
       animation,
       duration,
@@ -53,8 +53,8 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
       <AdSection>
         <AssetPicker
           label="演出画像"
-          currentUrl={imageUrl || null}
-          onSelect={(url) => setImageUrl(url)}
+          currentUrl={imageAssetId || null}
+          onSelect={(url) => setImageAssetId(url)}
         />
       </AdSection>
 

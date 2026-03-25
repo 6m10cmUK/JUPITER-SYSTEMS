@@ -193,9 +193,9 @@ export function CharacterPanel({
             }
           >
             {/* アバター */}
-            {char.images[char.active_image_index]?.url ? (
+            {char.images[char.active_image_index]?.asset_id ? (
               <img
-                src={char.images[char.active_image_index].url}
+                src={char.images[char.active_image_index].asset_id ?? ''}
                 alt={char.name}
                 style={{
                   width: '40px',

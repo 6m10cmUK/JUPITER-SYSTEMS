@@ -9,6 +9,14 @@ import { apiFetch } from '../config/api';
 let assetCache: { uid: string; assets: Asset[] } | null = null;
 let demoCache: Asset[] | null = null;
 
+/** asset_id から URL を解決する。モジュールレベルキャッシュを直接参照。 */
+export function resolveAssetId(assetId: string | null | undefined): string | null {
+  if (!assetId) return null;
+  const assets = assetCache?.assets ?? demoCache ?? [];
+  const asset = assets.find(a => a.id === assetId);
+  return asset?.url ?? null;
+}
+
 export function useAssets(options?: { disabled?: boolean }) {
   const disabled = options?.disabled ?? false;
   const { user } = useAuth();

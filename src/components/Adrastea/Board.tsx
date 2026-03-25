@@ -272,16 +272,16 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
   if (bgObject) {
-    prevBgRef.current = { url: bgObject.image_url, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
+    prevBgRef.current = { url: bgObject.image_asset_id || null, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
   }
 
-  // 背景レイヤー管理: bgObject の image_url 変化でクロスフェード
+  // 背景レイヤー管理: bgObject の image_asset_id 変化でクロスフェード
   const [bgLayers, setBgLayers] = useState<BgLayerData[]>([]);
   const bgKeyRef = useRef(0);
   const prevBgUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const url = bgObject?.image_url ?? null;
+    const url = bgObject?.image_asset_id ?? null;
     const color = bgObject?.background_color ?? 'transparent';
     const opacity = bgObject?.opacity ?? 1;
     const blur = !!activeScene?.bg_blur;
@@ -309,7 +309,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       bgKeyRef.current += 1;
       setBgLayers([{ key: bgKeyRef.current, url, color, blur, opacity }]);
     }
-  }, [bgObject?.image_url, bgObject?.background_color, bgObject?.opacity, activeScene?.bg_blur, bgTransitionDuration]);
+  }, [bgObject?.image_asset_id, bgObject?.background_color, bgObject?.opacity, activeScene?.bg_blur, bgTransitionDuration]);
 
   const fitToScreen = useCallback(() => {
     const stage = stageRef.current;
@@ -524,8 +524,8 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               onDragEnd={(e) => handlePieceDragEnd(piece.id, e)}
               onContextMenu={(e) => handleContextMenu(piece.id, e)}
             >
-              {piece.image_url ? (
-                <PieceImage url={piece.image_url} width={piece.width} height={piece.height} />
+              {piece.image_asset_id ? (
+                <PieceImage url={piece.image_asset_id} width={piece.width} height={piece.height} />
               ) : (
                 <Rect
                   width={piece.width}

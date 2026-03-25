@@ -66,7 +66,7 @@ export const create = mutation({
       name: args.name,
       owner_id: userId,
       active_scene_id: null,
-      foreground_url: null,
+      thumbnail_asset_id: null,
       active_cutin: null,
       dice_system: args.dice_system,
       gm_can_see_secret_memo: args.gm_can_see_secret_memo,
@@ -93,7 +93,7 @@ export const create = mutation({
  *
  * Authorization:
  * - owner: can update all fields
- * - sub_owner: can only update active_scene_id, foreground_url, active_cutin
+ * - sub_owner: can only update active_scene_id, thumbnail_asset_id, active_cutin
  * - user/guest: cannot update
  */
 export const update = mutation({
@@ -102,7 +102,7 @@ export const update = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     active_scene_id: v.optional(v.union(v.string(), v.null())),
-    foreground_url: v.optional(v.union(v.string(), v.null())),
+    thumbnail_asset_id: v.optional(v.union(v.string(), v.null())),
     active_cutin: v.optional(
       v.union(
         v.object({
@@ -164,8 +164,8 @@ export const update = mutation({
     if (args.description !== undefined) updates.description = args.description;
     if (args.active_scene_id !== undefined)
       updates.active_scene_id = args.active_scene_id;
-    if (args.foreground_url !== undefined)
-      updates.foreground_url = args.foreground_url;
+    if (args.thumbnail_asset_id !== undefined)
+      updates.thumbnail_asset_id = args.thumbnail_asset_id;
     if (args.active_cutin !== undefined) updates.active_cutin = args.active_cutin;
     if (args.dice_system !== undefined) updates.dice_system = args.dice_system;
     if (args.gm_can_see_secret_memo !== undefined)

@@ -10,7 +10,6 @@ import { useScenes } from '../hooks/useScenes';
 import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
-import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
@@ -157,17 +156,18 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   useEffect(() => {
     if (preloadDoneRef.current || !initialLoadDone) return;
     preloadDoneRef.current = true;
-    const urls: string[] = [];
-    // シーンの bg/fg URL
+    const assetIds: string[] = [];
+    // シーンの bg/fg asset_id
     for (const s of scenes) {
-      if (s.background_url) urls.push(s.background_url);
-      if (s.foreground_url) urls.push(s.foreground_url);
+      if (s.background_asset_id) assetIds.push(s.background_asset_id);
+      if (s.foreground_asset_id) assetIds.push(s.foreground_asset_id);
     }
-    // オブジェクトの画像
+    // オブジェクトの画像 asset_id
     for (const o of allObjects) {
-      if (o.image_url) urls.push(o.image_url);
+      if (o.image_asset_id) assetIds.push(o.image_asset_id);
     }
-    if (urls.length > 0) preloadImageBlobs(urls);
+    // TODO: asset_id から URL を解決してプリロード
+    // if (assetIds.length > 0) preloadImageBlobs(assetIds);
   }, [initialLoadDone, scenes, allObjects]);
 
   // --- characters_layer 自動生成 ---
@@ -195,7 +195,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
             sort_order: 9999,
             position_locked: true,
             size_locked: true,
-            image_url: null,
             image_asset_id: null,
             background_color: 'transparent',
             image_fit: 'contain',
