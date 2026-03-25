@@ -547,7 +547,7 @@ export function BgmPanel() {
             key={track.id}
             track={track}
             currentSceneId={currentSceneId}
-            isEditing={editingBgmId === track.id}
+            isEditing={panelSelection?.panel === 'bgm' && panelSelection.ids.includes(track.id)}
             onEdit={handleEdit}
             onUpdate={updateBgm}
             onContextMenu={handleContextMenu}
