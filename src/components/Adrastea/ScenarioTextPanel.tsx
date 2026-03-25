@@ -227,39 +227,45 @@ export function ScenarioTextPanel({
         open={contextMenu !== null}
         onOpenChange={(open) => { if (!open) setContextMenu(null); }}
         position={contextMenu ?? { x: 0, y: 0 }}
-        items={[
+        items={(() => {
+          // 右クリック対象が選択済み → 選択全体、未選択 → その1件、なし → 選択全体
+          const targetIds = contextMenu?.textId
+            ? (selectedIds.includes(contextMenu.textId) ? selectedIds : [contextMenu.textId])
+            : selectedIds;
+          const hasTarget = targetIds.length > 0;
+          return [
           {
             label: 'コピー',
             shortcut: shortcutLabel('C'),
-            disabled: !contextMenu?.textId,
+            disabled: !hasTarget,
             onClick: () => {
-              const ids = contextMenu?.textId && selectedIds.includes(contextMenu.textId) ? selectedIds : contextMenu?.textId ? [contextMenu.textId] : [];
-              if (ids.length > 0) onCopy?.(ids);
+              if (hasTarget) onCopy?.(targetIds);
               setContextMenu(null);
             },
           },
           {
             label: '複製',
             shortcut: shortcutLabel('D'),
-            disabled: !contextMenu?.textId || !onDuplicate,
+            disabled: !hasTarget || !onDuplicate,
             onClick: () => {
-              const ids = contextMenu?.textId && selectedIds.includes(contextMenu.textId) ? selectedIds : contextMenu?.textId ? [contextMenu.textId] : [];
-              if (ids.length > 0) onDuplicate?.(ids);
+              if (hasTarget) onDuplicate?.(targetIds);
               setContextMenu(null);
             },
           },
           {
             label: '削除',
             shortcut: 'Del',
-            disabled: !contextMenu?.textId,
+            disabled: !hasTarget,
             danger: true,
             onClick: () => {
-              const ids = contextMenu?.textId && selectedIds.includes(contextMenu.textId) ? selectedIds : contextMenu?.textId ? [contextMenu.textId] : [];
-              if (ids.length > 0) setPendingDeleteIds(ids);
+              if (hasTarget) setPendingDeleteIds(targetIds);
               setContextMenu(null);
             },
           },
-          'separator',
+        ];
+        })()
+        .concat([
+          'separator' as any,
           {
             label: '貼り付け',
             shortcut: shortcutLabel('V'),
@@ -269,7 +275,7 @@ export function ScenarioTextPanel({
               setContextMenu(null);
             },
           },
-        ]}
+        ])}
       />
 
       {pendingDeleteIds && (

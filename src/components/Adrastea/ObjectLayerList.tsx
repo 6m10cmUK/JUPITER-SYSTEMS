@@ -522,24 +522,27 @@ export function ObjectLayerList({
       open={contextMenu !== null}
       onOpenChange={(open) => { if (!open) setContextMenu(null); }}
       position={contextMenu ?? { x: 0, y: 0 }}
-      items={[
-        {
-          label: '名前を変更',
-          disabled: !contextMenu?.objId || (() => {
-            const obj = activeObjects.find(o => o.id === contextMenu?.objId);
-            return !obj || obj.type === 'background' || obj.type === 'foreground' || obj.type === 'characters_layer';
-          })(),
-          onClick: () => {
-            if (contextMenu?.objId) {
-              setRenamingId(contextMenu.objId);
-              const obj = activeObjects.find(o => o.id === contextMenu.objId);
-              if (obj) setRenameValue(obj.name);
-            }
-            setContextMenu(null);
+      items={(() => {
+        // 右クリック対象 or 単一選択中のオブジェクト
+        const renameTargetId = contextMenu?.objId
+          ?? (selectedObjectIds.length === 1 ? selectedObjectIds[0] : undefined);
+        const renameTarget = renameTargetId ? activeObjects.find(o => o.id === renameTargetId) : undefined;
+        const canRename = renameTarget && renameTarget.type !== 'background' && renameTarget.type !== 'foreground' && renameTarget.type !== 'characters_layer';
+        return [
+          {
+            label: '名前を変更',
+            disabled: !canRename,
+            onClick: () => {
+              if (renameTarget && canRename) {
+                setRenamingId(renameTarget.id);
+                setRenameValue(renameTarget.name);
+              }
+              setContextMenu(null);
+            },
           },
-        },
-        ...ctxMenuItems,
-      ]}
+          ...ctxMenuItems,
+        ];
+      })()}
     />
 
     {ctxConfirmModal}

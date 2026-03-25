@@ -311,13 +311,17 @@ export function ScenePanel({
       open={contextMenu !== null}
       onOpenChange={(open) => { if (!open) setContextMenu(null); }}
       position={contextMenu ?? { x: 0, y: 0 }}
-      items={[
+      items={(() => {
+        // 右クリック対象 or 単一選択中のシーン
+        const singleTargetId = contextMenu?.sceneId
+          ?? (selectedSceneIds.length === 1 ? selectedSceneIds[0] : undefined);
+        return [
         {
           label: 'このシーンに切り替え',
-          disabled: !contextMenu?.sceneId || contextMenu.sceneId === activeSceneId,
+          disabled: !singleTargetId || singleTargetId === activeSceneId,
           onClick: () => {
-            if (contextMenu?.sceneId) {
-              onActivateScene(contextMenu.sceneId);
+            if (singleTargetId) {
+              onActivateScene(singleTargetId);
             }
             setContextMenu(null);
           },
@@ -325,10 +329,10 @@ export function ScenePanel({
         'separator',
         {
           label: '名前を変更',
-          disabled: !contextMenu?.sceneId,
+          disabled: !singleTargetId,
           onClick: () => {
-            if (contextMenu?.sceneId) {
-              const scene = scenes.find(s => s.id === contextMenu.sceneId);
+            if (singleTargetId) {
+              const scene = scenes.find(s => s.id === singleTargetId);
               if (scene) {
                 startEdit(scene);
               }
@@ -397,7 +401,7 @@ export function ScenePanel({
             setContextMenu(null);
           },
         },
-      ]}
+      ]; })()}
     />
 
     {pendingRemove && (
