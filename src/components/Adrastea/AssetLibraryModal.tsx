@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import { X, Plus, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
+import { X, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
 
@@ -611,22 +611,14 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           ) : activeTab === 'image' ? (
             /* 画像: グリッド表示 */
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
-              {/* 選択モード時: no image / 管理モード時: ＋追加 */}
-              {onSelect ? (
+              {/* 選択モード時: no image カード */}
+              {onSelect && (
                 <div
                   style={{ ...addCardStyle, aspectRatio: '1', flexDirection: 'column', gap: '4px' }}
                   onClick={() => { onSelect(''); onClose(); }}
                 >
                   <ImageOff size={28} />
                   <span style={{ fontSize: '0.75rem' }}>no image</span>
-                </div>
-              ) : (
-                <div
-                  style={{ ...addCardStyle, aspectRatio: '1', flexDirection: 'column', gap: '4px' }}
-                  onClick={() => setAddMode('pick')}
-                >
-                  <Plus size={28} />
-                  <span style={{ fontSize: '0.75rem' }}>追加</span>
                 </div>
               )}
               {filtered.map((asset) => (
@@ -662,14 +654,6 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
           ) : (
             /* 音声: リスト表示 */
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {/* ＋パネル */}
-              <div
-                style={{ ...addCardStyle, padding: '16px', gap: '8px' }}
-                onClick={() => setAddMode('pick')}
-              >
-                <Plus size={20} />
-                <span style={{ fontSize: '0.8rem' }}>追加</span>
-              </div>
               {filtered.map((asset) => {
                 const isPreviewing = previewingId === asset.id;
                 return (
