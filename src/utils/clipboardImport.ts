@@ -96,7 +96,6 @@ function parseCharacterData(raw: unknown): Partial<Character> {
   if (typeof obj.chat_palette === 'string') result.chat_palette = obj.chat_palette;
   if (typeof obj.is_status_private === 'boolean') result.is_status_private = obj.is_status_private;
   if (typeof obj.is_hidden_on_board === 'boolean') result.is_hidden_on_board = obj.is_hidden_on_board;
-  if (typeof obj.is_speech_hidden === 'boolean') result.is_speech_hidden = obj.is_speech_hidden;
   if (typeof obj.board_x === 'number') result.board_x = obj.board_x;
   if (typeof obj.board_y === 'number') result.board_y = obj.board_y;
   if (typeof obj.board_visible === 'boolean') result.board_visible = obj.board_visible;
@@ -154,7 +153,6 @@ function parseObjectData(raw: unknown): Partial<BoardObject> {
   if (typeof obj.sort_order === 'number') result.sort_order = obj.sort_order;
   if (typeof obj.visible === 'boolean') result.visible = obj.visible;
   if (typeof obj.opacity === 'number') result.opacity = obj.opacity;
-  if (typeof obj.locked === 'boolean') result.locked = obj.locked;
   if (typeof obj.position_locked === 'boolean') result.position_locked = obj.position_locked;
   if (typeof obj.size_locked === 'boolean') result.size_locked = obj.size_locked;
   if (typeof obj.image_url === 'string' || obj.image_url === null) result.image_url = obj.image_url as string | null;
@@ -225,7 +223,7 @@ function objectToData(obj: BoardObject): Record<string, unknown> {
     type: obj.type, name: obj.name,
     x: obj.x, y: obj.y, width: obj.width, height: obj.height,
     visible: obj.visible, opacity: obj.opacity, sort_order: obj.sort_order,
-    locked: obj.locked, position_locked: obj.position_locked, size_locked: obj.size_locked,
+    position_locked: obj.position_locked, size_locked: obj.size_locked,
   };
   if (obj.memo) data.memo = obj.memo;
   if (obj.type === 'text') {

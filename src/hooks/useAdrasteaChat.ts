@@ -19,6 +19,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   );
   const sendMutation = useMutation(api.messages.send);
   const clearMutation = useMutation(api.messages.clearByRoom);
+  const openSecretMutation = useMutation(api.messages.openSecret);
   const token = useAuthToken();
 
   const loading = inject ? false : messagesData === undefined;
@@ -96,12 +97,32 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       try {
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
+        let finalAllowedUserIds = allowedUserIds;
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
           const color = (result.success) ? '#4a90d9' : '#e05555';
           finalContent = `${content} <color=${color}>${result.text}</color>`;
           finalType = 'dice';
+
+          // 秘密ダイスの場合、全員向け通知と送信者向け結果の2メッセージを送信
+          if (result.isSecret && senderUid) {
+            // 1. 全員向け通知メッセージ（allowed_user_ids なし）
+            const notifyId = genId();
+            await sendMutation({
+              id: notifyId,
+              room_id: roomId,
+              sender_name: senderName,
+              content: 'シークレットダイス',
+              message_type: 'dice',
+              sender_uid: senderUid,
+              sender_avatar: senderAvatar,
+              channel,
+            });
+
+            // 2. 送信者のみ向け結果メッセージ
+            finalAllowedUserIds = [senderUid];
+          }
         }
 
         const id = genId();
@@ -114,9 +135,9 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_uid: senderUid,
           sender_avatar: senderAvatar,
           channel,
-          allowed_user_ids: allowedUserIds,
+          allowed_user_ids: finalAllowedUserIds,
         });
-        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: allowedUserIds, created_at: Date.now() } as ChatMessage;
+        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: finalAllowedUserIds, created_at: Date.now() } as ChatMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;
@@ -195,6 +216,13 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     setArchivedMessages([]);
   }, [roomId, clearMutation, token]);
 
+  const openSecretDice = useCallback(
+    async (messageId: string) => {
+      await openSecretMutation({ id: messageId });
+    },
+    [openSecretMutation]
+  );
+
   return {
     messages,
     loading,
@@ -203,5 +231,6 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     sendMessage,
     loadMore,
     clearMessages,
+    openSecretDice,
   };
 }

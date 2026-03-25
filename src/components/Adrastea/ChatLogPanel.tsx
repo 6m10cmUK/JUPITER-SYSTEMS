@@ -18,6 +18,7 @@ import { theme } from '../../styles/theme';
 import { Trash2, MoreVertical, Plus, Download } from 'lucide-react';
 import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
 import { ConfirmModal, DropdownMenu } from './ui';
 import { genId } from '../../utils/id';
@@ -195,6 +196,7 @@ interface ChatLogPanelProps {
   characters?: Character[];
   onLoadMore: () => void | Promise<void>;
   onClearMessages?: () => void;
+  onOpenSecretDice?: (messageId: string) => Promise<void>;
 }
 
 const formatTime = (timestamp: number): string => {
@@ -407,8 +409,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   characters,
   onLoadMore,
   onClearMessages,
+  onOpenSecretDice,
 }) => {
   const { activeChatChannel, setActiveChatChannel, channels, upsertChannel, deleteChannel } = useAdrasteaContext();
+  const { user } = useAuth();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [newChannelName, setNewChannelName] = useState('');
@@ -637,7 +641,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     }
   };
 
-  const renderMessage = (msg: ChatMessage) => {
+  const renderMessage = useCallback((msg: ChatMessage) => {
     const charColor = characters?.find(c => c.name === msg.sender_name)?.color ?? null;
     if (msg.message_type === 'system') {
       return (
@@ -657,6 +661,10 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
 
     if (msg.message_type === 'dice') {
       const accent = getDiceAccentColor(msg.content);
+      const isSecretDice = msg.allowed_user_ids && msg.allowed_user_ids.length > 0;
+      const isSender = user?.uid === msg.sender_uid;
+      const canOpen = isSecretDice && isSender;
+
       return (
         <div
           key={msg.id}
@@ -678,8 +686,36 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 {formatTime(msg.created_at)}
               </span>
             </div>
-            <div style={{ color: theme.textPrimary, fontSize: '12px', marginTop: '1px' }}>
-              {parseContent(msg.content)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+              <div style={{ color: theme.textPrimary, fontSize: '12px', flex: 1 }}>
+                {parseContent(msg.content)}
+              </div>
+              {canOpen && onOpenSecretDice && (
+                <button
+                  type="button"
+                  onClick={() => onOpenSecretDice(msg.id)}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    fontWeight: 500,
+                    color: theme.textPrimary,
+                    background: theme.bgInput,
+                    border: `1px solid ${theme.border}`,
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover ?? theme.bgInput;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput;
+                  }}
+                >
+                  オープン
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -713,7 +749,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         </div>
       </div>
     );
-  };
+  }, [characters, user, onOpenSecretDice]);
 
   return (
     <div

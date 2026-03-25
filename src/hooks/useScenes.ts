@@ -12,11 +12,14 @@ export function useScenes(
   options?: {
     inject?: ScenesInject;
     onObjectsCreated?: OnObjectsCreated;
+    onActivateScene?: (sceneId: string | null) => Promise<void>;
   }
 ) {
-  const { inject, onObjectsCreated } = options ?? {};
+  const { inject, onObjectsCreated, onActivateScene } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
+  const onActivateSceneRef = useRef(onActivateScene);
+  onActivateSceneRef.current = onActivateScene;
 
   const scenesData = useQuery(
     api.scenes.list,
@@ -114,7 +117,7 @@ export function useScenes(
           global: false,
           scene_ids: [id],
           x: -50, y: -50, width: 100, height: 100,
-          visible: true, opacity: 1, sort_order: 0, locked: true,
+          visible: true, opacity: 1, sort_order: 0,
           position_locked: false, size_locked: false,
           image_url: null, image_asset_id: null, background_color: '#333333', image_fit: 'cover',
           text_content: null, font_size: 16, font_family: 'sans-serif',
@@ -131,7 +134,7 @@ export function useScenes(
           global: false,
           scene_ids: [id],
           x: -24, y: -14, width: 48, height: 27,
-          visible: true, opacity: 1, sort_order: fgSort, locked: false,
+          visible: true, opacity: 1, sort_order: fgSort,
           position_locked: false, size_locked: false,
           image_url: null, image_asset_id: null, background_color: '#666666', image_fit: 'cover',
           text_content: null, font_size: 16, font_family: 'sans-serif',
@@ -150,7 +153,7 @@ export function useScenes(
             global: true,
             scene_ids: [],
             x: 0, y: 0, width: 0, height: 0,
-            visible: true, opacity: 1, sort_order: 9999, locked: false,
+            visible: true, opacity: 1, sort_order: 9999,
             position_locked: true, size_locked: true,
             image_url: null, image_asset_id: null,
             background_color: 'transparent', image_fit: 'cover',
@@ -208,9 +211,15 @@ export function useScenes(
     [removeMutation]
   );
 
-  const activateScene = useCallback((_sceneId: string | null) => {
-    // no-op: 呼び出し側で updateRoom を使う
-  }, []);
+  const activateScene = useCallback(
+    async (sceneId: string | null) => {
+      const callback = onActivateSceneRef.current;
+      if (callback) {
+        await callback(sceneId);
+      }
+    },
+    []
+  );
 
   const reorderScenes = useCallback(
     async (orderedIds: string[]) => {

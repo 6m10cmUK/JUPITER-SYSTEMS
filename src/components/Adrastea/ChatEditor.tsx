@@ -66,6 +66,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
     }, []);
 
     const updateSuggestions = useCallback((text: string) => {
+      if (suppressSuggestionRef.current) return;
       if (!text.trim()) {
         setSuggestions([]);
         setSuggestionIndex(-1);
@@ -77,17 +78,22 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
       setSuggestionIndex(matched.length > 0 ? 0 : -1);
     }, [paletteItems]);
 
+    const suppressSuggestionRef = useRef(false);
     const applySuggestion = useCallback((text: string) => {
       const el = editorRef.current;
       if (!el) return;
+      suppressSuggestionRef.current = true;
       isUpdating.current = true;
       el.innerHTML = highlightMarkup(text) || '';
       setCursorOffset(el, text.length);
       isUpdating.current = false;
       setIsEmpty(false);
       setSuggestions([]);
+      setSuggestionIndex(-1);
       // input イベントを発火（外部の onInput ハンドラに変更を通知）
       el.dispatchEvent(new Event('input', { bubbles: true }));
+      // 次の入力までサジェスト抑制を維持
+      requestAnimationFrame(() => { suppressSuggestionRef.current = false; });
     }, []);
 
     const applyHighlight = useCallback(() => {
@@ -336,16 +342,40 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
     );
 
     // サジェスト位置計算
+    // サジェスト選択変更時にスクロール追従
+    useEffect(() => {
+      if (suggestionIndex < 0 || !suggestionRef.current) return;
+      const container = suggestionRef.current;
+      const item = container.children[suggestionIndex] as HTMLElement | undefined;
+      item?.scrollIntoView({ block: 'nearest' });
+    }, [suggestionIndex]);
+
     useEffect(() => {
       if (suggestions.length === 0) {
         setSuggestionPos(null);
         return;
       }
-      const el = editorContainerRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const { top } = calcPopupPos(rect, rect.width, 160, 'up');
-      setSuggestionPos({ top, left: rect.left, width: rect.width });
+      const containerEl = editorContainerRef.current;
+      if (!containerEl) return;
+      const containerRect = containerEl.getBoundingClientRect();
+
+      // カーソル位置を取得
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        const caretRect = range.getBoundingClientRect();
+
+        // caretRect が有効な場合（高さ > 0）はカーソルを基準にする
+        if (caretRect.height > 0) {
+          const { top } = calcPopupPos(caretRect, containerRect.width, 160, 'down');
+          setSuggestionPos({ top, left: containerRect.left, width: containerRect.width });
+          return;
+        }
+      }
+
+      // フォールバック: コンテナ基準
+      const { top } = calcPopupPos(containerRect, containerRect.width, 160, 'down');
+      setSuggestionPos({ top, left: containerRect.left, width: containerRect.width });
     }, [suggestions.length]);
 
     // useImperativeHandle で ref を公開
