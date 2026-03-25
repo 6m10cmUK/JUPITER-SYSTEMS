@@ -10,6 +10,7 @@ import {
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { Character } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
+import { resolveAssetId } from '../../hooks/useAssets';
 import { Users, ChevronRight, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { SortableListItem, Tooltip } from './ui';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
@@ -247,9 +248,9 @@ export function CharacterLayerSection({
                   background: char.color ?? theme.textMuted,
                   overflow: 'hidden',
                 }}>
-                  {char.images[char.active_image_index]?.asset_id ? (
+                  {char.images[char.active_image_index]?.asset_id && resolveAssetId(char.images[char.active_image_index].asset_id) ? (
                     <img
-                      src={char.images[char.active_image_index].asset_id ?? ''}
+                      src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''}
                       alt={char.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
                     />

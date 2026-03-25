@@ -3,6 +3,7 @@ import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konv
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
+import { resolveAssetId } from '../../hooks/useAssets';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
@@ -272,7 +273,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
   if (bgObject) {
-    prevBgRef.current = { url: bgObject.image_asset_id || null, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
+    prevBgRef.current = { url: resolveAssetId(bgObject.image_asset_id) || null, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
   }
 
   // 背景レイヤー管理: bgObject の image_asset_id 変化でクロスフェード
@@ -281,7 +282,8 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const prevBgUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const url = bgObject?.image_asset_id ?? null;
+    const assetId = bgObject?.image_asset_id ?? null;
+    const url = resolveAssetId(assetId);
     const color = bgObject?.background_color ?? 'transparent';
     const opacity = bgObject?.opacity ?? 1;
     const blur = !!activeScene?.bg_blur;
@@ -525,7 +527,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               onContextMenu={(e) => handleContextMenu(piece.id, e)}
             >
               {piece.image_asset_id ? (
-                <PieceImage url={piece.image_asset_id} width={piece.width} height={piece.height} />
+                <PieceImage url={resolveAssetId(piece.image_asset_id) || ''} width={piece.width} height={piece.height} />
               ) : (
                 <Rect
                   width={piece.width}

@@ -9,6 +9,7 @@ import {
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
+import { resolveAssetId } from '../../hooks/useAssets';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
@@ -452,9 +453,9 @@ export function ObjectLayerList({
             }}>
               {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
             </span>
-            {obj.image_asset_id && (
+            {obj.image_asset_id && resolveAssetId(obj.image_asset_id) && (
               <img
-                src={obj.image_asset_id}
+                src={resolveAssetId(obj.image_asset_id) || ''}
                 alt=""
                 style={{
                   flexShrink: 0,

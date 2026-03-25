@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ScenarioText } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { resolveAssetId } from '../../hooks/useAssets';
 import ChatEditor from './ChatEditor';
 import type { ChatEditorHandle } from './ChatEditor';
 import { createPortal } from 'react-dom';
@@ -146,7 +147,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                     background: (() => {
                       const c = ctx.characters.find(ch => ch.id === text.speaker_character_id);
                       if (!c) return undefined;
-                      const asset_id = c.images[c.active_image_index]?.asset_id;
+                      const asset_id = resolveAssetId(c.images[c.active_image_index]?.asset_id);
                       return asset_id ? `url(${asset_id}) top center/cover ${c.color}` : c.color;
                     })(),
                     border: `1px solid ${theme.border}`, flexShrink: 0, cursor: 'pointer',
@@ -155,7 +156,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                   }}
                   title="キャラクター選択"
                 >
-                  {!text.speaker_character_id || !ctx.characters.find(c => c.id === text.speaker_character_id)?.images[ctx.characters.find(c => c.id === text.speaker_character_id)!.active_image_index]?.asset_id ? (
+                  {!text.speaker_character_id || !resolveAssetId(ctx.characters.find(c => c.id === text.speaker_character_id)?.images[ctx.characters.find(c => c.id === text.speaker_character_id)!.active_image_index]?.asset_id) ? (
                     <User size={14} color={theme.textSecondary} />
                   ) : null}
                 </button>
@@ -179,7 +180,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                       background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                     }}>
                       {char?.images[char.active_image_index]?.asset_id && (
-                        <img src={char.images[char.active_image_index].asset_id ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                        <img src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                       )}
                     </div>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.label}</span>
