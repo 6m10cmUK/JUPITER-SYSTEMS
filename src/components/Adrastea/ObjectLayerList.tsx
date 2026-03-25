@@ -480,19 +480,8 @@ export function ObjectLayerList({
           </div>
         );
       })}
-      <DragOverlay>
-        {activeDragId ? (
-          <div style={{
-            padding: '4px 8px',
-            background: theme.bgDeep,
-            border: `1px solid ${theme.border}`,
-            borderRadius: '4px',
-            fontSize: '12px',
-            color: theme.textPrimary,
-          }}>
-            ドラッグ中
-          </div>
-        ) : null}
+      <DragOverlay dropAnimation={null}>
+        <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
       </DragOverlay>
       </SortableContext>
     </SortableListPanel>
