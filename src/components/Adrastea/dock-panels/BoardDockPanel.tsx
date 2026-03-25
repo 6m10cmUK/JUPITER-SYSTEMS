@@ -138,6 +138,15 @@ export function BoardDockPanel() {
           selectedObjectIds={ctx.selectedObjectIds}
           selectedCharacterId={ctx.editingCharacter?.id ?? null}
           onPaste={handlePaste}
+          onSelectBgObject={(id) => {
+            ctx.setSelectedObjectIds([id]);
+            ctx.setEditingObjectId(id);
+          }}
+          onShowToast={ctx.showToast}
+          onUndo={() => ctx.undoRedo.undo()}
+          onRedo={() => ctx.undoRedo.redo()}
+          canUndo={ctx.undoRedo.canUndo}
+          canRedo={ctx.undoRedo.canRedo}
         >
           <MessagePopup message={latestMessage} charColor={latestCharColor} />
         </Board>
