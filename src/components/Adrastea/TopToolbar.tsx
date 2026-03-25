@@ -205,10 +205,20 @@ export function TopToolbar({
       {/* セパレータ */}
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
-      {/* アセット管理 */}
-      <IconButton onClick={() => setShowAssetLibrary(true)} title="アセット管理">
+      {/* アセットライブラリ */}
+      <button
+        onClick={() => setShowAssetLibrary(true)}
+        title="アセットライブラリ"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '4px',
+          background: 'transparent', border: 'none', borderRadius: 0,
+          color: theme.textSecondary, cursor: 'pointer',
+          padding: '2px 6px', fontSize: '0.75rem', whiteSpace: 'nowrap',
+        }}
+      >
         <FolderOpen size={14} />
-      </IconButton>
+        アセットライブラリ
+      </button>
 
       {/* プロフィール設定 */}
       <button
