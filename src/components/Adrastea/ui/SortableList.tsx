@@ -126,13 +126,12 @@ export function SortableListPanel({
         ref={containerRef}
         style={{ flex: 1, overflowY: 'auto' }}
         onClick={(e) => {
-          // アイテム（sortable 要素）外の空白クリック
-          if (!(e.target as HTMLElement).closest('[aria-roledescription="sortable"]') && onBackgroundClick) {
+          if (!(e.target as HTMLElement).closest?.('[data-sortable-item]') && onBackgroundClick) {
             onBackgroundClick();
           }
         }}
         onContextMenu={(e) => {
-          if (!(e.target as HTMLElement).closest('[aria-roledescription="sortable"]') && onBackgroundContextMenu) {
+          if (!(e.target as HTMLElement).closest?.('[data-sortable-item]') && onBackgroundContextMenu) {
             e.preventDefault();
             onBackgroundContextMenu(e);
           }
@@ -284,6 +283,7 @@ export function SortableListItem({
 
   return (
     <div
+      data-sortable-item
       ref={setNodeRef}
       style={style}
       {...attributes}
