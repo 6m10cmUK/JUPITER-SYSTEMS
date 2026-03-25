@@ -8,7 +8,7 @@ import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { FadeInIcon } from './ui/FadeInIcon';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
-  Play, Pause, Square, Trash2, Plus, Music, Copy,
+  Play, Pause, Square, Trash2, Plus, Music,
   Volume2, VolumeX, Repeat, Zap,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -415,19 +415,6 @@ export function BgmPanel() {
     setContextMenu(null);
   }, [contextMenu, bgms, selectedIds, showToast]);
 
-  const handleDuplicate = useCallback(async () => {
-    const targetIds = contextMenu?.trackId
-      ? (selectedIds.includes(contextMenu.trackId) ? selectedIds : [contextMenu.trackId])
-      : selectedIds;
-    if (targetIds.length === 0) return;
-    const tracks = bgms.filter(b => targetIds.includes(b.id));
-    for (const track of tracks) {
-      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-      await addBgm({ ...rest, name: `${track.name} (複製)` });
-    }
-    setContextMenu(null);
-  }, [contextMenu, bgms, selectedIds, addBgm]);
-
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
@@ -457,13 +444,6 @@ export function BgmPanel() {
           if (tracks.length > 0) {
             navigator.clipboard.writeText(bgmToClipboardJson(tracks));
             showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
-          }
-        },
-        duplicate: async () => {
-          const tracks = bgms.filter(b => selectedIds.includes(b.id));
-          for (const track of tracks) {
-            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-            await addBgm({ ...rest, name: `${track.name} (複製)` });
           }
         },
         delete: () => {
@@ -566,26 +546,6 @@ export function BgmPanel() {
               </button>
             </Tooltip>
             <div style={{ width: '1px', height: '14px', background: theme.border, margin: '0 2px', flexShrink: 0 }} />
-            <Tooltip label="複製">
-              <button
-                onClick={() => {
-                  if (selectedIds.length === 0) return;
-                  const tracks = bgms.filter(b => selectedIds.includes(b.id));
-                  tracks.forEach(track => {
-                    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-                    addBgm({ ...rest, name: `${track.name} (複製)` });
-                  });
-                }}
-                disabled={selectedIds.length === 0}
-                style={{
-                  background: 'transparent', border: 'none', cursor: selectedIds.length > 0 ? 'pointer' : 'default',
-                  display: 'flex', alignItems: 'center', padding: '2px 4px',
-                  color: theme.textSecondary, opacity: selectedIds.length > 0 ? 1 : 0.3,
-                }}
-              >
-                <Copy size={15} />
-              </button>
-            </Tooltip>
             <Tooltip label="シーンから除去">
               <button
                 onClick={() => selectedIds.length > 0 && setPendingRemoveIds(selectedIds)}
@@ -662,12 +622,6 @@ export function BgmPanel() {
               shortcut: shortcutLabel('C'),
               disabled: !hasTarget,
               onClick: handleCopy,
-            },
-            {
-              label: targetIds.length > 1 ? `${targetIds.length}件を複製` : '複製',
-              shortcut: shortcutLabel('D'),
-              disabled: !hasTarget,
-              onClick: handleDuplicate,
             },
             'separator',
             {
