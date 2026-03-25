@@ -245,7 +245,7 @@ export function ScenarioTextPanel({
           },
           'separator' as any,
           {
-            label: 'コピー',
+            label: targetIds.length > 1 ? `${targetIds.length}件をコピー` : 'コピー',
             shortcut: shortcutLabel('C'),
             disabled: !hasTarget,
             onClick: () => {
@@ -254,7 +254,7 @@ export function ScenarioTextPanel({
             },
           },
           {
-            label: '複製',
+            label: targetIds.length > 1 ? `${targetIds.length}件を複製` : '複製',
             shortcut: shortcutLabel('D'),
             disabled: !hasTarget || !onDuplicate,
             onClick: () => {
@@ -263,7 +263,7 @@ export function ScenarioTextPanel({
             },
           },
           {
-            label: '削除',
+            label: targetIds.length > 1 ? `${targetIds.length}件を削除` : '削除',
             shortcut: 'Del',
             disabled: !hasTarget,
             danger: true,
