@@ -41,7 +41,6 @@ const objectFields = {
   visible: v.boolean(),
   opacity: v.number(),
   sort_order: v.number(),
-  locked: v.boolean(),
   position_locked: v.boolean(),
   size_locked: v.boolean(),
   image_url: v.union(v.string(), v.null()),
@@ -59,6 +58,7 @@ const objectFields = {
   text_color: v.string(),
   scale_x: v.number(),
   scale_y: v.number(),
+  memo: v.optional(v.string()),
   created_at: v.number(),
   updated_at: v.number(),
 };
@@ -113,7 +113,6 @@ export const update = mutation({
     visible: v.optional(v.boolean()),
     opacity: v.optional(v.number()),
     sort_order: v.optional(v.number()),
-    locked: v.optional(v.boolean()),
     position_locked: v.optional(v.boolean()),
     size_locked: v.optional(v.boolean()),
     image_url: v.optional(v.union(v.string(), v.null())),
