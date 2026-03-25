@@ -126,12 +126,13 @@ export function SortableListPanel({
         ref={containerRef}
         style={{ flex: 1, overflowY: 'auto' }}
         onClick={(e) => {
-          if (e.currentTarget === e.target && onBackgroundClick) {
+          // アイテム（sortable 要素）外の空白クリック
+          if (!(e.target as HTMLElement).closest('[aria-roledescription="sortable"]') && onBackgroundClick) {
             onBackgroundClick();
           }
         }}
         onContextMenu={(e) => {
-          if (e.currentTarget === e.target && onBackgroundContextMenu) {
+          if (!(e.target as HTMLElement).closest('[aria-roledescription="sortable"]') && onBackgroundContextMenu) {
             e.preventDefault();
             onBackgroundContextMenu(e);
           }
