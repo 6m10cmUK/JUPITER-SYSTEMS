@@ -450,20 +450,28 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       } else if (direction === 'undo' && entry.operation === 'remove') {
         // undo remove = re-add with same ID
         switch (entry.entityType) {
-          case 'object': await addObject(data as any); break;
-          case 'character': await addCharacter(data as any); break;
-          case 'scene': await addScene(data as any); break;
-          case 'bgm': await addBgm(data as any); break;
-          case 'piece': await addPiece((data as any).label ?? '', (data as any).color ?? '#888', (data as any).x ?? 0, (data as any).y ?? 0); break;
+          case 'object': await addObject(data as Partial<BoardObject>); break;
+          case 'character': await addCharacter(data as Partial<Character>); break;
+          case 'scene': await addScene(data as Partial<Scene>); break;
+          case 'bgm': await addBgm(data as Partial<BgmTrack>); break;
+          case 'piece': {
+            const p = data as Partial<Piece>;
+            await addPiece(p.label ?? '', p.color ?? '#888', p.x ?? 0, p.y ?? 0);
+            break;
+          }
         }
       } else if (direction === 'redo' && entry.operation === 'add') {
         // redo add = re-add
         switch (entry.entityType) {
-          case 'object': await addObject(data as any); break;
-          case 'character': await addCharacter(data as any); break;
-          case 'scene': await addScene(data as any); break;
-          case 'bgm': await addBgm(data as any); break;
-          case 'piece': await addPiece((data as any).label ?? '', (data as any).color ?? '#888', (data as any).x ?? 0, (data as any).y ?? 0); break;
+          case 'object': await addObject(data as Partial<BoardObject>); break;
+          case 'character': await addCharacter(data as Partial<Character>); break;
+          case 'scene': await addScene(data as Partial<Scene>); break;
+          case 'bgm': await addBgm(data as Partial<BgmTrack>); break;
+          case 'piece': {
+            const p = data as Partial<Piece>;
+            await addPiece(p.label ?? '', p.color ?? '#888', p.x ?? 0, p.y ?? 0);
+            break;
+          }
         }
       } else if (direction === 'redo' && entry.operation === 'remove') {
         // redo remove = remove again
@@ -477,11 +485,11 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       } else {
         // update (undo = before, redo = after)
         switch (entry.entityType) {
-          case 'object': await updateObject(entry.entityId, data as any); break;
-          case 'character': await updateCharacter(entry.entityId, data as any); break;
-          case 'scene': await updateScene(entry.entityId, data as any); break;
-          case 'bgm': await updateBgm(entry.entityId, data as any); break;
-          case 'piece': await updatePiece(entry.entityId, data as any); break;
+          case 'object': await updateObject(entry.entityId, data as Partial<BoardObject>); break;
+          case 'character': await updateCharacter(entry.entityId, data as Partial<Character>); break;
+          case 'scene': await updateScene(entry.entityId, data as Partial<Scene>); break;
+          case 'bgm': await updateBgm(entry.entityId, data as Partial<BgmTrack>); break;
+          case 'piece': await updatePiece(entry.entityId, data as Partial<Piece>); break;
         }
       }
     } finally {
@@ -830,16 +838,16 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   roomRoleRef.current = roomRole;
 
   /** パーミッションチェック付きで関数を実行。権限なしの場合はwarnしてno-op */
-  const withPermission = useCallback(<T extends unknown[]>(
+  const withPermission = useCallback(<F extends (...args: any[]) => any>(
     permission: PermissionKey,
-    fn: (...args: T) => unknown,
-  ) => (...args: T) => {
+    fn: F,
+  ): F => ((...args: Parameters<F>) => {
     if (!checkPermission(roomRoleRef.current, permission)) {
       console.warn(`[Permission] denied: ${permission} (role: ${roomRoleRef.current})`);
       return;
     }
     return fn(...args);
-  }, []);
+  }) as F, []);
 
   // --- Callbacks ---
   const handleSendMessage = useCallback(
@@ -963,28 +971,28 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, []);
 
   // --- Permission guarded functions ---
-  const guardedAddScene       = withPermission('scene_edit',     addScene) as any;
-  const guardedUpdateScene    = withPermission('scene_edit',     updateScene) as any;
-  const guardedRemoveScene    = withPermission('scene_edit',     removeScene) as any;
-  const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes) as any;
-  const guardedAddObject      = withPermission('object_edit',    addObject) as any;
-  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject) as any;
-  const guardedMoveObject     = withPermission('object_move',    syncedUpdateObject) as any;
-  const guardedRemoveObject   = withPermission('object_edit',    removeObject) as any;
-  const guardedReorderObjects = withPermission('object_edit',    reorderObjects) as any;
-  const guardedBatchSort      = withPermission('object_edit',    batchUpdateSort) as any;
-  const guardedAddCharacter   = withPermission('character_edit', (data: any) => addCharacter({ ...data, owner_id: user?.uid ?? '' })) as any;
-  const guardedUpdateCharacter= withPermission('character_edit', updateCharacter) as any;
-  const guardedMoveCharacter  = withPermission('object_move', moveCharacter) as any;
-  const guardedRemoveCharacter= withPermission('character_edit', removeCharacter) as any;
-  const guardedAddBgm         = withPermission('bgm_manage',     addBgm) as any;
-  const guardedUpdateBgm      = withPermission('bgm_manage',     updateBgm) as any;
-  const guardedRemoveBgm      = withPermission('bgm_manage',     removeBgm) as any;
-  const guardedAddCutin       = withPermission('cutin_manage',   addCutin) as any;
-  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin) as any;
-  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin) as any;
-  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin) as any;
-  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage) as any;
+  const guardedAddScene       = withPermission('scene_edit',     addScene);
+  const guardedUpdateScene    = withPermission('scene_edit',     updateScene);
+  const guardedRemoveScene    = withPermission('scene_edit',     removeScene);
+  const guardedReorderScenes  = withPermission('scene_edit',     reorderScenes);
+  const guardedAddObject      = withPermission('object_edit',    addObject);
+  const guardedUpdateObject   = withPermission('object_edit',    syncedUpdateObject);
+  const guardedMoveObject     = withPermission('object_move',    syncedUpdateObject);
+  const guardedRemoveObject   = withPermission('object_edit',    removeObject);
+  const guardedReorderObjects = withPermission('object_edit',    reorderObjects);
+  const guardedBatchSort      = withPermission('object_edit',    batchUpdateSort);
+  const guardedAddCharacter   = withPermission('character_edit', (data: any) => addCharacter({ ...data, owner_id: user?.uid ?? '' }));
+  const guardedUpdateCharacter= withPermission('character_edit', updateCharacter);
+  const guardedMoveCharacter  = withPermission('object_move', moveCharacter);
+  const guardedRemoveCharacter= withPermission('character_edit', removeCharacter);
+  const guardedAddBgm         = withPermission('bgm_manage',     addBgm);
+  const guardedUpdateBgm      = withPermission('bgm_manage',     updateBgm);
+  const guardedRemoveBgm      = withPermission('bgm_manage',     removeBgm);
+  const guardedAddCutin       = withPermission('cutin_manage',   addCutin);
+  const guardedUpdateCutin    = withPermission('cutin_manage',   updateCutin);
+  const guardedRemoveCutin    = withPermission('cutin_manage',   removeCutin);
+  const guardedTriggerCutin   = withPermission('cutin_manage',   triggerCutin);
+  const guardedSendMessage    = withPermission('chat_send',      handleSendMessage);
 
   // --- Context value ---
   const value = useMemo<AdrasteaContextValue>(
@@ -1135,20 +1143,20 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // Rooms/Pieces
     pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom,
     // Chat
-    messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage as any,
+    messages, chatLoading, loadingMore, hasMore, sendMessage, loadMore, clearMessages, handleSendMessage: guardedSendMessage,
     activeSpeakerCharId, setActiveSpeakerCharId,
     // Scenes
-    scenes: effectiveScenes, addScene: guardedAddScene as any, updateScene: guardedUpdateScene as any, removeScene: guardedRemoveScene as any, reorderScenes: guardedReorderScenes as any, activateScene: safeActivateScene,
+    scenes: effectiveScenes, addScene: guardedAddScene, updateScene: guardedUpdateScene, removeScene: guardedRemoveScene, reorderScenes: guardedReorderScenes, activateScene: safeActivateScene,
     // Characters
-    characters, layerOrderedCharacters, addCharacter: guardedAddCharacter as any, updateCharacter: guardedUpdateCharacter as any, removeCharacter: guardedRemoveCharacter as any, reorderCharacters: withPermission('character_edit', reorderCharacters) as any, reorderLayerCharacters,
+    characters, layerOrderedCharacters, addCharacter: guardedAddCharacter, updateCharacter: guardedUpdateCharacter, removeCharacter: guardedRemoveCharacter, reorderCharacters: withPermission('character_edit', reorderCharacters), reorderLayerCharacters,
     // Objects
-    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject as any, updateObject: guardedUpdateObject as any, moveObject: guardedMoveObject as any, removeObject: guardedRemoveObject as any, reorderObjects: guardedReorderObjects as any, batchUpdateSort: guardedBatchSort as any, injectOptimistic,
+    allObjects, activeObjects: effectiveActiveObjects, addObject: guardedAddObject, updateObject: guardedUpdateObject, moveObject: guardedMoveObject, removeObject: guardedRemoveObject, reorderObjects: guardedReorderObjects, batchUpdateSort: guardedBatchSort, injectOptimistic,
     // ScenarioTexts
     scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     // Cutins
-    cutins, addCutin: guardedAddCutin as any, updateCutin: guardedUpdateCutin as any, removeCutin: guardedRemoveCutin as any, reorderCutins, triggerCutin: guardedTriggerCutin as any, clearCutin,
+    cutins, addCutin: guardedAddCutin, updateCutin: guardedUpdateCutin, removeCutin: guardedRemoveCutin, reorderCutins, triggerCutin: guardedTriggerCutin, clearCutin,
     // BGMs
-    bgms, addBgm: guardedAddBgm as any, updateBgm: guardedUpdateBgm as any, removeBgm: guardedRemoveBgm as any, reorderBgms: withPermission('bgm_manage', reorderBgms) as any,
+    bgms, addBgm: guardedAddBgm, updateBgm: guardedUpdateBgm, removeBgm: guardedRemoveBgm, reorderBgms: withPermission('bgm_manage', reorderBgms),
     // Derived
     activeScene,
   }), [

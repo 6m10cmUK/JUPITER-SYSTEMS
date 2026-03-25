@@ -178,12 +178,25 @@ function parseObjectData(raw: unknown): Partial<BoardObject> {
 }
 
 /**
+ * メタフィールド（ID、作成日時、更新日時等）を除去する共通ユーティリティ
+ */
+const META_KEYS = ['id', '_id', '_creationTime', 'room_id', 'created_at', 'updated_at', 'sort_order'] as const;
+
+function stripMeta<T extends Record<string, unknown>>(obj: T, extraKeys: string[] = []): Record<string, unknown> {
+  const keysToRemove = new Set<string>([...META_KEYS, ...extraKeys]);
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (!keysToRemove.has(k)) result[k] = v;
+  }
+  return result;
+}
+
+/**
  * Character をクリップボード JSON 文字列に変換する。
  * Adrastea ネイティブフィールドをすべて含み、iachara 互換フィールドも付与する。
  */
 function characterToData(char: Character): Record<string, unknown> {
-  const { id, _id, _creationTime, room_id, owner_id, created_at, updated_at, sort_order, ...rest } = char as any;
-  const data: Record<string, unknown> = { ...rest };
+  const data: Record<string, unknown> = stripMeta(char as any, ['owner_id']);
   data.iconUrl = char.images?.[char.active_image_index ?? 0]?.url ?? null;
   data.externalUrl = char.sheet_url ?? null;
   if (char.statuses && char.statuses.length > 0) {
@@ -290,8 +303,7 @@ function parseBgmData(raw: unknown): Partial<BgmTrack> {
  * scene_ids, auto_play_scene_ids, is_playing, is_paused 等の再生状態は含めない。
  */
 function bgmToData(bgm: BgmTrack): Record<string, unknown> {
-  const { id, _id, _creationTime, room_id, created_at, updated_at, scene_ids, auto_play_scene_ids, is_playing, is_paused, sort_order, ...rest } = bgm as any;
-  return rest;
+  return stripMeta(bgm as any, ['scene_ids', 'auto_play_scene_ids', 'is_playing', 'is_paused']);
 }
 
 export function bgmToClipboardJson(bgms: BgmTrack | BgmTrack[]): string {
@@ -304,7 +316,7 @@ export function bgmToClipboardJson(bgms: BgmTrack | BgmTrack[]): string {
  * Scene とそのシーンに属するオブジェクト群をクリップボード JSON に変換する。
  */
 function sceneToData(scene: Scene, sceneObjects: BoardObject[], sceneBgms: BgmTrack[]): Record<string, unknown> {
-  const { id, _id, _creationTime, room_id, created_at, updated_at, sort_order, ...sceneRest } = scene as any;
+  const sceneRest = stripMeta(scene as any);
   const objs = sceneObjects
     .filter(o => o.type !== 'characters_layer')
     .map(o => objectToData(o));
