@@ -71,6 +71,22 @@ export function DropdownMenu({
   const triggerRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const submenuItemRef = useRef<Map<number, HTMLButtonElement>>(new Map());
+  const submenuCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSubmenuClose = () => {
+    if (submenuCloseTimer.current) clearTimeout(submenuCloseTimer.current);
+    submenuCloseTimer.current = setTimeout(() => {
+      setOpenSubmenuIndex(null);
+      setSubmenuPos(null);
+      setHoveredSubmenuIndex(null);
+    }, 150);
+  };
+  const cancelSubmenuClose = () => {
+    if (submenuCloseTimer.current) {
+      clearTimeout(submenuCloseTimer.current);
+      submenuCloseTimer.current = null;
+    }
+  };
 
   // mode='trigger' 時は内部状態、mode='context' 時は外部状態を使用
   const isOpen = mode === 'context' ? (externalOpen ?? false) : isOpenInternal;
@@ -269,6 +285,7 @@ export function DropdownMenu({
 
       const handleItemMouseEnter = () => {
         if (!isDisabled) {
+          cancelSubmenuClose();
           setHoveredIndex(index);
           if (hasChildren) {
             setOpenSubmenuIndex(index);
@@ -449,8 +466,7 @@ export function DropdownMenu({
             }}
             onMouseLeave={() => {
               setHoveredIndex(null);
-              setOpenSubmenuIndex(null);
-              setSubmenuPos(null);
+              scheduleSubmenuClose();
             }}
           >
             {renderMenuItems()}
@@ -479,11 +495,8 @@ export function DropdownMenu({
               maxHeight: 'calc(100vh - 16px)',
               overflowY: 'auto',
             }}
-            onMouseLeave={() => {
-              setOpenSubmenuIndex(null);
-              setSubmenuPos(null);
-              setHoveredSubmenuIndex(null);
-            }}
+            onMouseEnter={cancelSubmenuClose}
+            onMouseLeave={scheduleSubmenuClose}
           >
             {renderSubmenuItems()}
           </div>,
