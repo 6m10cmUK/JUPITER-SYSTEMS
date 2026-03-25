@@ -182,14 +182,20 @@ export function ObjectLayerList({
 
   // コンテキストメニューの targets 計算
   const ctxTargets = (() => {
-    if (!contextMenu?.objId) return [];
-    const ctxObj = activeObjects.find(o => o.id === contextMenu.objId);
-    if (!ctxObj) return [];
-    // 右クリックしたオブジェクトが選択中に含まれていれば選択中全体を対象にする
-    if (selectedObjectIds.includes(contextMenu.objId) && selectedObjectIds.length > 1) {
+    if (contextMenu?.objId) {
+      const ctxObj = activeObjects.find(o => o.id === contextMenu.objId);
+      if (!ctxObj) return [];
+      // 右クリックしたオブジェクトが選択中に含まれていれば選択中全体を対象にする
+      if (selectedObjectIds.includes(contextMenu.objId) && selectedObjectIds.length > 1) {
+        return activeObjects.filter(o => selectedObjectIds.includes(o.id));
+      }
+      return [ctxObj];
+    }
+    // 空白エリア右クリック: 選択中オブジェクトがあればそれを対象にする
+    if (selectedObjectIds.length > 0) {
       return activeObjects.filter(o => selectedObjectIds.includes(o.id));
     }
-    return [ctxObj];
+    return [];
   })();
 
   // useObjectContextMenu hook
@@ -241,7 +247,11 @@ export function ObjectLayerList({
   };
 
   return (
-    <>
+    <div onContextMenu={(e) => {
+      // 子要素のstopPropagationで止まらなかった場合 = 空白エリアの右クリック
+      e.preventDefault();
+      setContextMenu({ x: e.clientX, y: e.clientY });
+    }}>
     <DndContext
       sensors={sensors}
       collisionDetection={closestCenter}
@@ -521,6 +531,6 @@ export function ObjectLayerList({
 
     {ctxConfirmModal}
     </DndContext>
-    </>
+    </div>
   );
 }
