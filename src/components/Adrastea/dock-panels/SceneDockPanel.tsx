@@ -72,9 +72,7 @@ export function SceneDockPanel() {
         }
       }
 
-      if (i === count - 1) {
-        setSelectedSceneIds([newSceneId]);
-      }
+      // 選択状態は変更しない
     }
   };
 
