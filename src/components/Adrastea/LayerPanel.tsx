@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObjectType } from '../../types/adrastea.types';
-import { ConfirmModal } from './ui';
+import { ConfirmModal, DropdownMenu } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
@@ -28,17 +28,17 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
 
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
   const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
-  const [contextCharId, setContextCharId] = useState<string | null>(null);
+  const [charContextMenu, setCharContextMenu] = useState<{ charId: string; x: number; y: number } | null>(null);
 
   const selectedCharIds = panelSelection?.panel === 'character' ? panelSelection.ids : [];
 
   // キャラクター右クリックメニュー
-  const contextChar = contextCharId
-    ? layerOrderedCharacters.find(c => c.id === contextCharId) ?? null
+  const contextChar = charContextMenu
+    ? layerOrderedCharacters.find(c => c.id === charContextMenu.charId) ?? null
     : null;
-  const { confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
+  const { items: charCtxMenuItems, confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
     currentUserId: '',
-    onClose: () => setContextCharId(null),
+    onClose: () => setCharContextMenu(null),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
       await addCharacter({ ...rest, name: generateDuplicateName(c.name) });
@@ -146,7 +146,9 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     const charEl = (e.target as HTMLElement).closest('[data-char-id]');
     const charId = charEl?.getAttribute('data-char-id') ?? null;
     if (charId) {
-      setContextCharId(charId);
+      e.preventDefault();
+      e.stopPropagation();
+      setCharContextMenu({ charId, x: e.clientX, y: e.clientY });
       return;
     }
   }, []);
@@ -156,10 +158,10 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       characters={layerOrderedCharacters}
       selectedCharIds={selectedCharIds}
       onSelectCharacter={() => {}}
-      onCharacterContextMenu={(charId) => {
-        setContextCharId(charId);
+      onCharacterContextMenu={(charId, x, y) => {
+        setCharContextMenu({ charId, x, y });
       }}
-      onContextMenuClose={() => setContextCharId(null)}
+      onContextMenuClose={() => setCharContextMenu(null)}
       onDoubleClickCharacter={(charId) => {
         const char = layerOrderedCharacters.find(c => c.id === charId);
         if (char) setCharacterToOpenModal(char);
@@ -190,6 +192,13 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         onCancel={() => setPendingRemove(null)}
       />
     )}
+    <DropdownMenu
+      mode="context"
+      open={charContextMenu !== null}
+      onOpenChange={(open) => { if (!open) setCharContextMenu(null); }}
+      position={charContextMenu ?? { x: 0, y: 0 }}
+      items={charCtxMenuItems}
+    />
     {charCtxConfirmModal}
     {pendingImageAdd && (
       <AssetLibraryModal
