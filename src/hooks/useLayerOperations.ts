@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useThrottledCallback } from './useThrottledUpdate';
 import { useAdrasteaContext } from '../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType } from '../types/adrastea.types';
+import { generateDuplicateName } from '../utils/nameUtils';
 
 export function useLayerOperations() {
   const {
@@ -22,6 +23,7 @@ export function useLayerOperations() {
     removeCharacter,
     setEditingCharacter,
     editingCharacter,
+    showToast,
   } = useAdrasteaContext();
 
   // 削除可能なIDリスト（複数選択時は対象全体、単一時はそのIDのみ）
@@ -60,7 +62,7 @@ export function useLayerOperations() {
     // キャラクター選択中かつオブジェクトが選択されていない場合
     if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
       const { id, created_at, updated_at, ...rest } = editingCharacter;
-      await addCharacter({ ...rest, name: `${editingCharacter.name} (複製)` });
+      await addCharacter({ ...rest, name: generateDuplicateName(editingCharacter.name) });
       return;
     }
 
@@ -75,7 +77,7 @@ export function useLayerOperations() {
       const { id, created_at, updated_at, ...rest } = obj;
       const newObjId = await addObject({
         ...rest,
-        name: `${obj.name} (複製)`,
+        name: generateDuplicateName(obj.name),
         sort_order: obj.sort_order + 1,
       });
       if (newObjId) newIds.push(newObjId);
@@ -149,8 +151,9 @@ export function useLayerOperations() {
     if (newObjId) {
       setSelectedObjectIds([newObjId]);
       setEditingObjectId(newObjId);
+      showToast(type === 'text' ? 'テキストを追加しました' : 'オブジェクトを追加しました', 'success');
     }
-  }, [activeObjects, editingObjectId, getBoardCenter, activeScene, addObject, setSelectedObjectIds, setEditingObjectId]);
+  }, [activeObjects, editingObjectId, getBoardCenter, activeScene, addObject, setSelectedObjectIds, setEditingObjectId, showToast]);
 
   // キャラクター削除確認用（複製と同じく確認メッセージを返す）
   const handleRemoveCharacter = useCallback((charId: string) => {
