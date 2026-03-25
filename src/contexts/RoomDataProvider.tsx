@@ -1,8 +1,9 @@
-import React, { useContext, useState, useMemo, useRef, useEffect } from 'react';
+import React, { useContext, useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import type {
   ChatMessage,
   BoardObject,
 } from '../types/adrastea.types';
+import type { AuthUser } from './AuthContext';
 import { useAdrastea } from '../hooks/useAdrastea';
 import { useAdrasteaChat } from '../hooks/useAdrasteaChat';
 import { useScenes } from '../hooks/useScenes';
@@ -10,6 +11,7 @@ import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
 import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
+import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
 
@@ -25,14 +27,8 @@ interface RoomDataProviderProps {
     permission: string,
     fn: F,
   ) => F;
-  activeSpeakerCharId: string | null;
-  setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
-  handleSendMessage: (
-    content: string,
-    messageType: ChatMessage['message_type'],
-    characterName?: string,
-    characterAvatar?: string | null,
-  ) => void;
+  user: AuthUser | null;
+  activeChatChannel: string;
 }
 
 export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
@@ -40,10 +36,12 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   roomId,
   initialLoadDone,
   withPermission,
-  activeSpeakerCharId: propActiveSpeakerCharId,
-  setActiveSpeakerCharId: propSetActiveSpeakerCharId,
-  handleSendMessage: propHandleSendMessage,
+  user,
+  activeChatChannel,
 }) => {
+  // --- Chat state management ---
+  const [activeSpeakerCharId, setActiveSpeakerCharId] = useState<string | null>(null);
+
   // --- onObjectsCreated コールバック用 Ref（循環依存を回避） ---
   const objectsCreatedRef = useRef<((objects: BoardObject[]) => void) | null>(null);
 
@@ -67,6 +65,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     sendMessage,
     loadMore,
     clearMessages,
+    openSecretDice,
   } = useAdrasteaChat(roomId);
 
   // NOTE: channels, upsertChannel, deleteChannel は AdrasteaContext で管理される
@@ -78,14 +77,22 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeScene,
     reorderScenes,
     activateScene,
-  } = useScenes(roomId, { onObjectsCreated: (objs) => objectsCreatedRef.current?.(objs) });
+  } = useScenes(roomId, {
+    onObjectsCreated: (objs) => objectsCreatedRef.current?.(objs),
+    onActivateScene: async (sceneId) => {
+      setOptimisticSceneId(sceneId);
+      await updateRoom({ active_scene_id: sceneId });
+    },
+  });
 
   const {
     characters,
+    layerOrderedCharacters,
     addCharacter,
     updateCharacter,
     removeCharacter,
     reorderCharacters,
+    reorderLayerCharacters,
   } = useCharacters(roomId);
 
   // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
@@ -126,6 +133,24 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeBgm,
     reorderBgms,
   } = useBgms(roomId);
+
+  // --- handleSendMessage: sendMessage の wrapper ---
+  const handleSendMessage = useCallback(
+    (
+      content: string,
+      messageType: ChatMessage['message_type'],
+      characterName?: string,
+      characterAvatar?: string | null,
+    ) => {
+      const senderName = characterName ?? 'noname';
+      const senderUid = user?.uid;
+      // キャラクター名からキャラクターを検索し、テンプレート変数を展開
+      const character = characterName ? (characters.find(c => c.name === characterName) ?? null) : null;
+      const resolved = resolveTemplateVars(content, character);
+      sendMessage(senderName, resolved, messageType, senderUid, characterAvatar ?? null, room?.dice_system, activeChatChannel);
+    },
+    [sendMessage, user?.uid, activeChatChannel, room?.dice_system, characters],
+  );
 
   // --- Image preload（ローカルストレージ読み込み後に全画像を blobCache にプリロード） ---
   const preloadDoneRef = useRef(false);
@@ -168,7 +193,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
             visible: true,
             opacity: 1,
             sort_order: 9999,
-            locked: false,
             position_locked: true,
             size_locked: true,
             image_url: null,
@@ -213,6 +237,18 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     }
   }, [initialLoadDone, bgms, removeBgm, scenes]);
 
+  // シーン削除後のorphan BGM即時削除（初回ロード後のみ、継続的に実行）
+  useEffect(() => {
+    if (!initialLoadDone) return;
+    const sceneIdSet = new Set(scenes.map(s => s.id));
+    const orphans = bgms.filter(b =>
+      b.scene_ids.length === 0 || b.scene_ids.every(sid => !sceneIdSet.has(sid))
+    );
+    if (orphans.length > 0) {
+      Promise.all(orphans.map(b => removeBgm(b.id)));
+    }
+  }, [initialLoadDone, scenes, bgms, removeBgm]);
+
   // スナップショット復元後、active_scene_id が未設定ならシーンを自動アクティベート
   useEffect(() => {
     if (!initialLoadDone) return;
@@ -234,6 +270,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const guardedUpdateScene = withPermission('scene_edit', updateScene);
   const guardedRemoveScene = withPermission('scene_edit', removeScene);
   const guardedReorderScenes = withPermission('scene_edit', reorderScenes);
+  const guardedActivateScene = withPermission('scene_edit', activateScene);
   const guardedAddObject = withPermission('object_edit', addObject);
   const guardedUpdateObject = withPermission('object_edit', updateObject);
   const guardedMoveObject = withPermission('object_move', updateObject);
@@ -266,9 +303,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       sendMessage,
       loadMore,
       clearMessages,
-      handleSendMessage: propHandleSendMessage,
-      activeSpeakerCharId: propActiveSpeakerCharId,
-      setActiveSpeakerCharId: propSetActiveSpeakerCharId,
+      openSecretDice,
+      handleSendMessage,
+      activeSpeakerCharId,
+      setActiveSpeakerCharId,
 
       // Scenes
       scenes,
@@ -276,14 +314,16 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       updateScene: guardedUpdateScene,
       removeScene: guardedRemoveScene,
       reorderScenes: guardedReorderScenes,
-      activateScene: activateScene as any,
+      activateScene: guardedActivateScene,
 
       // Characters
       characters,
+      layerOrderedCharacters,
       addCharacter: guardedAddCharacter,
       updateCharacter: guardedUpdateCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters: guardedReorderCharacters,
+      reorderLayerCharacters,
 
       // Objects
       allObjects,
@@ -337,9 +377,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       sendMessage,
       loadMore,
       clearMessages,
-      propHandleSendMessage,
-      propActiveSpeakerCharId,
-      propSetActiveSpeakerCharId,
+      openSecretDice,
+      handleSendMessage,
+      activeSpeakerCharId,
+      setActiveSpeakerCharId,
       scenes,
       guardedAddScene,
       guardedUpdateScene,
@@ -347,10 +388,12 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       guardedReorderScenes,
       activateScene,
       characters,
+      layerOrderedCharacters,
       guardedAddCharacter,
       guardedUpdateCharacter,
       guardedRemoveCharacter,
       guardedReorderCharacters,
+      reorderLayerCharacters,
       allObjects,
       activeObjects,
       guardedAddObject,

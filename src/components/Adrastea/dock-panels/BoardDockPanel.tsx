@@ -155,6 +155,15 @@ export function BoardDockPanel() {
         <AssetLibraryModal
           onSelect={(url, assetId) => {
             ctx.updateObject(imagePickerTarget.id, { image_url: url || null, image_asset_id: assetId ?? null });
+            // 背景/前景オブジェクトの画像変更時、シーンのサムネイル用URLも同期
+            const obj = ctx.activeObjects.find(o => o.id === imagePickerTarget.id);
+            if (obj && ctx.activeScene) {
+              if (obj.type === 'background') {
+                ctx.updateScene(ctx.activeScene.id, { background_url: url || null });
+              } else if (obj.type === 'foreground') {
+                ctx.updateScene(ctx.activeScene.id, { foreground_url: url || null });
+              }
+            }
             setImagePickerTarget(null);
           }}
           onClose={() => setImagePickerTarget(null)}
