@@ -205,3 +205,32 @@ export const clearByRoom = mutation({
     }
   },
 });
+
+/**
+ * シークレットダイスをオープン（送信者本人のみ）
+ * allowed_user_ids を undefined に設定して全員に公開する
+ */
+export const openSecret = mutation({
+  args: {
+    id: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+    const userId = getUserId(identity);
+
+    const msg = await ctx.db
+      .query("messages")
+      .filter((q) => q.eq(q.field("id"), args.id))
+      .first();
+    if (!msg) throw new Error("Message not found");
+
+    // 送信者本人のみオープン可能
+    if (msg.sender_uid !== userId) {
+      throw new Error("Permission denied: only sender can open secret dice");
+    }
+
+    // allowed_user_ids を削除して全員に公開
+    await ctx.db.patch(msg._id, { allowed_user_ids: undefined });
+  },
+});

@@ -4,6 +4,7 @@ import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenePanel } from '../ScenePanel';
 import { sceneToClipboardJson, pasteSceneFromClipboard } from '../../../utils/clipboardImport';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
+import { generateDuplicateName } from '../../../utils/nameUtils';
 
 export function SceneDockPanel() {
   const ctx = useAdrasteaContext();
@@ -58,14 +59,14 @@ export function SceneDockPanel() {
           await ctx.updateObject(newObj.id, {
             x: activeBg.x, y: activeBg.y, width: activeBg.width, height: activeBg.height,
             background_color: activeBg.background_color, image_fit: activeBg.image_fit,
-            opacity: activeBg.opacity, locked: activeBg.locked,
+            opacity: activeBg.opacity,
             position_locked: activeBg.position_locked, size_locked: activeBg.size_locked,
           });
         } else if (newObj.type === 'foreground' && activeFg) {
           await ctx.updateObject(newObj.id, {
             x: activeFg.x, y: activeFg.y, width: activeFg.width, height: activeFg.height,
             background_color: activeFg.background_color, image_fit: activeFg.image_fit,
-            opacity: activeFg.opacity, locked: activeFg.locked,
+            opacity: activeFg.opacity,
             position_locked: activeFg.position_locked, size_locked: activeFg.size_locked,
           });
         }
@@ -86,7 +87,7 @@ export function SceneDockPanel() {
       const nextSortOrder = getInsertSortOrder(scene.id);
       const result = await ctx.addScene(
         {
-          name: `${scene.name} (複製)`,
+          name: generateDuplicateName(scene.name),
           background_url: scene.background_url ?? null,
           foreground_url: scene.foreground_url ?? null,
           foreground_opacity: scene.foreground_opacity,

@@ -1,6 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { getUserId } from "./_helpers";
+import { getUserId, type RoomRole } from "./_helpers";
 
 /**
  * List rooms owned by the current user
@@ -89,7 +89,12 @@ export const create = mutation({
 });
 
 /**
- * Update a room (owner only)
+ * Update a room
+ *
+ * Authorization:
+ * - owner: can update all fields
+ * - sub_owner: can only update active_scene_id, foreground_url, active_cutin
+ * - user/guest: cannot update
  */
 export const update = mutation({
   args: {
@@ -128,8 +133,27 @@ export const update = mutation({
       throw new Error("Room not found");
     }
 
-    if (room.owner_id !== userId) {
-      throw new Error("Not authorized");
+    // Get current user's role
+    const member = await ctx.db
+      .query("room_members")
+      .withIndex("by_room_user", (q) => q.eq("room_id", args.id).eq("user_id", userId))
+      .first();
+
+    const userRole: RoomRole = member?.role ?? 'guest';
+
+    // Check authorization by role
+    if (userRole === 'guest' || userRole === 'user') {
+      throw new Error("Permission denied: insufficient role");
+    }
+
+    if (userRole === 'sub_owner') {
+      // sub_owner can only update specific fields
+      const restrictedFields = ['name', 'description', 'dice_system', 'gm_can_see_secret_memo', 'default_login_role'];
+      for (const field of restrictedFields) {
+        if ((args as Record<string, any>)[field] !== undefined) {
+          throw new Error(`Permission denied: sub_owner cannot update field '${field}'`);
+        }
+      }
     }
 
     const updates: Record<string, any> = {

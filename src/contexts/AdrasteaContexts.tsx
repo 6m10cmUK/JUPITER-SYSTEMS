@@ -44,6 +44,7 @@ export interface RoomDataContextValue {
   sendMessage: ReturnType<typeof useAdrasteaChat>['sendMessage'];
   loadMore: ReturnType<typeof useAdrasteaChat>['loadMore'];
   clearMessages: ReturnType<typeof useAdrasteaChat>['clearMessages'];
+  openSecretDice: ReturnType<typeof useAdrasteaChat>['openSecretDice'];
   handleSendMessage: (
     content: string,
     messageType: ChatMessage['message_type'],

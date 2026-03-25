@@ -17,6 +17,7 @@ export function ChatLogDockPanel() {
       characters={ctx.characters}
       onLoadMore={ctx.loadMore}
       onClearMessages={ctx.clearMessages}
+      onOpenSecretDice={ctx.openSecretDice}
     />
   );
 }

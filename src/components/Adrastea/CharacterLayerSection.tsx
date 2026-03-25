@@ -14,6 +14,7 @@ import { Users, ChevronRight, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { SortableListItem, Tooltip } from './ui';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { useLayerOperations } from '../../hooks/useLayerOperations';
+import { generateDuplicateName } from '../../utils/nameUtils';
 
 interface CharacterLayerSectionProps {
   characters: Character[];
@@ -140,7 +141,7 @@ export function CharacterLayerSection({
     onClose: onContextMenuClose ?? (() => {}),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      await addCharacter({ ...rest, name: `${c.name} (複製)` });
+      await addCharacter({ ...rest, name: generateDuplicateName(c.name) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);

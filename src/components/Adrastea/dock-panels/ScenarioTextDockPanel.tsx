@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenarioTextPanel } from '../ScenarioTextPanel';
+import { generateDuplicateName } from '../../../utils/nameUtils';
 
 export function ScenarioTextDockPanel() {
   const ctx = useAdrasteaContext();
@@ -50,7 +51,7 @@ export function ScenarioTextDockPanel() {
         const t = ctx.scenarioTexts.find(st => st.id === textId);
         if (!t) return;
         ctx.addScenarioText({
-          title: `${t.title} (複製)`,
+          title: generateDuplicateName(t.title),
           content: t.content,
           speaker_character_id: t.speaker_character_id,
           speaker_name: t.speaker_name,
