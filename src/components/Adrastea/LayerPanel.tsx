@@ -1,105 +1,43 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
-import { createPortal } from 'react-dom';
-import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
-import {
-  DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors, KeyboardSensor,
-} from '@dnd-kit/core';
-import {
-  SortableContext, verticalListSortingStrategy, arrayMove, sortableKeyboardCoordinates, useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import type { BoardObject, BoardObjectType, Character } from '../../types/adrastea.types';
-import { theme } from '../../styles/theme';
-import {
-  Image, Type, Layers, Mountain,
-  Eye, EyeOff,
-  Trash2, Copy, Users,
-  ChevronRight, ChevronDown, Plus,
-} from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip, DropdownMenu } from './ui';
-// shortcutLabel は useObjectContextMenu 内で使用
+import type { BoardObjectType } from '../../types/adrastea.types';
+import { ConfirmModal } from './ui';
 import { AssetLibraryModal } from './AssetLibraryModal';
-import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
-
-const TYPE_ICON_COMPONENTS: Record<BoardObjectType, React.FC<{ size?: number }>> = {
-  panel: ({ size = 14 }) => <Image size={size} />,
-  text: ({ size = 14 }) => <Type size={size} />,
-  foreground: ({ size = 14 }) => <Layers size={size} />,
-  background: ({ size = 14 }) => <Mountain size={size} />,
-  characters_layer: ({ size = 14 }) => <Users size={size} />,
-};
+import { ObjectLayerList } from './ObjectLayerList';
+import { CharacterLayerSection } from './CharacterLayerSection';
 
 export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
   const {
     activeObjects,
     addObject,
-    updateObject,
-    removeObject,
-    batchUpdateSort,
-    editingObjectId,
-    setEditingObjectId,
-    selectedObjectIds,
-    setSelectedObjectIds,
-    clearAllEditing,
-    getBoardCenter,
     activeScene,
     layerOrderedCharacters,
-    updateCharacter,
-    reorderLayerCharacters,
-    setEditingCharacter,
-    editingCharacter,
-    addCharacter,
-    removeCharacter,
-    setCharacterToOpenModal,
     panelSelection,
-    setPanelSelection,
     showToast,
+    selectedObjectIds,
+    removeCharacter,
+    setEditingCharacter,
+    addCharacter,
+    setCharacterToOpenModal,
+    getBoardCenter,
+    removeObject,
   } = useAdrasteaContext();
 
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
-  const [localOrderOverride, setLocalOrderOverride] = useState<Map<string, number> | null>(null);
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
-  const [isCharLayerOpen, setIsCharLayerOpen] = useState(true);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; objId?: string; charId?: string } | null>(null);
+  const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
+  const [contextCharId, setContextCharId] = useState<string | null>(null);
 
-  // panelSelection から選択されたキャラクターIDを導出
   const selectedCharIds = panelSelection?.panel === 'character' ? panelSelection.ids : [];
 
-  // コンテキストメニューの targets 計算
-  const ctxTargets = (() => {
-    if (!contextMenu?.objId) return [];
-    const ctxObj = activeObjects.find(o => o.id === contextMenu.objId);
-    if (!ctxObj) return [];
-    // 右クリックしたオブジェクトが選択中に含まれていれば選択中全体を対象にする
-    if (selectedObjectIds.includes(contextMenu.objId) && selectedObjectIds.length > 1) {
-      return activeObjects.filter(o => selectedObjectIds.includes(o.id));
-    }
-    return [ctxObj];
-  })();
-
-  // useObjectContextMenu hook
-  const { items: ctxMenuItems, confirmModal: ctxConfirmModal } = useObjectContextMenu(ctxTargets, {
-    onClose: () => setContextMenu(null),
-    onAfterDuplicate: (newIds) => {
-      setSelectedObjectIds(newIds);
-      setEditingObjectId(newIds[newIds.length - 1]);
-    },
-    onPaste,
-  });
-
   // キャラクター右クリックメニュー
-  const contextChar = contextMenu?.charId
-    ? layerOrderedCharacters.find(c => c.id === contextMenu.charId) ?? null
+  const contextChar = contextCharId
+    ? layerOrderedCharacters.find(c => c.id === contextCharId) ?? null
     : null;
-  const { items: charCtxMenuItems, confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
+  const { confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
     currentUserId: '',
-    onClose: () => setContextMenu(null),
+    onClose: () => setContextCharId(null),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
       await addCharacter({ ...rest, name: `${c.name} (複製)` });
@@ -111,8 +49,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     onPaste,
   });
 
-
-  // Ctrl+C / Ctrl+D / Backspace / Delete でオブジェクト操作（キャラクターは CharacterDockPanel が処理）
+  // Ctrl+C / Ctrl+D / Backspace / Delete でオブジェクト操作
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const el = document.activeElement as HTMLElement | null;
@@ -160,147 +97,22 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast]);
 
-  // Firestoreからデータが更新されたらローカルオーバーライドをクリア
-  const activeObjectsRef = useRef(activeObjects);
-  useEffect(() => {
-    if (activeObjects !== activeObjectsRef.current) {
-      activeObjectsRef.current = activeObjects;
-      setLocalOrderOverride(null);
-    }
-  }, [activeObjects]);
+  const handleImageAdd = useCallback((global: boolean) => {
+    setPendingImageAdd({ global });
+  }, []);
 
-  // 複数選択時に削除可能なIDリストを返す（bg/fg/characters_layer除外）
-  const getDeletableIds = useCallback((triggerObjId: string): string[] => {
-    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(triggerObjId)) {
-      return selectedObjectIds.filter(id => {
-        const o = activeObjects.find(o => o.id === id);
-        return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
-      });
-    }
-    return [triggerObjId];
-  }, [selectedObjectIds, activeObjects]);
-
-  // 背景を末尾に固定。それ以外はsort_order降順
-  const sortedObjects = useMemo(() => {
-    const bg = activeObjects.filter(o => o.type === 'background');
-    const rest = activeObjects.filter(o => o.type !== 'background').map(o => {
-      if (localOrderOverride?.has(o.id)) {
-        return { ...o, sort_order: localOrderOverride.get(o.id)! };
-      }
-      return o;
-    });
-    return [...rest.sort((a, b) => b.sort_order - a.sort_order), ...bg];
-  }, [activeObjects, localOrderOverride]);
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const id = event.active.id as string;
-    setActiveDragId(id);
-    if (!selectedObjectIds.includes(id)) {
-      setSelectedObjectIds([id]);
-      setEditingObjectId(id);
-    }
-  }, [selectedObjectIds, setSelectedObjectIds, setEditingObjectId]);
-
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveDragId(null);
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    const dragIds = selectedObjectIds.includes(activeId) && selectedObjectIds.length > 1
-      ? selectedObjectIds
-      : [activeId];
-    const dragSet = new Set(dragIds);
-
-    if (dragSet.has(overId)) return;
-
-    // background のみ固定。characters_layer は他と同様に並び替え可能
-    const allMovable = sortedObjects.filter(o => o.type !== 'background');
-    const draggedItems = allMovable.filter(o => dragSet.has(o.id));
-    const rest = allMovable.filter(o => !dragSet.has(o.id));
-
-    // background の上にドロップした場合は無視
-    const overObj = sortedObjects.find(o => o.id === overId);
-    if (overObj?.type === 'background') return;
-    const overIdx = rest.findIndex(o => o.id === overId);
-    if (overIdx < 0) return;
-
-    const activeOrigIdx = allMovable.findIndex(o => o.id === activeId);
-    const overOrigIdx = allMovable.findIndex(o => o.id === overId);
-    const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
-
-    rest.splice(insertIdx, 0, ...draggedItems);
-
-    // グローバルなsort_orderを振り直す（リスト表示は降順なので末尾ほどsort_order大=前面）
-    const maxOrder = rest.length - 1;
-    const overrideMap = new Map<string, number>();
-    rest.forEach((o, i) => overrideMap.set(o.id, maxOrder - i));
-    setLocalOrderOverride(overrideMap);
-
-    // 一括バッチ更新（パスは全て rooms/{roomId}/objects）
-    const updates: { id: string; sort: number }[] = [];
-    rest.forEach((o, i) => {
-      const newOrder = maxOrder - i;
-      if (o.sort_order !== newOrder) {
-        updates.push({ id: o.id, sort: newOrder });
-      }
-    });
-    if (updates.length > 0) {
-      batchUpdateSort(updates);
-      // localOrderOverride は activeObjects 更新時の useEffect でクリアされる
-    }
-  }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
-
-  const handleRowClick = useCallback((e: React.MouseEvent, obj: BoardObject) => {
-    if (obj.type === 'characters_layer') return;
-    // オブジェクト選択時はキャラクター選択をクリア
-    setEditingCharacter(undefined);
-    if (e.shiftKey && selectedObjectIds.length > 0) {
-      const lastSelected = selectedObjectIds[selectedObjectIds.length - 1];
-      const anchorIdx = sortedObjects.findIndex(o => o.id === lastSelected);
-      const targetIdx = sortedObjects.findIndex(o => o.id === obj.id);
-      if (anchorIdx >= 0 && targetIdx >= 0) {
-        const start = Math.min(anchorIdx, targetIdx);
-        const end = Math.max(anchorIdx, targetIdx);
-        const rangeIds = sortedObjects.slice(start, end + 1).map(o => o.id);
-        setSelectedObjectIds(rangeIds);
-        setEditingObjectId(obj.id);
-      }
-    } else if (e.metaKey || e.ctrlKey) {
-      setSelectedObjectIds(prev => {
-        const exists = prev.includes(obj.id);
-        return exists ? prev.filter(id => id !== obj.id) : [...prev, obj.id];
-      });
-      setEditingObjectId(obj.id);
-    } else {
-      clearAllEditing();
-      setSelectedObjectIds([obj.id]);
-      setEditingObjectId(obj.id);
-    }
-  }, [selectedObjectIds, sortedObjects, setSelectedObjectIds, setEditingObjectId, setEditingCharacter, clearAllEditing]);
-
-  // 画像選択モーダル用 state
-  const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
-
-  const handleAdd = async (global: boolean, type: BoardObjectType, imageData?: { url: string; width?: number; height?: number }) => {
+  const handleImageSelected = useCallback((_url: string, _assetId?: string, _title?: string, w?: number, h?: number) => {
+    if (!pendingImageAdd) return;
     const center = getBoardCenter();
-    const nonBg = sortedObjects.filter(o => o.type !== 'background');
-    let sortOrder: number;
-    if (editingObjectId) {
-      const selected = nonBg.find(o => o.id === editingObjectId);
-      sortOrder = selected ? selected.sort_order + 1 : (nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0);
-    } else {
-      sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
-    }
+    const nonBg = activeObjects.filter(o => o.type !== 'background');
+    const sortOrder = nonBg.length > 0 ? nonBg[0].sort_order + 1 : 0;
 
     // 画像の比率からグリッド単位のサイズを算出
     let width = 4;
     let height = 4;
-    if (imageData?.width && imageData?.height) {
-      const maxGridSize = 10; // 最大10マス
-      const aspect = imageData.width / imageData.height;
+    if (w && h) {
+      const maxGridSize = 10;
+      const aspect = w / h;
       if (aspect >= 1) {
         width = maxGridSize;
         height = Math.max(1, Math.round(maxGridSize / aspect));
@@ -310,464 +122,61 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       }
     }
 
-    const newObjId = await addObject({
-      type,
-      name: type === 'text' ? '新規テキスト' : '新規オブジェクト',
+    addObject({
+      type: 'panel' as BoardObjectType,
+      name: '新規オブジェクト',
       x: center.x,
       y: center.y,
       width,
       height,
       sort_order: sortOrder,
-      global,
-      scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
-      ...(imageData ? { image_url: imageData.url } : {}),
+      global: pendingImageAdd.global,
+      scene_ids: pendingImageAdd.global ? [] : (activeScene?.id ? [activeScene.id] : []),
+      image_url: _url,
     });
-    if (newObjId) {
-      setSelectedObjectIds([newObjId]);
-      setEditingObjectId(newObjId);
-    }
-  };
-
-  const handleImageAdd = (global: boolean) => {
-    setPendingImageAdd({ global });
-  };
-
-  const handleImageSelected = (_url: string, _assetId?: string, _title?: string, w?: number, h?: number) => {
-    if (!pendingImageAdd) return;
-    handleAdd(pendingImageAdd.global, 'panel', { url: _url, width: w, height: h });
     setPendingImageAdd(null);
-  };
+  }, [pendingImageAdd, activeObjects, activeScene, addObject, getBoardCenter]);
 
-  const handleToggleVisibleRaw = useCallback((obj: BoardObject) => {
-    if (selectedObjectIds.length > 1 && selectedObjectIds.includes(obj.id)) {
-      const newVisible = !obj.visible;
-      for (const id of selectedObjectIds) {
-        const o = activeObjects.find(o => o.id === id);
-        if (o) updateObject(id, { visible: newVisible });
-      }
-    } else {
-      updateObject(obj.id, { visible: !obj.visible });
-    }
-  }, [selectedObjectIds, activeObjects, updateObject]);
-  const handleToggleVisible = useThrottledCallback(handleToggleVisibleRaw);
+  const handleRemoveRequest = useCallback((msg: string, action: () => void) => {
+    setPendingRemove({ msg, action });
+  }, []);
 
-  const handleToggleCharVisibleRaw = useCallback((charId: string) => {
-    const char = layerOrderedCharacters.find(c => c.id === charId);
-    if (char) updateCharacter(charId, { board_visible: char.board_visible !== false ? false : true });
-  }, [layerOrderedCharacters, updateCharacter]);
-  const handleToggleCharVisible = useThrottledCallback(handleToggleCharVisibleRaw);
-
-  const handleRemoveObject = useCallback((obj: BoardObject) => {
-    if (obj.type === 'background') return;
-    const ids = getDeletableIds(obj.id);
-    if (ids.length === 0) return;
-    const msg = ids.length > 1 ? `${ids.length}件のオブジェクトを削除しますか？` : 'このオブジェクトを削除しますか？';
-    setPendingRemove({
-      msg,
-      action: () => {
-        for (const id of ids) removeObject(id);
-        if (ids.length > 1 || editingObjectId === obj.id) clearAllEditing();
-      },
-    });
-  }, [getDeletableIds, removeObject, editingObjectId, clearAllEditing]);
-
-  const canDuplicate = (id: string) => {
-    const o = activeObjects.find(o => o.id === id);
-    return o && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer';
-  };
-
-  const hasDuplicateTargets = selectedObjectIds.length > 0
-    ? selectedObjectIds.length > 0 && selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
-
-  const hasRemoveTargets = selectedObjectIds.length > 0
-    ? selectedObjectIds.every(canDuplicate)
-    : editingObjectId ? canDuplicate(editingObjectId) : (editingCharacter ? true : false);
-
-  const handleDuplicate = useCallback(async () => {
-    // キャラクター選択中かつオブジェクトが選択されていない場合
-    if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
-      const { id, created_at, updated_at, ...rest } = editingCharacter;
-      await addCharacter({ ...rest, name: `${editingCharacter.name} (複製)` });
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    const charEl = (e.target as HTMLElement).closest('[data-char-id]');
+    const charId = charEl?.getAttribute('data-char-id') ?? null;
+    if (charId) {
+      setContextCharId(charId);
       return;
     }
-
-    const targets = selectedObjectIds.length > 0
-      ? activeObjects.filter(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
-      : editingObjectId
-        ? activeObjects.filter(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
-        : [];
-    if (targets.length === 0) return;
-    const newIds: string[] = [];
-    for (const obj of targets) {
-      const { id, created_at, updated_at, ...rest } = obj;
-      const newObjId = await addObject({
-        ...rest,
-        name: `${obj.name} (複製)`,
-        sort_order: obj.sort_order + 1,
-      });
-      if (newObjId) newIds.push(newObjId);
-    }
-    if (newIds.length > 0) {
-      setSelectedObjectIds(newIds);
-      setEditingObjectId(newIds[newIds.length - 1]);
-    }
-  }, [selectedObjectIds, editingObjectId, activeObjects, addObject, setSelectedObjectIds, setEditingObjectId, editingCharacter, addCharacter]);
-
-  const iconBtnStyle: React.CSSProperties = {
-    border: 'none',
-    color: theme.textSecondary,
-    cursor: 'pointer',
-    fontSize: '0.85rem',
-    padding: '2px 4px',
-    lineHeight: 1,
-  };
+  }, []);
 
   return (
     <>
     <div
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const charEl = (e.target as HTMLElement).closest('[data-char-id]');
-        const charId = charEl?.getAttribute('data-char-id') ?? undefined;
-        if (charId) {
-          const char = layerOrderedCharacters.find(c => c.id === charId);
-          if (char) {
-            clearAllEditing();
-            setEditingCharacter(char);
-            if (!selectedCharIds.includes(charId)) {
-              setPanelSelection({ panel: 'character', ids: [charId] });
-            }
-          }
-          setContextMenu({ x: e.clientX, y: e.clientY, charId });
-          return;
-        }
-        const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
-        const objId = objEl?.getAttribute('data-obj-id') ?? undefined;
-        if (objId) {
-          // 右クリック時に選択を移す
-          if (!selectedObjectIds.includes(objId)) {
-            setSelectedObjectIds([objId]);
-            setEditingObjectId(objId);
-          }
-        }
-        setContextMenu({ x: e.clientX, y: e.clientY, objId });
-      }}
-      style={{ height: '100%' }}
+      onContextMenu={handleContextMenu}
+      style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
-    <SortableListPanel
-      title="レイヤー"
-      subtitle={activeScene?.name}
-      onBackgroundClick={() => {
-        setSelectedObjectIds([]);
-        setPanelSelection(null);
-      }}
-      headerActions={
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-          <Tooltip label="複製">
-            <button
-              type="button"
-              onClick={handleDuplicate}
-              disabled={!hasDuplicateTargets}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.accent,
-                cursor: hasDuplicateTargets ? 'pointer' : 'default',
-                padding: '2px',
-                display: 'flex',
-                alignItems: 'center',
-                opacity: hasDuplicateTargets ? 1 : 0.3,
-              }}
-            >
-              <Copy size={13} />
-            </button>
-          </Tooltip>
-          <Tooltip label="削除">
-            <button
-              type="button"
-              onClick={() => {
-                // キャラクター選択中かつオブジェクトが選択されていない場合
-                if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
-                  setPendingRemove({
-                    msg: `キャラクター「${editingCharacter.name}」を削除しますか？`,
-                    action: () => {
-                      removeCharacter(editingCharacter.id);
-                      setEditingCharacter(undefined);
-                    },
-                  });
-                  return;
-                }
-
-                const target = selectedObjectIds.length > 0
-                  ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
-                  : editingObjectId
-                    ? activeObjects.find(o => o.id === editingObjectId && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
-                    : null;
-                if (target) handleRemoveObject(target);
-              }}
-              disabled={!hasRemoveTargets}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: theme.danger,
-                cursor: hasRemoveTargets ? 'pointer' : 'default',
-                padding: '2px',
-                display: 'flex',
-                alignItems: 'center',
-                opacity: hasRemoveTargets ? 1 : 0.3,
-              }}
-            >
-              <Trash2 size={13} />
-            </button>
-          </Tooltip>
-          <DropdownMenu
-            trigger={
-              <button
-                type="button"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: theme.accent,
-                  cursor: 'pointer',
-                  padding: '2px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title="追加"
-              >
-                <Plus size={15} />
-              </button>
-            }
-            items={[
-              { icon: <Image size={13} />, label: 'シーン画像追加', onClick: () => handleImageAdd(false) },
-              { icon: <Type size={13} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
-              'separator',
-              { icon: <Image size={13} />, label: 'ルーム画像追加', onClick: () => handleImageAdd(true) },
-              { icon: <Type size={13} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
-            ]}
-          />
-        </div>
-      }
-      items={sortedObjects}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      emptyMessage="オブジェクトがありません"
-    >
-      {sortedObjects.map((obj) => {
-        const isSelected = obj.type !== 'characters_layer' && selectedObjectIds.includes(obj.id);
-        const isDragGroupMember = activeDragId != null
-          && selectedObjectIds.includes(activeDragId)
-          && isSelected
-          && obj.id !== activeDragId;
-        const iconBgColor = obj.global ? 'rgba(166,227,161,0.2)' : theme.accentHighlight;
-
-        // characters_layer の特別扱い
-        if (obj.type === 'characters_layer') {
-          return (
-            <CharacterLayerRow
-              key={obj.id}
-              id={obj.id}
-              isOpen={isCharLayerOpen}
-              onToggleOpen={() => setIsCharLayerOpen(v => !v)}
-              characters={layerOrderedCharacters}
-              selectedCharIds={selectedCharIds}
-              onToggleVisible={handleToggleCharVisible}
-              onReorder={(orderedIds) => reorderLayerCharacters(orderedIds)}
-              onSelectCharacter={(charId, e) => {
-                const char = layerOrderedCharacters.find(c => c.id === charId);
-                if (!char) return;
-
-                if (e.shiftKey && selectedCharIds.length > 0) {
-                  // Shift: 範囲選択
-                  const lastSelected = selectedCharIds[selectedCharIds.length - 1];
-                  const anchorIdx = layerOrderedCharacters.findIndex(c => c.id === lastSelected);
-                  const targetIdx = layerOrderedCharacters.findIndex(c => c.id === charId);
-                  if (anchorIdx >= 0 && targetIdx >= 0) {
-                    const start = Math.min(anchorIdx, targetIdx);
-                    const end = Math.max(anchorIdx, targetIdx);
-                    const ids = layerOrderedCharacters.slice(start, end + 1).map(c => c.id);
-                    setPanelSelection({ panel: 'character', ids });
-                  }
-                } else if (e.metaKey || e.ctrlKey) {
-                  // Ctrl/Cmd: トグル
-                  const newIds = selectedCharIds.includes(charId)
-                    ? selectedCharIds.filter(id => id !== charId)
-                    : [...selectedCharIds, charId];
-                  setPanelSelection(newIds.length > 0 ? { panel: 'character', ids: newIds } : null);
-                } else {
-                  // 通常クリック: 単一選択
-                  clearAllEditing();
-                  setEditingCharacter(char);
-                  setPanelSelection({ panel: 'character', ids: [charId] });
-                }
-              }}
-              onDoubleClickCharacter={(charId) => {
-                const char = layerOrderedCharacters.find(c => c.id === charId);
-                if (char) setCharacterToOpenModal(char);
-              }}
-            />
-          );
-        }
-
-        return (
-          <div key={obj.id} data-obj-id={obj.id} style={{ display: 'contents' }}>
-          <SortableListItem
-            id={obj.id}
-            disabled={obj.type === 'background'}
-            hideHandle={obj.type === 'foreground'}
-            isSelected={isSelected}
-            isGroupDrag={isDragGroupMember}
-            onClick={(e) => handleRowClick(e, obj)}
-            itemStyle={
-              (obj.type === 'background' || obj.type === 'foreground')
-                ? { background: theme.bgInput }
-                : undefined
-            }
-          >
-            {obj.type !== 'background' && obj.type !== 'foreground' && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSelected) {
-                    setSelectedObjectIds(prev => prev.filter(id => id !== obj.id));
-                  } else {
-                    setSelectedObjectIds(prev => [...prev, obj.id]);
-                    setEditingObjectId(obj.id);
-                  }
-                }}
-                style={{
-                  flexShrink: 0,
-                  width: '12px',
-                  height: '12px',
-                  border: `1px solid ${theme.textMuted}`,
-                  borderRadius: '2px',
-                  background: isSelected ? theme.textMuted : 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: theme.bgBase,
-                  lineHeight: 1,
-                }}
-              >
-                {isSelected && '✓'}
-              </div>
-            )}
-            <span style={{
-              flexShrink: 0, width: '20px', height: '20px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderRadius: '2px',
-              background: iconBgColor,
-            }}>
-              {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
-            </span>
-            {obj.image_url && (
-              <img
-                src={obj.image_url}
-                alt=""
-                style={{
-                  flexShrink: 0,
-                  width: '20px',
-                  height: '20px',
-                  objectFit: 'contain',
-                  objectPosition: 'center center',
-                  borderRadius: '2px',
-                  border: `1px solid ${theme.border}`,
-                }}
-              />
-            )}
-            {renamingId === obj.id ? (
-              <input
-                value={renameValue}
-                onChange={(e) => setRenameValue(e.target.value)}
-                onBlur={() => {
-                  if (renameValue.trim()) updateObject(obj.id, { name: renameValue.trim() });
-                  setRenamingId(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (renameValue.trim()) updateObject(obj.id, { name: renameValue.trim() });
-                    setRenamingId(null);
-                  }
-                  if (e.key === 'Escape') setRenamingId(null);
-                }}
-                autoFocus
-                onClick={(e) => e.stopPropagation()}
-                maxLength={128}
-                style={{
-                  flex: 1, minWidth: 0,
-                  background: theme.bgDeep, border: `1px solid ${theme.border}`,
-                  color: theme.textPrimary, fontSize: '12px', padding: '1px 4px',
-                  outline: 'none',
-                }}
-              />
-            ) : (
-              <span
-                style={{
-                  flex: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  opacity: obj.visible ? 1 : 0.4,
-                }}
-                onDoubleClick={(e) => {
-                  if (obj.type === 'background' || obj.type === 'foreground') return;
-                  e.stopPropagation();
-                  setRenamingId(obj.id);
-                  setRenameValue(obj.name);
-                }}
-              >
-                {obj.name}
-              </span>
-            )}
-            {obj.type !== 'background' && (
-              <Tooltip label={obj.visible ? '非表示にする' : '表示する'}>
-                <button
-                  type="button"
-                  className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
-                  style={{ ...iconBtnStyle, opacity: obj.visible ? 1 : 0.4, display: 'flex', alignItems: 'center' }}
-                  onClick={(e) => { e.stopPropagation(); handleToggleVisible(obj); }}
-                >
-                  {obj.visible ? <Eye size={12} /> : <EyeOff size={12} />}
-                </button>
-              </Tooltip>
-            )}
-          </SortableListItem>
-          </div>
-        );
-      })}
-    </SortableListPanel>
+      <ObjectLayerList
+        onPaste={onPaste}
+        onImageAdd={handleImageAdd}
+        onRemoveRequest={handleRemoveRequest}
+      />
+      <div style={{ flex: '0 0 auto' }}>
+        <CharacterLayerSection
+          characters={layerOrderedCharacters}
+          selectedCharIds={selectedCharIds}
+          onSelectCharacter={() => {}}
+          onCharacterContextMenu={(charId) => {
+            setContextCharId(charId);
+          }}
+          onContextMenuClose={() => setContextCharId(null)}
+          onDoubleClickCharacter={(charId) => {
+            const char = layerOrderedCharacters.find(c => c.id === charId);
+            if (char) setCharacterToOpenModal(char);
+          }}
+        />
+      </div>
     </div>
-
-    <DropdownMenu
-      mode="context"
-      open={contextMenu !== null}
-      onOpenChange={(open) => { if (!open) setContextMenu(null); }}
-      position={contextMenu ?? { x: 0, y: 0 }}
-      items={contextMenu?.charId ? charCtxMenuItems : [
-        {
-          label: '名前を変更',
-          disabled: !contextMenu?.objId || (() => {
-            const obj = activeObjects.find(o => o.id === contextMenu?.objId);
-            return !obj || obj.type === 'background' || obj.type === 'foreground' || obj.type === 'characters_layer';
-          })(),
-          onClick: () => {
-            if (contextMenu?.objId) {
-              const obj = activeObjects.find(o => o.id === contextMenu.objId);
-              if (obj) {
-                setRenamingId(contextMenu.objId);
-                setRenameValue(obj.name);
-              }
-            }
-            setContextMenu(null);
-          },
-        },
-        ...ctxMenuItems,
-      ]}
-    />
 
     {pendingRemove && (
       <ConfirmModal
@@ -778,7 +187,6 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         onCancel={() => setPendingRemove(null)}
       />
     )}
-    {ctxConfirmModal}
     {charCtxConfirmModal}
     {pendingImageAdd && (
       <AssetLibraryModal
@@ -787,281 +195,5 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       />
     )}
     </>
-  );
-}
-
-/**
- * キャラクターレイヤー行（header + sublist を一体で drag）
- * useSortable({ disabled: true }) を外側 div に適用して transform を受け取り、
- * flexDirection: column で子孫すべてを一緒に動かす
- */
-function CharacterLayerRow({
-  id,
-  isOpen,
-  onToggleOpen,
-  characters,
-  selectedCharIds,
-  onToggleVisible,
-  onReorder,
-  onSelectCharacter,
-  onDoubleClickCharacter,
-}: {
-  id: string;
-  isOpen: boolean;
-  onToggleOpen: () => void;
-  characters: Character[];
-  selectedCharIds: string[];
-  onToggleVisible: (charId: string) => void;
-  onReorder: (orderedIds: string[]) => void;
-  onSelectCharacter?: (charId: string, e: React.MouseEvent) => void;
-  onDoubleClickCharacter?: (charId: string) => void;
-}) {
-  const { setNodeRef, transform, transition } = useSortable({ id, disabled: true });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        transform: CSS.Transform.toString(transform),
-        transition,
-      }}
-    >
-      {/* ヘッダー行 */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '4px 8px',
-          paddingLeft: '20px',
-          fontSize: '12px',
-          color: theme.textPrimary,
-          borderBottom: `1px solid ${theme.border}`,
-          cursor: 'pointer',
-          background: theme.bgDeep,
-        }}
-        onClick={onToggleOpen}
-      >
-        <span style={{ flexShrink: 0, display: 'flex', alignItems: 'center', color: theme.textMuted }}>
-          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        </span>
-        <span style={{
-          flexShrink: 0, width: '20px', height: '20px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          borderRadius: '2px',
-          background: 'rgba(166,227,161,0.2)',
-        }}>
-          <Users size={12} />
-        </span>
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          キャラクター
-        </span>
-      </div>
-
-      {/* キャラサブリスト */}
-      {isOpen && (
-        <CharacterSubList
-          characters={characters}
-          selectedCharIds={selectedCharIds}
-          onToggleVisible={onToggleVisible}
-          onReorder={onReorder}
-          onSelectCharacter={onSelectCharacter}
-          onDoubleClickCharacter={onDoubleClickCharacter}
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * キャラクターサブリスト（LayerPanel内で展開時に表示）
- * 独立した DndContext で並び替えをサポート
- */
-function CharacterSubList({
-  characters,
-  selectedCharIds,
-  onToggleVisible,
-  onReorder,
-  onSelectCharacter,
-  onDoubleClickCharacter,
-}: {
-  characters: Character[];
-  selectedCharIds: string[];
-  onToggleVisible: (charId: string) => void;
-  onReorder: (orderedIds: string[]) => void;
-  onSelectCharacter?: (charId: string, e: React.MouseEvent) => void;
-  onDoubleClickCharacter?: (charId: string) => void;
-}) {
-  const [localChars, setLocalChars] = useState<Character[]>(characters);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
-  const [grabOffset, setGrabOffset] = useState<{ x: number; y: number }>({ x: 16, y: 14 });
-  const [draggedHtml, setDraggedHtml] = useState<string>('');
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // 外部から characters が変わった時に同期（新規追加・削除等）
-  const prevCharsRef = useRef(characters);
-  useEffect(() => {
-    if (prevCharsRef.current !== characters) {
-      prevCharsRef.current = characters;
-      setLocalChars(characters);
-    }
-  }, [characters]);
-
-  useEffect(() => {
-    if (!activeId) {
-      setCursorPos(null);
-      return;
-    }
-    const handleMove = (e: PointerEvent) => {
-      setCursorPos({ x: e.clientX, y: e.clientY });
-    };
-    window.addEventListener('pointermove', handleMove, { passive: true });
-    return () => window.removeEventListener('pointermove', handleMove);
-  }, [activeId]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const oldIndex = localChars.findIndex(c => c.id === active.id);
-    const newIndex = localChars.findIndex(c => c.id === over.id);
-    if (oldIndex < 0 || newIndex < 0) return;
-    const newOrder = arrayMove(localChars, oldIndex, newIndex);
-    setLocalChars(newOrder);
-    onReorder(newOrder.map(c => c.id));
-  };
-
-  return (
-    <div ref={containerRef}>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(event) => {
-          const id = String(event.active.id);
-          setActiveId(id);
-          const target = (event.activatorEvent as Event)?.target as HTMLElement | null;
-          const sortableEl = target?.closest?.('[aria-roledescription="sortable"]') as HTMLElement | null;
-          if (sortableEl) {
-            setDraggedHtml(sortableEl.outerHTML);
-          }
-          const activatorEvent = event.activatorEvent as PointerEvent | null;
-          const initialRect = event.active.rect.current?.initial;
-          if (activatorEvent && initialRect) {
-            setGrabOffset({
-              x: activatorEvent.clientX - initialRect.left,
-              y: activatorEvent.clientY - initialRect.top,
-            });
-            setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
-          }
-        }}
-        onDragEnd={(event) => {
-          setActiveId(null);
-          setDraggedHtml('');
-          handleDragEnd(event);
-        }}
-      >
-        <SortableContext items={localChars.map(c => c.id)} strategy={verticalListSortingStrategy}>
-        {localChars.map((char) => (
-          <div key={char.id} data-char-id={char.id} style={{ display: 'contents' }}>
-          <SortableListItem
-            id={char.id}
-            isSelected={selectedCharIds.includes(char.id)}
-            onClick={(e: React.MouseEvent) => onSelectCharacter?.(char.id, e)}
-          >
-            {/* インデント */}
-            <span style={{ flexShrink: 0, width: '20px' }} />
-            {/* アバター + 名前 */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              {/* アバター（画像 or カラードット） */}
-              <div style={{
-                flexShrink: 0,
-                width: '18px', height: '18px',
-                borderRadius: '50%',
-                background: char.color ?? theme.textMuted,
-                overflow: 'hidden',
-              }}>
-                {char.images[char.active_image_index]?.url ? (
-                  <img
-                    src={char.images[char.active_image_index].url}
-                    alt={char.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
-                  />
-                ) : null}
-              </div>
-              {/* 名前 */}
-              <span style={{
-                flex: 1,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                opacity: char.board_visible !== false ? 1 : 0.4,
-              }}
-                onDoubleClick={(e) => {
-                  e.stopPropagation();
-                  onDoubleClickCharacter?.(char.id);
-                }}
-              >
-                {char.name}
-              </span>
-            </div>
-            {/* 目アイコン */}
-            <Tooltip label={char.board_visible !== false ? '非表示にする' : '表示する'}>
-              <button
-                type="button"
-                className="adra-btn adra-btn--ghost adra-btn--ghost-on-bg"
-                style={{
-                  border: 'none',
-                  color: theme.textSecondary,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  padding: '2px 4px',
-                  lineHeight: 1,
-                  opacity: char.board_visible !== false ? 1 : 0.4,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                onClick={(e) => { e.stopPropagation(); onToggleVisible(char.id); }}
-              >
-                {char.board_visible !== false ? <Eye size={12} /> : <EyeOff size={12} />}
-              </button>
-            </Tooltip>
-          </SortableListItem>
-          </div>
-        ))}
-        <DragOverlay dropAnimation={null}>
-          <div style={{ visibility: 'hidden', position: 'fixed', pointerEvents: 'none' }} />
-        </DragOverlay>
-      </SortableContext>
-    </DndContext>
-    {activeId && cursorPos && draggedHtml && createPortal(
-      <div style={{
-        position: 'fixed',
-        top: cursorPos.y - grabOffset.y,
-        left: cursorPos.x - grabOffset.x,
-        width: containerRef.current?.closest?.('[style*="overflow"]')?.clientWidth ?? containerRef.current?.offsetWidth ?? 240,
-        zIndex: 9999,
-        pointerEvents: 'none',
-        opacity: 0.85,
-      }}>
-        <div dangerouslySetInnerHTML={{ __html: draggedHtml }} />
-      </div>,
-      document.body
-    )}
-    </div>
   );
 }
