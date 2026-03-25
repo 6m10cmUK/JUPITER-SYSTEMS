@@ -8,6 +8,7 @@ import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { handleClipboardImport } from '../../hooks/usePasteHandler';
 import { generateDuplicateName } from '../../utils/nameUtils';
+import { resolveAssetId } from '../../hooks/useAssets';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -751,7 +752,7 @@ const DomPanelObject = memo(function DomPanelObject({
   onResize?: (id: string, w: number, h: number) => void;
   baseZIndex?: number;
 }) {
-  const blobSrc = useAnimatedBlobSrc(obj.image_asset_id);
+  const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
 
   return (
     <DomObjectWrapper
@@ -872,7 +873,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   fadeInDuration?: number;
   baseZIndex?: number;
 }) {
-  const blobSrc = useAnimatedBlobSrc(obj.image_asset_id);
+  const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
   const fgDuration = fadeInDuration ?? 0;
 
   // リマウント時のフェードアウト層
@@ -1025,7 +1026,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   isSelected?: boolean;
   zIndex?: number;
 }) {
-  const imageAssetId = char.images[char.active_image_index]?.asset_id ?? null;
+  const imageAssetId = resolveAssetId(char.images[char.active_image_index]?.asset_id ?? null);
   const blobSrc = useAnimatedBlobSrc(imageAssetId);
   const elRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ startPointerX: number; startPointerY: number; origPxX: number; origPxY: number } | null>(null);

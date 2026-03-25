@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { Cutin, ActiveCutin } from '../../types/adrastea.types';
+import { resolveAssetId } from '../../hooks/useAssets';
 
 interface CutinOverlayProps {
   cutins: Cutin[];
@@ -147,9 +148,9 @@ export function CutinOverlay({ cutins, activeCutin, onCutinEnd }: CutinOverlayPr
           maxWidth: '80vw',
         }}
       >
-        {currentCutin.image_asset_id && (
+        {currentCutin.image_asset_id && resolveAssetId(currentCutin.image_asset_id) && (
           <img
-            src={currentCutin.image_asset_id}
+            src={resolveAssetId(currentCutin.image_asset_id) || ''}
             alt=""
             style={{
               maxWidth: '400px',

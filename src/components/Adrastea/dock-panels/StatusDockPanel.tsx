@@ -5,6 +5,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 import { DropdownMenu, shortcutLabel } from '../ui/DropdownMenu';
+import { resolveAssetId } from '../../../hooks/useAssets';
 import { theme } from '../../../styles/theme';
 
 function isLightColor(hex: string): boolean {
@@ -275,7 +276,7 @@ export function StatusDockPanel() {
           </div>
         ) : visible.map(char => {
           const isOwner = char.owner_id === currentUserId;
-          const imgUrl = char.images[char.active_image_index]?.asset_id ?? null;
+          const imgUrl = resolveAssetId(char.images[char.active_image_index]?.asset_id) ?? null;
           const isPrivate = char.is_status_private && !isOwner && !isSubOwnerPlus;
           const initiative = char.initiative ?? 0;
           const textColor = isLightColor(char.color) ? '#000' : '#fff';

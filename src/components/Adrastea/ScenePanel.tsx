@@ -7,6 +7,7 @@ import type { Scene, BgmTrack } from '../../types/adrastea.types';
 import { Plus, Copy, Trash2 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
+import { resolveAssetId } from '../../hooks/useAssets';
 
 interface ScenePanelProps {
   scenes: Scene[];
@@ -235,7 +236,7 @@ export function ScenePanel({
               {scene.background_asset_id && (
                 <div style={{
                   position: 'absolute', inset: 0,
-                  background: `url(${scene.background_asset_id}) center/cover`,
+                  background: `url(${resolveAssetId(scene.background_asset_id)}) center/cover`,
                   clipPath: 'polygon(75% 0, 100% 0, 100% 100%, 55% 100%)',
                   filter: scene.bg_blur ? 'blur(3px)' : undefined,
                 }} />
@@ -243,7 +244,7 @@ export function ScenePanel({
               {scene.foreground_asset_id && (
                 <div style={{
                   position: 'absolute', inset: 0,
-                  background: `url(${scene.foreground_asset_id}) center/cover`,
+                  background: `url(${resolveAssetId(scene.foreground_asset_id)}) center/cover`,
                   clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
                 }} />
               )}

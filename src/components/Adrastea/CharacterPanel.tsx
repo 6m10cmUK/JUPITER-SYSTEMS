@@ -4,6 +4,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
+import { resolveAssetId } from '../../hooks/useAssets';
 import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
 import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
@@ -193,9 +194,9 @@ export function CharacterPanel({
             }
           >
             {/* アバター */}
-            {char.images[char.active_image_index]?.asset_id ? (
+            {char.images[char.active_image_index]?.asset_id && resolveAssetId(char.images[char.active_image_index].asset_id) ? (
               <img
-                src={char.images[char.active_image_index].asset_id ?? ''}
+                src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''}
                 alt={char.name}
                 style={{
                   width: '40px',

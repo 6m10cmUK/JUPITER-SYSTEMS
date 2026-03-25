@@ -3,6 +3,7 @@ import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Cutin } from '../../types/adrastea.types';
+import { resolveAssetId } from '../../hooks/useAssets';
 import { SortableListPanel, SortableListItem } from './ui';
 
 interface CutinPanelProps {
@@ -79,9 +80,9 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onReord
         <SortableListItem key={cutin.id} id={cutin.id}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-              {cutin.image_asset_id ? (
+              {cutin.image_asset_id && resolveAssetId(cutin.image_asset_id) ? (
                 <img
-                  src={cutin.image_asset_id}
+                  src={resolveAssetId(cutin.image_asset_id) || ''}
                   alt=""
                   style={{ width: '36px', height: '36px', borderRadius: 0, objectFit: 'cover', flexShrink: 0 }}
                 />

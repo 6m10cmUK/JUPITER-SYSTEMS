@@ -6,6 +6,7 @@ import type { Character } from '../../types/adrastea.types';
 import { Tooltip, DropdownMenu } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { resolveTemplateVars } from './utils/chatEditorUtils';
+import { resolveAssetId } from '../../hooks/useAssets';
 import ChatEditor from './ChatEditor';
 import type { ChatEditorHandle } from './ChatEditor';
 
@@ -78,7 +79,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
     const charName = senderName.trim() || 'noname';
     if (senderName.trim()) localStorage.setItem('adrastea-last-sender', senderName.trim());
-    const charAvatar = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.asset_id ?? null;
+    const charAvatar = resolveAssetId(selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.asset_id) ?? null;
 
     const resolved = resolveTemplateVars(trimmedText, selectedCharacterForIcon);
     onSendMessage(resolved, 'chat', charName, charAvatar);
@@ -128,8 +129,8 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                   height: '28px',
                   borderRadius: '50%',
                   background: selectedCharacterForIcon
-                    ? selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id
-                      ? `url(${selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id}) top center/cover ${selectedCharacterForIcon.color}`
+                    ? resolveAssetId(selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id)
+                      ? `url(${resolveAssetId(selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id)}) top center/cover ${selectedCharacterForIcon.color}`
                       : selectedCharacterForIcon.color
                     : undefined,
                   border: `1px solid ${theme.border}`,
@@ -143,7 +144,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                 }}
                 title="キャラクター選択"
               >
-                {!selectedCharacterForIcon || !selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id ? (
+                {!selectedCharacterForIcon || !resolveAssetId(selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id) ? (
                   <User size={14} color={theme.textSecondary} />
                 ) : null}
               </button>
@@ -168,7 +169,7 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                     background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                   }}>
                     {char?.images[char.active_image_index]?.asset_id && (
-                      <img src={char.images[char.active_image_index].asset_id ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                      <img src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                     )}
                   </div>
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.label}</span>

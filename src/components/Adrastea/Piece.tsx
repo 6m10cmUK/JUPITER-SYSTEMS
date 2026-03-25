@@ -3,6 +3,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import type { Piece as PieceType } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
+import { resolveAssetId } from '../../hooks/useAssets';
 
 interface PieceProps {
   piece: PieceType;
@@ -15,6 +16,7 @@ export function Piece({ piece, onRemove }: PieceProps) {
     data: piece,
   });
 
+  const imageUrl = piece.image_asset_id ? resolveAssetId(piece.image_asset_id) : null;
   const style: React.CSSProperties = {
     position: 'absolute',
     left: piece.x,
@@ -23,8 +25,8 @@ export function Piece({ piece, onRemove }: PieceProps) {
     height: piece.height,
     transform: CSS.Translate.toString(transform),
     zIndex: piece.z_index,
-    backgroundColor: piece.image_asset_id ? 'transparent' : piece.color,
-    backgroundImage: piece.image_asset_id ? `url(${piece.image_asset_id})` : undefined,
+    backgroundColor: imageUrl ? 'transparent' : piece.color,
+    backgroundImage: imageUrl ? `url(${imageUrl})` : undefined,
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     borderRadius: 0,
