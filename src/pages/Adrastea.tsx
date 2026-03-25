@@ -58,6 +58,17 @@ function AdrasteaRoom() {
   const { can } = usePermission();
   const isOwner = ctx.roomRole === 'owner';
 
+  // ブラウザ標準の右クリックメニューを抑止（テキスト入力欄は除外）
+  useEffect(() => {
+    const onContextMenu = (e: MouseEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      e.preventDefault();
+    };
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => document.removeEventListener('contextmenu', onContextMenu);
+  }, []);
+
   // Undo/Redo キーバインド（sub_owner 以上のみ）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
