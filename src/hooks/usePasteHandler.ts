@@ -2,6 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { parseClipboardData } from '../utils/clipboardImport';
 import type { ScenarioTextClipData } from '../utils/clipboardImport';
 import type { Character, BoardObject, Scene, BgmTrack } from '../types/adrastea.types';
+import { generateDuplicateName } from '../utils/nameUtils';
 
 export interface UsePasteHandlerOptions {
   addCharacter: (data: Partial<Character>) => Promise<any>;
@@ -46,7 +47,7 @@ export async function handleClipboardImport(
 
   if (result.type === 'character') {
     try {
-      await Promise.all(result.data.map(d => addCharacter(d)));
+      await Promise.all(result.data.map(d => addCharacter({ ...d, name: d.name ? generateDuplicateName(d.name) : undefined })));
       const count = result.data.length;
       showToast(count > 1 ? `${count}件のキャラクターをインポートしました` : `キャラクター "${result.data[0]?.name ?? '不明'}" をインポートしました`, 'success');
     } catch {
@@ -73,7 +74,7 @@ export async function handleClipboardImport(
             continue;
           }
         }
-        await addObject(d);
+        await addObject({ ...d, name: d.name ? generateDuplicateName(d.name) : undefined });
       }
       const nonFgBg = result.data.filter(d => d.type !== 'foreground' && d.type !== 'background');
       if (nonFgBg.length > 0) {
@@ -110,7 +111,7 @@ export async function handleClipboardImport(
     if (!addScenarioText) return;
     try {
       await Promise.all(result.data.map(d => addScenarioText({
-        title: d.title ? `${d.title} (コピー)` : '新規テキストメモ',
+        title: d.title ? generateDuplicateName(d.title) : '新規テキストメモ',
         content: d.content ?? '',
         speaker_character_id: d.speaker_character_id ?? null,
         speaker_name: d.speaker_name ?? null,
