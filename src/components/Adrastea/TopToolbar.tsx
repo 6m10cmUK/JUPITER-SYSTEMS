@@ -29,34 +29,6 @@ const ROLE_BADGE: Record<string, { label: string; color: string }> = {
   guest:     { label: 'guest',     color: theme.textMuted },
 };
 
-function IconButton({ onClick, title, children, active }: {
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-  active?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        width: 24,
-        height: 24,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: active ? theme.bgInput : 'transparent',
-        color: active ? theme.textPrimary : theme.textSecondary,
-        border: 'none',
-        borderRadius: 0,
-        cursor: 'pointer',
-        padding: 0,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
 
 export function TopToolbar({
   onAddPiece: _onAddPiece,
@@ -88,66 +60,58 @@ export function TopToolbar({
         zIndex: 10,
       }}
     >
-      {/* ロゴ */}
-      <div style={{
-        display: 'flex', alignItems: 'baseline', gap: '4px',
-        paddingRight: '8px',
-        borderRight: `1px solid ${theme.border}`,
-        marginRight: '4px',
-      }}>
-        <span style={{ fontSize: '15px', fontWeight: 700, letterSpacing: '0.05em', color: theme.textPrimary, fontFamily: "'Barlow Condensed', sans-serif" }}>
-          Adrastea
-        </span>
-        <span style={{ fontSize: '9px', color: theme.textMuted, opacity: 0.7 }}>
-          {ADRASTEA_STAGE} {ADRASTEA_VERSION}
-        </span>
-      </div>
+      {/* Adrastea (α) 0.2.0 */}
+      <span style={{ fontSize: '13px', fontWeight: 700, letterSpacing: '0.05em', color: theme.textPrimary, fontFamily: "'Barlow Condensed', sans-serif", whiteSpace: 'nowrap' }}>
+        Adrastea
+      </span>
+      <span style={{ fontSize: '10px', color: theme.textMuted, opacity: 0.7, whiteSpace: 'nowrap' }}>
+        ({ADRASTEA_STAGE}) {ADRASTEA_VERSION}
+      </span>
 
-      {/* セパレータ */}
-      <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
-
-      {/* ルーム名 + 編集ボタン */}
+      {/* | ルーム名 */}
       {roomName && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <>
+          <div style={{ width: 1, height: 16, background: theme.border, margin: '0 4px', flexShrink: 0 }} />
           <span style={{
-            fontSize: '11px',
-            color: theme.textSecondary,
-            maxWidth: 160,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            fontSize: '12px', color: theme.textSecondary,
+            maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {roomName}
           </span>
-          <button
-            type="button"
-            className="adra-btn adra-btn--ghost"
-            onClick={onOpenSettings}
-            title="ルーム設定"
-            style={{
-              width: 20,
-              height: 20,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              border: 'none',
-              cursor: 'pointer',
-              flexShrink: 0,
-            }}
-          >
-            <Settings size={11} />
-          </button>
-        </div>
+        </>
       )}
 
-      {/* セパレータ */}
-      <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
+      {/* | 設定 */}
+      <div style={{ width: 1, height: 16, background: theme.border, margin: '0 4px', flexShrink: 0 }} />
+      <button
+        onClick={onOpenSettings}
+        title="ルーム設定"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '3px',
+          background: 'transparent', border: 'none', borderRadius: 0,
+          color: theme.textSecondary, cursor: 'pointer',
+          padding: '2px 4px', fontSize: '0.75rem', whiteSpace: 'nowrap',
+        }}
+      >
+        <Settings size={13} />
+        設定
+      </button>
 
-      {/* パネルレイアウト切替 */}
-      <IconButton onClick={onOpenLayout} title="パネルレイアウト">
-        <Eye size={14} />
-      </IconButton>
+      {/* | レイアウト */}
+      <div style={{ width: 1, height: 16, background: theme.border, margin: '0 4px', flexShrink: 0 }} />
+      <button
+        onClick={onOpenLayout}
+        title="パネルレイアウト"
+        style={{
+          display: 'flex', alignItems: 'center', gap: '3px',
+          background: 'transparent', border: 'none', borderRadius: 0,
+          color: theme.textSecondary, cursor: 'pointer',
+          padding: '2px 4px', fontSize: '0.75rem', whiteSpace: 'nowrap',
+        }}
+      >
+        <Eye size={13} />
+        レイアウト
+      </button>
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
