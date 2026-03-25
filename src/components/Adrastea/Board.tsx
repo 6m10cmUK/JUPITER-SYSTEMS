@@ -2,7 +2,6 @@ import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, f
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konva';
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
-import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
@@ -35,6 +34,12 @@ interface BoardProps {
   onSelectCharacter?: (charId: string) => void;
   onDoubleClickCharacter?: (charId: string) => void;
   onPaste?: () => void;
+  onSelectBgObject?: (id: string) => void;
+  onShowToast?: (msg: string, type: 'success' | 'error') => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
   currentUserId?: string;
   selectedObjectId?: string | null;
   selectedObjectIds?: string[];
@@ -254,8 +259,7 @@ export function getViewportCenter(stage: StageType | null): { x: number; y: numb
   };
 }
 
-export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onToggleGrid, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
-  const ctx = useAdrasteaContext();
+export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces, objects = [], activeScene, gridVisible = true, onToggleGrid, characters, onMovePiece, onRemovePiece, onEditPiece, onMoveObject, onSelectObject, onEditObject, onResizeObject, onSyncObjectSize, onUpdateCharacterBoardPosition, onSelectCharacter, onDoubleClickCharacter, onPaste, onSelectBgObject, onShowToast, onUndo, onRedo, canUndo, canRedo, currentUserId, selectedObjectId, selectedObjectIds, selectedCharacterId, children }, ref) {
   const stageRef = useRef<StageType>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
@@ -498,8 +502,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             // 背景オブジェクトを選択してプロパティ表示
             const bgObj = objects.find(o => o.type === 'background');
             if (bgObj) {
-              ctx.setSelectedObjectIds([bgObj.id]);
-              ctx.setEditingObjectId(bgObj.id);
+              onSelectBgObject?.(bgObj.id);
             }
           }
         }}
@@ -621,7 +624,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
               onClick: () => {
                 if (bgObj) {
                   navigator.clipboard.writeText(objectToClipboardJson(bgObj));
-                  ctx.showToast('背景をコピーしました', 'success');
+                  onShowToast?.('背景をコピーしました', 'success');
                 }
                 setBgContextMenuState(null);
               },
@@ -638,14 +641,14 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
             {
               label: '元に戻す',
               shortcut: shortcutLabel('Z'),
-              disabled: !ctx.undoRedo.canUndo,
-              onClick: () => { ctx.undoRedo.undo(); setBgContextMenuState(null); },
+              disabled: !canUndo,
+              onClick: () => { onUndo?.(); setBgContextMenuState(null); },
             },
             {
               label: 'やり直し',
               shortcut: shortcutLabel('⇧Z'),
-              disabled: !ctx.undoRedo.canRedo,
-              onClick: () => { ctx.undoRedo.redo(); setBgContextMenuState(null); },
+              disabled: !canRedo,
+              onClick: () => { onRedo?.(); setBgContextMenuState(null); },
             },
           ];
         })()}

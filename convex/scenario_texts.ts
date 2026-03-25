@@ -106,21 +106,32 @@ export const reorder = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
-    const now = Date.now();
-    let roomId: string | null = null;
+    if (args.updates.length === 0) return;
+
+    // ドキュメントを全て取得
+    const docs = [];
     for (const u of args.updates) {
       const doc = await ctx.db
         .query("scenario_texts")
         .filter((q) => q.eq(q.field("id"), u.id))
         .first();
-      if (doc) {
-        if (!roomId) roomId = doc.room_id;
-        await ctx.db.patch(doc._id, { sort_order: u.sort_order, updated_at: now });
-      }
+      if (!doc) continue;
+      docs.push({ doc, sort_order: u.sort_order });
     }
-    if (roomId) {
-      const role = await getRole(ctx, roomId);
-      assertMinRole(role, 'sub_owner');
+    if (docs.length === 0) return;
+
+    // 最初のドキュメントで roomId を確定して認可チェック
+    const roomId = docs[0].doc.room_id;
+    const role = await getRole(ctx, roomId);
+    assertMinRole(role, 'sub_owner');
+
+    // 全ドキュメントが同一ルームであることを検証しながら patch
+    const now = Date.now();
+    for (const { doc, sort_order } of docs) {
+      if (doc.room_id !== roomId) {
+        throw new Error("Cannot reorder documents across different rooms");
+      }
+      await ctx.db.patch(doc._id, { sort_order, updated_at: now });
     }
   },
 });
