@@ -20,7 +20,22 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
     }
   );
   const removeMutation = useMutation(api.scenario_texts.remove);
-  const reorderMutation = useMutation(api.scenario_texts.reorder);
+  const reorderMutation = useMutation(api.scenario_texts.reorder).withOptimisticUpdate(
+    (localStore, args) => {
+      const current = localStore.getQuery(api.scenario_texts.list, { room_id: roomId });
+      if (current !== undefined) {
+        const orderMap = new Map(args.updates.map((u: { id: string; sort_order: number }) => [u.id, u.sort_order]));
+        localStore.setQuery(
+          api.scenario_texts.list,
+          { room_id: roomId },
+          current.map((t) => {
+            const newOrder = orderMap.get(t.id);
+            return newOrder !== undefined ? { ...t, sort_order: newOrder } : t;
+          }),
+        );
+      }
+    }
+  );
 
   const loading = textsData === undefined;
   const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
@@ -30,7 +45,7 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
     speaker_name: (t as any).speaker_name ?? null,
     channel_id: (t as any).channel_id ?? null,
     created_at: t._creationTime, updated_at: t._creationTime,
-  } as ScenarioText)), [textsData]);
+  } as ScenarioText)).sort((a, b) => a.sort_order - b.sort_order), [textsData]);
 
   const addScenarioText = useCallback(
     async (data: Partial<Omit<ScenarioText, 'id' | 'room_id'>>): Promise<ScenarioText> => {
