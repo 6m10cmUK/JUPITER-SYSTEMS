@@ -565,17 +565,20 @@ export function BgmPanel() {
           open={true}
           onOpenChange={(open) => { if (!open) setContextMenu(null); }}
           position={{ x: contextMenu.x, y: contextMenu.y }}
-          items={[
+          items={(() => {
+            const targetId = contextMenu?.trackId ?? editingBgmId;
+            const hasTarget = !!targetId;
+            return [
             {
               label: 'コピー',
               shortcut: shortcutLabel('C'),
-              disabled: !contextMenu?.trackId,
+              disabled: !hasTarget,
               onClick: handleCopy,
             },
             {
               label: '複製',
               shortcut: shortcutLabel('D'),
-              disabled: !contextMenu?.trackId,
+              disabled: !hasTarget,
               onClick: handleDuplicate,
             },
             'separator',
@@ -583,10 +586,10 @@ export function BgmPanel() {
               label: '削除',
               shortcut: 'Del',
               danger: true,
-              disabled: !contextMenu?.trackId,
+              disabled: !hasTarget,
               onClick: () => {
                 setContextMenu(null);
-                if (contextMenu?.trackId) setPendingDeleteId(contextMenu.trackId);
+                if (targetId) setPendingDeleteId(targetId);
               },
             },
             'separator',
@@ -595,7 +598,7 @@ export function BgmPanel() {
               shortcut: shortcutLabel('V'),
               onClick: handlePaste,
             },
-          ]}
+          ]; })()}
         />
       )}
 
