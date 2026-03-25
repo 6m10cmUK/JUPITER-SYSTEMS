@@ -18,10 +18,15 @@ export function ScenarioTextDockPanel() {
       texts={ctx.scenarioTexts}
       selectedIds={selectedIds}
       onSelectIds={(ids) => {
-        ctx.clearAllEditing();
-        ctx.setPanelSelection(ids.length > 0 ? { panel: 'scenario_text', ids } : null);
-        if (ids.length === 1) {
-          ctx.setEditingScenarioTextId(ids[0]);
+        if (ids.length > 0) {
+          ctx.clearAllEditing();
+          ctx.setPanelSelection({ panel: 'scenario_text', ids });
+          if (ids.length === 1) {
+            ctx.setEditingScenarioTextId(ids[0]);
+          }
+        } else {
+          // 空白クリック: 選択だけ解除、プロパティ表示は維持
+          ctx.setPanelSelection(null);
         }
       }}
       keyboardActionsRef={ctx.keyboardActionsRef}
