@@ -1,10 +1,10 @@
 import { useCallback, useState, useEffect } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
-import { Plus, Send, Trash2 } from 'lucide-react';
+import { Plus, Send, Trash2, Copy } from 'lucide-react';
 import { theme } from '../../styles/theme';
 import type { ScenarioText } from '../../types/adrastea.types';
-import { SortableListPanel, SortableListItem } from './ui';
+import { SortableListPanel, SortableListItem, Tooltip } from './ui';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 
 interface ScenarioTextPanelProps {
@@ -103,13 +103,34 @@ export function ScenarioTextPanel({
         <SortableListPanel
           title="テキストメモ"
           headerActions={
-            <button
-              onClick={onAdd}
-              title="テキストメモを追加"
-              style={{ ...iconBtn, color: theme.accent }}
-            >
-              <Plus size={16} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
+              <Tooltip label="複製">
+                <button
+                  onClick={() => selectedId && onDuplicate?.(selectedId)}
+                  disabled={!selectedId || !onDuplicate}
+                  style={{ ...iconBtn, color: theme.textSecondary, padding: '2px 4px', opacity: selectedId && onDuplicate ? 1 : 0.3 }}
+                >
+                  <Copy size={15} />
+                </button>
+              </Tooltip>
+              <Tooltip label="削除">
+                <button
+                  onClick={() => selectedId && setPendingDeleteId(selectedId)}
+                  disabled={!selectedId}
+                  style={{ ...iconBtn, color: theme.danger, padding: '2px 4px', opacity: selectedId ? 1 : 0.3 }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              </Tooltip>
+              <Tooltip label="テキストメモを追加">
+                <button
+                  onClick={onAdd}
+                  style={{ ...iconBtn, color: theme.accent, padding: '2px 4px' }}
+                >
+                  <Plus size={15} />
+                </button>
+              </Tooltip>
+            </div>
           }
           items={texts}
           onDragEnd={handleDragEnd}
@@ -134,13 +155,6 @@ export function ScenarioTextPanel({
                       style={{ ...iconBtn, color: theme.accent, opacity: text.content && onSendToChat ? 1 : 0.3 }}
                     >
                       <Send size={13} />
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setPendingDeleteId(text.id); }}
-                      title="削除"
-                      style={{ ...iconBtn, color: theme.danger }}
-                    >
-                      <Trash2 size={13} />
                     </button>
                   </div>
                   <div style={{
