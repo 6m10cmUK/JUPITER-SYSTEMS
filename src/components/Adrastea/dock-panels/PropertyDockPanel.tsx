@@ -211,7 +211,7 @@ export function PropertyDockPanel() {
   if (!content) return null;
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div data-selection-panel style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
         {content}
       </div>
