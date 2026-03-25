@@ -459,6 +459,7 @@ export function BgmPanel() {
         titleIcon={<span title="BGM"><Music size={14} /></span>}
         onBackgroundClick={() => {
           setEditingBgmId(null);
+          setPanelSelection(null);
         }}
         headerActions={
           <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
