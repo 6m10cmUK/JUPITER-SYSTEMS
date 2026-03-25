@@ -85,10 +85,11 @@ function VolumeFader({ value, onChange }: { value: number; onChange: (v: number)
 interface BgmTrackRowProps {
   track: BgmTrack;
   currentSceneId: string;
-  isEditing: boolean;
-  onEdit: (id: string) => void;
+  isSelected: boolean;
+  onClick: (id: string, e: React.MouseEvent) => void;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
   onContextMenu?: (e: React.MouseEvent, id: string) => void;
+  onToggleSelect?: (id: string) => void;
   renamingId?: string | null;
   renameValue?: string;
   onRenameChange?: (value: string) => void;
@@ -97,7 +98,7 @@ interface BgmTrackRowProps {
 }
 
 function BgmTrackRow({
-  track, currentSceneId, isEditing, onEdit, onUpdate, onContextMenu,
+  track, currentSceneId, isSelected, onClick, onUpdate, onContextMenu, onToggleSelect,
   renamingId, renameValue, onRenameChange, onRenameSubmit, onRenameCancel,
 }: BgmTrackRowProps) {
   const [localMuted, setLocalMuted] = useState(false);
@@ -123,7 +124,36 @@ function BgmTrackRow({
 
   return (
     <div onContextMenu={onContextMenu ? (e) => onContextMenu(e, track.id) : undefined} title={trackTooltip}>
-      <SortableListItem id={track.id} onClick={() => onEdit(track.id)} isSelected={isEditing}>
+      <SortableListItem
+        id={track.id}
+        onClick={(e) => onClick(track.id, e)}
+        isSelected={isSelected}
+        handleExtra={
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleSelect?.(track.id);
+            }}
+            style={{
+              width: '12px',
+              height: '12px',
+              border: `1px solid ${theme.textMuted}`,
+              borderRadius: '2px',
+              background: isSelected ? theme.textMuted : 'transparent',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '10px',
+              color: theme.bgBase,
+              lineHeight: 1,
+              flexShrink: 0,
+            }}
+          >
+            {isSelected && '✓'}
+          </div>
+        }
+      >
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Top row: controls */}
         <div style={{
@@ -257,7 +287,7 @@ function BgmTrackRow({
 
 // --- BgmPanel ---
 export function BgmPanel() {
-  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, editingBgmId, setEditingBgmId, clearAllEditing, showToast, panelSelection, setPanelSelection, keyboardActionsRef } = useAdrasteaContext();
+  const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, setEditingBgmId, clearAllEditing, showToast, panelSelection, setPanelSelection, keyboardActionsRef } = useAdrasteaContext();
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
@@ -270,7 +300,7 @@ export function BgmPanel() {
 
   // ローカルstate で楽観的UI更新
   const [localBgms, setLocalBgms] = useState<BgmTrack[]>([]);
-  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null);
+  const [pendingRemoveIds, setPendingRemoveIds] = useState<string[] | null>(null);
   const prevFilteredRef = useRef<BgmTrack[]>([]);
 
   useEffect(() => {
@@ -280,11 +310,43 @@ export function BgmPanel() {
     }
   }, [filteredBgms]);
 
-  const handleEdit = useCallback((id: string) => {
-    clearAllEditing();
-    setEditingBgmId(id);
-    setPanelSelection({ panel: 'bgm', ids: [id] });
-  }, [clearAllEditing, setEditingBgmId, setPanelSelection]);
+  const selectedIds = panelSelection?.panel === 'bgm' ? panelSelection.ids : [];
+
+  const handleItemClick = useCallback((id: string, e: React.MouseEvent) => {
+    const currentIds = panelSelection?.panel === 'bgm' ? panelSelection.ids : [];
+    if (e.shiftKey && currentIds.length > 0) {
+      const lastSelected = currentIds[currentIds.length - 1];
+      const anchorIdx = localBgms.findIndex(b => b.id === lastSelected);
+      const targetIdx = localBgms.findIndex(b => b.id === id);
+      if (anchorIdx >= 0 && targetIdx >= 0) {
+        const [start, end] = anchorIdx < targetIdx ? [anchorIdx, targetIdx] : [targetIdx, anchorIdx];
+        const newIds = localBgms.slice(start, end + 1).map(b => b.id);
+        setPanelSelection({ panel: 'bgm', ids: newIds });
+        if (newIds.length === 1) setEditingBgmId(newIds[0]);
+      }
+    } else if (e.metaKey || e.ctrlKey) {
+      const newIds = currentIds.includes(id)
+        ? currentIds.filter(i => i !== id)
+        : [...currentIds, id];
+      setPanelSelection(newIds.length > 0 ? { panel: 'bgm', ids: newIds } : null);
+      if (newIds.length === 1) setEditingBgmId(newIds[0]);
+      else setEditingBgmId(null);
+    } else {
+      clearAllEditing();
+      setEditingBgmId(id);
+      setPanelSelection({ panel: 'bgm', ids: [id] });
+    }
+  }, [localBgms, panelSelection, clearAllEditing, setEditingBgmId, setPanelSelection]);
+
+  const handleToggleSelect = useCallback((id: string) => {
+    const currentIds = panelSelection?.panel === 'bgm' ? panelSelection.ids : [];
+    const newIds = currentIds.includes(id)
+      ? currentIds.filter(i => i !== id)
+      : [...currentIds, id];
+    setPanelSelection(newIds.length > 0 ? { panel: 'bgm', ids: newIds } : null);
+    if (newIds.length === 1) setEditingBgmId(newIds[0]);
+    else if (newIds.length === 0) setEditingBgmId(null);
+  }, [panelSelection, setPanelSelection, setEditingBgmId]);
 
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
@@ -319,7 +381,6 @@ export function BgmPanel() {
   }, [localBgms, updateBgm]);
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; trackId?: string } | null>(null);
-  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [showAddPicker, setShowAddPicker] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -327,12 +388,12 @@ export function BgmPanel() {
   const handleContextMenu = useCallback((e: React.MouseEvent, trackId?: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (trackId) {
-      clearAllEditing();
+    if (trackId && !selectedIds.includes(trackId)) {
+      setPanelSelection({ panel: 'bgm', ids: [trackId] });
       setEditingBgmId(trackId);
     }
     setContextMenu({ x: e.clientX, y: e.clientY, trackId });
-  }, [clearAllEditing, setEditingBgmId]);
+  }, [selectedIds, setPanelSelection, setEditingBgmId]);
 
   const handleRenameSubmit = useCallback(() => {
     if (renamingId && renameValue.trim()) {
@@ -342,23 +403,30 @@ export function BgmPanel() {
   }, [renamingId, renameValue, updateBgm]);
 
   const handleCopy = useCallback(() => {
-    if (!contextMenu?.trackId) return;
-    const track = bgms.find(b => b.id === contextMenu.trackId);
-    if (track) {
-      navigator.clipboard.writeText(bgmToClipboardJson(track));
-      showToast(`${track.name} をコピーしました`, 'success');
+    const targetIds = contextMenu?.trackId
+      ? (selectedIds.includes(contextMenu.trackId) ? selectedIds : [contextMenu.trackId])
+      : selectedIds;
+    if (targetIds.length === 0) return;
+    const tracks = bgms.filter(b => targetIds.includes(b.id));
+    if (tracks.length > 0) {
+      navigator.clipboard.writeText(bgmToClipboardJson(tracks[0]));
+      showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
     }
     setContextMenu(null);
-  }, [contextMenu, bgms, showToast]);
+  }, [contextMenu, bgms, selectedIds, showToast]);
 
   const handleDuplicate = useCallback(async () => {
-    if (!contextMenu?.trackId) return;
-    const track = bgms.find(b => b.id === contextMenu.trackId);
-    if (!track) return;
-    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-    await addBgm({ ...rest, name: `${track.name} (複製)` });
+    const targetIds = contextMenu?.trackId
+      ? (selectedIds.includes(contextMenu.trackId) ? selectedIds : [contextMenu.trackId])
+      : selectedIds;
+    if (targetIds.length === 0) return;
+    const tracks = bgms.filter(b => targetIds.includes(b.id));
+    for (const track of tracks) {
+      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+      await addBgm({ ...rest, name: `${track.name} (複製)` });
+    }
     setContextMenu(null);
-  }, [contextMenu, bgms, addBgm]);
+  }, [contextMenu, bgms, selectedIds, addBgm]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -375,26 +443,32 @@ export function BgmPanel() {
   }, [addBgm, showToast, activeScene]);
 
   const handleConfirmDelete = useCallback(async () => {
-    if (!pendingDeleteId) return;
-    await removeBgm(pendingDeleteId);
-    setPendingDeleteId(null);
-  }, [pendingDeleteId, removeBgm]);
+    if (!pendingRemoveIds) return;
+    await Promise.all(pendingRemoveIds.map(id => removeBgm(id)));
+    setPendingRemoveIds(null);
+  }, [pendingRemoveIds, removeBgm]);
 
   // グローバルキーボードショートカットにハンドラ登録
   useEffect(() => {
-    if (editingBgmId) {
+    if (selectedIds.length > 0) {
       keyboardActionsRef.current = {
         copy: () => {
-          const track = bgms.find(b => b.id === editingBgmId);
-          if (track) {
-            navigator.clipboard.writeText(bgmToClipboardJson(track));
-            showToast(`${track.name} をコピーしました`, 'success');
+          const tracks = bgms.filter(b => selectedIds.includes(b.id));
+          if (tracks.length > 0) {
+            navigator.clipboard.writeText(bgmToClipboardJson(tracks[0]));
+            showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
           }
         },
-        duplicate: handleDuplicate,
+        duplicate: async () => {
+          const tracks = bgms.filter(b => selectedIds.includes(b.id));
+          for (const track of tracks) {
+            const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+            await addBgm({ ...rest, name: `${track.name} (複製)` });
+          }
+        },
         delete: () => {
-          if (editingBgmId) {
-            setPendingDeleteId(editingBgmId);
+          if (selectedIds.length > 0) {
+            setPendingRemoveIds(selectedIds);
           }
         },
       };
@@ -404,7 +478,7 @@ export function BgmPanel() {
         keyboardActionsRef.current = {};
       }
     };
-  }, [editingBgmId, bgms, showToast, handleDuplicate, panelSelection, keyboardActionsRef]);
+  }, [selectedIds, bgms, showToast, addBgm, panelSelection, keyboardActionsRef]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
@@ -495,17 +569,18 @@ export function BgmPanel() {
             <Tooltip label="複製">
               <button
                 onClick={() => {
-                  if (!editingBgmId) return;
-                  const track = bgms.find(b => b.id === editingBgmId);
-                  if (!track) return;
-                  const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
-                  addBgm({ ...rest, name: `${track.name} (複製)` });
+                  if (selectedIds.length === 0) return;
+                  const tracks = bgms.filter(b => selectedIds.includes(b.id));
+                  tracks.forEach(track => {
+                    const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = track as any;
+                    addBgm({ ...rest, name: `${track.name} (複製)` });
+                  });
                 }}
-                disabled={!editingBgmId}
+                disabled={selectedIds.length === 0}
                 style={{
-                  background: 'transparent', border: 'none', cursor: editingBgmId ? 'pointer' : 'default',
+                  background: 'transparent', border: 'none', cursor: selectedIds.length > 0 ? 'pointer' : 'default',
                   display: 'flex', alignItems: 'center', padding: '2px 4px',
-                  color: theme.textSecondary, opacity: editingBgmId ? 1 : 0.3,
+                  color: theme.textSecondary, opacity: selectedIds.length > 0 ? 1 : 0.3,
                 }}
               >
                 <Copy size={15} />
@@ -513,12 +588,12 @@ export function BgmPanel() {
             </Tooltip>
             <Tooltip label="シーンから除去">
               <button
-                onClick={() => editingBgmId && setPendingRemoveId(editingBgmId)}
-                disabled={!editingBgmId}
+                onClick={() => selectedIds.length > 0 && setPendingRemoveIds(selectedIds)}
+                disabled={selectedIds.length === 0}
                 style={{
-                  background: 'transparent', border: 'none', cursor: editingBgmId ? 'pointer' : 'default',
+                  background: 'transparent', border: 'none', cursor: selectedIds.length > 0 ? 'pointer' : 'default',
                   display: 'flex', alignItems: 'center', padding: '2px 4px',
-                  color: theme.danger, opacity: editingBgmId ? 1 : 0.3,
+                  color: theme.danger, opacity: selectedIds.length > 0 ? 1 : 0.3,
                 }}
               >
                 <Trash2 size={15} />
@@ -547,10 +622,11 @@ export function BgmPanel() {
             key={track.id}
             track={track}
             currentSceneId={currentSceneId}
-            isEditing={panelSelection?.panel === 'bgm' && panelSelection.ids.includes(track.id)}
-            onEdit={handleEdit}
+            isSelected={selectedIds.includes(track.id)}
+            onClick={handleItemClick}
             onUpdate={updateBgm}
             onContextMenu={handleContextMenu}
+            onToggleSelect={handleToggleSelect}
             renamingId={renamingId}
             renameValue={renameValue}
             onRenameChange={setRenameValue}
@@ -568,8 +644,10 @@ export function BgmPanel() {
           onOpenChange={(open) => { if (!open) setContextMenu(null); }}
           position={{ x: contextMenu.x, y: contextMenu.y }}
           items={(() => {
-            const targetId = contextMenu?.trackId ?? editingBgmId;
-            const hasTarget = !!targetId;
+            const targetIds = contextMenu?.trackId
+              ? (selectedIds.includes(contextMenu.trackId) ? selectedIds : [contextMenu.trackId])
+              : selectedIds;
+            const hasTarget = targetIds.length > 0;
             return [
             {
               label: '新規作成',
@@ -580,26 +658,26 @@ export function BgmPanel() {
             },
             'separator',
             {
-              label: 'コピー',
+              label: targetIds.length > 1 ? `${targetIds.length}件をコピー` : 'コピー',
               shortcut: shortcutLabel('C'),
               disabled: !hasTarget,
               onClick: handleCopy,
             },
             {
-              label: '複製',
+              label: targetIds.length > 1 ? `${targetIds.length}件を複製` : '複製',
               shortcut: shortcutLabel('D'),
               disabled: !hasTarget,
               onClick: handleDuplicate,
             },
             'separator',
             {
-              label: '削除',
+              label: targetIds.length > 1 ? `${targetIds.length}件を削除` : '削除',
               shortcut: 'Del',
               danger: true,
               disabled: !hasTarget,
               onClick: () => {
                 setContextMenu(null);
-                if (targetId) setPendingDeleteId(targetId);
+                if (targetIds.length > 0) setPendingRemoveIds(targetIds);
               },
             },
             'separator',
@@ -612,39 +690,49 @@ export function BgmPanel() {
         />
       )}
 
-      {pendingRemoveId && (() => {
-        const removeTrack = bgms.find(b => b.id === pendingRemoveId);
+      {pendingRemoveIds && (() => {
+        const removeTracks = bgms.filter(b => pendingRemoveIds.includes(b.id));
+        const message = pendingRemoveIds.length === 1
+          ? `「${removeTracks[0]?.name ?? 'BGM'}」をこのシーンから除去しますか？`
+          : `${pendingRemoveIds.length}件のBGMをこのシーンから除去しますか？`;
         return (
           <ConfirmModal
-            message={`「${removeTrack?.name ?? 'BGM'}」をこのシーンから除去しますか？`}
+            message={message}
             confirmLabel="除去"
             danger
             onConfirm={() => {
-              const track = bgms.find(b => b.id === pendingRemoveId);
-              if (track && currentSceneId) {
-                updateBgm(pendingRemoveId, {
-                  scene_ids: track.scene_ids.filter(s => s !== currentSceneId),
-                  auto_play_scene_ids: track.auto_play_scene_ids.filter(s => s !== currentSceneId),
-                  is_playing: false,
-                  is_paused: false,
+              if (currentSceneId) {
+                pendingRemoveIds.forEach(id => {
+                  const track = bgms.find(b => b.id === id);
+                  if (track) {
+                    updateBgm(id, {
+                      scene_ids: track.scene_ids.filter(s => s !== currentSceneId),
+                      auto_play_scene_ids: track.auto_play_scene_ids.filter(s => s !== currentSceneId),
+                      is_playing: false,
+                      is_paused: false,
+                    });
+                  }
                 });
               }
-              setPendingRemoveId(null);
+              setPendingRemoveIds(null);
             }}
-            onCancel={() => setPendingRemoveId(null)}
+            onCancel={() => setPendingRemoveIds(null)}
           />
         );
       })()}
 
-      {pendingDeleteId && (() => {
-        const delTrack = bgms.find(b => b.id === pendingDeleteId);
+      {pendingRemoveIds && (() => {
+        const delTracks = bgms.filter(b => pendingRemoveIds.includes(b.id));
+        const message = pendingRemoveIds.length === 1
+          ? `「${delTracks[0]?.name ?? 'BGM'}」を削除しますか？（全シーンから削除されます）`
+          : `${pendingRemoveIds.length}件のBGMを削除しますか？（全シーンから削除されます）`;
         return (
           <ConfirmModal
-            message={`「${delTrack?.name ?? 'BGM'}」を削除しますか？（全シーンから削除されます）`}
+            message={message}
             confirmLabel="削除"
             danger
             onConfirm={handleConfirmDelete}
-            onCancel={() => setPendingDeleteId(null)}
+            onCancel={() => setPendingRemoveIds(null)}
           />
         );
       })()}
