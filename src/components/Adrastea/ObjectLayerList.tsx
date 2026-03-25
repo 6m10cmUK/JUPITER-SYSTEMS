@@ -277,6 +277,9 @@ export function ObjectLayerList({
         setSelectedObjectIds([]);
         setEditingObjectId(undefined);
       }}
+      onBackgroundContextMenu={(e) => {
+        setContextMenu({ x: e.clientX, y: e.clientY });
+      }}
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           <Tooltip label="複製">
@@ -384,6 +387,10 @@ export function ObjectLayerList({
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
+              if (!selectedObjectIds.includes(obj.id)) {
+                setSelectedObjectIds([obj.id]);
+                setEditingObjectId(obj.id);
+              }
               setContextMenu({ x: e.clientX, y: e.clientY, objId: obj.id });
             }}
           >

@@ -32,6 +32,7 @@ interface SortableListPanelProps {
   onDragEnd?: (event: DragEndEvent) => void;
   onDragStart?: (event: DragStartEvent) => void;
   onBackgroundClick?: () => void;
+  onBackgroundContextMenu?: (e: React.MouseEvent) => void;
   emptyMessage?: string;
   children: React.ReactNode;
 }
@@ -46,6 +47,7 @@ export function SortableListPanel({
   onDragEnd,
   onDragStart,
   onBackgroundClick,
+  onBackgroundContextMenu,
   emptyMessage,
   children,
 }: SortableListPanelProps) {
@@ -126,6 +128,12 @@ export function SortableListPanel({
         onClick={(e) => {
           if (e.currentTarget === e.target && onBackgroundClick) {
             onBackgroundClick();
+          }
+        }}
+        onContextMenu={(e) => {
+          if (e.currentTarget === e.target && onBackgroundContextMenu) {
+            e.preventDefault();
+            onBackgroundContextMenu(e);
           }
         }}
       >
