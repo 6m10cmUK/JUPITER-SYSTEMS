@@ -98,7 +98,7 @@ export function ScenePanel({
         e.preventDefault();
         const sceneEl = (e.target as HTMLElement).closest('[data-scene-id]');
         const sceneId = sceneEl?.getAttribute('data-scene-id') ?? undefined;
-        if (sceneId) {
+        if (sceneId && !selectedSceneIds.includes(sceneId)) {
           onSelectedSceneIdsChange([sceneId]);
         }
         setContextMenu({ x: e.clientX, y: e.clientY, sceneId });
