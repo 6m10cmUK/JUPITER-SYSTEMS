@@ -104,7 +104,6 @@ export interface Character {
   chat_palette: string;
   is_status_private: boolean;
   is_hidden_on_board: boolean;
-  is_speech_hidden: boolean;
   sort_order: number;
   board_x?: number;
   board_y?: number;
@@ -137,7 +136,6 @@ export interface BoardObject {
   visible: boolean;
   opacity: number;
   sort_order: number;
-  locked: boolean;
   position_locked: boolean;
   size_locked: boolean;
 

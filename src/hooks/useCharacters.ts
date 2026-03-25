@@ -43,7 +43,6 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         statuses: stat.statuses ?? [],
         parameters: stat.parameters ?? [],
         is_hidden_on_board: stat.is_hidden_on_board,
-        is_speech_hidden: stat.is_speech_hidden,
         sort_order: stat.sort_order ?? 0,
         board_x: stat.board_x ?? 0,
         board_y: stat.board_y ?? 0,
@@ -157,7 +156,6 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         chat_palette: data.chat_palette ?? '',
         is_status_private: data.is_status_private ?? false,
         is_hidden_on_board: data.is_hidden_on_board ?? false,
-        is_speech_hidden: data.is_speech_hidden ?? false,
         sort_order: data.sort_order ?? characters.length,
         board_x: data.board_x ?? 0,
         board_y: data.board_y ?? 0,
@@ -187,7 +185,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       const statsFields = [
         'name', 'color', 'active_image_index',
         'statuses', 'parameters',
-        'is_hidden_on_board', 'is_speech_hidden',
+        'is_hidden_on_board',
         'sort_order',
         'board_x', 'board_y', 'board_visible'
       ];
