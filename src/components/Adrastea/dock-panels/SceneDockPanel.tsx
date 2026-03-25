@@ -126,12 +126,16 @@ export function SceneDockPanel() {
     const activeSceneId = ctx.room?.active_scene_id ?? null;
     const removeSet = new Set(sceneIds);
 
-    // アクティブシーンが削除対象なら別シーンに切り替え
+    // アクティブシーンが削除対象なら、1つ上のシーンに切り替え（一番上なら1つ下）
     if (activeSceneId && removeSet.has(activeSceneId)) {
       const sorted = [...ctx.scenes].sort((a, b) => a.sort_order - b.sort_order);
+      const activeIdx = sorted.findIndex(s => s.id === activeSceneId);
       const remaining = sorted.filter(s => !removeSet.has(s.id));
       if (remaining.length > 0) {
-        await ctx.activateScene(remaining[0].id);
+        // activeIdx より前（上）にある残りシーンのうち最も近いもの
+        const above = remaining.filter(s => sorted.indexOf(s) < activeIdx);
+        const next = above.length > 0 ? above[above.length - 1] : remaining[0];
+        await ctx.activateScene(next.id);
       } else {
         await ctx.activateScene(null);
       }
