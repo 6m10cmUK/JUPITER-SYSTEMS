@@ -29,6 +29,29 @@ const ROLE_BADGE: Record<string, { label: string; color: string }> = {
   guest:     { label: 'guest',     color: theme.textMuted },
 };
 
+function ToolbarButton({ onClick, title, children }: {
+  onClick: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '3px',
+        background: 'transparent', border: 'none', borderRadius: 0,
+        color: theme.textSecondary, cursor: 'pointer',
+        padding: '2px 4px', fontSize: '0.75rem', whiteSpace: 'nowrap',
+        transition: 'color 0.1s',
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.color = theme.textPrimary; }}
+      onMouseLeave={(e) => { e.currentTarget.style.color = theme.textSecondary; }}
+    >
+      {children}
+    </button>
+  );
+}
 
 export function TopToolbar({
   onAddPiece: _onAddPiece,
@@ -83,35 +106,17 @@ export function TopToolbar({
 
       {/* | 設定 */}
       <div style={{ width: 1, height: 16, background: theme.border, margin: '0 4px', flexShrink: 0 }} />
-      <button
-        onClick={onOpenSettings}
-        title="ルーム設定"
-        style={{
-          display: 'flex', alignItems: 'center', gap: '3px',
-          background: 'transparent', border: 'none', borderRadius: 0,
-          color: theme.textSecondary, cursor: 'pointer',
-          padding: '2px 4px', fontSize: '0.75rem', whiteSpace: 'nowrap',
-        }}
-      >
+      <ToolbarButton onClick={onOpenSettings} title="ルーム設定">
         <Settings size={13} />
         設定
-      </button>
+      </ToolbarButton>
 
       {/* | レイアウト */}
       <div style={{ width: 1, height: 16, background: theme.border, margin: '0 4px', flexShrink: 0 }} />
-      <button
-        onClick={onOpenLayout}
-        title="パネルレイアウト"
-        style={{
-          display: 'flex', alignItems: 'center', gap: '3px',
-          background: 'transparent', border: 'none', borderRadius: 0,
-          color: theme.textSecondary, cursor: 'pointer',
-          padding: '2px 4px', fontSize: '0.75rem', whiteSpace: 'nowrap',
-        }}
-      >
+      <ToolbarButton onClick={onOpenLayout} title="パネルレイアウト">
         <Eye size={13} />
         レイアウト
-      </button>
+      </ToolbarButton>
 
       {/* スペーサー */}
       <div style={{ flex: 1 }} />
@@ -170,19 +175,10 @@ export function TopToolbar({
       <div style={{ width: 1, height: 20, background: theme.border, margin: '0 4px' }} />
 
       {/* アセットライブラリ */}
-      <button
-        onClick={() => setShowAssetLibrary(true)}
-        title="アセットライブラリ"
-        style={{
-          display: 'flex', alignItems: 'center', gap: '4px',
-          background: 'transparent', border: 'none', borderRadius: 0,
-          color: theme.textSecondary, cursor: 'pointer',
-          padding: '2px 6px', fontSize: '0.75rem', whiteSpace: 'nowrap',
-        }}
-      >
-        <FolderOpen size={14} />
+      <ToolbarButton onClick={() => setShowAssetLibrary(true)} title="アセットライブラリ">
+        <FolderOpen size={13} />
         アセットライブラリ
-      </button>
+      </ToolbarButton>
 
       {/* プロフィール設定 */}
       <button
