@@ -4,6 +4,7 @@ import { useLocalStorageOrder } from './useLocalStorageOrder';
 import type { BgmTrack } from '../types/adrastea.types';
 import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   const { inject } = options ?? {};
@@ -138,7 +139,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       }
 
       try {
-        const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = updates as BgmTrack;
+        const rest = omitKeys(updates as BgmTrack, ['id', 'created_at', 'updated_at']);
         await bgmsMutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BgmTrack>);
         const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
         if ((merged as BgmTrack).scene_ids?.length === 0) {

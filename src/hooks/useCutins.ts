@@ -3,6 +3,7 @@ import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { Cutin } from '../types/adrastea.types';
 import type { CutinsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 export type OnRoomUpdate = (updates: Record<string, unknown>) => void;
 
@@ -77,7 +78,7 @@ export function useCutins(
         if (inj) {
           await inj.update(cutinId, updates);
         } else {
-          const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as Cutin;
+          const rest = omitKeys(updates as Cutin, ['id', 'room_id', 'created_at', 'updated_at']);
           await cutinsMutation.update(cutinId, rest as Partial<Cutin>);
         }
       } catch (err) {
