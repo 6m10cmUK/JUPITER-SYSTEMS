@@ -99,6 +99,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
         let finalAllowedUserIds = allowedUserIds;
+        let messagesToInsert: any[] = [];
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
@@ -106,20 +107,19 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           finalContent = `${content} <color=${color}>${result.text}</color>`;
           finalType = 'dice';
 
-          // 秘密ダイスの場合、全員向け通知と送信者向け結果の2メッセージを送信
+          // 秘密ダイスの場合、全員向け通知と送信者向け結果の2メッセージをバッチ送信
           if (result.isSecret && senderUid) {
             // 1. 全員向け通知メッセージ（allowed_user_ids なし）
-            const notifyId = genId();
-            await supabase.from('messages').insert([{
-              id: notifyId,
+            messagesToInsert.push({
+              id: genId(),
               room_id: roomId,
               sender_name: senderName,
               content: 'シークレットダイス',
-              message_type: 'dice',
+              message_type: 'dice' as const,
               sender_uid: senderUid,
               sender_avatar: senderAvatar,
               channel,
-            }]);
+            });
 
             // 2. 送信者のみ向け結果メッセージ
             finalAllowedUserIds = [senderUid];
@@ -127,7 +127,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         }
 
         const id = genId();
-        await supabase.from('messages').insert([{
+        messagesToInsert.push({
           id,
           room_id: roomId,
           sender_name: senderName,
@@ -137,7 +137,10 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_avatar: senderAvatar,
           channel,
           allowed_user_ids: finalAllowedUserIds,
-        }]);
+        });
+
+        // 全メッセージをアトミックに送信
+        await supabase.from('messages').insert(messagesToInsert);
         return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: finalAllowedUserIds, created_at: Date.now() } as ChatMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
