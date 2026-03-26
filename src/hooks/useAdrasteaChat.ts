@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { ChatMessage } from '../types/adrastea.types';
 import type { ChatInject } from '../types/adrastea-persistence';
 import { rollDice } from '../services/diceRoller';
@@ -20,6 +20,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     enabled: !inject,
   });
   const messagesData = messagesQuery.data;
+  const chatMutation = useSupabaseMutation<ChatMessage>('messages', messagesQuery.setData);
 
   const loading = inject ? false : messagesQuery.loading;
 
@@ -127,6 +128,18 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         }
 
         const id = genId();
+        const mainMessage: ChatMessage = {
+          id,
+          room_id: roomId,
+          sender_name: senderName,
+          content: finalContent,
+          message_type: finalType,
+          sender_uid: senderUid,
+          sender_avatar: senderAvatar,
+          channel,
+          allowed_user_ids: finalAllowedUserIds,
+          created_at: Date.now(),
+        };
         messagesToInsert.push({
           id,
           room_id: roomId,
@@ -139,15 +152,21 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           allowed_user_ids: finalAllowedUserIds,
         });
 
-        // 全メッセージをアトミックに送信
-        await supabase.from('messages').insert(messagesToInsert);
-        return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: finalAllowedUserIds, created_at: Date.now() } as ChatMessage;
+        // 秘密ダイス時は2メッセージをアトミックに送信する必要があるため Supabase 直接
+        if (messagesToInsert.length > 1) {
+          await supabase.from('messages').insert(messagesToInsert);
+        } else {
+          // 通常メッセージは楽観的更新を使用
+          await chatMutation.insert(mainMessage);
+        }
+
+        return mainMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;
       }
     },
-    [roomId]
+    [roomId, chatMutation]
   );
 
   const loadMore = useCallback(async () => {
@@ -206,9 +225,18 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const clearMessages = useCallback(async () => {
     if (injectRef.current) return;
     try {
+      // 楽観的更新: 全メッセージをクリア
+      messagesQuery.setData([]);
+      setArchivedMessages([]);
+      localCacheRef.current.clear();
+
       // Supabase のメッセージを削除
       const { error: sbError } = await supabase.from('messages').delete().eq('room_id', roomId);
-      if (sbError) throw sbError;
+      if (sbError) {
+        // ロールバック（エラー時）
+        location.reload();
+        throw sbError;
+      }
 
       // D1 アーカイブも削除
       const { data: session } = await supabase.auth.getSession();
@@ -222,25 +250,34 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           console.error('D1 メッセージ削除失敗:', e);
         }
       }
-      localCacheRef.current.clear();
-      setArchivedMessages([]);
     } catch (err) {
       console.error('メッセージ削除失敗:', err);
       throw err;
     }
-  }, [roomId]);
+  }, [roomId, messagesQuery]);
 
   const openSecretDice = useCallback(
     async (messageId: string) => {
       try {
+        // 楽観的更新: allowed_user_ids を空配列に（null ではなく全員に公開）
+        messagesQuery.setData((prev) =>
+          prev.map((msg) =>
+            msg.id === messageId ? { ...msg, allowed_user_ids: undefined } : msg
+          )
+        );
+
         const { error } = await supabase.from('messages').update({ allowed_user_ids: null }).eq('id', messageId);
-        if (error) throw error;
+        if (error) {
+          // ロールバック（エラー時）
+          location.reload();
+          throw error;
+        }
       } catch (err) {
         console.error('秘密ダイス公開失敗:', err);
         throw err;
       }
     },
-    []
+    [messagesQuery]
   );
 
   return {
