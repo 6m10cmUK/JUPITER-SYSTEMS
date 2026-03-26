@@ -40,6 +40,10 @@ interface DomObjectOverlayProps {
 }
 
 // --- ユーティリティ ---
+export function colorToDataUrl(color: string): string {
+  return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${color}"/></svg>`)}`;
+}
+
 function snapToGrid(val: number): number {
   return Math.round(val / GRID_SIZE) * GRID_SIZE;
 }
@@ -631,6 +635,7 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
   const [blobSrc, setBlobSrc] = useState<string | null>(() => {
     const url = imageUrl ?? null;
     if (!url) return null;
+    if (url.startsWith('data:')) return url;
     const existing = blobCache.get(url);
     const blob = existing?.blob ?? preloadedBlobs.get(url) ?? null;
     if (!blob) return null;
@@ -649,6 +654,18 @@ export function useAnimatedBlobSrc(imageUrl: string | null | undefined): string 
   }, []);
 
   useEffect(() => {
+    if (imageUrl?.startsWith('data:')) {
+      if (activeImageUrlRef.current && !activeImageUrlRef.current.startsWith('data:')) {
+        releaseBlobUrl(activeImageUrlRef.current);
+      }
+      if (displayBlobUrlRef.current) {
+        URL.revokeObjectURL(displayBlobUrlRef.current);
+        displayBlobUrlRef.current = null;
+      }
+      activeImageUrlRef.current = imageUrl;
+      setBlobSrc(imageUrl);
+      return;
+    }
     if (!imageUrl) {
       if (activeImageUrlRef.current) {
         releaseBlobUrl(activeImageUrlRef.current);
@@ -876,7 +893,10 @@ const DomForegroundObject = memo(function DomForegroundObject({
   baseZIndex?: number;
   assets?: Asset[];
 }) {
-  const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
+  const isSolid = !!(obj.background_color && obj.background_color !== 'transparent');
+  const blobSrc = useAnimatedBlobSrc(
+    isSolid ? colorToDataUrl(obj.background_color!) : resolveAssetId(obj.image_asset_id)
+  );
   const fgDuration = fadeInDuration ?? 0;
 
   // リマウント時のフェードアウト層: 前の blob URL を使う
@@ -936,7 +956,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
           }}
           style={{ width: '100%', height: '100%', backgroundColor: obj.background_color ?? 'transparent', position: 'relative', zIndex: 1 }}
         >
-          {blobSrc && !(obj.background_color && obj.background_color !== 'transparent') && (
+          {blobSrc && (
             <img src={blobSrc} alt="" style={{ width: '100%', height: '100%', objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit, display: 'block' }} draggable={false} />
           )}
         </div>

@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect, useImperativeHandle, forwardRef, useMemo, memo } from 'react';
 import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konva';
-import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
+import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount, colorToDataUrl } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
 import { resolveAssetId, useAssets } from '../../hooks/useAssets';
@@ -275,10 +275,10 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   // アセットキャッシュからの URL 解決（状態更新依存を確保）
   const { assets } = useAssets();
   const bgImageUrl = useMemo(() => {
+    const color = bgObject?.background_color;
+    if (color && color !== 'transparent') return colorToDataUrl(color);
     const assetId = bgObject?.image_asset_id ?? null;
     if (!assetId) return null;
-    // 単色モード（background_color が設定済み）のときは画像を表示しない
-    if (bgObject?.background_color && bgObject.background_color !== 'transparent') return null;
     return assets.find(a => a.id === assetId)?.url ?? null;
   }, [bgObject?.image_asset_id, bgObject?.background_color, assets]);
 
