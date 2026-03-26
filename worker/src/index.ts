@@ -128,6 +128,70 @@ export default {
     } catch (err) {
       console.error('Auto-archive error:', err);
     }
+
+    // --- assets/R2 突き合わせ（孤立ファイル・壊れた参照の検出・削除） ---
+    try {
+      // 1. Supabase の assets テーブルから全 r2_key を取得
+      // NOTE: RLS ポリシーが anon key での SELECT/DELETE をブロックする場合は SUPABASE_SERVICE_ROLE_KEY を使う
+      const assetsRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/assets?select=id,r2_key`,
+        {
+          headers: {
+            'apikey': env.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
+      if (!assetsRes.ok) throw new Error(`assets fetch failed: ${assetsRes.status}`);
+      const assets = (await assetsRes.json()) as Array<{ id: string; r2_key: string }>;
+      const dbKeys = new Set(assets.map(a => a.r2_key).filter(Boolean));
+
+      // 2. R2 から全ファイルキーを取得（ページネーション対応）
+      const r2Keys = new Set<string>();
+      let cursor: string | undefined;
+      do {
+        const listed = await env.R2_BUCKET.list({ cursor, limit: 1000 });
+        for (const obj of listed.objects) {
+          r2Keys.add(obj.key);
+        }
+        cursor = listed.truncated ? listed.cursor : undefined;
+      } while (cursor);
+
+      // 3. 孤立ファイル（R2 にあるが DB にない）→ R2 から削除
+      let orphanCount = 0;
+      for (const key of r2Keys) {
+        if (!dbKeys.has(key)) {
+          await env.R2_BUCKET.delete(key);
+          orphanCount++;
+          if (orphanCount >= 20) break; // 1回あたり最大20件
+        }
+      }
+
+      // 4. 壊れた参照（DB にあるが R2 にない）→ DB から削除
+      let brokenCount = 0;
+      for (const asset of assets) {
+        if (asset.r2_key && !r2Keys.has(asset.r2_key)) {
+          await fetch(
+            `${env.SUPABASE_URL}/rest/v1/assets?id=eq.${asset.id}`,
+            {
+              method: 'DELETE',
+              headers: {
+                'apikey': env.SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+              },
+            }
+          );
+          brokenCount++;
+          if (brokenCount >= 20) break; // 1回あたり最大20件
+        }
+      }
+
+      if (orphanCount > 0 || brokenCount > 0) {
+        console.log(`Assets reconciliation: ${orphanCount} orphan files deleted, ${brokenCount} broken refs deleted`);
+      }
+    } catch (err) {
+      console.error('Assets reconciliation failed:', err);
+    }
   },
 };
 
