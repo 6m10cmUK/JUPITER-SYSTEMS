@@ -936,7 +936,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
           }}
           style={{ width: '100%', height: '100%', backgroundColor: obj.background_color ?? 'transparent', position: 'relative', zIndex: 1 }}
         >
-          {blobSrc && (
+          {blobSrc && !(obj.background_color && obj.background_color !== 'transparent') && (
             <img src={blobSrc} alt="" style={{ width: '100%', height: '100%', objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit, display: 'block' }} draggable={false} />
           )}
         </div>
