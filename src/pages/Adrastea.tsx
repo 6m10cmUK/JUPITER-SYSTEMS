@@ -284,7 +284,7 @@ const Adrastea: React.FC = () => {
               room_id: roomId,
               user_id: user.uid,
               role: 'user',
-              joined_at: new Date().toISOString(),
+              joined_at: Date.now(),
             })
             .select('role')
             .single();
