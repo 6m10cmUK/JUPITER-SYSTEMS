@@ -51,6 +51,83 @@ export default {
     } catch (err) {
       console.error('Supabase ping failed:', err);
     }
+
+    // 30日以上未更新のルームを自動アーカイブ
+    try {
+      const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+      const isoThirtyDaysAgo = new Date(thirtyDaysAgo).toISOString();
+
+      // Supabase から対象ルーム取得
+      const archiveRes = await fetch(
+        `${env.SUPABASE_URL}/rest/v1/rooms?select=id&archived=eq.0&updated_at=lt.${isoThirtyDaysAgo}&limit=5`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': env.SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
+
+      if (!archiveRes.ok) {
+        console.warn(`Failed to fetch rooms for auto-archive: ${archiveRes.status}`);
+      } else {
+        const roomsToArchive = (await archiveRes.json()) as Array<{ id: string }>;
+
+        // 各ルームをアーカイブ
+        for (const room of roomsToArchive) {
+          try {
+            console.log(`Auto-archiving room: ${room.id}`);
+
+            const supabaseHeaders = {
+              'apikey': env.SUPABASE_ANON_KEY,
+              'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+            };
+
+            const roomRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${room.id}`, {
+              headers: supabaseHeaders,
+            });
+            const rooms = (await roomRes.json()) as unknown[];
+
+            const snapshotRes = await fetch(`${env.SUPABASE_URL}/rest/v1/room_snapshots?room_id=eq.${room.id}`, {
+              headers: supabaseHeaders,
+            });
+            const snapshots = (await snapshotRes.json()) as unknown[];
+
+            // D1 room_archives に INSERT
+            const archiveData = JSON.stringify({ rooms, snapshots });
+            const now = Date.now();
+            await env.DB.prepare(
+              'INSERT INTO room_archives (room_id, data, archived_at) VALUES (?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET data = ?, archived_at = ?',
+            )
+              .bind(room.id, archiveData, now, archiveData, now)
+              .run();
+
+            // Supabase DELETE room_snapshots
+            await fetch(`${env.SUPABASE_URL}/rest/v1/room_snapshots?room_id=eq.${room.id}`, {
+              method: 'DELETE',
+              headers: supabaseHeaders,
+            });
+
+            // Supabase UPDATE rooms SET archived = 1
+            await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${room.id}`, {
+              method: 'PATCH',
+              headers: { ...supabaseHeaders, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ archived: 1 }),
+            });
+
+            console.log(`Archived room: ${room.id}`);
+          } catch (roomErr) {
+            console.error(`Failed to archive room ${room.id}:`, roomErr);
+            // 個別ルームのアーカイブ失敗は続行
+          }
+        }
+
+        console.log(`Auto-archive completed: ${roomsToArchive.length} rooms processed`);
+      }
+    } catch (err) {
+      console.error('Auto-archive error:', err);
+    }
   },
 };
 

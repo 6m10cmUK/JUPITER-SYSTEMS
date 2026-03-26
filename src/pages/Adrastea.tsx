@@ -258,6 +258,7 @@ const Adrastea: React.FC = () => {
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [joinDone, setJoinDone] = useState(!user || !roomId || isGuestMode);
   const [joinedRole, setJoinedRole] = useState<'owner' | 'sub_owner' | 'user' | 'guest' | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   // ルーム入室時に join を呼ぶ
   useEffect(() => {
@@ -285,6 +286,47 @@ const Adrastea: React.FC = () => {
       })();
     }
   }, [roomId, user?.uid]);
+
+  // ルームアーカイブ復元チェック（入室時）
+  useEffect(() => {
+    if (roomData?.archived === 1 && !isRestoring && user && roomId) {
+      setIsRestoring(true);
+
+      (async () => {
+        try {
+          // 認証トークン取得
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token;
+
+          if (!token) {
+            console.error('No auth token for restore');
+            setIsRestoring(false);
+            return;
+          }
+
+          // Worker API に restore リクエスト
+          const apiUrl = import.meta.env.VITE_R2_WORKER_URL as string;
+          const res = await fetch(`${apiUrl}/api/rooms/${roomId}/restore`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+
+          if (!res.ok) {
+            throw new Error(`Restore failed: ${res.status} ${res.statusText}`);
+          }
+
+          // 復元完了後、ページリロード
+          window.location.reload();
+        } catch (err) {
+          console.error('Room restore failed:', err);
+          setIsRestoring(false);
+        }
+      })();
+    }
+  }, [roomData?.archived, user, roomId, isRestoring]);
 
   // owner check 状態を算出
   const ownerCheck: 'loading' | 'ok' | 'denied' =
@@ -488,6 +530,11 @@ const Adrastea: React.FC = () => {
         </button>
       </div>
     );
+  }
+
+  // 復元中はローディング画面表示
+  if (isRestoring) {
+    return <LoadingScreen progress={0.7} statusText="ルームデータを復元中..." />;
   }
 
   return (

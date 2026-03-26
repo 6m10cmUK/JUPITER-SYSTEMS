@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { BoardObject } from '../types/adrastea.types';
 import type { ObjectsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -13,13 +12,15 @@ export function useObjects(
   const { inject } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
-  const { data: objectsData, loading: objectsLoading } = useSupabaseQuery<BoardObject>({
+  const { data: objectsData, loading: objectsLoading, setData: setObjectsData } = useSupabaseQuery<BoardObject>({
     table: 'objects',
     columns: 'id,room_id,type,name,global,scene_ids,x,y,width,height,visible,opacity,sort_order,position_locked,size_locked,image_asset_id,background_color,image_fit,color_enabled,text_content,font_size,font_family,letter_spacing,line_height,auto_size,text_align,text_vertical_align,text_color,scale_x,scale_y,memo,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
   });
+
+  const mutation = useSupabaseMutation<BoardObject>('objects', setObjectsData);
 
   const loading = inject ? false : objectsLoading;
 
@@ -72,11 +73,16 @@ export function useObjects(
       if (inj) {
         await inj.create(newObj);
       } else {
-        await supabase.from('objects').insert(newObj);
+        try {
+          await mutation.insert(newObj);
+        } catch (error) {
+          console.error('[useObjects] addObject failed:', error);
+          throw error;
+        }
       }
       return id;
     },
-    [roomId, allObjects.length]
+    [roomId, allObjects.length, mutation]
   );
 
   const updateObject = useCallback(
@@ -86,10 +92,14 @@ export function useObjects(
         await inj.update(id, updates);
       } else {
         const { id: _id, room_id: _rid, type: _t, created_at: _ca, ...rest } = updates as BoardObject;
-        await supabase.from('objects').update({ ...rest, updated_at: Date.now() }).eq('id', id);
+        try {
+          await mutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BoardObject>);
+        } catch (error) {
+          console.error('[useObjects] updateObject failed:', error);
+        }
       }
     },
-    []
+    [mutation]
   );
 
   const removeObject = useCallback(
@@ -98,10 +108,14 @@ export function useObjects(
       if (inj) {
         await inj.remove(id);
       } else {
-        await supabase.from('objects').delete().eq('id', id);
+        try {
+          await mutation.remove(id);
+        } catch (error) {
+          console.error('[useObjects] removeObject failed:', error);
+        }
       }
     },
-    []
+    [mutation]
   );
 
   const reorderObjects = useCallback(
@@ -112,11 +126,15 @@ export function useObjects(
         await inj.reorder(updates);
       } else {
         for (const { id, sort_order } of updates) {
-          await supabase.from('objects').update({ sort_order, updated_at: Date.now() }).eq('id', id);
+          try {
+            await mutation.update(id, { sort_order, updated_at: Date.now() } as Partial<BoardObject>);
+          } catch (error) {
+            console.error('[useObjects] reorderObjects failed:', error);
+          }
         }
       }
     },
-    []
+    [mutation]
   );
 
   const batchUpdateSort = useCallback(
@@ -126,11 +144,15 @@ export function useObjects(
         await inj.batchUpdateSort(updates);
       } else {
         for (const { id, sort } of updates) {
-          await supabase.from('objects').update({ sort_order: sort, updated_at: Date.now() }).eq('id', id);
+          try {
+            await mutation.update(id, { sort_order: sort, updated_at: Date.now() } as Partial<BoardObject>);
+          } catch (error) {
+            console.error('[useObjects] batchUpdateSort failed:', error);
+          }
         }
       }
     },
-    []
+    [mutation]
   );
 
   return {
