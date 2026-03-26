@@ -208,7 +208,12 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
       if (!res.ok) {
         console.error('過去ログ取得失敗:', res.status);
-        // ネットワークエラーは一時的→hasMore は変えない（リトライ可能）
+        // 401: 認証エラー（トークン無効）→リトライ不可
+        if (res.status === 401) {
+          console.warn('[useAdrasteaChat] 401 Unauthorized - cannot retry loadMore');
+          setHasMore(false);
+        }
+        // その他ネットワークエラーは一時的→hasMore は変えない（リトライ可能）
         setLoadingMore(false);
         return;
       }
