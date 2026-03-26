@@ -859,8 +859,9 @@ const DomTextObject = memo(function DomTextObject({
 });
 
 // --- ForegroundObject (DOM版) ---
-// 前景のクロスフェード用: リマウント前の元画像 URL（R2 URL）を保持
-let _prevFgOriginalSrc: string | null = null;
+// 前景のクロスフェード用: リマウント前の asset_id と blob URL を保持
+let _prevFgAssetId: string | null = null;
+let _prevFgBlobSrc: string | null = null;
 
 const DomForegroundObject = memo(function DomForegroundObject({
   obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex,
@@ -876,15 +877,17 @@ const DomForegroundObject = memo(function DomForegroundObject({
   const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
   const fgDuration = fadeInDuration ?? 0;
 
-  // リマウント時のフェードアウト層
+  // リマウント時のフェードアウト層: 前の blob URL を使う
   const [fadeOutSrc] = useState(() => {
-    const prev = _prevFgOriginalSrc;
-    return (fgDuration > 0 && prev && prev !== obj.image_asset_id) ? prev : null;
+    const prevAssetId = _prevFgAssetId;
+    const prevBlob = _prevFgBlobSrc;
+    return (fgDuration > 0 && prevAssetId && prevAssetId !== obj.image_asset_id && prevBlob) ? prevBlob : null;
   });
   const [showFadeOut, setShowFadeOut] = useState(!!fadeOutSrc);
 
-  // 常に最新の asset_id を保持
-  useEffect(() => { if (obj.image_asset_id) _prevFgOriginalSrc = obj.image_asset_id; }, [obj.image_asset_id]);
+  // 常に最新の asset_id と blob URL を保持
+  useEffect(() => { if (obj.image_asset_id) _prevFgAssetId = obj.image_asset_id; }, [obj.image_asset_id]);
+  useEffect(() => { if (blobSrc) _prevFgBlobSrc = blobSrc; }, [blobSrc]);
   // フェードアウト層を duration 後に削除
   useEffect(() => {
     if (showFadeOut && fgDuration > 0) {
