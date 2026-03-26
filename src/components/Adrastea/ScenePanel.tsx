@@ -239,12 +239,16 @@ export function ScenePanel({
               const fgObj = allObjects.find(o => o.type === 'foreground' && o.scene_ids.includes(scene.id));
               const bgSolidColor = bgObj?.background_color && bgObj.background_color !== 'transparent' ? bgObj.background_color : null;
               const fgSolidColor = fgObj?.background_color && fgObj.background_color !== 'transparent' ? fgObj.background_color : null;
-              const bgBackground = scene.background_asset_id
-                ? `url(${resolveAssetId(scene.background_asset_id)}) center/cover`
-                : bgSolidColor ?? undefined;
-              const fgBackground = scene.foreground_asset_id
-                ? `url(${resolveAssetId(scene.foreground_asset_id)}) center/cover`
-                : fgSolidColor ?? undefined;
+              const bgBackground = bgSolidColor
+                ? bgSolidColor
+                : scene.background_asset_id
+                  ? `url(${resolveAssetId(scene.background_asset_id)}) center/cover`
+                  : undefined;
+              const fgBackground = fgSolidColor
+                ? fgSolidColor
+                : scene.foreground_asset_id
+                  ? `url(${resolveAssetId(scene.foreground_asset_id)}) center/cover`
+                  : undefined;
               return (
                 <div style={{ height: '40px', position: 'relative', overflow: 'hidden', background: theme.bgInput, cursor: 'pointer' }}>
                   {bgBackground && (
