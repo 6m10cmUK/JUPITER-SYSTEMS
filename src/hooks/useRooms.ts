@@ -161,6 +161,15 @@ export function useRooms(_uid?: string) {
         if (roomError) throw roomError;
         roomCreated = true;
 
+        // 1.5. room_members に自分を owner として追加（RLS が role チェックするため必須）
+        const { error: memberError } = await supabase.from('room_members').insert({
+          room_id: id,
+          user_id: user.uid,
+          role: 'owner',
+          joined_at: now,
+        });
+        if (memberError) throw memberError;
+
         // 2. デフォルトシーン「メイン」を作成
         const sceneId = generateUUID();
         const { error: sceneError } = await supabase.from('scenes').insert({
