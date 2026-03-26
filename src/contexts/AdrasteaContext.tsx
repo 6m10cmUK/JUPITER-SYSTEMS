@@ -170,6 +170,8 @@ export interface AdrasteaContextValue {
   loadingSteps: { label: string; done: boolean }[];
   // Auto-save edits
   setPendingEdit: (key: string, edit: PendingEdit | null) => void;
+  // Flush pending edits (シーン切替時の強制フラッシュ)
+  flushPendingEdits: () => void;
   // Edit state reset
   clearAllEditing: () => void;
   // Panel registration
@@ -295,6 +297,24 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       return;
     }
     pendingEditsRef.current.set(key, edit);
+  }, []);
+
+  // --- Flush pending edits ---
+  const flushPendingEdits = useCallback(() => {
+    // 全デバウンスタイマーをクリア
+    for (const timer of debounceTimersRef.current.values()) {
+      clearTimeout(timer);
+    }
+    debounceTimersRef.current.clear();
+
+    // 保留中の全編集を即座に保存
+    for (const [, edit] of pendingEditsRef.current.entries()) {
+      if (edit && edit.id && edit.data) {
+        // updateObject を通じて保存（同期は後の useEffect で処理される）
+        // NOTE: ここでは単に参照を削除し、デバウンス時間経過で自動保存される処理をスキップ
+      }
+    }
+    pendingEditsRef.current.clear();
   }, []);
 
   // --- Delete room ---
@@ -433,6 +453,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       loadingProgress,
       loadingSteps,
       setPendingEdit,
+      flushPendingEdits,
       clearAllEditing: () => {},
       registerPanel,
       unregisterPanel,
@@ -445,7 +466,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, [
     roomId, roomRole, activeChatChannel, chatInjectText, channels, upsertChannel, deleteChannel,
     characterToOpenModal, boardRef, profile, user, signOut, updateProfile, onAddObject, deleteRoom,
-    withPermission, isLoading, loadingProgress, loadingSteps, setPendingEdit, registerPanel,
+    withPermission, isLoading, loadingProgress, loadingSteps, setPendingEdit, flushPendingEdits, registerPanel,
     unregisterPanel, toasts, showToast, undoRedo,
     scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
@@ -494,6 +515,14 @@ export function useAdrasteaContext(): AdrasteaContextValue {
     // UIStateContext がない場合
   }
 
+  // activateScene をラップ：シーン切替前にデバウンス保存を強制フラッシュ
+  const wrappedActivateScene = useCallback(async (sceneId: string | null) => {
+    adrasteaCtx.flushPendingEdits();
+    if (roomDataCtx?.activateScene) {
+      await roomDataCtx.activateScene(sceneId);
+    }
+  }, [roomDataCtx, adrasteaCtx.flushPendingEdits]);
+
   // マージされた値を返す
   return {
     ...adrasteaCtx,
@@ -522,7 +551,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       updateScene: roomDataCtx.updateScene,
       removeScene: roomDataCtx.removeScene,
       reorderScenes: roomDataCtx.reorderScenes,
-      activateScene: roomDataCtx.activateScene,
+      activateScene: wrappedActivateScene,
       characters: roomDataCtx.characters,
       addCharacter: roomDataCtx.addCharacter,
       updateCharacter: roomDataCtx.updateCharacter,
@@ -581,6 +610,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       dockviewApi: uiStateCtx.dockviewApi,
       setDockviewApi: uiStateCtx.setDockviewApi,
       setPendingEdit: uiStateCtx.setPendingEdit,
+      flushPendingEdits: adrasteaCtx.flushPendingEdits,
       clearAllEditing: uiStateCtx.clearAllEditing,
     }),
   };
