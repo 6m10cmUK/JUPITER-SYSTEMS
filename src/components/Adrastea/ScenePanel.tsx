@@ -3,7 +3,7 @@ import { useState, useCallback } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
-import type { Scene, BgmTrack } from '../../types/adrastea.types';
+import type { Scene, BgmTrack, BoardObject } from '../../types/adrastea.types';
 import { Plus, Copy, Trash2 } from 'lucide-react';
 import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
@@ -23,6 +23,7 @@ interface ScenePanelProps {
   onCopy?: (sceneIds: string | string[]) => void;
   onPaste?: () => void;
   bgms?: BgmTrack[];
+  allObjects?: BoardObject[];
 }
 
 export function ScenePanel({
@@ -39,6 +40,7 @@ export function ScenePanel({
   onCopy,
   onPaste,
   bgms,
+  allObjects = [],
 }: ScenePanelProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState('');
@@ -232,23 +234,37 @@ export function ScenePanel({
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px' }}>
             {/* サムネイル: 斜め分割（左2/3 前景、右1/3 背景） */}
-            <div style={{ height: '40px', position: 'relative', overflow: 'hidden', background: theme.bgInput, cursor: 'pointer' }}>
-              {scene.background_asset_id && (
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: `url(${resolveAssetId(scene.background_asset_id)}) center/cover`,
-                  clipPath: 'polygon(75% 0, 100% 0, 100% 100%, 55% 100%)',
-                  filter: scene.bg_blur ? 'blur(3px)' : undefined,
-                }} />
-              )}
-              {scene.foreground_asset_id && (
-                <div style={{
-                  position: 'absolute', inset: 0,
-                  background: `url(${resolveAssetId(scene.foreground_asset_id)}) center/cover`,
-                  clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
-                }} />
-              )}
-            </div>
+            {(() => {
+              const bgObj = allObjects.find(o => o.type === 'background' && o.scene_ids.includes(scene.id));
+              const fgObj = allObjects.find(o => o.type === 'foreground' && o.scene_ids.includes(scene.id));
+              const bgSolidColor = bgObj?.background_color && bgObj.background_color !== 'transparent' ? bgObj.background_color : null;
+              const fgSolidColor = fgObj?.background_color && fgObj.background_color !== 'transparent' ? fgObj.background_color : null;
+              const bgBackground = scene.background_asset_id
+                ? `url(${resolveAssetId(scene.background_asset_id)}) center/cover`
+                : bgSolidColor ?? undefined;
+              const fgBackground = scene.foreground_asset_id
+                ? `url(${resolveAssetId(scene.foreground_asset_id)}) center/cover`
+                : fgSolidColor ?? undefined;
+              return (
+                <div style={{ height: '40px', position: 'relative', overflow: 'hidden', background: theme.bgInput, cursor: 'pointer' }}>
+                  {bgBackground && (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: bgBackground,
+                      clipPath: 'polygon(75% 0, 100% 0, 100% 100%, 55% 100%)',
+                      filter: scene.bg_blur ? 'blur(3px)' : undefined,
+                    }} />
+                  )}
+                  {fgBackground && (
+                    <div style={{
+                      position: 'absolute', inset: 0,
+                      background: fgBackground,
+                      clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
+                    }} />
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 情報 */}
             <div

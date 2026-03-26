@@ -220,6 +220,7 @@ export function SceneDockPanel() {
       onCopy={handleCopy}
       onPaste={handlePaste}
       bgms={ctx.bgms}
+      allObjects={ctx.allObjects}
     />
     {pendingDeleteIds && (
       <ConfirmModal
