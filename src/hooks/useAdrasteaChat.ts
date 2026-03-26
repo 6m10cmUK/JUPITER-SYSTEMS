@@ -1,16 +1,34 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
+import { useAuth } from '../contexts/AuthContext';
 import type { ChatMessage } from '../types/adrastea.types';
 import type { ChatInject } from '../types/adrastea-persistence';
 import { rollDice } from '../services/diceRoller';
 import { genId } from '../utils/id';
 import { API_BASE_URL } from '../config/api';
 
+interface ArchiveMessagesResponse {
+  messages: Array<{
+    id: string;
+    room_id: string;
+    sender_name: string;
+    sender_uid: string | null;
+    sender_avatar: string | null;
+    content: string;
+    message_type: string;
+    channel?: string;
+    allowed_user_ids?: string[];
+    created_at: number;
+  }>;
+  has_more: boolean;
+}
+
 export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject }) {
   const { inject } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
+  const { user, token } = useAuth();
 
   const messagesQuery = useSupabaseQuery<ChatMessage>({
     table: 'messages',
@@ -33,10 +51,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   // auth がない場合（ゲスト等）は D1 から取得できないので hasMore を false に
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) setHasMore(false);
-    });
-  }, []);
+    if (!user) setHasMore(false);
+  }, [user]);
 
   // Supabase メッセージを ChatMessage に変換してキャッシュにマージ
   const supabaseMessages: ChatMessage[] = useMemo(() => {
@@ -172,8 +188,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const loadMore = useCallback(async () => {
     if (inject) return;
     if (loadingMore || !hasMore) return;
-    const { data: session } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!user) return;
     setLoadingMore(true);
     try {
       // 最古のメッセージの created_at をカーソルにする
@@ -187,7 +202,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       const res = await fetch(
         `${API_BASE_URL}/api/rooms/${roomId}/messages?${params}`,
         {
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
@@ -198,11 +213,11 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         return;
       }
 
-      const data = await res.json() as { messages: any[]; has_more: boolean };
+      const data = await res.json() as ArchiveMessagesResponse;
       setHasMore(data.has_more);
 
       if (data.messages.length > 0) {
-        const newMsgs: ChatMessage[] = data.messages.map((m: any) => ({
+        const newMsgs: ChatMessage[] = data.messages.map((m) => ({
           id: m.id,
           room_id: m.room_id,
           sender_name: m.sender_name,
@@ -221,7 +236,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     } finally {
       setLoadingMore(false);
     }
-  }, [inject, loadingMore, hasMore, messages, roomId]);
+  }, [inject, loadingMore, hasMore, messages, roomId, user, token]);
 
   const clearMessages = useCallback(async () => {
     if (injectRef.current) return;
@@ -231,6 +246,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       setArchivedMessages([]);
       localCacheRef.current.clear();
 
+      // RLS で owner のみが削除可能。フロント側は呼び出し元（ChatLogPanel等）で owner チェック
       // Supabase のメッセージを削除
       const { error: sbError } = await supabase.from('messages').delete().eq('room_id', roomId);
       if (sbError) {
@@ -240,12 +256,11 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       }
 
       // D1 アーカイブも削除
-      const { data: session } = await supabase.auth.getSession();
-      if (session) {
+      if (token) {
         try {
           await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
         } catch (e) {
           console.error('D1 メッセージ削除失敗:', e);
@@ -255,7 +270,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       console.error('メッセージ削除失敗:', err);
       throw err;
     }
-  }, [roomId, messagesQuery]);
+  }, [roomId, messagesQuery, token]);
 
   const openSecretDice = useCallback(
     async (messageId: string) => {

@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { Room } from '../types/adrastea.types';
 import { supabase } from '../services/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { useLocalStorageOrder } from './useLocalStorageOrder';
 import { generateUUID } from '../utils/uuid';
@@ -35,6 +36,7 @@ function saveRoomTags(roomId: string, tags: string[]) {
 }
 
 export function useRooms(_uid?: string) {
+  const { user } = useAuth();
   const roomsQuery = useSupabaseQuery<Room>({
     table: 'rooms',
     columns: 'id,name,dice_system,created_at,updated_at,thumbnail_asset_id,archived',
@@ -143,8 +145,7 @@ export function useRooms(_uid?: string) {
       let objectsCreated = false;
 
       try {
-        // 現在のユーザー情報を取得
-        const { data: { user } } = await supabase.auth.getUser();
+        // 現在のユーザー情報を AuthContext から取得
         if (!user) throw new Error('User not authenticated');
 
         // 1. ルーム作成
@@ -152,7 +153,7 @@ export function useRooms(_uid?: string) {
           id,
           name,
           dice_system,
-          owner_id: user.id,
+          owner_id: user.uid,
           gm_can_see_secret_memo: false,
           created_at: now,
           updated_at: now,

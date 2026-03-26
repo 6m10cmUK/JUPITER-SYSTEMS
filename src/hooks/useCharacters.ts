@@ -232,8 +232,8 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       ];
 
       // Separate updates
-      const statsUpdates: Record<string, any> = { id: charId };
-      const baseUpdates: Record<string, any> = { id: charId };
+      const statsUpdates: Record<string, unknown> = { id: charId };
+      const baseUpdates: Record<string, unknown> = { id: charId };
 
       Object.entries(updates).forEach(([key, value]) => {
         if (statsFields.includes(key)) {
@@ -246,30 +246,36 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
 
       // Cache chat_palette in localStorage before mutation
       if ('chat_palette' in baseUpdates) {
-        localStorage.setItem(`adrastea-chat-palette-${charId}`, baseUpdates.chat_palette ?? '');
+        localStorage.setItem(`adrastea-chat-palette-${charId}`, (baseUpdates.chat_palette as string) ?? '');
       }
 
       // Build promises for Promise.all
-      const promises: any[] = [];
+      const promises: Array<Promise<{ error: Error | null }>> = [];
 
       if (Object.keys(statsUpdates).length > 1) {
         const { id: _id, ...statsRest } = statsUpdates;
         promises.push(
-          supabase.from('characters_stats').update(statsRest).eq('id', charId)
+          (async () => {
+            const result = await supabase.from('characters_stats').update(statsRest).eq('id', charId);
+            return { error: result.error };
+          })()
         );
       }
 
       if (Object.keys(baseUpdates).length > 1) {
         const { id: _id, ...baseRest } = baseUpdates;
         promises.push(
-          supabase.from('characters_base').update(baseRest).eq('id', charId)
+          (async () => {
+            const result = await supabase.from('characters_base').update(baseRest).eq('id', charId);
+            return { error: result.error };
+          })()
         );
       }
 
       // Execute all promises in parallel
       if (promises.length > 0) {
         const results = await Promise.all(promises);
-        const errors = results.filter((r: any) => r.error);
+        const errors = results.filter((r) => r.error);
         if (errors.length > 0) {
           console.error('updateCharacter partial failure:', errors);
           throw new Error('Character update failed');
