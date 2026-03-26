@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
 import RoomLobby from '../components/Adrastea/RoomLobby';
 import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../config/adrastea';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
@@ -113,15 +113,29 @@ function AdrasteaRoom() {
   });
 
   // メンバー管理（ownerのみ実データ取得）
-  const members = useQuery(
-    api.room_members.getMembers,
-    isOwner && ctx.room ? { room_id: ctx.room.id } : 'skip'
+  const { data: members = [] } = useSupabaseQuery<any>({
+    table: 'room_members',
+    columns: 'room_id,user_id,role,joined_at',
+    roomId: ctx.room?.id ?? 'null',
+    filter: (q) => q.eq('room_id', ctx.room?.id ?? ''),
+    enabled: isOwner && !!ctx.room,
+  });
+
+  const handleAssignRole = useCallback(
+    async (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => {
+      if (!ctx.room) return;
+      try {
+        await supabase
+          .from('room_members')
+          .update({ role })
+          .eq('room_id', ctx.room.id)
+          .eq('user_id', targetUserId);
+      } catch (err) {
+        console.error('Failed to assign role:', err);
+      }
+    },
+    [ctx.room]
   );
-  const assignRoleMutation = useMutation(api.room_members.assignRole);
-  const handleAssignRole = useCallback((targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => {
-    if (!ctx.room) return;
-    assignRoleMutation({ room_id: ctx.room.id, target_user_id: targetUserId, role });
-  }, [ctx.room, assignRoleMutation]);
 
   const handleAddPiece = useCallback((label: string, color: string) => {
     const center = ctx.getBoardCenter();
@@ -207,11 +221,15 @@ const Adrastea: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signIn, onboarded, updateProfile } = useAuth();
 
-  // Convex から room データを取得
-  const roomData = useQuery(
-    api.rooms.get,
-    roomId ? { id: roomId } : 'skip'
-  );
+  // Supabase から room データを取得
+  const { data: roomDataArray = [] } = useSupabaseQuery<any>({
+    table: 'rooms',
+    columns: '*',
+    roomId: roomId ?? 'null',
+    filter: (q) => q.eq('id', roomId ?? ''),
+    enabled: !!roomId,
+  });
+  const roomData = roomDataArray[0] ?? (roomId ? null : undefined);
 
   useEffect(() => {
     document.title = 'Adrastea';
@@ -228,26 +246,43 @@ const Adrastea: React.FC = () => {
   }, [user?.uid]);
 
   // room_members からロール取得
-  const memberRole = useQuery(
-    api.room_members.getMyRole,
-    (roomId && user) ? { room_id: roomId } : 'skip'
-  );
+  const { data: myMembersData = [] } = useSupabaseQuery<any>({
+    table: 'room_members',
+    columns: 'room_id,user_id,role,joined_at',
+    roomId: roomId ?? 'null',
+    filter: (q) => q.eq('room_id', roomId ?? ''),
+    enabled: !!(roomId && user),
+  });
+  const memberRole = myMembersData.find(m => m.user_id === user?.uid)?.role ?? undefined;
 
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [joinDone, setJoinDone] = useState(!user || !roomId || isGuestMode);
   const [joinedRole, setJoinedRole] = useState<'owner' | 'sub_owner' | 'user' | 'guest' | null>(null);
-  const joinMutation = useMutation(api.room_members.join);
-  const completeOnboardingMutation = useMutation(api.users.completeOnboarding);
 
   // ルーム入室時に join を呼ぶ
   useEffect(() => {
     if (roomId && user) {
-      joinMutation({ room_id: roomId })
-        .then((result) => {
-          setJoinedRole(result.role);
-        })
-        .catch(() => {})
-        .finally(() => setJoinDone(true));
+      (async () => {
+        try {
+          const { data } = await supabase
+            .from('room_members')
+            .insert({
+              room_id: roomId,
+              user_id: user.uid,
+              role: 'user',
+              joined_at: new Date().toISOString(),
+            })
+            .select('role')
+            .single();
+          if (data) {
+            setJoinedRole(data.role as 'owner' | 'sub_owner' | 'user' | 'guest');
+          }
+        } catch (err) {
+          console.error('Failed to join room:', err);
+        } finally {
+          setJoinDone(true);
+        }
+      })();
     }
   }, [roomId, user?.uid]);
 
@@ -381,6 +416,17 @@ const Adrastea: React.FC = () => {
 
   // オンボーディング（初回ログイン時）
   if (!onboarded) {
+    const handleCompleteOnboarding = async () => {
+      try {
+        await supabase
+          .from('users')
+          .update({ onboarded: true })
+          .eq('id', user?.uid ?? '');
+      } catch (err) {
+        console.error('Failed to complete onboarding:', err);
+      }
+    };
+
     return (
       <OnboardingModal
         defaultName={user?.displayName ?? ''}
@@ -388,9 +434,7 @@ const Adrastea: React.FC = () => {
         onComplete={async (data) => {
           await updateProfile(data);
         }}
-        onSkip={async () => {
-          await completeOnboardingMutation();
-        }}
+        onSkip={handleCompleteOnboarding}
       />
     );
   }

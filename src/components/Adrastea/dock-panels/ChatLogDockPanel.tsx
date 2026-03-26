@@ -1,10 +1,10 @@
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
-import { useAuthToken } from '@convex-dev/auth/react';
+import { useAuth } from '../../../contexts/AuthContext';
 import ChatLogPanel from '../ChatLogPanel';
 
 export function ChatLogDockPanel() {
   const ctx = useAdrasteaContext();
-  const token = useAuthToken();
+  const { token } = useAuth();
   return (
     <ChatLogPanel
       messages={ctx.messages}
