@@ -140,10 +140,10 @@ function markAsPending(table: string, id: string): void {
     clearTimeout(pending.get(id)!);
   }
 
-  // 3秒後に自動削除（取りこぼし防止）
+  // 10秒後に自動削除（取りこぼし防止）
   const timerId = setTimeout(() => {
     pending.delete(id);
-  }, 3000);
+  }, 10000);
 
   pending.set(id, timerId);
 }
@@ -329,6 +329,8 @@ export function useSupabaseMutation<T extends { id: string }>(
         setData(snapshot);
         throw error;
       }
+      // 成功時もclearPending
+      clearPending(table, item.id);
     } catch (err) {
       console.error(`[useSupabaseMutation] insert failed:`, err);
       throw err;
@@ -359,6 +361,8 @@ export function useSupabaseMutation<T extends { id: string }>(
         clearPending(table, id);
         throw error;
       }
+      // 成功時もclearPending
+      clearPending(table, id);
     } catch (err) {
       console.error(`[useSupabaseMutation] update failed:`, err);
       throw err;
@@ -380,6 +384,8 @@ export function useSupabaseMutation<T extends { id: string }>(
         setData(snapshot);
         throw error;
       }
+      // 成功時もclearPending
+      clearPending(table, id);
     } catch (err) {
       console.error(`[useSupabaseMutation] remove failed:`, err);
       throw err;

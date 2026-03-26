@@ -131,7 +131,7 @@ export function useRooms(_uid?: string) {
   }, [saveOrder]);
 
   const fetchRooms = useCallback(async () => {
-    // Convex useQuery が自動で最新データを返すため no-op
+    // Realtime が自動で最新データを返すため no-op
   }, []);
 
   const addRoom = useCallback(

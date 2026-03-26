@@ -22,7 +22,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   const bgmsMutation = useSupabaseMutation<BgmTrack>('bgms', bgmsQuery.setData);
 
   // is_playing / is_paused のローカルオーバーライド
-  // Convex の楽観更新が振動するのを防ぐ
+  // Supabase Realtime の楽観更新振動を防ぐ
   const [playbackOverrides, setPlaybackOverrides] = useState<
     Map<string, { is_playing: boolean; is_paused: boolean }>
   >(new Map());
@@ -33,7 +33,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     // 既存タイマーをクリア
     const existing = overrideTimersRef.current.get(id);
     if (existing) clearTimeout(existing);
-    // 10秒後にオーバーライドを解除（Convex が確実に収束してるはず）
+    // 10秒後にオーバーライドを解除（Realtime が収束するまで）
     const timer = setTimeout(() => {
       setPlaybackOverrides(prev => {
         const next = new Map(prev);
