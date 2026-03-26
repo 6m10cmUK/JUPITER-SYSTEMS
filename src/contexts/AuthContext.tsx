@@ -1,7 +1,6 @@
-import React, { createContext, useContext } from 'react';
-import { useConvexAuth, useQuery, useMutation } from "convex/react";
-import { useAuthActions } from "@convex-dev/auth/react";
-import { api } from '../../convex/_generated/api';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../services/supabase';
+import type { User, Session } from '@supabase/supabase-js';
 import type { UserProfile } from '../types/adrastea.types';
 
 export interface AuthUser {
@@ -18,50 +17,87 @@ interface AuthContextValue {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => Promise<void>;
+  token: string | null;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+function authUserFromSupabase(user: User): AuthUser {
+  return {
+    uid: user.id,
+    displayName: user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'ユーザー',
+    avatarUrl: user.user_metadata?.avatar_url ?? null,
+  };
+}
+
+function profileFromSupabase(user: User): UserProfile {
+  return {
+    uid: user.id,
+    display_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'ユーザー',
+    avatar_url: user.user_metadata?.avatar_url ?? null,
+    created_at: new Date(user.created_at).getTime(),
+    updated_at: Date.now(),
+  };
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, isLoading } = useConvexAuth();
-  const { signIn: convexSignIn, signOut: convexSignOut } = useAuthActions();
-  const viewerData = useQuery(api.users.getMe);
-  const updateMeMutation = useMutation(api.users.updateMe);
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const signIn = async () => {
-    await convexSignIn("google", { redirectTo: window.location.origin + window.location.pathname + window.location.search });
-  };
-
-  const signOut = async () => {
-    await convexSignOut();
-  };
-
-  const updateProfile = async (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => {
-    await updateMeMutation({
-      name: data.display_name ?? '',
-      image: data.avatar_url ?? undefined,
+  useEffect(() => {
+    // 初回セッション取得
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
     });
-  };
 
-  const uid = viewerData?.id ?? null;
+    // セッション変化を購読
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
 
-  const user: AuthUser | null = (isAuthenticated && uid)
-    ? { uid, displayName: viewerData?.name ?? "ユーザー", avatarUrl: viewerData?.image ?? null }
-    : null;
+    return () => subscription.unsubscribe();
+  }, []);
 
-  const profile: UserProfile | null = (isAuthenticated && uid)
-    ? {
-        uid,
-        display_name: viewerData?.name ?? "ユーザー",
-        avatar_url: viewerData?.image ?? null,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      }
-    : null;
+  const signIn = useCallback(async () => {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname + window.location.search,
+      },
+    });
+  }, []);
 
-  // viewerData が undefined = ロード中。null = 未認証
-  const loading = isLoading || (isAuthenticated && viewerData === undefined);
-  const onboarded = viewerData?.onboarded ?? true;
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  const updateProfile = useCallback(async (data: Partial<Pick<{ display_name: string; avatar_url: string | null }, 'display_name' | 'avatar_url'>>) => {
+    const updates: Record<string, unknown> = {};
+    if (data.display_name !== undefined) updates.full_name = data.display_name;
+    if (data.avatar_url !== undefined) updates.avatar_url = data.avatar_url;
+
+    await supabase.auth.updateUser({
+      data: updates,
+    });
+
+    // users テーブルも更新
+    if (session?.user) {
+      const now = Date.now();
+      await supabase.from('users').update({
+        display_name: data.display_name ?? session.user.user_metadata?.full_name ?? 'ユーザー',
+        avatar_url: data.avatar_url ?? session.user.user_metadata?.avatar_url ?? null,
+        updated_at: now,
+      }).eq('id', session.user.id);
+    }
+  }, [session]);
+
+  const supabaseUser = session?.user ?? null;
+  const user = supabaseUser ? authUserFromSupabase(supabaseUser) : null;
+  const profile = supabaseUser ? profileFromSupabase(supabaseUser) : null;
+  const onboarded = supabaseUser?.user_metadata?.onboarded ?? true;
+  const token = session?.access_token ?? null;
 
   return (
     <AuthContext.Provider value={{
@@ -72,6 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signIn,
       signOut,
       updateProfile,
+      token,
     }}>
       {children}
     </AuthContext.Provider>

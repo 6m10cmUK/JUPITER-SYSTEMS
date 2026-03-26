@@ -27,7 +27,7 @@
     "@milkdown/ctx": "^7.19.0",
     "@milkdown/preset-commonmark": "^7.19.0",
     "@milkdown/react": "^7.19.0",
-    "@supabase/supabase-js": "^2.98.0",
+    "@supabase/supabase-js": "^2.100.0",
     "@types/react-pdf": "^6.2.0",
     "bcdice": "^4.9.0",
     "convex": "^1.32.0",
