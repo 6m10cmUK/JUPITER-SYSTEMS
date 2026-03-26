@@ -237,8 +237,8 @@ export function ScenePanel({
             {(() => {
               const bgObj = allObjects.find(o => o.type === 'background' && o.scene_ids.includes(scene.id));
               const fgObj = allObjects.find(o => o.type === 'foreground' && o.scene_ids.includes(scene.id));
-              const bgSolidColor = bgObj?.background_color && bgObj.background_color !== 'transparent' ? bgObj.background_color : null;
-              const fgSolidColor = fgObj?.background_color && fgObj.background_color !== 'transparent' ? fgObj.background_color : null;
+              const bgSolidColor = bgObj?.color_enabled ? (bgObj.background_color || null) : null;
+              const fgSolidColor = fgObj?.color_enabled ? (fgObj.background_color || null) : null;
               const bgBackground = bgSolidColor
                 ? bgSolidColor
                 : scene.background_asset_id

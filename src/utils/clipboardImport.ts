@@ -185,6 +185,7 @@ function parseObjectData(raw: unknown): Partial<BoardObject> {
     result.image_asset_id = obj.image_asset_id as string | null;
   }
   if (typeof obj.background_color === 'string') result.background_color = obj.background_color;
+  if (typeof obj.color_enabled === 'boolean') result.color_enabled = obj.color_enabled;
   if (typeof obj.image_fit === 'string') result.image_fit = obj.image_fit as BoardObject['image_fit'];
   if (typeof obj.text_content === 'string' || obj.text_content === null) result.text_content = obj.text_content as string | null;
   if (typeof obj.font_size === 'number') result.font_size = obj.font_size;
@@ -258,12 +259,12 @@ function objectToData(obj: BoardObject): Record<string, unknown> {
       text_content: obj.text_content, font_size: obj.font_size, font_family: obj.font_family,
       letter_spacing: obj.letter_spacing, line_height: obj.line_height, auto_size: obj.auto_size,
       text_align: obj.text_align, text_vertical_align: obj.text_vertical_align, text_color: obj.text_color,
-      background_color: obj.background_color,
+      background_color: obj.background_color, color_enabled: obj.color_enabled,
     });
   } else {
     Object.assign(data, {
       image_asset_id: obj.image_asset_id,
-      background_color: obj.background_color, image_fit: obj.image_fit,
+      background_color: obj.background_color, color_enabled: obj.color_enabled, image_fit: obj.image_fit,
       scale_x: obj.scale_x, scale_y: obj.scale_y,
     });
   }

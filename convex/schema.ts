@@ -166,6 +166,7 @@ created_at: v.number(),
       v.literal("cover"),
       v.literal("stretch")
     ),
+    color_enabled: v.optional(v.boolean()),
     text_content: v.union(v.string(), v.null()),
     font_size: v.number(),
     font_family: v.string(),
