@@ -116,11 +116,15 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         data.x = s.x;
         data.y = s.y;
         data.image_asset_id = s.image_asset_id || null;
+        data.background_color = s.background_color && s.background_color !== 'transparent'
+          ? s.background_color : 'transparent';
         data.width = s.width;
         data.height = s.height;
         data.image_fit = s.image_fit;
       } else if (type === 'background') {
         data.image_asset_id = s.image_asset_id || null;
+        data.background_color = s.background_color && s.background_color !== 'transparent'
+          ? s.background_color : 'transparent';
         data.opacity = s.opacity;
         data.visible = s.visible;
       }
@@ -180,6 +184,19 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
               onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
             />
+          </AdSection>
+
+          <AdSection label="背景色">
+            <AdCheckbox
+              checked={bgEnabled}
+              onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
+              label="背景色を使用"
+            />
+            {bgEnabled && (
+              <div style={{ marginTop: '6px' }}>
+                <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
+              </div>
+            )}
           </AdSection>
 
           <div style={{ marginBottom: '12px' }}>
@@ -526,6 +543,18 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   />
                 </AdSection>
               )}
+              <AdSection label="前景色">
+                <AdCheckbox
+                  checked={bgEnabled}
+                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
+                  label="前景色を使用"
+                />
+                {bgEnabled && (
+                  <div style={{ marginTop: '6px' }}>
+                    <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
+                  </div>
+                )}
+              </AdSection>
               <AdSection label="位置">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
