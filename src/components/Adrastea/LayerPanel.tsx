@@ -132,7 +132,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       sort_order: sortOrder,
       global: pendingImageAdd.global,
       scene_ids: pendingImageAdd.global ? [] : (activeScene?.id ? [activeScene.id] : []),
-      image_url: _url,
+      image_asset_id: _assetId ?? null,
     });
     setPendingImageAdd(null);
   }, [pendingImageAdd, activeObjects, activeScene, addObject, getBoardCenter]);

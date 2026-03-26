@@ -153,15 +153,15 @@ export function BoardDockPanel() {
       </div>
       {imagePickerTarget && (
         <AssetLibraryModal
-          onSelect={(url, assetId) => {
-            ctx.updateObject(imagePickerTarget.id, { image_url: url || null, image_asset_id: assetId ?? null });
-            // 背景/前景オブジェクトの画像変更時、シーンのサムネイル用URLも同期
+          onSelect={(_url, assetId) => {
+            ctx.updateObject(imagePickerTarget.id, { image_asset_id: assetId ?? null });
+            // 背景/前景オブジェクトの画像変更時、シーンのサムネイル用asset_idも同期
             const obj = ctx.activeObjects.find(o => o.id === imagePickerTarget.id);
             if (obj && ctx.activeScene) {
               if (obj.type === 'background') {
-                ctx.updateScene(ctx.activeScene.id, { background_url: url || null });
+                ctx.updateScene(ctx.activeScene.id, { background_asset_id: assetId ?? null });
               } else if (obj.type === 'foreground') {
-                ctx.updateScene(ctx.activeScene.id, { foreground_url: url || null });
+                ctx.updateScene(ctx.activeScene.id, { foreground_asset_id: assetId ?? null });
               }
             }
             setImagePickerTarget(null);
