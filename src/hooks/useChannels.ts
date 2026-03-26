@@ -52,35 +52,21 @@ export function useChannels(roomId: string) {
   );
 
   const upsertChannel = useCallback(async (channel: ChatChannel) => {
-    const { data: existing } = await supabase
+    // Supabase .upsert() で原子的に insert/update を実行（レースコンディション防止）
+    const data = {
+      id: genId(), // INSERT時に必要
+      room_id: roomId,
+      channel_id: channel.channel_id,
+      label: channel.label,
+      order: channel.order,
+      is_archived: channel.is_archived,
+      allowed_user_ids: channel.allowed_user_ids,
+    };
+    const { error } = await supabase
       .from('channels')
-      .select('id')
-      .eq('room_id', roomId)
-      .eq('channel_id', channel.channel_id)
-      .maybeSingle();
-
-    if (existing) {
-      // 既存チャンネル更新（楽観的更新）
-      await channelsMutation.update(existing.id, {
-        label: channel.label,
-        order: channel.order,
-        is_archived: channel.is_archived,
-        allowed_user_ids: channel.allowed_user_ids,
-      } as Partial<ChannelRow>);
-    } else {
-      // 新規チャンネル作成（楽観的更新）
-      const newChannel: ChannelRow = {
-        id: genId(),
-        room_id: roomId,
-        channel_id: channel.channel_id,
-        label: channel.label,
-        order: channel.order,
-        is_archived: channel.is_archived,
-        allowed_user_ids: channel.allowed_user_ids,
-      };
-      await channelsMutation.insert(newChannel);
-    }
-  }, [roomId, channelsMutation]);
+      .upsert(data, { onConflict: 'room_id,channel_id' });
+    if (error) throw error;
+  }, [roomId]);
 
   const deleteChannel = useCallback(async (channelId: string) => {
     // 楽観的削除：対象チャンネルを探して削除

@@ -228,7 +228,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       b.scene_ids.length === 0 || b.scene_ids.every(sid => !sceneIdSet.has(sid))
     );
     if (orphans.length > 0) {
-      Promise.all(orphans.map(b => removeBgm(b.id)));
+      (async () => {
+        await Promise.all(orphans.map(b => removeBgm(b.id)));
+      })();
     }
   }, [initialLoadDone, bgms, removeBgm, scenes]);
 
@@ -240,7 +242,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       b.scene_ids.length === 0 || b.scene_ids.every(sid => !sceneIdSet.has(sid))
     );
     if (orphans.length > 0) {
-      Promise.all(orphans.map(b => removeBgm(b.id)));
+      (async () => {
+        await Promise.all(orphans.map(b => removeBgm(b.id)));
+      })();
     }
   }, [initialLoadDone, scenes, bgms, removeBgm]);
 

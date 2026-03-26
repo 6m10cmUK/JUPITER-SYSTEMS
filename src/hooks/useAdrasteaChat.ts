@@ -193,7 +193,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
       if (!res.ok) {
         console.error('過去ログ取得失敗:', res.status);
-        setHasMore(false); // エラー時はリトライしない
+        // ネットワークエラーは一時的→hasMore は変えない（リトライ可能）
+        setLoadingMore(false);
         return;
       }
 

@@ -99,6 +99,13 @@ export function useAssets(options?: { disabled?: boolean }) {
     [disabled, uid, token]
   );
 
+  // uid 変更時にキャッシュをクリア（別ユーザーのアセット混在防止）
+  useEffect(() => {
+    if (!disabled && uid && assetCache && assetCache.uid !== uid) {
+      assetCache = null;
+    }
+  }, [disabled, uid]);
+
   // キャッシュがあればフェッチをスキップ
   useEffect(() => {
     if (disabled) return;
