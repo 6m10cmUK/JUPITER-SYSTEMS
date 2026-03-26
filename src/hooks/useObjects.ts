@@ -125,12 +125,11 @@ export function useObjects(
       if (inj) {
         await inj.reorder(updates);
       } else {
-        for (const { id, sort_order } of updates) {
-          try {
-            await mutation.update(id, { sort_order, updated_at: Date.now() } as Partial<BoardObject>);
-          } catch (error) {
-            console.error('[useObjects] reorderObjects failed:', error);
-          }
+        try {
+          await mutation.reorder(orderedIds);
+        } catch (error) {
+          console.error('[useObjects] reorderObjects failed:', error);
+          throw error;
         }
       }
     },

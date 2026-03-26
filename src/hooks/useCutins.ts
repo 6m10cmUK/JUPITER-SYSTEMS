@@ -134,9 +134,7 @@ export function useCutins(
         if (inj) {
           await inj.reorder(updates);
         } else {
-          await Promise.all(updates.map(u =>
-            cutinsMutation.update(u.id, { sort_order: u.sort_order } as Partial<Cutin>)
-          ));
+          await cutinsMutation.reorder(orderedIds);
         }
       } catch (err) {
         console.error('カットイン並べ替え失敗:', err);

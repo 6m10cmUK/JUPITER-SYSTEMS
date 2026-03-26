@@ -228,12 +228,11 @@ export function useScenes(
       if (inj) {
         await inj.reorder(updates);
       } else {
-        for (const { id, sort_order } of updates) {
-          try {
-            await scenesMutation.update(id, { sort_order, updated_at: Date.now() } as Partial<Scene>);
-          } catch (error) {
-            console.error('[useScenes] reorderScenes failed:', error);
-          }
+        try {
+          await scenesMutation.reorder(orderedIds);
+        } catch (error) {
+          console.error('[useScenes] reorderScenes failed:', error);
+          throw error;
         }
       }
     },

@@ -77,10 +77,7 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
   const reorderScenarioTexts = useCallback(
     async (orderedIds: string[]): Promise<void> => {
       try {
-        const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-        await Promise.all(updates.map(u =>
-          textsMutation.update(u.id, { sort_order: u.sort_order } as Partial<ScenarioText>)
-        ));
+        await textsMutation.reorder(orderedIds);
       } catch (err) {
         console.error('シナリオテキスト並べ替え失敗:', err);
         throw err;
