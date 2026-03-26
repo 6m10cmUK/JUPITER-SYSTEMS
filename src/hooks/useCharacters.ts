@@ -19,7 +19,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   });
   const baseQuery = useSupabaseQuery<any>({
     table: 'characters_base',
-    columns: 'id,room_id,images,memo,secret_memo,chat_palette,sheet_url,initiative,size,is_status_private',
+    columns: 'id,room_id,images,memo,chat_palette,sheet_url,initiative,size,is_status_private',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
@@ -34,6 +34,9 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
 
   const characters: Character[] = useMemo(() => {
     if (inject) return inject.data;
+
+    // 両テーブルが loading 中なら空配列を返す
+    if (!statsData.length && !baseData.length && (statsQuery.loading || baseQuery.loading)) return [];
 
     if (!statsData || !baseData) return [];
 
@@ -61,7 +64,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         // From base table
         images: base?.images ?? [],
         memo: base?.memo ?? '',
-        secret_memo: base?.secret_memo ?? '',
+        secret_memo: '', // RLS: 通常取得では空。GM は fetchSecretMemo で個別取得
         chat_palette: base?.chat_palette ?? '',
         sheet_url: base?.sheet_url ?? null,
         initiative: base?.initiative ?? 0,
@@ -141,6 +144,22 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       return characters;
     }
   }, [characters, roomId, layerCharOrderVersion]);
+
+  const fetchSecretMemo = useCallback(
+    async (charId: string): Promise<string> => {
+      const { data, error } = await supabase
+        .from('characters_base')
+        .select('secret_memo')
+        .eq('id', charId)
+        .single();
+      if (error) {
+        console.error('Failed to fetch secret_memo:', error);
+        return '';
+      }
+      return data?.secret_memo ?? '';
+    },
+    []
+  );
 
   const addCharacter = useCallback(
     async (data: Partial<Omit<Character, 'id' | 'room_id' | 'created_at' | 'updated_at'>>): Promise<Character> => {
@@ -299,5 +318,5 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     [roomId]
   );
 
-  return { characters, layerOrderedCharacters, loading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters };
+  return { characters, layerOrderedCharacters, loading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters, fetchSecretMemo };
 }

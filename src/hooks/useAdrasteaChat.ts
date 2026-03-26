@@ -16,7 +16,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     table: 'messages',
     columns: 'id,room_id,sender_name,sender_uid,sender_avatar,content,message_type,channel,allowed_user_ids,created_at',
     roomId,
-    filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
+    filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(200),
     enabled: !inject,
   });
   const messagesData = messagesQuery.data;

@@ -29,6 +29,7 @@ export function useAdrastea(roomId: string) {
     (pieceId: string, x: number, y: number) => {
       void piecesMutation.update(pieceId, { x, y } as Partial<Piece>).catch((error) => {
         console.error('[useAdrastea] movePiece failed:', error);
+        // TODO: showToast でユーザー通知
       });
     },
     [piecesMutation]
@@ -59,6 +60,7 @@ export function useAdrastea(roomId: string) {
       };
       void piecesMutation.insert(newPiece).catch((error) => {
         console.error('[useAdrastea] addPiece failed:', error);
+        // TODO: showToast でユーザー通知
       });
     },
     [roomId, pieces.length, piecesMutation]
@@ -68,6 +70,7 @@ export function useAdrastea(roomId: string) {
     (pieceId: string) => {
       void piecesMutation.remove(pieceId).catch((error) => {
         console.error('[useAdrastea] removePiece failed:', error);
+        // TODO: showToast でユーザー通知
       });
     },
     [piecesMutation]
@@ -78,6 +81,7 @@ export function useAdrastea(roomId: string) {
       const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Piece;
       void piecesMutation.update(pieceId, rest as Partial<Piece>).catch((error) => {
         console.error('[useAdrastea] updatePiece failed:', error);
+        // TODO: showToast でユーザー通知
       });
     },
     [piecesMutation]
@@ -88,6 +92,7 @@ export function useAdrastea(roomId: string) {
       const { id: _id, owner_id: _oid, created_at: _ca, ...rest } = updates as Room;
       void roomsMutation.update(roomId, rest as Partial<Room>).catch((error) => {
         console.error('[useAdrastea] updateRoom failed:', error);
+        // TODO: showToast でユーザー通知
       });
     },
     [roomId, roomsMutation]
