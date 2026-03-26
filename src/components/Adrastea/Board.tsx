@@ -3,7 +3,7 @@ import { Stage, Layer, Rect, Group, Text, Image as KonvaImage } from 'react-konv
 import { DomObjectOverlay, useAnimatedBlobSrc, __blockBoardWheelCount } from './DomObjectOverlay';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
-import { resolveAssetId } from '../../hooks/useAssets';
+import { resolveAssetId, useAssets } from '../../hooks/useAssets';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { Stage as StageType } from 'konva/lib/Stage';
 import type { Piece as PieceType, BoardObject, Scene, Character } from '../../types/adrastea.types';
@@ -271,9 +271,18 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const bgTransitionDuration = activeScene?.bg_transition === 'fade' ? (activeScene.bg_transition_duration ?? 500) : 0;
   // 背景オブジェクト
   const bgObject = useMemo(() => objects.find(o => o.type === 'background' && o.visible), [objects]);
+
+  // アセットキャッシュからの URL 解決（状態更新依存を確保）
+  const { assets } = useAssets();
+  const bgImageUrl = useMemo(() => {
+    const assetId = bgObject?.image_asset_id ?? null;
+    if (!assetId) return null;
+    return assets.find(a => a.id === assetId)?.url ?? null;
+  }, [bgObject?.image_asset_id, assets]);
+
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
   if (bgObject) {
-    prevBgRef.current = { url: resolveAssetId(bgObject.image_asset_id) || null, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
+    prevBgRef.current = { url: bgImageUrl, color: bgObject.background_color, opacity: bgObject.opacity, blur: !!activeScene?.bg_blur };
   }
 
   // 背景レイヤー管理: bgObject の image_asset_id 変化でクロスフェード
@@ -282,8 +291,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const prevBgUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const assetId = bgObject?.image_asset_id ?? null;
-    const url = resolveAssetId(assetId);
+    const url = bgImageUrl;
     const color = bgObject?.background_color ?? 'transparent';
     const opacity = bgObject?.opacity ?? 1;
     const blur = !!activeScene?.bg_blur;
@@ -311,7 +319,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
       bgKeyRef.current += 1;
       setBgLayers([{ key: bgKeyRef.current, url, color, blur, opacity }]);
     }
-  }, [bgObject?.image_asset_id, bgObject?.background_color, bgObject?.opacity, activeScene?.bg_blur, bgTransitionDuration]);
+  }, [bgImageUrl, bgObject?.background_color, bgObject?.opacity, activeScene?.bg_blur, bgTransitionDuration]);
 
   const fitToScreen = useCallback(() => {
     const stage = stageRef.current;
