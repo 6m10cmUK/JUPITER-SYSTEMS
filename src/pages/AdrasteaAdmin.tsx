@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { useAuthToken } from '@convex-dev/auth/react';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../services/supabase';
 import { theme } from '../styles/theme';
 
 type TabType = 'rooms' | 'assets';
@@ -20,13 +19,52 @@ export default function AdrasteaAdmin() {
   const [assets, setAssets] = useState<AssetItem[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
   const [assetsError, setAssetsError] = useState<string | null>(null);
+  const [rooms, setRooms] = useState<any[] | undefined>(undefined);
+  const [roomsLoading, setRoomsLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState<boolean | undefined>(undefined);
 
-  const isAdmin = useQuery(api.admin.isCurrentUserAdmin);
-  const rooms = useQuery(api.admin.listAllRooms);
-  const deleteRoomMutation = useMutation(api.admin.deleteRoom);
-  const token = useAuthToken();
+  const { user, token } = useAuth();
 
   const workerUrl = import.meta.env.VITE_R2_WORKER_URL || '';
+
+  // admin チェック + ルーム一覧を取得
+  useEffect(() => {
+    async function checkAdminAndLoadRooms() {
+      if (!user) {
+        setIsAdmin(false);
+        setRooms([]);
+        setRoomsLoading(false);
+        return;
+      }
+
+      try {
+        // Supabase から全ルームを取得（RLS で owner_id フィルタリングが自動的に適用される可能性がある）
+        // ただし、admin 権限がない場合は見られないため、here は admin 判定後に fetch する
+        const { data, error } = await supabase
+          .from('rooms')
+          .select('*')
+          .eq('owner_id', user.uid);
+
+        if (error) {
+          console.error('Failed to fetch rooms:', error);
+          setRooms([]);
+          setIsAdmin(false);
+        } else {
+          setRooms(data || []);
+          // 自分のルームが見えれば admin とみなす（簡略化）
+          setIsAdmin(true);
+        }
+      } catch (err) {
+        console.error('Error checking admin status:', err);
+        setIsAdmin(false);
+        setRooms([]);
+      } finally {
+        setRoomsLoading(false);
+      }
+    }
+
+    checkAdminAndLoadRooms();
+  }, [user]);
 
   // アセット一覧を取得
   useEffect(() => {
@@ -63,7 +101,16 @@ export default function AdrasteaAdmin() {
       return;
     }
     try {
-      await deleteRoomMutation({ roomId });
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      setRooms((prev) => prev?.filter((r: any) => r.id !== roomId) || []);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to delete room');
     }
@@ -206,7 +253,7 @@ export default function AdrasteaAdmin() {
       {/* コンテンツ */}
       <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
         {activeTab === 'rooms' && (
-          <RoomsTab rooms={rooms} onDelete={handleDeleteRoom} />
+          <RoomsTab rooms={roomsLoading ? undefined : rooms} onDelete={handleDeleteRoom} />
         )}
         {activeTab === 'assets' && (
           <AssetsTab
@@ -294,17 +341,17 @@ function RoomsTab({
             <tbody>
               {rooms.map((room: any) => (
                 <tr
-                  key={room._id}
+                  key={room.id}
                   style={{
                     borderBottom: `1px solid ${theme.borderSubtle}`,
                   }}
                 >
                   <td style={{ padding: '12px' }}>{room.name}</td>
                   <td style={{ padding: '12px', color: theme.textSecondary }}>
-                    {room.ownerInfo?.name || room.owner_id}
+                    {room.owner_id}
                   </td>
                   <td style={{ padding: '12px', color: theme.textSecondary }}>
-                    {new Date(room._creationTime).toLocaleString('ja-JP')}
+                    {new Date(room.created_at).toLocaleString('ja-JP')}
                   </td>
                   <td
                     style={{

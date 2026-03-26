@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthToken } from '@convex-dev/auth/react';
 import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';
@@ -28,8 +27,7 @@ export function resolveAssetId(assetId: string | null | undefined): string | nul
 
 export function useAssets(options?: { disabled?: boolean }) {
   const disabled = options?.disabled ?? false;
-  const { user } = useAuth();
-  const token = useAuthToken();
+  const { user, token } = useAuth();
   const uid = user?.uid;
 
   // disabled モード（デモ）ではデモキャッシュを使う

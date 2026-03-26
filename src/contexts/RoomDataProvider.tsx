@@ -10,9 +10,6 @@ import { useScenes } from '../hooks/useScenes';
 import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
-import { useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
-import { useAssets } from '../hooks/useAssets';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
@@ -168,22 +165,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     // if (assetIds.length > 0) preloadImageBlobs(assetIds);
   }, [initialLoadDone, scenes, allObjects]);
 
-  // --- URL → asset_id ワンタイムマイグレーション ---
-  const migrateMutation = useMutation(api.migrate_assets.migrateUrlToAssetId);
-  const { assets: migrationAssets } = useAssets();
-  const migrationDoneRef = useRef(false);
-  useEffect(() => {
-    if (migrationDoneRef.current || !initialLoadDone || migrationAssets.length === 0) return;
-    migrationDoneRef.current = true;
-    const urlToAssetId = migrationAssets.map(a => ({ url: a.url, asset_id: a.id }));
-    migrateMutation({ room_id: roomId, url_to_asset_id: urlToAssetId })
-      .then(result => {
-        if (result.updated > 0) {
-          console.log(`[Migration] ${result.updated} records updated to asset_id`);
-        }
-      })
-      .catch(err => console.warn('[Migration] failed:', err));
-  }, [initialLoadDone, migrationAssets.length, roomId]);
 
   // --- characters_layer 自動生成 ---
   // ルーム入室後、characters_layer オブジェクトがなければ自動作成
