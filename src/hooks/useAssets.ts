@@ -116,7 +116,7 @@ export function useAssets(options?: { disabled?: boolean }) {
 
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
-      // デモモード: Convex/R2通信なし、blob URLのみ
+      // デモモード: 通信なし、blob URLのみ
       if (disabled) {
         const url = URL.createObjectURL(file);
         const img = new Image();
@@ -181,7 +181,7 @@ export function useAssets(options?: { disabled?: boolean }) {
 
   const uploadAudioAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
-      // デモモード: Convex/R2通信なし、blob URLのみ
+      // デモモード: 通信なし、blob URLのみ
       if (disabled) {
         const url = URL.createObjectURL(file);
         const asset: Asset = {
