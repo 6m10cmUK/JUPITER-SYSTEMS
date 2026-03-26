@@ -248,11 +248,6 @@ export function ScenePanel({
                   clipPath: 'polygon(0 0, 75% 0, 55% 100%, 0 100%)',
                 }} />
               )}
-              {!scene.foreground_asset_id && !scene.background_asset_id && (
-                <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.textMuted, fontSize: '0.7rem' }}>
-                  背景なし
-                </div>
-              )}
             </div>
 
             {/* 情報 */}
