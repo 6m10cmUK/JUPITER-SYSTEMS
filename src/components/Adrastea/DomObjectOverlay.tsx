@@ -1,6 +1,6 @@
 import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { BoardObject, Scene, Character } from '../../types/adrastea.types';
+import type { BoardObject, Scene, Character, Asset } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
 import { DropdownMenu } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
@@ -8,7 +8,7 @@ import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { handleClipboardImport } from '../../hooks/usePasteHandler';
 import { generateDuplicateName } from '../../utils/nameUtils';
-import { resolveAssetId } from '../../hooks/useAssets';
+import { resolveAssetId, useAssets } from '../../hooks/useAssets';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -742,7 +742,7 @@ export function preloadImageBlobs(urls: string[]): void {
 
 // --- PanelObject (DOM版) ---
 const DomPanelObject = memo(function DomPanelObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, baseZIndex,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, onResize, baseZIndex, assets: _assets,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -751,6 +751,7 @@ const DomPanelObject = memo(function DomPanelObject({
   onEdit: (id: string) => void;
   onResize?: (id: string, w: number, h: number) => void;
   baseZIndex?: number;
+  assets?: Asset[];
 }) {
   const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
 
@@ -864,7 +865,7 @@ let _prevFgAssetId: string | null = null;
 let _prevFgBlobSrc: string | null = null;
 
 const DomForegroundObject = memo(function DomForegroundObject({
-  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex,
+  obj, isSelected, stageRef, onMove, onSelect, onEdit, fadeInDuration, baseZIndex, assets: _assets,
 }: {
   obj: BoardObject; isSelected: boolean;
   stageRef: React.RefObject<any>;
@@ -873,6 +874,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   onEdit: (id: string) => void;
   fadeInDuration?: number;
   baseZIndex?: number;
+  assets?: Asset[];
 }) {
   const blobSrc = useAnimatedBlobSrc(resolveAssetId(obj.image_asset_id));
   const fgDuration = fadeInDuration ?? 0;
@@ -976,6 +978,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onDoubleClickCharacter,
   selectedCharacterId,
   baseZIndex,
+  assets: _assets,
 }: {
   characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -985,6 +988,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
   onDoubleClickCharacter?: (charId: string) => void;
   selectedCharacterId?: string | null;
   baseZIndex?: number;
+  assets?: Asset[];
 }) {
   // ボード上に表示するキャラをフィルタ: board_visible!=false
   // 配列の順序をそのまま維持（レイヤーパネルの並び順 = z順）
@@ -1003,6 +1007,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
           onSelectCharacter={onSelectCharacter}
           onDoubleClickCharacter={onDoubleClickCharacter}
           isSelected={selectedCharacterId === char.id}
+          assets={_assets}
         />
       ))}
     </>
@@ -1019,6 +1024,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onDoubleClickCharacter,
   isSelected,
   zIndex,
+  assets: _assets,
 }: {
   char: Character;
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
@@ -1028,6 +1034,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   onDoubleClickCharacter?: (charId: string) => void;
   isSelected?: boolean;
   zIndex?: number;
+  assets?: Asset[];
 }) {
   const imageAssetId = resolveAssetId(char.images[char.active_image_index]?.asset_id ?? null);
   const blobSrc = useAnimatedBlobSrc(imageAssetId);
@@ -1348,6 +1355,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
     characters = [], onUpdateCharacterBoardPosition, currentUserId, onSelectCharacter, onDoubleClickCharacter,
     selectedCharacterId,
   }, ref) {
+    const { assets } = useAssets();
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
     const keyedObjects = generateStableKeys(visibleObjects, prevSlotsRef);
@@ -1398,6 +1406,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onEdit={onEditObject}
                     onResize={obj.size_locked ? undefined : onResizeObject}
                     baseZIndex={baseZIndex}
+                    assets={assets}
                   />
                 );
               case 'text':
@@ -1423,6 +1432,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                       ? activeScene.fg_transition_duration
                       : undefined}
                     baseZIndex={baseZIndex}
+                    assets={assets}
                   />
                 );
               case 'characters_layer':
@@ -1437,6 +1447,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
                     onDoubleClickCharacter={onDoubleClickCharacter}
                     selectedCharacterId={selectedCharacterId}
                     baseZIndex={baseZIndex}
+                    assets={assets}
                   />
                 );
               default:
