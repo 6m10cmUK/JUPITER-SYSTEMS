@@ -79,6 +79,15 @@ export async function handleAssets(
 
   if (!assetId) return new Response('Not Found', { status: 404, headers });
 
+  // GET /api/assets/:id — 単体取得（所有者不問）
+  if (request.method === 'GET') {
+    const asset = await env.DB.prepare('SELECT * FROM assets WHERE id = ?')
+      .bind(assetId)
+      .first<Record<string, unknown>>();
+    if (!asset) return json({ error: 'Not Found' }, headers, 404);
+    return json({ ...asset, tags: JSON.parse((asset.tags as string) || '[]') }, headers);
+  }
+
   // PATCH /api/assets/:id — タグ/タイトル更新
   if (request.method === 'PATCH') {
     const asset = await env.DB.prepare('SELECT owner_id FROM assets WHERE id = ?')
