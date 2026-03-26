@@ -29,7 +29,8 @@ export default defineSchema({
 created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_owner", ["owner_id"]),
+    .index("by_owner", ["owner_id"])
+    .index("by_custom_id", ["id"]),
 
   scenes: defineTable({
     id: v.string(),
@@ -51,7 +52,8 @@ created_at: v.number(),
     updated_at: v.number(),
   })
     .index("by_room", ["room_id"])
-    .index("by_room_order", ["room_id", "sort_order"]),
+    .index("by_room_order", ["room_id", "sort_order"])
+    .index("by_custom_id", ["id"]),
 
   pieces: defineTable({
     id: v.string(),
@@ -77,7 +79,8 @@ created_at: v.number(),
     character_id: v.union(v.string(), v.null()),
     created_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   characters_stats: defineTable({
     id: v.string(),
@@ -112,7 +115,8 @@ created_at: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   characters_base: defineTable({
     id: v.string(),
@@ -132,7 +136,8 @@ created_at: v.number(),
     size: v.number(),
     is_status_private: v.boolean(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   objects: defineTable({
     id: v.string(),
@@ -190,7 +195,8 @@ created_at: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   bgms: defineTable({
     id: v.string(),
@@ -218,7 +224,8 @@ created_at: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   cutins: defineTable({
     id: v.string(),
@@ -239,7 +246,8 @@ created_at: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   scenario_texts: defineTable({
     id: v.string(),
@@ -254,7 +262,8 @@ created_at: v.number(),
     created_at: v.number(),
     updated_at: v.number(),
   })
-    .index("by_room", ["room_id"]),
+    .index("by_room", ["room_id"])
+    .index("by_custom_id", ["id"]),
 
   messages: defineTable({
     id: v.string(),
@@ -274,7 +283,8 @@ created_at: v.number(),
     created_at: v.number(),
   })
     .index("by_room", ["room_id"])
-    .index("by_room_time", ["room_id", "created_at"]),
+    .index("by_room_time", ["room_id", "created_at"])
+    .index("by_custom_id", ["id"]),
 
   room_members: defineTable({
     room_id: v.string(),

@@ -78,7 +78,7 @@ export const update = mutation({
     const { id, ...updates } = args;
     const doc = await ctx.db
       .query("scenario_texts")
-      .filter((q) => q.eq(q.field("id"), id))
+      .withIndex("by_custom_id", (q) => q.eq("id", id))
       .first();
     if (!doc) throw new Error("ScenarioText not found");
     const role = await getRole(ctx, doc.room_id);
@@ -100,7 +100,7 @@ export const remove = mutation({
     if (!identity) throw new Error("Not authenticated");
     const doc = await ctx.db
       .query("scenario_texts")
-      .filter((q) => q.eq(q.field("id"), args.id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.id))
       .first();
     if (doc) {
       const role = await getRole(ctx, doc.room_id);
@@ -124,7 +124,7 @@ export const reorder = mutation({
     for (const u of args.updates) {
       const doc = await ctx.db
         .query("scenario_texts")
-        .filter((q) => q.eq(q.field("id"), u.id))
+        .withIndex("by_custom_id", (q) => q.eq("id", u.id))
         .first();
       if (!doc) continue;
       docs.push({ doc, sort_order: u.sort_order });
