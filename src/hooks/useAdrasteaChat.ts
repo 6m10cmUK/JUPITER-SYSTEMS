@@ -99,7 +99,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
         let finalAllowedUserIds = allowedUserIds;
-        let messagesToInsert: any[] = [];
+        let messagesToInsert: Omit<ChatMessage, 'created_at'>[] = [];
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
@@ -205,27 +205,40 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   const clearMessages = useCallback(async () => {
     if (injectRef.current) return;
-    // Supabase のメッセージを削除
-    await supabase.from('messages').delete().eq('room_id', roomId);
-    // D1 アーカイブも削除
-    const { data: session } = await supabase.auth.getSession();
-    if (session) {
-      try {
-        await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${session.session?.access_token}` },
-        });
-      } catch (e) {
-        console.error('D1 メッセージ削除失敗:', e);
+    try {
+      // Supabase のメッセージを削除
+      const { error: sbError } = await supabase.from('messages').delete().eq('room_id', roomId);
+      if (sbError) throw sbError;
+
+      // D1 アーカイブも削除
+      const { data: session } = await supabase.auth.getSession();
+      if (session) {
+        try {
+          await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${session.session?.access_token}` },
+          });
+        } catch (e) {
+          console.error('D1 メッセージ削除失敗:', e);
+        }
       }
+      localCacheRef.current.clear();
+      setArchivedMessages([]);
+    } catch (err) {
+      console.error('メッセージ削除失敗:', err);
+      throw err;
     }
-    localCacheRef.current.clear();
-    setArchivedMessages([]);
   }, [roomId]);
 
   const openSecretDice = useCallback(
     async (messageId: string) => {
-      await supabase.from('messages').update({ allowed_user_ids: null }).eq('id', messageId);
+      try {
+        const { error } = await supabase.from('messages').update({ allowed_user_ids: null }).eq('id', messageId);
+        if (error) throw error;
+      } catch (err) {
+        console.error('秘密ダイス公開失敗:', err);
+        throw err;
+      }
     },
     []
   );

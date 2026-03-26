@@ -51,17 +51,21 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     const merged = (bgmsData ?? []).map((b) => {
       const override = playbackOverrides.get(b.id);
       return {
-        id: b.id, name: b.name,
+        id: b.id,
+        name: b.name,
         bgm_type: b.bgm_type as BgmTrack['bgm_type'],
-        bgm_source: (b as any).bgm_source ?? null,
-        bgm_volume: b.bgm_volume, bgm_loop: b.bgm_loop,
+        bgm_source: b.bgm_source ?? null,
+        bgm_volume: b.bgm_volume,
+        bgm_loop: b.bgm_loop,
         scene_ids: b.scene_ids,
         is_playing: override ? override.is_playing : b.is_playing,
         is_paused: override ? override.is_paused : b.is_paused,
-        auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
-        fade_in: (b as any).fade_in ?? true,
-        fade_in_duration: (b as any).fade_in_duration ?? (b as any).fade_duration ?? 500,
-        sort_order: b.sort_order ?? 0, created_at: b.created_at, updated_at: b.updated_at,
+        auto_play_scene_ids: b.auto_play_scene_ids ?? [],
+        fade_in: b.fade_in ?? true,
+        fade_in_duration: b.fade_in_duration ?? 500,
+        sort_order: b.sort_order ?? 0,
+        created_at: b.created_at,
+        updated_at: b.updated_at,
       } as BgmTrack;
     });
 

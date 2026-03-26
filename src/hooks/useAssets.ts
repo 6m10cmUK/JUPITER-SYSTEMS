@@ -90,8 +90,8 @@ export function useAssets(options?: { disabled?: boolean }) {
           if (prev.some((a) => a.id === asset.id)) return prev;
           return [asset, ...prev];
         });
-      } catch {
-        // 取得失敗は無視（アセットが表示されないだけ）
+      } catch (error) {
+        console.error(`[useAssets] fetchSingleAsset failed for ${assetId}:`, error);
       } finally {
         pendingFetches.delete(assetId);
       }

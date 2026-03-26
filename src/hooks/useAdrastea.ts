@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import type { Piece, Room } from '../types/adrastea.types';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
+import { genId } from '../utils/id';
 
 export function useAdrastea(roomId: string) {
   const roomsQuery = useSupabaseQuery<Room>({
@@ -42,7 +43,7 @@ export function useAdrastea(roomId: string) {
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
       const newPiece: Piece = {
-        id: `piece_${Date.now()}_${Math.random()}`, // temporary ID
+        id: genId(),
         room_id: roomId,
         x: baseX + offsetX,
         y: baseY + offsetY,

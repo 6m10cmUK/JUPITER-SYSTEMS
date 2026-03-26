@@ -9,7 +9,8 @@ export interface UseSupabaseQueryOptions {
   table: string;
   columns: string; // 'id,name,...' — select('*') 禁止（カラム指定必須）
   roomId: string; // チャネルキー用
-  filter?: (q: any) => any; // フィルタ関数（e.g., (q) => q.eq('room_id', roomId)）
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  filter?: (q: any) => any; // フィルタ関数（e.g., (q) => q.eq('room_id', roomId)）。Supabase の PostgrestFilterBuilder の型は非常に複雑なため any を許容
   orderBy?: { column: string; ascending?: boolean };
   enabled?: boolean; // false なら購読しない
 }
@@ -61,6 +62,7 @@ function getOrCreateChannel(roomId: string): RealtimeChannel {
 /**
  * テーブル別リスナーを登録
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function registerListener(
   roomId: string,
   table: string,
@@ -215,6 +217,7 @@ export function useSupabaseQuery<T extends { id: string }>(
         setError(null);
 
         // Realtime リスナー定義
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const realtimeListener = (payload: any) => {
           const { eventType, new: newData, old: oldData } = payload;
 

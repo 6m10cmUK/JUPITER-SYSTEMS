@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { ScenarioText } from '../types/adrastea.types';
 import { genId } from '../utils/id';
 
@@ -12,6 +11,7 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
     filter: (q) => q.eq('room_id', roomId),
   });
   const textsData = textsQuery.data;
+  const textsMutation = useSupabaseMutation<ScenarioText>('scenario_texts', textsQuery.setData);
 
   const loading = textsQuery.loading;
   const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
@@ -38,35 +38,55 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
         sort_order: data.sort_order ?? scenarioTexts.length,
         created_at: now, updated_at: now,
       };
-      await supabase.from('scenario_texts').insert([newText]);
+      try {
+        await textsMutation.insert(newText);
+      } catch (err) {
+        console.error('シナリオテキスト作成失敗:', err);
+        throw err;
+      }
       return newText;
     },
-    [roomId, scenarioTexts.length]
+    [roomId, scenarioTexts.length, textsMutation]
   );
 
   const updateScenarioText = useCallback(
     async (textId: string, updates: Partial<ScenarioText>): Promise<void> => {
-      const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as ScenarioText;
-      await supabase.from('scenario_texts').update(rest).eq('id', textId);
+      try {
+        const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as ScenarioText;
+        await textsMutation.update(textId, rest as Partial<ScenarioText>);
+      } catch (err) {
+        console.error('シナリオテキスト更新失敗:', err);
+        throw err;
+      }
     },
-    []
+    [textsMutation]
   );
 
   const removeScenarioText = useCallback(
     async (textId: string): Promise<void> => {
-      await supabase.from('scenario_texts').delete().eq('id', textId);
+      try {
+        await textsMutation.remove(textId);
+      } catch (err) {
+        console.error('シナリオテキスト削除失敗:', err);
+        throw err;
+      }
     },
-    []
+    [textsMutation]
   );
 
   const reorderScenarioTexts = useCallback(
     async (orderedIds: string[]): Promise<void> => {
-      const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await Promise.all(updates.map(u =>
-        supabase.from('scenario_texts').update({ sort_order: u.sort_order }).eq('id', u.id)
-      ));
+      try {
+        const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
+        await Promise.all(updates.map(u =>
+          textsMutation.update(u.id, { sort_order: u.sort_order } as Partial<ScenarioText>)
+        ));
+      } catch (err) {
+        console.error('シナリオテキスト並べ替え失敗:', err);
+        throw err;
+      }
     },
-    []
+    [textsMutation]
   );
 
   return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts };

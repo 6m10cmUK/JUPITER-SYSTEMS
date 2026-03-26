@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { Cutin } from '../types/adrastea.types';
 import type { CutinsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -25,6 +24,7 @@ export function useCutins(
     enabled: !inject,
   });
   const cutinsData = cutinsQuery.data;
+  const cutinsMutation = useSupabaseMutation<Cutin>('cutins', cutinsQuery.setData);
 
   const loading = inject ? false : cutinsQuery.loading;
   const cutins: Cutin[] = useMemo(() => {
@@ -55,39 +55,54 @@ export function useCutins(
         sort_order: data.sort_order ?? cutins.length,
         created_at: now, updated_at: now,
       };
-      if (inj) {
-        await inj.create(newCutin);
-      } else {
-        await supabase.from('cutins').insert([newCutin]);
+      try {
+        if (inj) {
+          await inj.create(newCutin);
+        } else {
+          await cutinsMutation.insert(newCutin);
+        }
+      } catch (err) {
+        console.error('カットイン作成失敗:', err);
+        throw err;
       }
       return newCutin;
     },
-    [roomId, cutins.length]
+    [roomId, cutins.length, cutinsMutation]
   );
 
   const updateCutin = useCallback(
     async (cutinId: string, updates: Partial<Cutin>): Promise<void> => {
       const inj = injectRef.current;
-      if (inj) {
-        await inj.update(cutinId, updates);
-      } else {
-        const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as Cutin;
-        await supabase.from('cutins').update(rest).eq('id', cutinId);
+      try {
+        if (inj) {
+          await inj.update(cutinId, updates);
+        } else {
+          const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as Cutin;
+          await cutinsMutation.update(cutinId, rest as Partial<Cutin>);
+        }
+      } catch (err) {
+        console.error('カットイン更新失敗:', err);
+        throw err;
       }
     },
-    []
+    [cutinsMutation]
   );
 
   const removeCutin = useCallback(
     async (cutinId: string): Promise<void> => {
       const inj = injectRef.current;
-      if (inj) {
-        await inj.remove(cutinId);
-      } else {
-        await supabase.from('cutins').delete().eq('id', cutinId);
+      try {
+        if (inj) {
+          await inj.remove(cutinId);
+        } else {
+          await cutinsMutation.remove(cutinId);
+        }
+      } catch (err) {
+        console.error('カットイン削除失敗:', err);
+        throw err;
       }
     },
-    []
+    [cutinsMutation]
   );
 
   const triggerCutin = useCallback(
@@ -115,15 +130,20 @@ export function useCutins(
     async (orderedIds: string[]): Promise<void> => {
       const inj = injectRef.current;
       const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      if (inj) {
-        await inj.reorder(updates);
-      } else {
-        await Promise.all(updates.map(u =>
-          supabase.from('cutins').update({ sort_order: u.sort_order }).eq('id', u.id)
-        ));
+      try {
+        if (inj) {
+          await inj.reorder(updates);
+        } else {
+          await Promise.all(updates.map(u =>
+            cutinsMutation.update(u.id, { sort_order: u.sort_order } as Partial<Cutin>)
+          ));
+        }
+      } catch (err) {
+        console.error('カットイン並べ替え失敗:', err);
+        throw err;
       }
     },
-    []
+    [cutinsMutation]
   );
 
   return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin };

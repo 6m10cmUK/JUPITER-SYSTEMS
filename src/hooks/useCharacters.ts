@@ -5,19 +5,51 @@ import type { Character } from '../types/adrastea.types';
 import type { CharactersInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 
+interface CharacterStatsRow {
+  id: string;
+  room_id: string;
+  owner_id: string;
+  name: string;
+  color: string;
+  active_image_index: number;
+  statuses: unknown;
+  parameters: unknown;
+  is_hidden_on_board: boolean;
+  sort_order: number | null;
+  on_board: boolean | null;
+  board_x: number | null;
+  board_y: number | null;
+  board_height: number | null;
+  board_visible: boolean | null;
+  created_at: number;
+  updated_at: number;
+}
+
+interface CharacterBaseRow {
+  id: string;
+  room_id: string;
+  images: unknown;
+  memo: string;
+  chat_palette: string;
+  sheet_url: string | null;
+  initiative: number;
+  size: number;
+  is_status_private: boolean;
+}
+
 export function useCharacters(roomId: string, options?: { inject?: CharactersInject }) {
   const { inject } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
-  const statsQuery = useSupabaseQuery<any>({
+  const statsQuery = useSupabaseQuery<CharacterStatsRow>({
     table: 'characters_stats',
     columns: 'id,room_id,owner_id,name,color,active_image_index,statuses,parameters,is_hidden_on_board,sort_order,on_board,board_x,board_y,board_height,board_visible,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
   });
-  const baseQuery = useSupabaseQuery<any>({
+  const baseQuery = useSupabaseQuery<CharacterBaseRow>({
     table: 'characters_base',
     columns: 'id,room_id,images,memo,chat_palette,sheet_url,initiative,size,is_status_private',
     roomId,
@@ -191,26 +223,34 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         created_at: now,
         updated_at: now,
       };
-      if (inj) {
-        await inj.create(newChar);
-      } else {
-        const { created_at: _ca, updated_at: _ua, ...statsData } = newChar;
-        const baseData = {
-          id: newChar.id,
-          room_id: newChar.room_id,
-          images: newChar.images,
-          memo: newChar.memo,
-          secret_memo: newChar.secret_memo,
-          chat_palette: newChar.chat_palette,
-          sheet_url: newChar.sheet_url,
-          initiative: newChar.initiative,
-          size: newChar.size,
-          is_status_private: newChar.is_status_private,
-        };
-        await Promise.all([
-          supabase.from('characters_stats').insert([statsData]),
-          supabase.from('characters_base').insert([baseData]),
-        ]);
+      try {
+        if (inj) {
+          await inj.create(newChar);
+        } else {
+          const { created_at: _ca, updated_at: _ua, ...statsData } = newChar;
+          const baseData = {
+            id: newChar.id,
+            room_id: newChar.room_id,
+            images: newChar.images,
+            memo: newChar.memo,
+            secret_memo: newChar.secret_memo,
+            chat_palette: newChar.chat_palette,
+            sheet_url: newChar.sheet_url,
+            initiative: newChar.initiative,
+            size: newChar.size,
+            is_status_private: newChar.is_status_private,
+          };
+          await Promise.all([
+            supabase.from('characters_stats').insert([statsData]),
+            supabase.from('characters_base').insert([baseData]),
+          ]);
+        }
+      } catch (err) {
+        console.error('キャラクター作成失敗:', err);
+        // ロールバック: 片方が成功した可能性があるため削除
+        await supabase.from('characters_stats').delete().eq('id', newChar.id).then(() => {}, () => {});
+        await supabase.from('characters_base').delete().eq('id', newChar.id).then(() => {}, () => {});
+        throw err;
       }
       return newChar;
     },
@@ -287,14 +327,19 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   const removeCharacter = useCallback(
     async (charId: string): Promise<void> => {
       const inj = injectRef.current;
-      if (inj) {
-        await inj.remove(charId);
-      } else {
-        await Promise.all([
-          supabase.from('pieces').delete().eq('character_id', charId),
-          supabase.from('characters_stats').delete().eq('id', charId),
-          supabase.from('characters_base').delete().eq('id', charId),
-        ]);
+      try {
+        if (inj) {
+          await inj.remove(charId);
+        } else {
+          await Promise.all([
+            supabase.from('pieces').delete().eq('character_id', charId),
+            supabase.from('characters_stats').delete().eq('id', charId),
+            supabase.from('characters_base').delete().eq('id', charId),
+          ]);
+        }
+      } catch (err) {
+        console.error('キャラクター削除失敗:', err);
+        throw err;
       }
     },
     []
