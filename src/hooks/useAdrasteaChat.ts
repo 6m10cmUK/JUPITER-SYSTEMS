@@ -116,7 +116,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
         let finalAllowedUserIds = allowedUserIds;
-        let messagesToInsert: Omit<ChatMessage, 'created_at'>[] = [];
+        const messagesToInsert: Omit<ChatMessage, 'created_at'>[] = [];
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {

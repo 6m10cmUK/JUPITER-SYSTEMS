@@ -4,6 +4,7 @@ import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { Scene, BoardObject } from '../types/adrastea.types';
 import type { ScenesInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 export type OnObjectsCreated = (objects: BoardObject[]) => void;
 
@@ -158,7 +159,7 @@ export function useScenes(
           await scenesMutation.insert(newScene);
 
           if (createdObjects.length > 0) {
-            // オブジェクトは直接 Supabase に insert（楽観的更新は上位レイヤー責任）
+            // useSupabaseMutation 非経由: シーン作成時のオブジェクト一括挿入は別テーブルへのバッチ操作のため
             const { error: objectError } = await supabase.from('objects').insert(createdObjects);
             if (objectError) {
               console.error('[useScenes] addScene object insert failed:', objectError);
@@ -185,7 +186,7 @@ export function useScenes(
         await inj.update(sceneId, updates);
       } else {
         try {
-          const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
+          const rest = omitKeys(updates as Scene, ['id', 'room_id', 'created_at']);
           await scenesMutation.update(sceneId, { ...rest, updated_at: Date.now() } as Partial<Scene>);
         } catch (error) {
           console.error('[useScenes] updateScene failed:', error);

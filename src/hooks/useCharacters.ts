@@ -5,6 +5,7 @@ import { useLocalStorageOrder } from './useLocalStorageOrder';
 import type { Character } from '../types/adrastea.types';
 import type { CharactersInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 interface CharacterStatsRow {
   id: string;
@@ -178,7 +179,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         if (inj) {
           await inj.create(newChar);
         } else {
-          const { created_at: _ca, updated_at: _ua, ...statsData } = newChar;
+          const statsData = omitKeys(newChar, ['created_at', 'updated_at']);
           const baseData = {
             id: newChar.id,
             room_id: newChar.room_id,
@@ -191,6 +192,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
             size: newChar.size,
             is_status_private: newChar.is_status_private,
           };
+          // useSupabaseMutation 非経由: 2テーブル同時 INSERT のトランザクション保証が必要
           await Promise.all([
             supabase.from('characters_stats').insert([statsData]),
             supabase.from('characters_base').insert([baseData]),
@@ -199,8 +201,10 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       } catch (err) {
         console.error('キャラクター作成失敗:', err);
         // ロールバック: 片方が成功した可能性があるため削除
-        await supabase.from('characters_stats').delete().eq('id', newChar.id).then(() => {}, () => {});
-        await supabase.from('characters_base').delete().eq('id', newChar.id).then(() => {}, () => {});
+        const statsResult = await supabase.from('characters_stats').delete().eq('id', newChar.id);
+        if (statsResult.error) console.error('Rollback stats failed:', statsResult.error);
+        const baseResult = await supabase.from('characters_base').delete().eq('id', newChar.id);
+        if (baseResult.error) console.error('Rollback base failed:', baseResult.error);
         throw err;
       }
       return newChar;
@@ -253,7 +257,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       const promises: Array<Promise<{ error: Error | null }>> = [];
 
       if (Object.keys(statsUpdates).length > 1) {
-        const { id: _id, ...statsRest } = statsUpdates;
+        const statsRest = omitKeys(statsUpdates, ['id']);
         promises.push(
           (async () => {
             const result = await supabase.from('characters_stats').update(statsRest).eq('id', charId);
@@ -263,7 +267,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       }
 
       if (Object.keys(baseUpdates).length > 1) {
-        const { id: _id, ...baseRest } = baseUpdates;
+        const baseRest = omitKeys(baseUpdates, ['id']);
         promises.push(
           (async () => {
             const result = await supabase.from('characters_base').update(baseRest).eq('id', charId);

@@ -3,6 +3,7 @@ import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { BoardObject } from '../types/adrastea.types';
 import type { ObjectsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 export function useObjects(
   roomId: string,
@@ -91,7 +92,7 @@ export function useObjects(
       if (inj) {
         await inj.update(id, updates);
       } else {
-        const { id: _id, room_id: _rid, type: _t, created_at: _ca, ...rest } = updates as BoardObject;
+        const rest = omitKeys(updates as BoardObject, ['id', 'room_id', 'type', 'created_at']);
         try {
           await mutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BoardObject>);
         } catch (error) {

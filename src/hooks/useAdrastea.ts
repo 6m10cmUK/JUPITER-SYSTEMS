@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import type { Piece, Room } from '../types/adrastea.types';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { genId } from '../utils/id';
+import { omitKeys } from '../utils/object';
 
 export function useAdrastea(roomId: string) {
   const roomsQuery = useSupabaseQuery<Room>({
@@ -79,7 +80,7 @@ export function useAdrastea(roomId: string) {
 
   const updatePiece = useCallback(
     (pieceId: string, updates: Partial<Piece>) => {
-      const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Piece;
+      const rest = omitKeys(updates as Piece, ['id', 'room_id', 'created_at']);
       void piecesMutation.update(pieceId, rest as Partial<Piece>).catch((error) => {
         console.error('[useAdrastea] updatePiece failed:', error);
         // TODO: showToast でユーザー通知
@@ -90,7 +91,7 @@ export function useAdrastea(roomId: string) {
 
   const updateRoom = useCallback(
     (updates: Partial<Room>) => {
-      const { id: _id, owner_id: _oid, created_at: _ca, ...rest } = updates as Room;
+      const rest = omitKeys(updates as Room, ['id', 'owner_id', 'created_at']);
       void roomsMutation.update(roomId, rest as Partial<Room>).catch((error) => {
         console.error('[useAdrastea] updateRoom failed:', error);
         // TODO: showToast でユーザー通知
