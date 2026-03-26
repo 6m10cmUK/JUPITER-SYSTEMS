@@ -56,7 +56,10 @@ export function useScenes(
 
   const loading = inject ? false : scenesData === undefined;
   const scenes: Scene[] = useMemo(
-    () => inject ? inject.data : (scenesData ?? []),
+    () => {
+      const data = inject ? inject.data : (scenesData ?? []);
+      return [...data].sort((a, b) => a.sort_order - b.sort_order);
+    },
     [inject, scenesData]
   );
 
