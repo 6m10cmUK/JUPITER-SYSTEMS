@@ -380,5 +380,39 @@ export function useSupabaseMutation<T extends { id: string }>(
     }
   };
 
-  return { insert, update, remove };
+  const reorder = async (orderedIds: string[]): Promise<void> => {
+    // スナップショットを closure で保持
+    let snapshot: T[] = [];
+    const now = Date.now();
+
+    setData((prev) => {
+      snapshot = [...prev]; // スナップショット取得
+      const idToIndex = new Map(orderedIds.map((id, i) => [id, i]));
+      return prev.map((row) => {
+        const idx = idToIndex.get(row.id);
+        return idx !== undefined
+          ? { ...row, sort_order: idx, updated_at: now } as T
+          : row;
+      }).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    });
+
+    try {
+      const results = await Promise.all(
+        orderedIds.map((id, i) =>
+          supabase.from(table).update({ sort_order: i, updated_at: now }).eq('id', id)
+        )
+      );
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
+        // ロールバック: closure のスナップショットを使用
+        setData(snapshot);
+        throw new Error('reorder failed with partial updates');
+      }
+    } catch (err) {
+      console.error(`[useSupabaseMutation] reorder failed:`, err);
+      throw err;
+    }
+  };
+
+  return { insert, update, remove, reorder };
 }

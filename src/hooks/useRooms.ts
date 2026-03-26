@@ -131,6 +131,9 @@ export function useRooms(_uid?: string) {
     async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
       const id = generateUUID();
       const now = Date.now();
+      let roomCreated = false;
+      let sceneCreated = false;
+      let objectsCreated = false;
 
       try {
         // 1. ルーム作成
@@ -143,6 +146,7 @@ export function useRooms(_uid?: string) {
           updated_at: now,
         });
         if (roomError) throw roomError;
+        roomCreated = true;
 
         // 2. デフォルトシーン「メイン」を作成
         const sceneId = generateUUID();
@@ -163,6 +167,7 @@ export function useRooms(_uid?: string) {
           updated_at: now,
         });
         if (sceneError) throw sceneError;
+        sceneCreated = true;
 
         // 3. 背景・前景・キャラクターレイヤーオブジェクトを自動生成
         const { error: objectsError } = await supabase.from('objects').insert([
@@ -222,6 +227,7 @@ export function useRooms(_uid?: string) {
           },
         ]);
         if (objectsError) throw objectsError;
+        objectsCreated = true;
 
         // 4. active_scene_id を設定
         const { error: updateError } = await supabase.from('rooms').update({ active_scene_id: sceneId }).eq('id', id);
@@ -229,11 +235,17 @@ export function useRooms(_uid?: string) {
 
         return id;
       } catch (err) {
-        // ロールバック: 作成したデータを削除（best effort）
+        // ロールバック: 成功したステップのみ逆順で削除
         console.error('ルーム作成失敗:', err);
-        await supabase.from('objects').delete().eq('room_id', id).then(() => {}, () => {});
-        await supabase.from('scenes').delete().eq('room_id', id).then(() => {}, () => {});
-        await supabase.from('rooms').delete().eq('id', id).then(() => {}, () => {});
+        if (objectsCreated) {
+          await supabase.from('objects').delete().eq('room_id', id).then(() => {}, () => {});
+        }
+        if (sceneCreated) {
+          await supabase.from('scenes').delete().eq('room_id', id).then(() => {}, () => {});
+        }
+        if (roomCreated) {
+          await supabase.from('rooms').delete().eq('id', id).then(() => {}, () => {});
+        }
         throw err;
       }
     },

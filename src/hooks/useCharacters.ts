@@ -298,15 +298,31 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         localStorage.setItem(`adrastea-chat-palette-${charId}`, baseUpdates.chat_palette ?? '');
       }
 
-      // Only call mutations if there are updates for each
+      // Build promises for Promise.all
+      const promises: any[] = [];
+
       if (Object.keys(statsUpdates).length > 1) {
         const { id: _id, ...statsRest } = statsUpdates;
-        await supabase.from('characters_stats').update(statsRest).eq('id', charId);
+        promises.push(
+          supabase.from('characters_stats').update(statsRest).eq('id', charId)
+        );
       }
 
       if (Object.keys(baseUpdates).length > 1) {
         const { id: _id, ...baseRest } = baseUpdates;
-        await supabase.from('characters_base').update(baseRest).eq('id', charId);
+        promises.push(
+          supabase.from('characters_base').update(baseRest).eq('id', charId)
+        );
+      }
+
+      // Execute all promises in parallel
+      if (promises.length > 0) {
+        const results = await Promise.all(promises);
+        const errors = results.filter((r: any) => r.error);
+        if (errors.length > 0) {
+          console.error('updateCharacter partial failure:', errors);
+          throw new Error('Character update failed');
+        }
       }
     },
     [characters]
