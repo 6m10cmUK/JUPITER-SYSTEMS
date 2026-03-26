@@ -1,8 +1,5 @@
 import type { Env, AuthUser } from '../types';
-
-function json(data: unknown, headers: Record<string, string>, status = 200): Response {
-  return Response.json(data, { status, headers: { ...headers, 'Content-Type': 'application/json' } });
-}
+import { json } from '../utils/json';
 
 function isAdmin(env: Env, user: AuthUser): boolean {
   const adminIds = (env.ADMIN_USER_IDS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
