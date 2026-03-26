@@ -9,12 +9,21 @@ import { apiFetch } from '../config/api';
 let assetCache: { uid: string; assets: Asset[] } | null = null;
 let demoCache: Asset[] | null = null;
 
-/** asset_id から URL を解決する。モジュールレベルキャッシュを直接参照。 */
+// バックグラウンドフェッチ用：進行中のリクエスト + fetchSingleAsset 関数への参照
+const pendingFetches = new Set<string>();
+let fetchSingleAssetFn: ((id: string) => void) | null = null;
+
+/** asset_id から URL を解決する。モジュールレベルキャッシュを直接参照。キャッシュミス時はバックグラウンドフェッチをトリガー。 */
 export function resolveAssetId(assetId: string | null | undefined): string | null {
   if (!assetId) return null;
   const assets = assetCache?.assets ?? demoCache ?? [];
   const asset = assets.find(a => a.id === assetId);
-  return asset?.url ?? null;
+  if (asset) return asset.url ?? null;
+  // キャッシュミス → バックグラウンドフェッチをトリガー
+  if (fetchSingleAssetFn && !pendingFetches.has(assetId)) {
+    fetchSingleAssetFn(assetId);
+  }
+  return null;
 }
 
 export function useAssets(options?: { disabled?: boolean }) {
@@ -65,12 +74,47 @@ export function useAssets(options?: { disabled?: boolean }) {
     }
   }, [disabled, uid, token]);
 
+  // 単体アセットをバックグラウンドで取得する
+  const fetchSingleAsset = useCallback(
+    async (assetId: string) => {
+      // デモモード時はフェッチしない
+      if (disabled) return;
+      if (!uid || !token) return;
+
+      pendingFetches.add(assetId);
+      try {
+        const res = await apiFetch(`/api/assets/${assetId}`, undefined, token ?? undefined);
+        const data = await res.json();
+        if (!data?.id) return;
+        const asset: Asset = { ...data, tags: data.tags ?? [] };
+        setAssets((prev) => {
+          // 既に存在する場合はスキップ
+          if (prev.some((a) => a.id === asset.id)) return prev;
+          return [asset, ...prev];
+        });
+      } catch {
+        // 取得失敗は無視（アセットが表示されないだけ）
+      } finally {
+        pendingFetches.delete(assetId);
+      }
+    },
+    [disabled, uid, token]
+  );
+
   // キャッシュがあればフェッチをスキップ
   useEffect(() => {
     if (disabled) return;
     if (uid && assetCache && assetCache.uid === uid) return;
     fetchAssets();
   }, [disabled, fetchAssets, uid]);
+
+  // fetchSingleAsset を module-level 関数にバインド
+  useEffect(() => {
+    fetchSingleAssetFn = fetchSingleAsset;
+    return () => {
+      fetchSingleAssetFn = null;
+    };
+  }, [fetchSingleAsset]);
 
   const uploadAsset = useCallback(
     async (file: File): Promise<Asset | null> => {
