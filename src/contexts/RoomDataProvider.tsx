@@ -291,17 +291,17 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const guardedReorderScenes = withPermission('scene_edit', reorderScenes);
   const guardedActivateScene = withPermission('scene_edit', activateScene);
   const guardedAddObject = withPermission('object_edit', addObject);
-  // updateObject をラップ: fg/bg の image_url 変更時にシーンのサムネイル URL を同期
+  // updateObject をラップ: fg/bg の image_asset_id 変更時にシーンのサムネイル asset_id を同期
   const updateObjectWithThumbnailSync = useCallback(
     async (id: string, updates: Partial<BoardObject>): Promise<void> => {
       await updateObject(id, updates);
-      if ('image_url' in updates) {
+      if ('image_asset_id' in updates) {
         const obj = allObjects.find(o => o.id === id);
         if (obj && (obj.type === 'foreground' || obj.type === 'background')) {
           const sceneId = obj.scene_ids[0];
           if (sceneId) {
-            const field = obj.type === 'foreground' ? 'foreground_url' : 'background_url';
-            updateScene(sceneId, { [field]: updates.image_url ?? null });
+            const field = obj.type === 'foreground' ? 'foreground_asset_id' : 'background_asset_id';
+            updateScene(sceneId, { [field]: updates.image_asset_id ?? null });
           }
         }
       }
