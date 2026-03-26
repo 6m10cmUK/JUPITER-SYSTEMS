@@ -183,6 +183,12 @@ export function useSupabaseQuery<T extends { id: string }>(
   const [error, setError] = useState<Error | null>(null);
 
   const listenerRef = useRef<((payload: any) => void) | null>(null);
+  const filterRef = useRef(filter);
+  const orderByRef = useRef(orderBy);
+
+  // filter と orderBy を ref で保持（毎レンダーの新参照を防ぐ）
+  filterRef.current = filter;
+  orderByRef.current = orderBy;
 
   useEffect(() => {
     if (!enabled) {
@@ -197,13 +203,13 @@ export function useSupabaseQuery<T extends { id: string }>(
         // 初回取得
         let query = supabase.from(table).select(columns);
 
-        if (filter) {
-          query = filter(query);
+        if (filterRef.current) {
+          query = filterRef.current(query);
         }
 
-        if (orderBy) {
-          query = query.order(orderBy.column, {
-            ascending: orderBy.ascending !== false,
+        if (orderByRef.current) {
+          query = query.order(orderByRef.current.column, {
+            ascending: orderByRef.current.ascending !== false,
           });
         }
 
@@ -285,7 +291,7 @@ export function useSupabaseQuery<T extends { id: string }>(
         unregisterListener(roomId, table, listenerRef.current);
       }
     };
-  }, [table, columns, roomId, filter, orderBy, enabled]);
+  }, [table, columns, roomId, enabled]);
 
   return { data, loading, error, setData };
 }

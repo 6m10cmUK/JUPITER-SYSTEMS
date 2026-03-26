@@ -143,11 +143,16 @@ export function useRooms(_uid?: string) {
       let objectsCreated = false;
 
       try {
+        // 現在のユーザー情報を取得
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('User not authenticated');
+
         // 1. ルーム作成
         const { error: roomError } = await supabase.from('rooms').insert({
           id,
           name,
           dice_system,
+          owner_id: user.id,
           gm_can_see_secret_memo: false,
           created_at: now,
           updated_at: now,
