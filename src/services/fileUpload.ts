@@ -1,5 +1,6 @@
 import { encode as encodeWebP } from '@jsquash/webp';
 import { API_BASE_URL, BACKEND_URL } from '../config/api';
+import { supabase } from './supabase';
 
 if (!API_BASE_URL) {
   throw new Error('API_BASE_URL が設定されていません。.env.local に VITE_API_BASE_URL を設定してください。');
@@ -128,10 +129,13 @@ function resizeToImageData(file: File, maxWidth: number): Promise<ImageData> {
   });
 }
 
-function getIdToken(): string {
-  // Convex Auth により、トークンはクライアント側で自動管理される
-  // ここではダミー実装のままとしておく（後のフェーズで修正）
-  return '';
+async function getIdToken(): Promise<string> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? '';
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -160,7 +164,7 @@ export async function uploadImage(
     options?.quality ?? 80
   );
   const ext = extFromMime(compressed);
-  const token = getIdToken();
+  const token = await getIdToken();
   const form = new FormData();
   form.append('file', compressed, path.replace(/\//g, '_') + ext);
   form.append('path', path);
@@ -183,7 +187,7 @@ export async function uploadAudio(file: File, path: string): Promise<string> {
   if (file.size > MAX_AUDIO_SIZE) {
     throw new Error('音声ファイルサイズが上限(50MB)を超えています');
   }
-  const token = getIdToken();
+  const token = await getIdToken();
   const form = new FormData();
   form.append('file', file);
   form.append('path', path);
@@ -205,7 +209,7 @@ export async function deleteFile(path: string): Promise<void> {
   if (path.includes('..') || path.startsWith('/')) {
     throw new Error('Invalid file path');
   }
-  const token = getIdToken();
+  const token = await getIdToken();
   const res = await fetch(
     `${API_BASE_URL}/delete?path=${encodeURIComponent(path)}`,
     {

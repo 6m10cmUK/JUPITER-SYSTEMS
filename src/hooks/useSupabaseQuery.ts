@@ -306,14 +306,18 @@ export function useSupabaseMutation<T extends { id: string }>(
   setData: React.Dispatch<React.SetStateAction<T[]>>
 ) {
   const insert = async (item: T): Promise<void> => {
-    // 楽観的更新
-    setData((prev) => [...prev, item]);
+    // スナップショットを closure で保持
+    let snapshot: T[] = [];
+    setData((prev) => {
+      snapshot = [...prev]; // スナップショット取得
+      return [...prev, item];
+    });
 
     try {
       const { error } = await supabase.from(table).insert([item]);
       if (error) {
-        // ロールバック
-        setData((prev) => prev.filter((row) => row.id !== item.id));
+        // ロールバック: closure のスナップショットを使用
+        setData(snapshot);
         throw error;
       }
     } catch (err) {
@@ -323,10 +327,10 @@ export function useSupabaseMutation<T extends { id: string }>(
   };
 
   const update = async (id: string, updates: Partial<T>): Promise<void> => {
-    // 楽観的更新
-    const previousData: T[] = [];
+    // スナップショットを closure で保持
+    let snapshot: T[] = [];
     setData((prev) => {
-      previousData.push(...prev);
+      snapshot = [...prev]; // スナップショット取得
       return prev.map((row) =>
         row.id === id ? { ...row, ...updates } : row
       );
@@ -341,8 +345,8 @@ export function useSupabaseMutation<T extends { id: string }>(
         .update(updates)
         .eq('id', id);
       if (error) {
-        // ロールバック
-        setData(previousData);
+        // ロールバック: closure のスナップショットを使用
+        setData(snapshot);
         clearPending(table, id);
         throw error;
       }
@@ -353,18 +357,18 @@ export function useSupabaseMutation<T extends { id: string }>(
   };
 
   const remove = async (id: string): Promise<void> => {
-    // 楽観的更新
-    const previousData: T[] = [];
+    // スナップショットを closure で保持
+    let snapshot: T[] = [];
     setData((prev) => {
-      previousData.push(...prev);
+      snapshot = [...prev]; // スナップショット取得
       return prev.filter((row) => row.id !== id);
     });
 
     try {
       const { error } = await supabase.from(table).delete().eq('id', id);
       if (error) {
-        // ロールバック
-        setData(previousData);
+        // ロールバック: closure のスナップショットを使用
+        setData(snapshot);
         throw error;
       }
     } catch (err) {
