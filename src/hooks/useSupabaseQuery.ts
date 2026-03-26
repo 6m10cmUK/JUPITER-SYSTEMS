@@ -215,6 +215,11 @@ export function useSupabaseQuery<T extends { id: string }>(
 
         const { data: fetchedData, error: fetchError } = await query;
 
+        // デバッグ: テーブル名・カラムをログ出力（エラー時のみ）
+        if (fetchError) {
+          console.debug(`[useSupabaseQuery] ${table} / columns: ${columns}`, fetchError);
+        }
+
         if (fetchError) throw fetchError;
         if (!isMounted) return;
 

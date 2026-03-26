@@ -63,6 +63,15 @@ export function useAssets(options?: { disabled?: boolean }) {
     setLoading(true);
     try {
       const res = await apiFetch('/api/assets', undefined, token ?? undefined);
+      if (!res.ok) {
+        if (res.status === 401) {
+          console.warn('[useAssets] 401 Unauthorized - token expired or invalid');
+          setAssets([]);
+          setLoading(false);
+          return;
+        }
+        throw new Error(`HTTP ${res.status}`);
+      }
       const data: Asset[] = await res.json();
       setAssets(data);
     } catch (error) {
@@ -82,6 +91,14 @@ export function useAssets(options?: { disabled?: boolean }) {
       pendingFetches.add(assetId);
       try {
         const res = await apiFetch(`/api/assets/${assetId}`, undefined, token ?? undefined);
+        if (!res.ok) {
+          if (res.status === 401) {
+            console.warn(`[useAssets] 401 Unauthorized for asset ${assetId}`);
+          } else {
+            console.error(`[useAssets] HTTP ${res.status} for asset ${assetId}`);
+          }
+          return;
+        }
         const data = await res.json();
         if (!data?.id) return;
         const asset: Asset = { ...data, tags: data.tags ?? [] };
