@@ -405,7 +405,11 @@ export function useSupabaseMutation<T extends { id: string }>(
         return idx !== undefined
           ? { ...row, sort_order: idx, updated_at: now } as T
           : row;
-      }).sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+      }).sort((a, b) => {
+        const aOrder = (a as Record<string, unknown>).sort_order as number | undefined ?? 0;
+        const bOrder = (b as Record<string, unknown>).sort_order as number | undefined ?? 0;
+        return aOrder - bOrder;
+      });
     });
 
     try {
