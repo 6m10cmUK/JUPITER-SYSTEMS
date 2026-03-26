@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
@@ -138,6 +138,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
   const bgEnabled = !!state.background_color && (state.background_color as string) !== 'transparent';
   const isBackground = (state.type as string) === 'background';
   const isForeground = (state.type as string) === 'foreground';
+  // 画像 ⇄ 単色の往復で前の色を復元するための ref
+  const savedBgColorRef = useRef<string>(bgEnabled ? (state.background_color as string) : '#1e1e2e');
 
   if (object === undefined) return null;
 
@@ -188,8 +190,9 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               ]}
               onChange={(v) => {
                 if (v === 'color') {
-                  if (!bgEnabled) set('background_color', '#1e1e2e');
+                  set('background_color', savedBgColorRef.current);
                 } else {
+                  if (bgEnabled) savedBgColorRef.current = state.background_color as string;
                   set('background_color', 'transparent');
                 }
               }}
@@ -541,8 +544,9 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   ]}
                   onChange={(v) => {
                     if (v === 'color') {
-                      if (!bgEnabled) set('background_color', '#1e1e2e');
+                      set('background_color', savedBgColorRef.current);
                     } else {
+                      if (bgEnabled) savedBgColorRef.current = state.background_color as string;
                       set('background_color', 'transparent');
                     }
                   }}
