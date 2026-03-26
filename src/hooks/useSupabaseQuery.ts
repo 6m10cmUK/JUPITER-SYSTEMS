@@ -223,7 +223,7 @@ export function useSupabaseQuery<T extends { id: string }>(
           switch (eventType) {
             case 'INSERT': {
               // フィルタを満たすかチェック（room_id等）
-              if (filter && !matchesFilter(newData, filter)) {
+              if (!matchesFilter(newData, roomId)) {
                 return;
               }
               setData((prev) => {
@@ -241,7 +241,7 @@ export function useSupabaseQuery<T extends { id: string }>(
               }
 
               // フィルタを再チェック（room_idが変わった場合の削除対応）
-              if (filter && !matchesFilter(newData, filter)) {
+              if (!matchesFilter(newData, roomId)) {
                 setData((prev) => prev.filter((row) => row.id !== id));
                 return;
               }
@@ -289,11 +289,11 @@ export function useSupabaseQuery<T extends { id: string }>(
 
 /**
  * フィルタ関数がデータを満たすかチェック（簡易版）
- * eq フィルタのみ対応
+ * room_id の一致をチェック
  */
-function matchesFilter(_data: unknown, _filter: ((q: unknown) => unknown) | undefined): boolean {
-  // フィルタ関数の完全な検証は Supabase サーバーで行われる
-  // クライアント側では簡易的に true とする
+function matchesFilter(data: Record<string, unknown>, roomId: string | undefined): boolean {
+  if (!roomId) return true;
+  if ('room_id' in data && data.room_id !== roomId) return false;
   return true;
 }
 
