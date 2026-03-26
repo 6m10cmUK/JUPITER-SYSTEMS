@@ -1,12 +1,13 @@
 import { useCallback, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import type { Room } from '../types/adrastea.types';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import { generateUUID } from '../utils/uuid';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
 const ROOM_TAGS_PREFIX = 'adrastea-room-tags-';
 
-export interface Room {
+export type RoomUI = {
   id: string;
   name: string;
   dice_system: string;
@@ -14,7 +15,10 @@ export interface Room {
   thumbnail_asset_id: string | null;
   created_at: number;
   updated_at: number;
-}
+};
+
+// Re-export Room 型
+export type { Room };
 
 function loadOrder(): string[] {
   try {
@@ -42,7 +46,7 @@ function saveRoomTags(roomId: string, tags: string[]) {
   localStorage.setItem(ROOM_TAGS_PREFIX + roomId, JSON.stringify(tags));
 }
 
-function sortByOrder(rooms: Room[]): Room[] {
+function sortByOrder(rooms: RoomUI[]): RoomUI[] {
   const order = loadOrder();
   const orderMap = new Map(order.map((id, i) => [id, i]));
   return [...rooms].sort((a, b) => {
@@ -54,65 +58,58 @@ function sortByOrder(rooms: Room[]): Room[] {
 }
 
 export function useRooms(_uid?: string) {
-  const roomsData = useQuery(api.rooms.list);
-  const deleteMutation = useMutation(api.rooms.remove);
-  const updateMutation = useMutation(api.rooms.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.rooms.list, {});
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.rooms.list,
-          {},
-          current.map((r) => r.id === args.id ? { ...r, ...args } : r),
-        );
-      }
-    }
-  );
-  const createMutation = useMutation(api.rooms.create);
+  const roomsQuery = useSupabaseQuery<Room>({
+    table: 'rooms',
+    columns: 'id,name,dice_system,created_at,updated_at,thumbnail_asset_id,archived',
+    roomId: 'global',
+    filter: (q) => q.eq('archived', false),
+  });
 
-  const loading = roomsData === undefined;
+  const loading = roomsQuery.loading;
 
-  const rooms = useMemo<Room[]>(() => {
-    if (!roomsData) return [];
+  const rooms = useMemo<RoomUI[]>(() => {
+    if (!roomsQuery.data) return [];
     return sortByOrder(
-      roomsData.map((r) => ({
+      roomsQuery.data.map((r) => ({
         id: r.id,
         name: r.name ?? '',
         dice_system: r.dice_system ?? 'DiceBot',
         tags: loadRoomTags(r.id),
-        thumbnail_asset_id: (r as any).thumbnail_asset_id ?? null,
-        created_at: r.created_at ?? r._creationTime ?? 0,
-        updated_at: r.updated_at ?? r._creationTime ?? 0,
+        thumbnail_asset_id: r.thumbnail_asset_id ?? null,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
       }))
     );
-  }, [roomsData]);
+  }, [roomsQuery.data]);
 
   const deleteRoom = useCallback(
     (roomId: string) => {
-      deleteMutation({ id: roomId }).catch((err) =>
-        console.error('ルーム削除に失敗:', err)
+      void supabase.from('rooms').delete().eq('id', roomId).then(
+        () => {},
+        (err: any) => console.error('ルーム削除に失敗:', err)
       );
     },
-    [deleteMutation]
+    []
   );
 
   const updateRoom = useCallback(
-    (roomId: string, data: Partial<Pick<Room, 'name' | 'dice_system' | 'tags'>>) => {
-      // tags は localStorage に保存（Convex同期なし）
+    (roomId: string, data: Partial<Pick<RoomUI, 'name' | 'dice_system' | 'tags'>>) => {
+      // tags は localStorage に保存（Supabase同期なし）
       if (data.tags !== undefined) {
         saveRoomTags(roomId, data.tags);
       }
-      // name/dice_system は Convex に保存
-      const convexData: Partial<Pick<Room, 'name' | 'dice_system'>> = {};
-      if (data.name !== undefined) convexData.name = data.name;
-      if (data.dice_system !== undefined) convexData.dice_system = data.dice_system;
-      if (Object.keys(convexData).length > 0) {
-        updateMutation({ id: roomId, ...convexData }).catch((err) =>
-          console.error('ルーム更新に失敗:', err)
+      // name/dice_system は Supabase に保存
+      const supabaseData: Partial<Pick<RoomUI, 'name' | 'dice_system'>> = {};
+      if (data.name !== undefined) supabaseData.name = data.name;
+      if (data.dice_system !== undefined) supabaseData.dice_system = data.dice_system;
+      if (Object.keys(supabaseData).length > 0) {
+        void supabase.from('rooms').update(supabaseData).eq('id', roomId).then(
+          () => {},
+          (err: any) => console.error('ルーム更新に失敗:', err)
         );
       }
     },
-    [updateMutation]
+    []
   );
 
   const reorderRooms = useCallback((orderedIds: string[]) => {
@@ -123,21 +120,25 @@ export function useRooms(_uid?: string) {
     // Convex useQuery が自動で最新データを返すため no-op
   }, []);
 
-  const createSceneMutation = useMutation(api.scenes.create);
-  const createObjectBatchMutation = useMutation(api.objects.createBatch);
-  const updateRoomMutation = useMutation(api.rooms.update);
-
   const addRoom = useCallback(
     async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
       const id = generateUUID();
       const now = Date.now();
 
       // 1. ルーム作成
-      await createMutation({ id, name, dice_system, gm_can_see_secret_memo: false });
+      const { error: roomError } = await supabase.from('rooms').insert({
+        id,
+        name,
+        dice_system,
+        gm_can_see_secret_memo: false,
+        created_at: now,
+        updated_at: now,
+      });
+      if (roomError) throw roomError;
 
       // 2. デフォルトシーン「メイン」を作成
       const sceneId = generateUUID();
-      await createSceneMutation({
+      const { error: sceneError } = await supabase.from('scenes').insert({
         id: sceneId,
         room_id: id,
         name: 'メイン',
@@ -153,73 +154,74 @@ export function useRooms(_uid?: string) {
         created_at: now,
         updated_at: now,
       });
+      if (sceneError) throw sceneError;
 
       // 3. 背景・前景・キャラクターレイヤーオブジェクトを自動生成
-      await createObjectBatchMutation({
-        objects: [
-          {
-            id: generateUUID(),
-            room_id: id,
-            type: 'background',
-            name: '背景',
-            global: false,
-            scene_ids: [sceneId],
-            x: -50, y: -50, width: 100, height: 100,
-            visible: true, opacity: 1, sort_order: 0,
-            position_locked: false, size_locked: false,
-            image_asset_id: null,
-            background_color: '#333333', color_enabled: false, image_fit: 'cover',
-            text_content: null, font_size: 16, font_family: 'sans-serif',
-            letter_spacing: 0, line_height: 1.2, auto_size: true,
-            text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
-            scale_x: 1, scale_y: 1,
-            created_at: now, updated_at: now,
-          },
-          {
-            id: generateUUID(),
-            room_id: id,
-            type: 'foreground',
-            name: '前景',
-            global: false,
-            scene_ids: [sceneId],
-            x: -24, y: -14, width: 48, height: 27,
-            visible: true, opacity: 1, sort_order: 100,
-            position_locked: false, size_locked: false,
-            image_asset_id: null,
-            background_color: '#666666', color_enabled: false, image_fit: 'cover',
-            text_content: null, font_size: 16, font_family: 'sans-serif',
-            letter_spacing: 0, line_height: 1.2, auto_size: true,
-            text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
-            scale_x: 1, scale_y: 1,
-            created_at: now, updated_at: now,
-          },
-          {
-            id: generateUUID(),
-            room_id: id,
-            type: 'characters_layer',
-            name: 'キャラクター',
-            global: true,
-            scene_ids: [],
-            x: 0, y: 0, width: 0, height: 0,
-            visible: true, opacity: 1, sort_order: 9999,
-            position_locked: true, size_locked: true,
-            image_asset_id: null,
-            background_color: '#333333', color_enabled: false, image_fit: 'cover',
-            text_content: null, font_size: 16, font_family: 'sans-serif',
-            letter_spacing: 0, line_height: 1.5, auto_size: false,
-            text_align: 'left', text_vertical_align: 'top', text_color: '#000000',
-            scale_x: 1, scale_y: 1,
-            created_at: now, updated_at: now,
-          },
-        ],
-      });
+      const { error: objectsError } = await supabase.from('objects').insert([
+        {
+          id: generateUUID(),
+          room_id: id,
+          type: 'background',
+          name: '背景',
+          global: false,
+          scene_ids: [sceneId],
+          x: -50, y: -50, width: 100, height: 100,
+          visible: true, opacity: 1, sort_order: 0,
+          position_locked: false, size_locked: false,
+          image_asset_id: null,
+          background_color: '#333333', color_enabled: false, image_fit: 'cover',
+          text_content: null, font_size: 16, font_family: 'sans-serif',
+          letter_spacing: 0, line_height: 1.2, auto_size: true,
+          text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+          scale_x: 1, scale_y: 1,
+          created_at: now, updated_at: now,
+        },
+        {
+          id: generateUUID(),
+          room_id: id,
+          type: 'foreground',
+          name: '前景',
+          global: false,
+          scene_ids: [sceneId],
+          x: -24, y: -14, width: 48, height: 27,
+          visible: true, opacity: 1, sort_order: 100,
+          position_locked: false, size_locked: false,
+          image_asset_id: null,
+          background_color: '#666666', color_enabled: false, image_fit: 'cover',
+          text_content: null, font_size: 16, font_family: 'sans-serif',
+          letter_spacing: 0, line_height: 1.2, auto_size: true,
+          text_align: 'left', text_vertical_align: 'top', text_color: '#ffffff',
+          scale_x: 1, scale_y: 1,
+          created_at: now, updated_at: now,
+        },
+        {
+          id: generateUUID(),
+          room_id: id,
+          type: 'characters_layer',
+          name: 'キャラクター',
+          global: true,
+          scene_ids: [],
+          x: 0, y: 0, width: 0, height: 0,
+          visible: true, opacity: 1, sort_order: 9999,
+          position_locked: true, size_locked: true,
+          image_asset_id: null,
+          background_color: '#333333', color_enabled: false, image_fit: 'cover',
+          text_content: null, font_size: 16, font_family: 'sans-serif',
+          letter_spacing: 0, line_height: 1.5, auto_size: false,
+          text_align: 'left', text_vertical_align: 'top', text_color: '#000000',
+          scale_x: 1, scale_y: 1,
+          created_at: now, updated_at: now,
+        },
+      ]);
+      if (objectsError) throw objectsError;
 
       // 4. active_scene_id を設定
-      await updateRoomMutation({ id, active_scene_id: sceneId });
+      const { error: updateError } = await supabase.from('rooms').update({ active_scene_id: sceneId }).eq('id', id);
+      if (updateError) throw updateError;
 
       return id;
     },
-    [createMutation, createSceneMutation, createObjectBatchMutation, updateRoomMutation]
+    []
   );
 
   return { rooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms, addRoom };

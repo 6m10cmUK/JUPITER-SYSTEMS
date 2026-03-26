@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { Character } from '../types/adrastea.types';
 import type { CharactersInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -10,16 +10,25 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
-  const statsData = useQuery(api.characters.listStats, inject ? 'skip' : { room_id: roomId });
-  const baseData = useQuery(api.characters.listBase, inject ? 'skip' : { room_id: roomId });
+  const statsQuery = useSupabaseQuery<any>({
+    table: 'characters_stats',
+    columns: 'id,room_id,owner_id,name,color,active_image_index,statuses,parameters,is_hidden_on_board,sort_order,on_board,board_x,board_y,board_height,board_visible,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
+  const baseQuery = useSupabaseQuery<any>({
+    table: 'characters_base',
+    columns: 'id,room_id,images,memo,secret_memo,chat_palette,sheet_url,initiative,size,is_status_private',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
 
-  const createMutation = useMutation(api.characters.create);
-  const updateStatsMutation = useMutation(api.characters.updateStats);
-  const moveStatsMutation = useMutation(api.characters.moveStats);
-  const updateBaseMutation = useMutation(api.characters.updateBase);
-  const removeMutation = useMutation(api.characters.remove);
+  const statsData = statsQuery.data;
+  const baseData = baseQuery.data;
 
-  const loading = inject ? false : (statsData === undefined || baseData === undefined);
+  const loading = inject ? false : (statsQuery.loading || baseQuery.loading);
   const [charOrderVersion, setCharOrderVersion] = useState(0);
   const [layerCharOrderVersion, setLayerCharOrderVersion] = useState(0);
 
@@ -166,11 +175,27 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       if (inj) {
         await inj.create(newChar);
       } else {
-        await createMutation(newChar);
+        const { created_at: _ca, updated_at: _ua, ...statsData } = newChar;
+        const baseData = {
+          id: newChar.id,
+          room_id: newChar.room_id,
+          images: newChar.images,
+          memo: newChar.memo,
+          secret_memo: newChar.secret_memo,
+          chat_palette: newChar.chat_palette,
+          sheet_url: newChar.sheet_url,
+          initiative: newChar.initiative,
+          size: newChar.size,
+          is_status_private: newChar.is_status_private,
+        };
+        await Promise.all([
+          supabase.from('characters_stats').insert([statsData]),
+          supabase.from('characters_base').insert([baseData]),
+        ]);
       }
       return newChar;
     },
-    [roomId, characters.length, createMutation]
+    [roomId, characters.length]
   );
 
   const updateCharacter = useCallback(
@@ -216,14 +241,16 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
 
       // Only call mutations if there are updates for each
       if (Object.keys(statsUpdates).length > 1) {
-        await updateStatsMutation(statsUpdates as any);
+        const { id: _id, ...statsRest } = statsUpdates;
+        await supabase.from('characters_stats').update(statsRest).eq('id', charId);
       }
 
       if (Object.keys(baseUpdates).length > 1) {
-        await updateBaseMutation(baseUpdates as any);
+        const { id: _id, ...baseRest } = baseUpdates;
+        await supabase.from('characters_base').update(baseRest).eq('id', charId);
       }
     },
-    [updateStatsMutation, updateBaseMutation, characters]
+    [characters]
   );
 
   const moveCharacter = useCallback(
@@ -232,10 +259,10 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       if (inj) {
         await inj.move(charId, updates);
       } else {
-        await moveStatsMutation({ id: charId, ...updates });
+        await supabase.from('characters_stats').update(updates).eq('id', charId);
       }
     },
-    [moveStatsMutation]
+    []
   );
 
   const removeCharacter = useCallback(
@@ -244,10 +271,13 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       if (inj) {
         await inj.remove(charId);
       } else {
-        await removeMutation({ id: charId });
+        await Promise.all([
+          supabase.from('characters_stats').delete().eq('id', charId),
+          supabase.from('characters_base').delete().eq('id', charId),
+        ]);
       }
     },
-    [removeMutation]
+    []
   );
 
   const reorderCharacters = useCallback(

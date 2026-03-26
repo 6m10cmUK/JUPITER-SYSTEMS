@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { Cutin } from '../types/adrastea.types';
 import type { CutinsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -17,36 +17,25 @@ export function useCutins(
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
-  const cutinsData = useQuery(
-    api.cutins.list,
-    inject ? 'skip' : { room_id: roomId }
-  );
-  const createMutation = useMutation(api.cutins.create);
-  const updateMutation = useMutation(api.cutins.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.cutins.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.cutins.list,
-          { room_id: roomId },
-          current.map((c) => c.id === args.id ? { ...c, ...args } : c),
-        );
-      }
-    }
-  );
-  const removeMutation = useMutation(api.cutins.remove);
-  const reorderMutation = useMutation(api.cutins.reorder);
+  const cutinsQuery = useSupabaseQuery<Cutin>({
+    table: 'cutins',
+    columns: 'id,room_id,name,image_asset_id,text,animation,duration,text_color,background_color,sort_order,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
+  const cutinsData = cutinsQuery.data;
 
-  const loading = inject ? false : cutinsData === undefined;
+  const loading = inject ? false : cutinsQuery.loading;
   const cutins: Cutin[] = useMemo(() => {
     if (inject) return inject.data;
     return (cutinsData ?? []).map((c) => ({
       id: c.id, room_id: c.room_id, name: c.name,
-      image_asset_id: (c as any).image_asset_id ?? null, text: c.text,
+      image_asset_id: c.image_asset_id ?? null, text: c.text,
       animation: c.animation as Cutin['animation'],
       duration: c.duration, text_color: c.text_color,
       background_color: c.background_color,
-      sort_order: c.sort_order, created_at: c._creationTime, updated_at: c._creationTime,
+      sort_order: c.sort_order, created_at: c.created_at, updated_at: c.updated_at,
     } as Cutin));
   }, [inject, cutinsData]);
 
@@ -69,11 +58,11 @@ export function useCutins(
       if (inj) {
         await inj.create(newCutin);
       } else {
-        await createMutation(newCutin as any);
+        await supabase.from('cutins').insert([newCutin]);
       }
       return newCutin;
     },
-    [roomId, cutins.length, createMutation]
+    [roomId, cutins.length]
   );
 
   const updateCutin = useCallback(
@@ -82,11 +71,11 @@ export function useCutins(
       if (inj) {
         await inj.update(cutinId, updates);
       } else {
-        const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Cutin;
-        await updateMutation({ id: cutinId, ...rest } as any);
+        const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as Cutin;
+        await supabase.from('cutins').update(rest).eq('id', cutinId);
       }
     },
-    [updateMutation]
+    []
   );
 
   const removeCutin = useCallback(
@@ -95,10 +84,10 @@ export function useCutins(
       if (inj) {
         await inj.remove(cutinId);
       } else {
-        await removeMutation({ id: cutinId });
+        await supabase.from('cutins').delete().eq('id', cutinId);
       }
     },
-    [removeMutation]
+    []
   );
 
   const triggerCutin = useCallback(
@@ -129,10 +118,12 @@ export function useCutins(
       if (inj) {
         await inj.reorder(updates);
       } else {
-        await reorderMutation({ updates });
+        await Promise.all(updates.map(u =>
+          supabase.from('cutins').update({ sort_order: u.sort_order }).eq('id', u.id)
+        ));
       }
     },
-    [reorderMutation]
+    []
   );
 
   return { cutins, loading, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin };

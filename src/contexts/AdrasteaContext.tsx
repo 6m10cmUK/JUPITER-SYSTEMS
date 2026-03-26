@@ -98,7 +98,6 @@ export interface AdrasteaContextValue {
   removeObject: any;
   reorderObjects: any;
   batchUpdateSort: any;
-  injectOptimistic: any;
   scenarioTexts: any[];
   addScenarioText: any;
   updateScenarioText: any;
@@ -368,7 +367,6 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       removeObject: async () => {},
       reorderObjects: async () => {},
       batchUpdateSort: async () => {},
-      injectOptimistic: () => {},
       scenarioTexts,
       addScenarioText,
       updateScenarioText,
@@ -540,7 +538,6 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       removeObject: roomDataCtx.removeObject,
       reorderObjects: roomDataCtx.reorderObjects,
       batchUpdateSort: roomDataCtx.batchUpdateSort,
-      injectOptimistic: roomDataCtx.injectOptimistic,
       bgms: roomDataCtx.bgms,
       addBgm: roomDataCtx.addBgm,
       updateBgm: roomDataCtx.updateBgm,
