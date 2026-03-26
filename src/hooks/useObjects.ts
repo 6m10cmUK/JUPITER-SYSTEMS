@@ -66,6 +66,7 @@ export function useObjects(
         text_vertical_align: data.text_vertical_align ?? 'top',
         text_color: data.text_color ?? '#ffffff',
         scale_x: data.scale_x ?? 1, scale_y: data.scale_y ?? 1,
+        memo: data.memo ?? '',
         created_at: now, updated_at: now,
       };
       if (inj) {

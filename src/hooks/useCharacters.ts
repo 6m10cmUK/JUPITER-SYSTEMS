@@ -272,6 +272,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         await inj.remove(charId);
       } else {
         await Promise.all([
+          supabase.from('pieces').delete().eq('character_id', charId),
           supabase.from('characters_stats').delete().eq('id', charId),
           supabase.from('characters_base').delete().eq('id', charId),
         ]);
