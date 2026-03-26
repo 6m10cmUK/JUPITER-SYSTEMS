@@ -1,6 +1,8 @@
+import { useCallback } from 'react';
 import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { ChatChannel } from '../types/adrastea.types';
+import { genId } from '../utils/id';
 
 interface ChannelRow {
   id: string;
@@ -26,6 +28,7 @@ export function useChannels(roomId: string) {
     filter: (q) => q.eq('room_id', roomId ?? ''),
   });
   const channelsData = channelsQuery.data;
+  const channelsMutation = useSupabaseMutation<ChannelRow>('channels', channelsQuery.setData);
 
   // DEFAULT_CHANNELSは常にUI定数として表示
   // DBのカスタムチャンネル（DEFAULT_CHANNELSと被らないもの）を後ろに追加
@@ -48,7 +51,7 @@ export function useChannels(roomId: string) {
       }))
   );
 
-  const upsertChannel = async (channel: ChatChannel) => {
+  const upsertChannel = useCallback(async (channel: ChatChannel) => {
     const { data: existing } = await supabase
       .from('channels')
       .select('id')
@@ -57,34 +60,35 @@ export function useChannels(roomId: string) {
       .maybeSingle();
 
     if (existing) {
-      await supabase
-        .from('channels')
-        .update({
-          label: channel.label,
-          order: channel.order,
-          is_archived: channel.is_archived,
-          allowed_user_ids: channel.allowed_user_ids,
-        })
-        .eq('id', existing.id);
+      // 既存チャンネル更新（楽観的更新）
+      await channelsMutation.update(existing.id, {
+        label: channel.label,
+        order: channel.order,
+        is_archived: channel.is_archived,
+        allowed_user_ids: channel.allowed_user_ids,
+      } as Partial<ChannelRow>);
     } else {
-      await supabase.from('channels').insert([{
+      // 新規チャンネル作成（楽観的更新）
+      const newChannel: ChannelRow = {
+        id: genId(),
         room_id: roomId,
         channel_id: channel.channel_id,
         label: channel.label,
         order: channel.order,
         is_archived: channel.is_archived,
         allowed_user_ids: channel.allowed_user_ids,
-      }]);
+      };
+      await channelsMutation.insert(newChannel);
     }
-  };
+  }, [roomId, channelsMutation]);
 
-  const deleteChannel = async (channelId: string) => {
-    await supabase
-      .from('channels')
-      .delete()
-      .eq('room_id', roomId)
-      .eq('channel_id', channelId);
-  };
+  const deleteChannel = useCallback(async (channelId: string) => {
+    // 楽観的削除：対象チャンネルを探して削除
+    const channelToDelete = channelsData.find((c) => c.channel_id === channelId);
+    if (channelToDelete) {
+      await channelsMutation.remove(channelToDelete.id);
+    }
+  }, [channelsData, channelsMutation]);
 
   return { channels, upsertChannel, deleteChannel, loading: channelsQuery.loading };
 }

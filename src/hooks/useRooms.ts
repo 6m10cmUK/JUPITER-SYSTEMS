@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import type { Room } from '../types/adrastea.types';
 import { supabase } from '../services/supabase';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
+import { useLocalStorageOrder } from './useLocalStorageOrder';
 import { generateUUID } from '../utils/uuid';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
@@ -20,19 +21,6 @@ export type RoomUI = {
 // Re-export Room 型
 export type { Room };
 
-function loadOrder(): string[] {
-  try {
-    const raw = localStorage.getItem(ROOM_ORDER_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveOrder(ids: string[]) {
-  localStorage.setItem(ROOM_ORDER_KEY, JSON.stringify(ids));
-}
-
 function loadRoomTags(roomId: string): string[] {
   try {
     const raw = localStorage.getItem(ROOM_TAGS_PREFIX + roomId);
@@ -46,17 +34,6 @@ function saveRoomTags(roomId: string, tags: string[]) {
   localStorage.setItem(ROOM_TAGS_PREFIX + roomId, JSON.stringify(tags));
 }
 
-function sortByOrder(rooms: RoomUI[]): RoomUI[] {
-  const order = loadOrder();
-  const orderMap = new Map(order.map((id, i) => [id, i]));
-  return [...rooms].sort((a, b) => {
-    const ai = orderMap.get(a.id) ?? Infinity;
-    const bi = orderMap.get(b.id) ?? Infinity;
-    if (ai === Infinity && bi === Infinity) return b.updated_at - a.updated_at;
-    return ai - bi;
-  });
-}
-
 export function useRooms(_uid?: string) {
   const roomsQuery = useSupabaseQuery<Room>({
     table: 'rooms',
@@ -68,20 +45,50 @@ export function useRooms(_uid?: string) {
   const loading = roomsQuery.loading;
   const roomsMutation = useSupabaseMutation<Room>('rooms', roomsQuery.setData);
 
-  const rooms = useMemo<RoomUI[]>(() => {
+  const mergedRooms = useMemo<RoomUI[]>(() => {
     if (!roomsQuery.data) return [];
-    return sortByOrder(
-      roomsQuery.data.map((r) => ({
-        id: r.id,
-        name: r.name ?? '',
-        dice_system: r.dice_system ?? 'DiceBot',
-        tags: loadRoomTags(r.id),
-        thumbnail_asset_id: r.thumbnail_asset_id ?? null,
-        created_at: r.created_at,
-        updated_at: r.updated_at,
-      }))
-    );
+    return roomsQuery.data.map((r) => ({
+      id: r.id,
+      name: r.name ?? '',
+      dice_system: r.dice_system ?? 'DiceBot',
+      tags: loadRoomTags(r.id),
+      thumbnail_asset_id: r.thumbnail_asset_id ?? null,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+    }));
   }, [roomsQuery.data]);
+
+  // useLocalStorageOrder を使用してルーム順序を管理（カスタム順序がない場合は updated_at 順）
+  const { orderedItems: rooms, saveOrder } = useLocalStorageOrder(mergedRooms, ROOM_ORDER_KEY);
+
+  // mergedRooms の順序がない場合は updated_at 降順
+  const sortedRooms = useMemo<RoomUI[]>(() => {
+    // rooms は useLocalStorageOrder で保存順に並んでいる
+    // new rooms が mergedRooms に追加されると、rooms の末尾に追加される
+    // 新規ルームを updated_at 順でソートするため、保存順がない部分だけソート
+    const savedIds = new Set<string>();
+    try {
+      const raw = localStorage.getItem(ROOM_ORDER_KEY);
+      const ids = raw ? JSON.parse(raw) : [];
+      ids.forEach((id: string) => savedIds.add(id));
+    } catch {
+      // ignore
+    }
+
+    const ordered: RoomUI[] = [];
+    const unordered: RoomUI[] = [];
+    for (const room of rooms) {
+      if (savedIds.has(room.id)) {
+        ordered.push(room);
+      } else {
+        unordered.push(room);
+      }
+    }
+
+    // 未保存ルームを updated_at 降順でソート
+    unordered.sort((a, b) => b.updated_at - a.updated_at);
+    return [...ordered, ...unordered];
+  }, [rooms]);
 
   const deleteRoom = useCallback(
     (roomId: string) => {
@@ -121,7 +128,7 @@ export function useRooms(_uid?: string) {
 
   const reorderRooms = useCallback((orderedIds: string[]) => {
     saveOrder(orderedIds);
-  }, []);
+  }, [saveOrder]);
 
   const fetchRooms = useCallback(async () => {
     // Convex useQuery が自動で最新データを返すため no-op
@@ -252,5 +259,5 @@ export function useRooms(_uid?: string) {
     []
   );
 
-  return { rooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms, addRoom };
+  return { rooms: sortedRooms, loading, fetchRooms, deleteRoom, updateRoom, reorderRooms, addRoom };
 }

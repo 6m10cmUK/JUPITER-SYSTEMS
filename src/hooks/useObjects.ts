@@ -142,12 +142,15 @@ export function useObjects(
       if (inj) {
         await inj.batchUpdateSort(updates);
       } else {
-        for (const { id, sort } of updates) {
-          try {
-            await mutation.update(id, { sort_order: sort, updated_at: Date.now() } as Partial<BoardObject>);
-          } catch (error) {
-            console.error('[useObjects] batchUpdateSort failed:', error);
-          }
+        try {
+          await Promise.all(
+            updates.map(({ id, sort }) =>
+              mutation.update(id, { sort_order: sort, updated_at: Date.now() } as Partial<BoardObject>)
+            )
+          );
+        } catch (error) {
+          console.error('[useObjects] batchUpdateSort failed:', error);
+          throw error;
         }
       }
     },

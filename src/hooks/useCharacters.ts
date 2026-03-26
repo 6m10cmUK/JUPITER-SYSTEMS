@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../services/supabase';
 import { useSupabaseQuery } from './useSupabaseQuery';
+import { useLocalStorageOrder } from './useLocalStorageOrder';
 import type { Character } from '../types/adrastea.types';
 import type { CharactersInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -61,10 +62,8 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   const baseData = baseQuery.data;
 
   const loading = inject ? false : (statsQuery.loading || baseQuery.loading);
-  const [charOrderVersion, setCharOrderVersion] = useState(0);
-  const [layerCharOrderVersion, setLayerCharOrderVersion] = useState(0);
 
-  const characters: Character[] = useMemo(() => {
+  const mergedCharacters: Character[] = useMemo(() => {
     if (inject) return inject.data;
 
     // 両テーブルが loading 中なら空配列を返す
@@ -75,7 +74,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     // Create map of base data for quick lookup
     const baseMap = new Map(baseData.map(b => [b.id, b]));
 
-    const merged = statsData.map((stat) => {
+    return statsData.map((stat) => {
       const base = baseMap.get(stat.id);
       return {
         id: stat.id,
@@ -104,78 +103,30 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         is_status_private: base?.is_status_private ?? false,
       } as Character;
     });
+  }, [inject, statsData, baseData, statsQuery.loading, baseQuery.loading]);
 
-    // Load sort order from localStorage
-    const storageKey = `adrastea-char-order-${roomId}`;
-    const savedOrder = localStorage.getItem(storageKey);
-    let sorted = merged;
-    if (savedOrder) {
-      try {
-        const orderedIds = JSON.parse(savedOrder) as string[];
-        const idToChar = new Map(merged.map(c => [c.id, c]));
-        const sortedArray: Character[] = [];
-        const seenIds = new Set<string>();
+  // useLocalStorageOrder を使用してチャーパネルの並び順を管理
+  const { orderedItems: characters } = useLocalStorageOrder(
+    mergedCharacters,
+    `adrastea-char-order-${roomId}`
+  );
 
-        // Add characters in saved order
-        for (const id of orderedIds) {
-          const char = idToChar.get(id);
-          if (char) {
-            sortedArray.push(char);
-            seenIds.add(id);
-          }
-        }
+  // レイヤーパネルの並び順を別途管理（独立）
+  const { orderedItems: layerOrderedCharacters } = useLocalStorageOrder(
+    mergedCharacters,
+    `adrastea-layer-char-order-${roomId}`
+  );
 
-        // Add remaining characters not in saved order at the end
-        for (const char of merged) {
-          if (!seenIds.has(char.id)) {
-            sortedArray.push(char);
-          }
-        }
-
-        sorted = sortedArray;
-      } catch {
-        // If JSON parsing fails, return unsorted
-        sorted = merged;
-      }
-    }
-
-    // Overlay chat_palette from localStorage cache
-    const overlaidCharacters = sorted.map((char) => {
+  // chat_palette のローカルキャッシュオーバーレイ
+  const charactersWithCachedPalette: Character[] = useMemo(() => {
+    return characters.map((char) => {
       const cachedPalette = localStorage.getItem(`adrastea-chat-palette-${char.id}`);
       if (cachedPalette !== null) {
         return { ...char, chat_palette: cachedPalette };
       }
       return char;
     });
-
-    return overlaidCharacters;
-  }, [inject, statsData, baseData, roomId, charOrderVersion]);
-
-  const layerOrderedCharacters: Character[] = useMemo(() => {
-    if (characters.length === 0) return [];
-    const storageKey = `adrastea-layer-char-order-${roomId}`;
-    const savedOrder = localStorage.getItem(storageKey);
-    if (!savedOrder) return characters;
-    try {
-      const orderedIds = JSON.parse(savedOrder) as string[];
-      const idToChar = new Map(characters.map(c => [c.id, c]));
-      const sorted: Character[] = [];
-      const seen = new Set<string>();
-      for (const id of orderedIds) {
-        const char = idToChar.get(id);
-        if (char) {
-          sorted.push(char);
-          seen.add(id);
-        }
-      }
-      for (const char of characters) {
-        if (!seen.has(char.id)) sorted.push(char);
-      }
-      return sorted;
-    } catch {
-      return characters;
-    }
-  }, [characters, roomId, layerCharOrderVersion]);
+  }, [characters]);
 
   const fetchSecretMemo = useCallback(
     async (charId: string): Promise<string> => {
@@ -361,23 +312,21 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     []
   );
 
+  // useLocalStorageOrder の saveOrder メソッドを外部公開
+  // メモ: ここで characters ではなく mergedCharacters を再取得し saveOrder を呼ぶ
   const reorderCharacters = useCallback(
-    async (orderedIds: string[]): Promise<void> => {
-      const storageKey = `adrastea-char-order-${roomId}`;
-      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
-      setCharOrderVersion(v => v + 1);
+    (orderedIds: string[]): void => {
+      localStorage.setItem(`adrastea-char-order-${roomId}`, JSON.stringify(orderedIds));
     },
     [roomId]
   );
 
   const reorderLayerCharacters = useCallback(
-    async (orderedIds: string[]): Promise<void> => {
-      const storageKey = `adrastea-layer-char-order-${roomId}`;
-      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
-      setLayerCharOrderVersion(v => v + 1);
+    (orderedIds: string[]): void => {
+      localStorage.setItem(`adrastea-layer-char-order-${roomId}`, JSON.stringify(orderedIds));
     },
     [roomId]
   );
 
-  return { characters, layerOrderedCharacters, loading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters, fetchSecretMemo };
+  return { characters: charactersWithCachedPalette, layerOrderedCharacters, loading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters, fetchSecretMemo };
 }

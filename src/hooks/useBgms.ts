@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
+import { useLocalStorageOrder } from './useLocalStorageOrder';
 import type { BgmTrack } from '../types/adrastea.types';
 import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -45,10 +46,11 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   }, []);
 
   const loading = inject ? false : bgmsQuery.loading;
-  const bgms: BgmTrack[] = useMemo(() => {
+
+  const mergedBgms: BgmTrack[] = useMemo(() => {
     if (inject) return inject.data;
 
-    const merged = (bgmsData ?? []).map((b) => {
+    return (bgmsData ?? []).map((b) => {
       const override = playbackOverrides.get(b.id);
       return {
         id: b.id,
@@ -68,53 +70,13 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         updated_at: b.updated_at,
       } as BgmTrack;
     });
+  }, [inject, bgmsData, playbackOverrides]);
 
-    // Load sort order from localStorage
-    const storageKey = `adrastea-bgm-order-${roomId}`;
-    const savedOrder = localStorage.getItem(storageKey);
-    if (savedOrder) {
-      try {
-        const orderedIds = JSON.parse(savedOrder) as string[];
-        const idToBgm = new Map(merged.map(b => [b.id, b]));
-        const sorted: BgmTrack[] = [];
-        const seenIds = new Set<string>();
-
-        for (const id of orderedIds) {
-          const bgm = idToBgm.get(id);
-          if (bgm) {
-            sorted.push(bgm);
-            seenIds.add(id);
-          }
-        }
-
-        for (const bgm of merged) {
-          if (!seenIds.has(bgm.id)) {
-            sorted.push(bgm);
-          }
-        }
-
-        return sorted;
-      } catch (e) {
-        console.warn('[useBgms] Failed to parse from localStorage:', e instanceof Error ? e.message : e);
-        return merged;
-      }
-    }
-
-    return merged;
-  }, [inject, bgmsData, playbackOverrides, roomId]);
-
-  const removeFromLocalStorageOrder = useCallback((id: string) => {
-    const storageKey = `adrastea-bgm-order-${roomId}`;
-    const savedOrder = localStorage.getItem(storageKey);
-    if (!savedOrder) return;
-    try {
-      const orderedIds = JSON.parse(savedOrder) as string[];
-      const filtered = orderedIds.filter((oid) => oid !== id);
-      localStorage.setItem(storageKey, JSON.stringify(filtered));
-    } catch (e) {
-      console.warn('[useBgms] Failed to parse from localStorage:', e instanceof Error ? e.message : e);
-    }
-  }, [roomId]);
+  // useLocalStorageOrder を使用して BGM の並び順を管理
+  const { orderedItems: bgms, removeFromOrder: removeFromLocalStorageOrder } = useLocalStorageOrder(
+    mergedBgms,
+    `adrastea-bgm-order-${roomId}`
+  );
 
   const addBgm = useCallback(
     async (data: Partial<Omit<BgmTrack, 'id'>>): Promise<string> => {
