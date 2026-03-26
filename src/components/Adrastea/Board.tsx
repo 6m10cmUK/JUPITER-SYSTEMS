@@ -277,8 +277,10 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const bgImageUrl = useMemo(() => {
     const assetId = bgObject?.image_asset_id ?? null;
     if (!assetId) return null;
+    // 単色モード（background_color が設定済み）のときは画像を表示しない
+    if (bgObject?.background_color && bgObject.background_color !== 'transparent') return null;
     return assets.find(a => a.id === assetId)?.url ?? null;
-  }, [bgObject?.image_asset_id, assets]);
+  }, [bgObject?.image_asset_id, bgObject?.background_color, assets]);
 
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
   if (bgObject) {

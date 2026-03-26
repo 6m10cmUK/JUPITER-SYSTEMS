@@ -188,7 +188,6 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               ]}
               onChange={(v) => {
                 if (v === 'color') {
-                  set('image_asset_id', null);
                   if (!bgEnabled) set('background_color', '#1e1e2e');
                 } else {
                   set('background_color', 'transparent');
@@ -542,7 +541,6 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   ]}
                   onChange={(v) => {
                     if (v === 'color') {
-                      set('image_asset_id', null);
                       if (!bgEnabled) set('background_color', '#1e1e2e');
                     } else {
                       set('background_color', 'transparent');
