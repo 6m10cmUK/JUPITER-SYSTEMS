@@ -18,6 +18,7 @@ export interface UseSupabaseQueryResult<T> {
   data: T[];
   loading: boolean;
   error: Error | null;
+  setData: React.Dispatch<React.SetStateAction<T[]>>;
 }
 
 /**
@@ -283,7 +284,7 @@ export function useSupabaseQuery<T extends { id: string }>(
     };
   }, [table, columns, roomId, filter, orderBy, enabled]);
 
-  return { data, loading, error };
+  return { data, loading, error, setData };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { Scene, BoardObject } from '../types/adrastea.types';
 import type { ScenesInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -21,13 +21,15 @@ export function useScenes(
   const onActivateSceneRef = useRef(onActivateScene);
   onActivateSceneRef.current = onActivateScene;
 
-  const { data: scenesData, loading: scenesLoading } = useSupabaseQuery<Scene>({
+  const { data: scenesData, loading: scenesLoading, setData: setScenesData } = useSupabaseQuery<Scene>({
     table: 'scenes',
     columns: 'id,room_id,name,background_asset_id,foreground_asset_id,foreground_opacity,bg_transition,bg_transition_duration,fg_transition,fg_transition_duration,bg_blur,grid_visible,sort_order,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
   });
+
+  const scenesMutation = useSupabaseMutation<Scene>('scenes', setScenesData);
 
   const loading = inject ? false : scenesLoading;
   const scenes: Scene[] = useMemo(
@@ -151,19 +153,28 @@ export function useScenes(
           onObjectsCreated?.(createdObjects);
         }
       } else {
-        const { error: sceneError } = await supabase.from('scenes').insert(newScene);
-        if (sceneError) throw sceneError;
+        try {
+          // 楽観的にシーンを追加
+          await scenesMutation.insert(newScene);
 
-        if (createdObjects.length > 0) {
-          const { error: objectError } = await supabase.from('objects').insert(createdObjects);
-          if (objectError) throw objectError;
-          onObjectsCreated?.(createdObjects);
+          if (createdObjects.length > 0) {
+            // オブジェクトは直接 Supabase に insert（楽観的更新は上位レイヤー責任）
+            const { error: objectError } = await supabase.from('objects').insert(createdObjects);
+            if (objectError) {
+              console.error('[useScenes] addScene object insert failed:', objectError);
+              throw objectError;
+            }
+            onObjectsCreated?.(createdObjects);
+          }
+        } catch (error) {
+          console.error('[useScenes] addScene failed:', error);
+          throw error;
         }
       }
 
       return { scene: newScene, objects: createdObjects };
     },
-    [roomId, scenes.length, onObjectsCreated]
+    [roomId, scenes.length, onObjectsCreated, scenesMutation]
     // ← inject は injectRef 経由なので deps に入れない
   );
 
@@ -173,12 +184,15 @@ export function useScenes(
       if (inj) {
         await inj.update(sceneId, updates);
       } else {
-        const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
-        const { error } = await supabase.from('scenes').update({ ...rest, updated_at: Date.now() }).eq('id', sceneId);
-        if (error) throw error;
+        try {
+          const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
+          await scenesMutation.update(sceneId, { ...rest, updated_at: Date.now() } as Partial<Scene>);
+        } catch (error) {
+          console.error('[useScenes] updateScene failed:', error);
+        }
       }
     },
-    []
+    [scenesMutation]
   );
 
   const removeScene = useCallback(
@@ -187,11 +201,14 @@ export function useScenes(
       if (inj) {
         await inj.remove(sceneId);
       } else {
-        const { error } = await supabase.from('scenes').delete().eq('id', sceneId);
-        if (error) throw error;
+        try {
+          await scenesMutation.remove(sceneId);
+        } catch (error) {
+          console.error('[useScenes] removeScene failed:', error);
+        }
       }
     },
-    []
+    [scenesMutation]
   );
 
   const activateScene = useCallback(
@@ -212,12 +229,15 @@ export function useScenes(
         await inj.reorder(updates);
       } else {
         for (const { id, sort_order } of updates) {
-          const { error } = await supabase.from('scenes').update({ sort_order, updated_at: Date.now() }).eq('id', id);
-          if (error) throw error;
+          try {
+            await scenesMutation.update(id, { sort_order, updated_at: Date.now() } as Partial<Scene>);
+          } catch (error) {
+            console.error('[useScenes] reorderScenes failed:', error);
+          }
         }
       }
     },
-    []
+    [scenesMutation]
   );
 
   return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene };

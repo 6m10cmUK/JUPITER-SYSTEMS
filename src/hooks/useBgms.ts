@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { BgmTrack } from '../types/adrastea.types';
 import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -18,6 +17,8 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     enabled: !inject,
   });
   const bgmsData = bgmsQuery.data;
+
+  const bgmsMutation = useSupabaseMutation<BgmTrack>('bgms', bgmsQuery.setData);
 
   // is_playing / is_paused のローカルオーバーライド
   // Convex の楽観更新が振動するのを防ぐ
@@ -135,11 +136,16 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       if (inj) {
         await inj.create(bgmData as BgmTrack);
       } else {
-        await supabase.from('bgms').insert([bgmData]);
+        try {
+          await bgmsMutation.insert(bgmData as BgmTrack);
+        } catch (error) {
+          console.error('[useBgms] addBgm failed:', error);
+          throw error;
+        }
       }
       return id;
     },
-    [roomId, bgms.length]
+    [roomId, bgms.length, bgmsMutation]
   );
 
   const updateBgm = useCallback(
@@ -165,15 +171,19 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         return;
       }
 
-      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = updates as BgmTrack;
-      await supabase.from('bgms').update(rest).eq('id', id);
-      const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
-      if ((merged as BgmTrack).scene_ids?.length === 0) {
-        await supabase.from('bgms').delete().eq('id', id);
-        removeFromLocalStorageOrder(id);
+      try {
+        const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = updates as BgmTrack;
+        await bgmsMutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BgmTrack>);
+        const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
+        if ((merged as BgmTrack).scene_ids?.length === 0) {
+          await bgmsMutation.remove(id);
+          removeFromLocalStorageOrder(id);
+        }
+      } catch (error) {
+        console.error('[useBgms] updateBgm failed:', error);
       }
     },
-    [bgms, removeFromLocalStorageOrder, setPlaybackOverride]
+    [bgms, removeFromLocalStorageOrder, setPlaybackOverride, bgmsMutation]
   );
 
   const removeBgm = useCallback(
@@ -182,11 +192,15 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       if (inj) {
         await inj.remove(id);
       } else {
-        await supabase.from('bgms').delete().eq('id', id);
-        removeFromLocalStorageOrder(id);
+        try {
+          await bgmsMutation.remove(id);
+          removeFromLocalStorageOrder(id);
+        } catch (error) {
+          console.error('[useBgms] removeBgm failed:', error);
+        }
       }
     },
-    [removeFromLocalStorageOrder]
+    [removeFromLocalStorageOrder, bgmsMutation]
   );
 
   const reorderBgms = useCallback(

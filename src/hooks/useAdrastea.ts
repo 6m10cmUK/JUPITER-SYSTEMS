@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import type { Piece, Room } from '../types/adrastea.types';
-import { supabase } from '../services/supabase';
-import { useSupabaseQuery } from './useSupabaseQuery';
+import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 
 export function useAdrastea(roomId: string) {
   const roomsQuery = useSupabaseQuery<Room>({
@@ -18,6 +17,9 @@ export function useAdrastea(roomId: string) {
     filter: (q) => q.eq('room_id', roomId),
   });
 
+  const roomsMutation = useSupabaseMutation<Room>('rooms', roomsQuery.setData);
+  const piecesMutation = useSupabaseMutation<Piece>('pieces', piecesQuery.setData);
+
   const loading = roomsQuery.loading || piecesQuery.loading;
 
   const room: Room | null = roomsQuery.data[0] ?? null;
@@ -25,9 +27,11 @@ export function useAdrastea(roomId: string) {
 
   const movePiece = useCallback(
     (pieceId: string, x: number, y: number) => {
-      void supabase.from('pieces').update({ x, y }).eq('id', pieceId).then(() => {}, () => {});
+      void piecesMutation.update(pieceId, { x, y } as Partial<Piece>).catch((error) => {
+        console.error('[useAdrastea] movePiece failed:', error);
+      });
     },
-    []
+    [piecesMutation]
   );
 
   const addPiece = useCallback(
@@ -36,7 +40,8 @@ export function useAdrastea(roomId: string) {
       const baseY = centerY ?? 2500;
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
-      void supabase.from('pieces').insert({
+      const newPiece: Piece = {
+        id: `piece_${Date.now()}_${Math.random()}`, // temporary ID
         room_id: roomId,
         x: baseX + offsetX,
         y: baseY + offsetY,
@@ -45,32 +50,47 @@ export function useAdrastea(roomId: string) {
         label,
         color,
         z_index: pieces.length,
-      }).then(() => {}, () => {});
+        image_asset_id: null,
+        statuses: [],
+        initiative: 0,
+        memo: '',
+        character_id: null,
+        created_at: Date.now(),
+      };
+      void piecesMutation.insert(newPiece).catch((error) => {
+        console.error('[useAdrastea] addPiece failed:', error);
+      });
     },
-    [roomId, pieces.length]
+    [roomId, pieces.length, piecesMutation]
   );
 
   const removePiece = useCallback(
     (pieceId: string) => {
-      void supabase.from('pieces').delete().eq('id', pieceId).then(() => {}, () => {});
+      void piecesMutation.remove(pieceId).catch((error) => {
+        console.error('[useAdrastea] removePiece failed:', error);
+      });
     },
-    []
+    [piecesMutation]
   );
 
   const updatePiece = useCallback(
     (pieceId: string, updates: Partial<Piece>) => {
       const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Piece;
-      void supabase.from('pieces').update(rest).eq('id', pieceId).then(() => {}, () => {});
+      void piecesMutation.update(pieceId, rest as Partial<Piece>).catch((error) => {
+        console.error('[useAdrastea] updatePiece failed:', error);
+      });
     },
-    []
+    [piecesMutation]
   );
 
   const updateRoom = useCallback(
     (updates: Partial<Room>) => {
       const { id: _id, owner_id: _oid, created_at: _ca, ...rest } = updates as Room;
-      void supabase.from('rooms').update(rest).eq('id', roomId).then(() => {}, () => {});
+      void roomsMutation.update(roomId, rest as Partial<Room>).catch((error) => {
+        console.error('[useAdrastea] updateRoom failed:', error);
+      });
     },
-    [roomId]
+    [roomId, roomsMutation]
   );
 
   return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom };

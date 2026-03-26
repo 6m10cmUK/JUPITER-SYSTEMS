@@ -156,5 +156,114 @@ export async function handleRooms(
     return json({ ok: true }, headers);
   }
 
+  // POST /api/rooms/:id/archive — ルームデータを D1 に退避
+  if (subResource === 'archive' && request.method === 'POST') {
+    const room = await env.DB.prepare('SELECT owner_id FROM rooms WHERE id = ?')
+      .bind(roomId)
+      .first<{ owner_id: string }>();
+    if (!room || room.owner_id !== user.uid) {
+      return json({ error: 'Forbidden' }, headers, 403);
+    }
+
+    try {
+      const supabaseHeaders = {
+        'apikey': env.SUPABASE_ANON_KEY ?? '',
+        'Authorization': `Bearer ${env.SUPABASE_ANON_KEY ?? ''}`,
+      };
+
+      // Supabase から rooms, room_snapshots を取得
+      const roomRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`, {
+        method: 'GET',
+        headers: supabaseHeaders,
+      });
+      const rooms = (await roomRes.json()) as unknown[];
+
+      const snapshotRes = await fetch(`${env.SUPABASE_URL}/rest/v1/room_snapshots?room_id=eq.${roomId}`, {
+        method: 'GET',
+        headers: supabaseHeaders,
+      });
+      const snapshots = (await snapshotRes.json()) as unknown[];
+
+      // D1 room_archives に INSERT
+      const archiveData = JSON.stringify({ rooms, snapshots });
+      const now = Date.now();
+      await env.DB.prepare(
+        'INSERT INTO room_archives (room_id, data, archived_at) VALUES (?, ?, ?) ON CONFLICT(room_id) DO UPDATE SET data = ?, archived_at = ?',
+      )
+        .bind(roomId, archiveData, now, archiveData, now)
+        .run();
+
+      // Supabase DELETE room_snapshots
+      await fetch(`${env.SUPABASE_URL}/rest/v1/room_snapshots?room_id=eq.${roomId}`, {
+        method: 'DELETE',
+        headers: supabaseHeaders,
+      });
+
+      // Supabase UPDATE rooms SET archived = 1
+      await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`, {
+        method: 'PATCH',
+        headers: { ...supabaseHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: 1 }),
+      });
+
+      return json({ ok: true }, headers);
+    } catch (err) {
+      console.error('Archive error:', err);
+      return json({ error: 'Failed to archive' }, headers, 500);
+    }
+  }
+
+  // POST /api/rooms/:id/restore — D1 からルームデータを復元
+  if (subResource === 'restore' && request.method === 'POST') {
+    const room = await env.DB.prepare('SELECT owner_id FROM rooms WHERE id = ?')
+      .bind(roomId)
+      .first<{ owner_id: string }>();
+    if (!room || room.owner_id !== user.uid) {
+      return json({ error: 'Forbidden' }, headers, 403);
+    }
+
+    try {
+      // D1 から room_archives を取得
+      const archive = await env.DB.prepare('SELECT data FROM room_archives WHERE room_id = ?')
+        .bind(roomId)
+        .first<{ data: string }>();
+
+      if (!archive) {
+        return json({ error: 'No archive found' }, headers, 404);
+      }
+
+      const archiveData = JSON.parse(archive.data) as { rooms: unknown[]; snapshots: unknown[] };
+
+      const supabaseHeaders = {
+        'apikey': env.SUPABASE_ANON_KEY ?? '',
+        'Authorization': `Bearer ${env.SUPABASE_ANON_KEY ?? ''}`,
+      };
+
+      // Supabase に復元（room_snapshots INSERT）
+      if (archiveData.snapshots.length > 0) {
+        await fetch(`${env.SUPABASE_URL}/rest/v1/room_snapshots`, {
+          method: 'POST',
+          headers: { ...supabaseHeaders, 'Content-Type': 'application/json' },
+          body: JSON.stringify(archiveData.snapshots),
+        });
+      }
+
+      // Supabase UPDATE rooms SET archived = 0
+      await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`, {
+        method: 'PATCH',
+        headers: { ...supabaseHeaders, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived: 0 }),
+      });
+
+      // D1 DELETE room_archives
+      await env.DB.prepare('DELETE FROM room_archives WHERE room_id = ?').bind(roomId).run();
+
+      return json({ ok: true, data: archiveData }, headers);
+    } catch (err) {
+      console.error('Restore error:', err);
+      return json({ error: 'Failed to restore' }, headers, 500);
+    }
+  }
+
   return new Response('Not Found', { status: 404, headers });
 }
