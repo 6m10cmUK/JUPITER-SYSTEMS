@@ -290,7 +290,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   // 背景レイヤー管理: bgObject の image_asset_id 変化でクロスフェード
   const [bgLayers, setBgLayers] = useState<BgLayerData[]>([]);
   const bgKeyRef = useRef(0);
-  const prevBgUrlRef = useRef<string | null>(null);
+  const prevBgUrlRef = useRef<string | null | undefined>(undefined); // undefined = 未初期化
 
   useEffect(() => {
     const url = bgImageUrl;
