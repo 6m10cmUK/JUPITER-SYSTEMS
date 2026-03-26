@@ -2,6 +2,16 @@ import { supabase } from '../services/supabase';
 import { useSupabaseQuery } from './useSupabaseQuery';
 import type { ChatChannel } from '../types/adrastea.types';
 
+interface ChannelRow {
+  id: string;
+  room_id: string;
+  channel_id: string;
+  label: string;
+  order: number;
+  is_archived: boolean;
+  allowed_user_ids: string[];
+}
+
 export const DEFAULT_CHANNELS: ChatChannel[] = [
   { channel_id: 'main', label: 'メイン', order: 0, is_archived: false, allowed_user_ids: [] },
   { channel_id: 'info', label: '情報', order: 1, is_archived: false, allowed_user_ids: [] },
@@ -9,7 +19,7 @@ export const DEFAULT_CHANNELS: ChatChannel[] = [
 ];
 
 export function useChannels(roomId: string) {
-  const channelsQuery = useSupabaseQuery<any>({
+  const channelsQuery = useSupabaseQuery<ChannelRow>({
     table: 'channels',
     columns: 'id,room_id,channel_id,label,"order",is_archived,allowed_user_ids',
     roomId,
@@ -44,7 +54,7 @@ export function useChannels(roomId: string) {
       .select('id')
       .eq('room_id', roomId)
       .eq('channel_id', channel.channel_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       await supabase
