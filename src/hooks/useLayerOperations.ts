@@ -110,7 +110,7 @@ export function useLayerOperations() {
   const handleToggleCharVisible = useThrottledCallback(handleToggleCharVisibleRaw);
 
   // オブジェクト追加
-  const handleAdd = useCallback(async (global: boolean, type: BoardObjectType, imageData?: { url: string; width?: number; height?: number }) => {
+  const handleAdd = useCallback(async (global: boolean, type: BoardObjectType, imageData?: { assetId?: string; width?: number; height?: number }) => {
     const center = getBoardCenter();
     const nonBg = activeObjects.filter(o => o.type !== 'background');
     let sortOrder: number;
@@ -146,7 +146,7 @@ export function useLayerOperations() {
       sort_order: sortOrder,
       global,
       scene_ids: global ? [] : (activeScene?.id ? [activeScene.id] : []),
-      ...(imageData ? { image_url: imageData.url } : {}),
+      ...(imageData?.assetId ? { image_asset_id: imageData.assetId } : {}),
     });
     if (newObjId) {
       setSelectedObjectIds([newObjId]);
