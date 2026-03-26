@@ -1,77 +1,33 @@
 import { useCallback } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
 import type { Piece, Room } from '../types/adrastea.types';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 
 export function useAdrastea(roomId: string) {
-  const roomData = useQuery(api.rooms.get, { id: roomId });
-  const piecesData = useQuery(api.pieces.list, { room_id: roomId });
+  const roomsQuery = useSupabaseQuery<Room>({
+    table: 'rooms',
+    columns: 'id,name,dice_system,created_at,updated_at,active_scene_id,active_cutin,thumbnail_asset_id,gm_can_see_secret_memo,owner_id,description,default_login_role',
+    roomId,
+    filter: (q) => q.eq('id', roomId),
+  });
 
-  const updateRoomMutation = useMutation(api.rooms.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.rooms.get, { id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(api.rooms.get, { id: roomId }, { ...current, ...args } as any);
-      }
-    }
-  );
-  const createPieceMutation = useMutation(api.pieces.create);
-  const updatePieceMutation = useMutation(api.pieces.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.pieces.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.pieces.list,
-          { room_id: roomId },
-          current.map((p) => p.id === args.id ? { ...p, ...args } : p),
-        );
-      }
-    }
-  );
-  const removePieceMutation = useMutation(api.pieces.remove);
+  const piecesQuery = useSupabaseQuery<Piece>({
+    table: 'pieces',
+    columns: 'id,room_id,x,y,width,height,label,color,image_asset_id,z_index,statuses,initiative,memo,character_id,created_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+  });
 
-  const loading = roomData === undefined || piecesData === undefined;
+  const loading = roomsQuery.loading || piecesQuery.loading;
 
-  const room: Room | null = roomData
-    ? {
-        id: roomData.id,
-        name: roomData.name ?? '',
-        dice_system: roomData.dice_system ?? 'DiceBot',
-        created_at: roomData._creationTime ?? 0,
-        updated_at: roomData._creationTime ?? 0,
-        active_scene_id: (roomData as any).active_scene_id ?? null,
-        active_cutin: (roomData as any).active_cutin ?? null,
-        thumbnail_asset_id: (roomData as any).thumbnail_asset_id ?? null,
-        gm_can_see_secret_memo: (roomData as any).gm_can_see_secret_memo ?? false,
-        owner_id: (roomData as any).owner_id ?? '',
-        description: (roomData as any).description ?? undefined,
-        default_login_role: (roomData as any).default_login_role ?? undefined,
-      }
-    : null;
-
-  const pieces: Piece[] = (piecesData ?? []).map((p) => ({
-    id: p.id,
-    room_id: p.room_id,
-    x: p.x,
-    y: p.y,
-    width: p.width,
-    height: p.height,
-    label: p.label,
-    color: p.color,
-    image_asset_id: (p as any).image_asset_id ?? null,
-    z_index: p.z_index,
-    statuses: (p as any).statuses ?? [],
-    initiative: (p as any).initiative,
-    memo: (p as any).memo,
-    character_id: (p as any).character_id ?? null,
-    created_at: p._creationTime,
-  }));
+  const room: Room | null = roomsQuery.data[0] ?? null;
+  const pieces: Piece[] = piecesQuery.data;
 
   const movePiece = useCallback(
     (pieceId: string, x: number, y: number) => {
-      updatePieceMutation({ id: pieceId, x, y }).catch(console.error);
+      void supabase.from('pieces').update({ x, y }).eq('id', pieceId).then(() => {}, () => {});
     },
-    [updatePieceMutation]
+    []
   );
 
   const addPiece = useCallback(
@@ -80,7 +36,7 @@ export function useAdrastea(roomId: string) {
       const baseY = centerY ?? 2500;
       const offsetX = Math.floor(Math.random() * 100) - 50;
       const offsetY = Math.floor(Math.random() * 100) - 50;
-      createPieceMutation({
+      void supabase.from('pieces').insert({
         room_id: roomId,
         x: baseX + offsetX,
         y: baseY + offsetY,
@@ -89,32 +45,32 @@ export function useAdrastea(roomId: string) {
         label,
         color,
         z_index: pieces.length,
-      } as any).catch(console.error);
+      }).then(() => {}, () => {});
     },
-    [roomId, pieces.length, createPieceMutation]
+    [roomId, pieces.length]
   );
 
   const removePiece = useCallback(
     (pieceId: string) => {
-      removePieceMutation({ id: pieceId }).catch(console.error);
+      void supabase.from('pieces').delete().eq('id', pieceId).then(() => {}, () => {});
     },
-    [removePieceMutation]
+    []
   );
 
   const updatePiece = useCallback(
     (pieceId: string, updates: Partial<Piece>) => {
       const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Piece;
-      updatePieceMutation({ id: pieceId, ...rest } as any).catch(console.error);
+      void supabase.from('pieces').update(rest).eq('id', pieceId).then(() => {}, () => {});
     },
-    [updatePieceMutation]
+    []
   );
 
   const updateRoom = useCallback(
     (updates: Partial<Room>) => {
       const { id: _id, owner_id: _oid, created_at: _ca, ...rest } = updates as Room;
-      updateRoomMutation({ id: roomId, ...rest } as any).catch(console.error);
+      void supabase.from('rooms').update(rest).eq('id', roomId).then(() => {}, () => {});
     },
-    [roomId, updateRoomMutation]
+    [roomId]
   );
 
   return { pieces, room, loading, movePiece, addPiece, removePiece, updatePiece, updateRoom };

@@ -60,7 +60,7 @@ export const MockAdrasteaProvider: React.FC<MockAdrasteaProviderProps> = ({
 
   const {
     allObjects, activeObjects,
-    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort,
   } = useObjects(roomId, activeSceneId, { inject: mock.objectsInject });
 
   const {
@@ -317,7 +317,7 @@ export const MockAdrasteaProvider: React.FC<MockAdrasteaProviderProps> = ({
     addScene, updateScene, removeScene, reorderScenes, activateScene,
 
     // Mutations: Object
-    addObject, updateObject, moveObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+    addObject, updateObject, moveObject, removeObject, reorderObjects, batchUpdateSort,
 
     // Mutations: Character
     addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters,

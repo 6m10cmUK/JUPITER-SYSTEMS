@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { BgmTrack } from '../types/adrastea.types';
 import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -10,21 +10,14 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
-  const bgmsData = useQuery(api.bgms.list, inject ? 'skip' : { room_id: roomId });
-  const createMutation = useMutation(api.bgms.create);
-  const updateMutation = useMutation(api.bgms.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.bgms.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.bgms.list,
-          { room_id: roomId },
-          current.map((b) => b.id === args.id ? { ...b, ...args } : b),
-        );
-      }
-    }
-  );
-  const removeMutation = useMutation(api.bgms.remove);
+  const bgmsQuery = useSupabaseQuery<BgmTrack>({
+    table: 'bgms',
+    columns: 'id,room_id,name,bgm_type,bgm_source,bgm_asset_id,bgm_volume,bgm_loop,scene_ids,is_playing,is_paused,auto_play_scene_ids,fade_in,fade_in_duration,fade_out,fade_duration,sort_order,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
+  const bgmsData = bgmsQuery.data;
 
   // is_playing / is_paused のローカルオーバーライド
   // Convex の楽観更新が振動するのを防ぐ
@@ -50,7 +43,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     overrideTimersRef.current.set(id, timer);
   }, []);
 
-  const loading = inject ? false : bgmsData === undefined;
+  const loading = inject ? false : bgmsQuery.loading;
   const bgms: BgmTrack[] = useMemo(() => {
     if (inject) return inject.data;
 
@@ -67,7 +60,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         auto_play_scene_ids: (b as any).auto_play_scene_ids ?? [],
         fade_in: (b as any).fade_in ?? true,
         fade_in_duration: (b as any).fade_in_duration ?? (b as any).fade_duration ?? 500,
-        sort_order: b.sort_order ?? 0, created_at: b._creationTime, updated_at: b._creationTime,
+        sort_order: b.sort_order ?? 0, created_at: b.created_at, updated_at: b.updated_at,
       } as BgmTrack;
     });
 
@@ -142,11 +135,11 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       if (inj) {
         await inj.create(bgmData as BgmTrack);
       } else {
-        await createMutation(bgmData);
+        await supabase.from('bgms').insert([bgmData]);
       }
       return id;
     },
-    [roomId, bgms.length, createMutation]
+    [roomId, bgms.length]
   );
 
   const updateBgm = useCallback(
@@ -172,15 +165,15 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         return;
       }
 
-      const { id: _id, created_at: _ca, ...rest } = updates as BgmTrack;
-      await updateMutation({ id, ...rest } as any);
+      const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = updates as BgmTrack;
+      await supabase.from('bgms').update(rest).eq('id', id);
       const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
       if ((merged as BgmTrack).scene_ids?.length === 0) {
-        await removeMutation({ id });
+        await supabase.from('bgms').delete().eq('id', id);
         removeFromLocalStorageOrder(id);
       }
     },
-    [bgms, updateMutation, removeMutation, removeFromLocalStorageOrder, setPlaybackOverride]
+    [bgms, removeFromLocalStorageOrder, setPlaybackOverride]
   );
 
   const removeBgm = useCallback(
@@ -189,11 +182,11 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       if (inj) {
         await inj.remove(id);
       } else {
-        await removeMutation({ id });
+        await supabase.from('bgms').delete().eq('id', id);
         removeFromLocalStorageOrder(id);
       }
     },
-    [removeMutation, removeFromLocalStorageOrder]
+    [removeFromLocalStorageOrder]
   );
 
   const reorderBgms = useCallback(

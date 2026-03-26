@@ -1,50 +1,26 @@
 import { useCallback, useMemo } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { ScenarioText } from '../types/adrastea.types';
 import { genId } from '../utils/id';
 
 export function useScenarioTexts(roomId: string, _enabled = true) {
-  const textsData = useQuery(api.scenario_texts.list, { room_id: roomId });
-  const createMutation = useMutation(api.scenario_texts.create);
-  const updateMutation = useMutation(api.scenario_texts.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.scenario_texts.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.scenario_texts.list,
-          { room_id: roomId },
-          current.map((t) => t.id === args.id ? { ...t, ...args } : t),
-        );
-      }
-    }
-  );
-  const removeMutation = useMutation(api.scenario_texts.remove);
-  const reorderMutation = useMutation(api.scenario_texts.reorder).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.scenario_texts.list, { room_id: roomId });
-      if (current !== undefined) {
-        const orderMap = new Map(args.updates.map((u: { id: string; sort_order: number }) => [u.id, u.sort_order]));
-        localStore.setQuery(
-          api.scenario_texts.list,
-          { room_id: roomId },
-          current.map((t) => {
-            const newOrder = orderMap.get(t.id);
-            return newOrder !== undefined ? { ...t, sort_order: newOrder } : t;
-          }),
-        );
-      }
-    }
-  );
+  const textsQuery = useSupabaseQuery<ScenarioText>({
+    table: 'scenario_texts',
+    columns: 'id,room_id,title,content,visible,speaker_character_id,speaker_name,channel_id,sort_order,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+  });
+  const textsData = textsQuery.data;
 
-  const loading = textsData === undefined;
+  const loading = textsQuery.loading;
   const scenarioTexts: ScenarioText[] = useMemo(() => (textsData ?? []).map((t) => ({
     id: t.id, room_id: t.room_id, title: t.title, content: t.content,
     visible: t.visible, sort_order: t.sort_order,
-    speaker_character_id: (t as any).speaker_character_id ?? null,
-    speaker_name: (t as any).speaker_name ?? null,
-    channel_id: (t as any).channel_id ?? null,
-    created_at: t._creationTime, updated_at: t._creationTime,
+    speaker_character_id: t.speaker_character_id ?? null,
+    speaker_name: t.speaker_name ?? null,
+    channel_id: t.channel_id ?? null,
+    created_at: t.created_at, updated_at: t.updated_at,
   } as ScenarioText)).sort((a, b) => a.sort_order - b.sort_order), [textsData]);
 
   const addScenarioText = useCallback(
@@ -62,33 +38,35 @@ export function useScenarioTexts(roomId: string, _enabled = true) {
         sort_order: data.sort_order ?? scenarioTexts.length,
         created_at: now, updated_at: now,
       };
-      await createMutation(newText);
+      await supabase.from('scenario_texts').insert([newText]);
       return newText;
     },
-    [roomId, scenarioTexts.length, createMutation]
+    [roomId, scenarioTexts.length]
   );
 
   const updateScenarioText = useCallback(
     async (textId: string, updates: Partial<ScenarioText>): Promise<void> => {
-      const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as ScenarioText;
-      await updateMutation({ id: textId, ...rest } as any);
+      const { id: _id, room_id: _rid, created_at: _ca, updated_at: _ua, ...rest } = updates as ScenarioText;
+      await supabase.from('scenario_texts').update(rest).eq('id', textId);
     },
-    [updateMutation]
+    []
   );
 
   const removeScenarioText = useCallback(
     async (textId: string): Promise<void> => {
-      await removeMutation({ id: textId });
+      await supabase.from('scenario_texts').delete().eq('id', textId);
     },
-    [removeMutation]
+    []
   );
 
   const reorderScenarioTexts = useCallback(
     async (orderedIds: string[]): Promise<void> => {
       const updates = orderedIds.map((id, i) => ({ id, sort_order: i }));
-      await reorderMutation({ updates });
+      await Promise.all(updates.map(u =>
+        supabase.from('scenario_texts').update({ sort_order: u.sort_order }).eq('id', u.id)
+      ));
     },
-    [reorderMutation]
+    []
   );
 
   return { scenarioTexts, loading, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts };

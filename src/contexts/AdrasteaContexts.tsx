@@ -78,7 +78,6 @@ export interface RoomDataContextValue {
   removeObject: (id: string) => Promise<void>;
   reorderObjects: (orderedIds: string[]) => Promise<void>;
   batchUpdateSort: (updates: { id: string; sort: number }[]) => Promise<void>;
-  injectOptimistic: (objects: BoardObject[]) => void;
 
   // --- ScenarioTexts ---
   scenarioTexts: ScenarioText[];

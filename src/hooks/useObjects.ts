@@ -1,6 +1,6 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { useCallback, useMemo, useRef } from 'react';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { BoardObject } from '../types/adrastea.types';
 import type { ObjectsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -13,75 +13,21 @@ export function useObjects(
   const { inject } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
-  const objectsData = useQuery(
-    api.objects.list,
-    inject ? 'skip' : { room_id: roomId }
-  );
-  const createMutation = useMutation(api.objects.create);
-  const updateMutation = useMutation(api.objects.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.objects.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.objects.list,
-          { room_id: roomId },
-          current.map((o) => o.id === args.id ? { ...o, ...args } : o),
-        );
-      }
-    }
-  );
-  const removeMutation = useMutation(api.objects.remove);
-  const reorderMutation = useMutation(api.objects.reorder);
-  const batchSortMutation = useMutation(api.objects.batchUpdateSort);
+  const { data: objectsData, loading: objectsLoading } = useSupabaseQuery<BoardObject>({
+    table: 'objects',
+    columns: 'id,room_id,type,name,global,scene_ids,x,y,width,height,visible,opacity,sort_order,position_locked,size_locked,image_asset_id,background_color,image_fit,color_enabled,text_content,font_size,font_family,letter_spacing,line_height,auto_size,text_align,text_vertical_align,text_color,scale_x,scale_y,memo,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
 
-  const [optimisticObjects, setOptimisticObjects] = useState<BoardObject[]>([]);
-
-  const loading = inject ? false : objectsData === undefined;
+  const loading = inject ? false : objectsLoading;
 
   const allObjects: BoardObject[] = useMemo(() => {
-    if (inject) {
-      const serverIds = new Set(inject.data.map((o) => o.id));
-      const extras = optimisticObjects.filter((o) => !serverIds.has(o.id));
-      return [...inject.data, ...extras];
-    }
-    // 既存の Convex の処理
-    const serverObjs = (objectsData ?? []).map((o) => ({
-      id: o.id,
-      room_id: o.room_id,
-      type: o.type as BoardObject['type'],
-      name: o.name,
-      global: o.global,
-      scene_ids: o.scene_ids,
-      x: o.x, y: o.y, width: o.width, height: o.height,
-      visible: o.visible, opacity: o.opacity,
-      sort_order: o.sort_order,
-      position_locked: o.position_locked, size_locked: o.size_locked,
-      image_asset_id: (o as any).image_asset_id ?? null,
-      background_color: o.background_color,
-      image_fit: o.image_fit as BoardObject['image_fit'],
-      text_content: (o as any).text_content ?? null, font_size: o.font_size,
-      font_family: o.font_family, letter_spacing: o.letter_spacing,
-      line_height: o.line_height, auto_size: o.auto_size,
-      text_align: o.text_align as BoardObject['text_align'],
-      text_vertical_align: o.text_vertical_align as BoardObject['text_vertical_align'],
-      text_color: o.text_color, scale_x: o.scale_x, scale_y: o.scale_y,
-      created_at: o._creationTime, updated_at: o._creationTime,
-      memo: (o as any).memo,
-    } as BoardObject));
-    const serverIds = new Set(serverObjs.map((o) => o.id));
-    const extras = optimisticObjects.filter((o) => !serverIds.has(o.id));
-    return [...serverObjs, ...extras];
-  }, [inject, objectsData, optimisticObjects]);
-
-  useEffect(() => {
-    if (inject) return;
-    if (!objectsData) return;
-    const serverIds = new Set(objectsData.map((o) => o.id));
-    setOptimisticObjects((prev) => {
-      const filtered = prev.filter((o) => !serverIds.has(o.id));
-      return filtered.length === prev.length ? prev : filtered;
-    });
+    if (inject) return inject.data;
+    return objectsData ?? [];
   }, [inject, objectsData]);
+
 
   const activeObjects = useMemo(() => {
     if (!activeSceneId) return allObjects.filter((o) => o.global);
@@ -125,11 +71,11 @@ export function useObjects(
       if (inj) {
         await inj.create(newObj);
       } else {
-        await createMutation(newObj);
+        await supabase.from('objects').insert(newObj);
       }
       return id;
     },
-    [roomId, allObjects.length, createMutation]
+    [roomId, allObjects.length]
   );
 
   const updateObject = useCallback(
@@ -139,23 +85,22 @@ export function useObjects(
         await inj.update(id, updates);
       } else {
         const { id: _id, room_id: _rid, type: _t, created_at: _ca, ...rest } = updates as BoardObject;
-        await updateMutation({ id, ...rest } as any);
+        await supabase.from('objects').update({ ...rest, updated_at: Date.now() }).eq('id', id);
       }
     },
-    [updateMutation]
+    []
   );
 
   const removeObject = useCallback(
     async (id: string): Promise<void> => {
       const inj = injectRef.current;
-      setOptimisticObjects((prev) => prev.filter((o) => o.id !== id));
       if (inj) {
         await inj.remove(id);
       } else {
-        await removeMutation({ id });
+        await supabase.from('objects').delete().eq('id', id);
       }
     },
-    [removeMutation]
+    []
   );
 
   const reorderObjects = useCallback(
@@ -165,10 +110,12 @@ export function useObjects(
       if (inj) {
         await inj.reorder(updates);
       } else {
-        await reorderMutation({ updates });
+        for (const { id, sort_order } of updates) {
+          await supabase.from('objects').update({ sort_order, updated_at: Date.now() }).eq('id', id);
+        }
       }
     },
-    [reorderMutation]
+    []
   );
 
   const batchUpdateSort = useCallback(
@@ -177,22 +124,16 @@ export function useObjects(
       if (inj) {
         await inj.batchUpdateSort(updates);
       } else {
-        await batchSortMutation({ updates });
+        for (const { id, sort } of updates) {
+          await supabase.from('objects').update({ sort_order: sort, updated_at: Date.now() }).eq('id', id);
+        }
       }
     },
-    [batchSortMutation]
+    []
   );
-
-  const injectOptimistic = useCallback((objects: BoardObject[]) => {
-    setOptimisticObjects((prev) => {
-      const existingIds = new Set(prev.map((o) => o.id));
-      const newObjs = objects.filter((o) => !existingIds.has(o.id));
-      return newObjs.length > 0 ? [...prev, ...newObjs] : prev;
-    });
-  }, []);
 
   return {
     allObjects, activeObjects, loading,
-    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort, injectOptimistic,
+    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort,
   };
 }

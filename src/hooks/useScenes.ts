@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useRef } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { Scene, BoardObject } from '../types/adrastea.types';
 import type { ScenesInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
@@ -21,40 +21,15 @@ export function useScenes(
   const onActivateSceneRef = useRef(onActivateScene);
   onActivateSceneRef.current = onActivateScene;
 
-  const scenesData = useQuery(
-    api.scenes.list,
-    inject ? 'skip' : { room_id: roomId }
-  );
-  const createMutation = useMutation(api.scenes.create);
-  const updateMutation = useMutation(api.scenes.update).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.scenes.list, { room_id: roomId });
-      if (current !== undefined) {
-        localStore.setQuery(
-          api.scenes.list,
-          { room_id: roomId },
-          current.map((s) => s.id === args.id ? { ...s, ...args } : s),
-        );
-      }
-    }
-  );
-  const removeMutation = useMutation(api.scenes.remove);
-  const reorderMutation = useMutation(api.scenes.reorder).withOptimisticUpdate(
-    (localStore, args) => {
-      const current = localStore.getQuery(api.scenes.list, { room_id: roomId });
-      if (current !== undefined) {
-        const orderMap = new Map(args.updates.map((u) => [u.id, u.sort_order]));
-        localStore.setQuery(
-          api.scenes.list,
-          { room_id: roomId },
-          current.map((s) => orderMap.has(s.id) ? { ...s, sort_order: orderMap.get(s.id)! } : s),
-        );
-      }
-    }
-  );
-  const createObjectBatchMutation = useMutation(api.objects.createBatch);
+  const { data: scenesData, loading: scenesLoading } = useSupabaseQuery<Scene>({
+    table: 'scenes',
+    columns: 'id,room_id,name,background_asset_id,foreground_asset_id,foreground_opacity,bg_transition,bg_transition_duration,fg_transition,fg_transition_duration,bg_blur,grid_visible,sort_order,created_at,updated_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId),
+    enabled: !inject,
+  });
 
-  const loading = inject ? false : scenesData === undefined;
+  const loading = inject ? false : scenesLoading;
   const scenes: Scene[] = useMemo(
     () => {
       const data = inject ? inject.data : (scenesData ?? []);
@@ -176,16 +151,19 @@ export function useScenes(
           onObjectsCreated?.(createdObjects);
         }
       } else {
-        await createMutation(newScene as any);
+        const { error: sceneError } = await supabase.from('scenes').insert(newScene);
+        if (sceneError) throw sceneError;
+
         if (createdObjects.length > 0) {
-          await createObjectBatchMutation({ objects: createdObjects });
+          const { error: objectError } = await supabase.from('objects').insert(createdObjects);
+          if (objectError) throw objectError;
           onObjectsCreated?.(createdObjects);
         }
       }
 
       return { scene: newScene, objects: createdObjects };
     },
-    [roomId, scenes.length, createMutation, createObjectBatchMutation, onObjectsCreated]
+    [roomId, scenes.length, onObjectsCreated]
     // ← inject は injectRef 経由なので deps に入れない
   );
 
@@ -196,10 +174,11 @@ export function useScenes(
         await inj.update(sceneId, updates);
       } else {
         const { id: _id, room_id: _rid, created_at: _ca, ...rest } = updates as Scene;
-        await updateMutation({ id: sceneId, ...rest });
+        const { error } = await supabase.from('scenes').update({ ...rest, updated_at: Date.now() }).eq('id', sceneId);
+        if (error) throw error;
       }
     },
-    [updateMutation]
+    []
   );
 
   const removeScene = useCallback(
@@ -208,10 +187,11 @@ export function useScenes(
       if (inj) {
         await inj.remove(sceneId);
       } else {
-        await removeMutation({ id: sceneId });
+        const { error } = await supabase.from('scenes').delete().eq('id', sceneId);
+        if (error) throw error;
       }
     },
-    [removeMutation]
+    []
   );
 
   const activateScene = useCallback(
@@ -231,10 +211,13 @@ export function useScenes(
       if (inj) {
         await inj.reorder(updates);
       } else {
-        await reorderMutation({ updates });
+        for (const { id, sort_order } of updates) {
+          const { error } = await supabase.from('scenes').update({ sort_order, updated_at: Date.now() }).eq('id', id);
+          if (error) throw error;
+        }
       }
     },
-    [reorderMutation]
+    []
   );
 
   return { scenes, loading, addScene, updateScene, removeScene, reorderScenes, activateScene };

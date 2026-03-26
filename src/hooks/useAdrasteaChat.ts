@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useMutation } from 'convex/react';
-import { useAuthToken } from '@convex-dev/auth/react';
-import { api } from '../../convex/_generated/api';
+import { supabase } from '../services/supabase';
+import { useSupabaseQuery } from './useSupabaseQuery';
 import type { ChatMessage } from '../types/adrastea.types';
 import type { ChatInject } from '../types/adrastea-persistence';
 import { rollDice } from '../services/diceRoller';
@@ -13,16 +12,16 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
-  const messagesData = useQuery(
-    api.messages.list,
-    inject ? 'skip' : { room_id: roomId }
-  );
-  const sendMutation = useMutation(api.messages.send);
-  const clearMutation = useMutation(api.messages.clearByRoom);
-  const openSecretMutation = useMutation(api.messages.openSecret);
-  const token = useAuthToken();
+  const messagesQuery = useSupabaseQuery<ChatMessage>({
+    table: 'messages',
+    columns: 'id,room_id,sender_name,sender_uid,sender_avatar,content,message_type,channel,allowed_user_ids,created_at',
+    roomId,
+    filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(100),
+    enabled: !inject,
+  });
+  const messagesData = messagesQuery.data;
 
-  const loading = inject ? false : messagesData === undefined;
+  const loading = inject ? false : messagesQuery.loading;
 
   // ローカルキャッシュ: Convex から消えたメッセージも保持（archive 対策）
   const localCacheRef = useRef<Map<string, ChatMessage>>(new Map());
@@ -31,26 +30,28 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // token がない場合（ゲスト等）は D1 から取得できないので hasMore を false に
+  // auth がない場合（ゲスト等）は D1 から取得できないので hasMore を false に
   useEffect(() => {
-    if (!token) setHasMore(false);
-  }, [token]);
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) setHasMore(false);
+    });
+  }, []);
 
-  // Convex メッセージを ChatMessage に変換してキャッシュにマージ
-  const convexMessages: ChatMessage[] = useMemo(() => {
+  // Supabase メッセージを ChatMessage に変換してキャッシュにマージ
+  const supabaseMessages: ChatMessage[] = useMemo(() => {
     if (inject) return [];
     if (!messagesData) return [];
     const msgs = [...messagesData].reverse().map((m) => ({
       id: m.id,
       room_id: m.room_id,
       sender_name: m.sender_name,
-      sender_uid: (m as any).sender_uid ?? undefined,
-      sender_avatar: (m as any).sender_avatar ?? null,
+      sender_uid: m.sender_uid ?? undefined,
+      sender_avatar: m.sender_avatar ?? null,
       content: m.content,
       message_type: m.message_type as ChatMessage['message_type'],
-      channel: (m as any).channel ?? 'main',
-      allowed_user_ids: (m as any).allowed_user_ids,
-      created_at: m.created_at ?? m._creationTime,
+      channel: m.channel ?? 'main',
+      allowed_user_ids: m.allowed_user_ids,
+      created_at: m.created_at,
     }));
     // キャッシュに追加
     for (const msg of msgs) {
@@ -59,7 +60,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     return msgs;
   }, [inject, messagesData]);
 
-  // 全メッセージ = Convex キャッシュ + D1 アーカイブ（ID重複排除、created_at ソート）
+  // 全メッセージ = Supabase キャッシュ + D1 アーカイブ（ID重複排除、created_at ソート）
   // inject モードでは inject.data をそのまま返す
   const messages: ChatMessage[] = useMemo(() => {
     if (inject) return inject.data;
@@ -68,16 +69,16 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     for (const msg of archivedMessages) {
       merged.set(msg.id, msg);
     }
-    // ローカルキャッシュ（Convex 由来、上書き優先）
+    // ローカルキャッシュ（Supabase 由来、上書き優先）
     for (const [id, msg] of localCacheRef.current) {
       merged.set(id, msg);
     }
-    // Convex の最新データで上書き
-    for (const msg of convexMessages) {
+    // Supabase の最新データで上書き
+    for (const msg of supabaseMessages) {
       merged.set(msg.id, msg);
     }
     return Array.from(merged.values()).sort((a, b) => a.created_at - b.created_at);
-  }, [inject, convexMessages, archivedMessages]);
+  }, [inject, supabaseMessages, archivedMessages]);
 
   const sendMessage = useCallback(
     async (
@@ -109,7 +110,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           if (result.isSecret && senderUid) {
             // 1. 全員向け通知メッセージ（allowed_user_ids なし）
             const notifyId = genId();
-            await sendMutation({
+            await supabase.from('messages').insert([{
               id: notifyId,
               room_id: roomId,
               sender_name: senderName,
@@ -118,7 +119,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               sender_uid: senderUid,
               sender_avatar: senderAvatar,
               channel,
-            });
+            }]);
 
             // 2. 送信者のみ向け結果メッセージ
             finalAllowedUserIds = [senderUid];
@@ -126,7 +127,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         }
 
         const id = genId();
-        await sendMutation({
+        await supabase.from('messages').insert([{
           id,
           room_id: roomId,
           sender_name: senderName,
@@ -136,19 +137,21 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_avatar: senderAvatar,
           channel,
           allowed_user_ids: finalAllowedUserIds,
-        });
+        }]);
         return { id, room_id: roomId, sender_name: senderName, content: finalContent, message_type: finalType, channel, allowed_user_ids: finalAllowedUserIds, created_at: Date.now() } as ChatMessage;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;
       }
     },
-    [roomId, sendMutation]
+    [roomId]
   );
 
   const loadMore = useCallback(async () => {
     if (inject) return;
-    if (loadingMore || !hasMore || !token) return;
+    if (loadingMore || !hasMore) return;
+    const { data: session } = await supabase.auth.getSession();
+    if (!session) return;
     setLoadingMore(true);
     try {
       // 最古のメッセージの created_at をカーソルにする
@@ -162,7 +165,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       const res = await fetch(
         `${API_BASE_URL}/api/rooms/${roomId}/messages?${params}`,
         {
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
         }
       );
 
@@ -195,18 +198,19 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     } finally {
       setLoadingMore(false);
     }
-  }, [inject, loadingMore, hasMore, token, messages, roomId]);
+  }, [inject, loadingMore, hasMore, messages, roomId]);
 
   const clearMessages = useCallback(async () => {
     if (injectRef.current) return;
-    // Convex のメッセージを削除
-    await clearMutation({ room_id: roomId });
+    // Supabase のメッセージを削除
+    await supabase.from('messages').delete().eq('room_id', roomId);
     // D1 アーカイブも削除
-    if (token) {
+    const { data: session } = await supabase.auth.getSession();
+    if (session) {
       try {
         await fetch(`${API_BASE_URL}/api/rooms/${roomId}/messages`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { Authorization: `Bearer ${session.session?.access_token}` },
         });
       } catch (e) {
         console.error('D1 メッセージ削除失敗:', e);
@@ -214,13 +218,13 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     }
     localCacheRef.current.clear();
     setArchivedMessages([]);
-  }, [roomId, clearMutation, token]);
+  }, [roomId]);
 
   const openSecretDice = useCallback(
     async (messageId: string) => {
-      await openSecretMutation({ id: messageId });
+      await supabase.from('messages').update({ allowed_user_ids: null }).eq('id', messageId);
     },
-    [openSecretMutation]
+    []
   );
 
   return {

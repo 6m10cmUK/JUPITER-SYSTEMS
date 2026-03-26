@@ -117,13 +117,8 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeObject,
     reorderObjects,
     batchUpdateSort,
-    injectOptimistic,
   } = useObjects(roomId, effectiveSceneId);
 
-  // objectsCreatedRef に injectOptimistic を設定
-  useEffect(() => {
-    objectsCreatedRef.current = injectOptimistic;
-  }, [injectOptimistic]);
 
   // NOTE: scenarioTexts と cutins は AdrasteaContext で管理される
   // （lazy loading のため、UIState の activePanels に依存）
@@ -370,7 +365,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       removeObject: guardedRemoveObject,
       reorderObjects: guardedReorderObjects,
       batchUpdateSort: guardedBatchSort,
-      injectOptimistic,
 
       // ScenarioTexts (lazy-loaded, provided by AdrasteaContext)
       scenarioTexts: [] as any,
@@ -438,7 +432,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       guardedRemoveObject,
       guardedReorderObjects,
       guardedBatchSort,
-      injectOptimistic,
       bgms,
       withPermission,
       addBgm,

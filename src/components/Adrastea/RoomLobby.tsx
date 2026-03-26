@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../../config/adrastea';
 import { theme } from '../../styles/theme';
-import { useRooms, type Room } from '../../hooks/useRooms';
+import { useRooms, type RoomUI } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
 import { AdModal, AdInput, AdButton, AdComboBox } from './ui/AdComponents';
@@ -57,7 +57,7 @@ function SortableRoomCard({
   onDelete,
   onShare,
 }: {
-  room: Room;
+  room: RoomUI;
   diceSystemName: string | null;
   onEnter: () => void;
   onEdit: () => void;
@@ -257,9 +257,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   const { rooms, loading, deleteRoom, updateRoom, reorderRooms, addRoom } = useRooms(user?.uid);
   const [diceSystems, setDiceSystems] = useState<{ id: string; name: string }[]>(cachedSystems ?? []);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingRoom, setEditingRoom] = useState<Room | null>(null);
+  const [editingRoom, setEditingRoom] = useState<RoomUI | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [shareRoom, setShareRoom] = useState<Room | null>(null);
+  const [shareRoom, setShareRoom] = useState<RoomUI | null>(null);
   const [copied, setCopied] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
 
@@ -327,7 +327,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   };
 
   // ── 削除 ──
-  const [deleteTarget, setDeleteTarget] = useState<Room | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<RoomUI | null>(null);
 
   const confirmDelete = () => {
     if (!deleteTarget) return;
@@ -336,7 +336,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   };
 
   // ── 編集モーダル開く ──
-  const openEditModal = (room: Room) => {
+  const openEditModal = (room: RoomUI) => {
     setEditingRoom(room);
     setEditName(room.name);
     setEditDice(room.dice_system);
