@@ -235,6 +235,19 @@ const Adrastea: React.FC = () => {
     document.title = 'Adrastea';
   }, []);
 
+  // ルーム入室時に last_accessed_at を更新
+  useEffect(() => {
+    if (roomData && !roomData.archived && roomId) {
+      (async () => {
+        try {
+          await supabase.from('rooms').update({ last_accessed_at: Date.now() }).eq('id', roomId);
+        } catch (err) {
+          console.error('Failed to update last_accessed_at:', err);
+        }
+      })();
+    }
+  }, [roomData?.id, roomId]);
+
   // ログイン後に元のURLへ復帰
   useEffect(() => {
     if (!user) return;
