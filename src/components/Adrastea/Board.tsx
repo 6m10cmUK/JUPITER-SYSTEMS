@@ -276,11 +276,11 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
   const { assets } = useAssets();
   const bgImageUrl = useMemo(() => {
     const color = bgObject?.background_color;
-    if (color && color !== 'transparent') return colorToDataUrl(color);
+    if (bgObject?.color_enabled && color) return colorToDataUrl(color);
     const assetId = bgObject?.image_asset_id ?? null;
     if (!assetId) return null;
     return assets.find(a => a.id === assetId)?.url ?? null;
-  }, [bgObject?.image_asset_id, bgObject?.background_color, assets]);
+  }, [bgObject?.image_asset_id, bgObject?.background_color, bgObject?.color_enabled, assets]);
 
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });
   if (bgObject) {

@@ -893,7 +893,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
   baseZIndex?: number;
   assets?: Asset[];
 }) {
-  const isSolid = !!(obj.background_color && obj.background_color !== 'transparent');
+  const isSolid = !!obj.color_enabled;
   const blobSrc = useAnimatedBlobSrc(
     isSolid ? colorToDataUrl(obj.background_color!) : resolveAssetId(obj.image_asset_id)
   );

@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
@@ -65,6 +65,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       image_asset_id:     { immediate: true, defaultValue: null },
       image_fit:          { immediate: true, defaultValue: 'contain' },
       background_color:   { immediate: true, defaultValue: '#1e1e2e' },
+      color_enabled:      { immediate: true, defaultValue: false },
       auto_size:          { immediate: true, defaultValue: true },
       text_align:         { immediate: true, defaultValue: 'left' },
       text_vertical_align: { immediate: true, defaultValue: 'top' },
@@ -85,8 +86,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         data.x = s.x;
         data.y = s.y;
         data.image_asset_id = s.image_asset_id || null;
-        data.background_color = s.background_color && s.background_color !== 'transparent'
-          ? s.background_color : 'transparent';
+        data.color_enabled = s.color_enabled ?? false;
+        data.background_color = (s.background_color as string) || '#1e1e2e';
         data.width = s.width;
         data.height = s.height;
         data.image_fit = s.image_fit;
@@ -104,8 +105,8 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         data.text_align = s.text_align;
         data.text_vertical_align = s.text_vertical_align;
         data.text_color = s.text_color;
-        data.background_color = s.background_color && s.background_color !== 'transparent'
-          ? s.background_color : 'transparent';
+        data.color_enabled = s.color_enabled ?? false;
+        data.background_color = (s.background_color as string) || '#1e1e2e';
         data.width = s.width;
         data.height = s.height;
         data.position_locked = s.position_locked;
@@ -116,15 +117,15 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         data.x = s.x;
         data.y = s.y;
         data.image_asset_id = s.image_asset_id || null;
-        data.background_color = s.background_color && s.background_color !== 'transparent'
-          ? s.background_color : 'transparent';
+        data.color_enabled = s.color_enabled ?? false;
+        data.background_color = (s.background_color as string) || '#666666';
         data.width = s.width;
         data.height = s.height;
         data.image_fit = s.image_fit;
       } else if (type === 'background') {
         data.image_asset_id = s.image_asset_id || null;
-        data.background_color = s.background_color && s.background_color !== 'transparent'
-          ? s.background_color : 'transparent';
+        data.color_enabled = s.color_enabled ?? false;
+        data.background_color = (s.background_color as string) || '#333333';
         data.opacity = s.opacity;
         data.visible = s.visible;
       }
@@ -135,11 +136,9 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
     },
   });
 
-  const bgEnabled = !!state.background_color && (state.background_color as string) !== 'transparent';
+  const bgEnabled = !!(state.color_enabled);
   const isBackground = (state.type as string) === 'background';
   const isForeground = (state.type as string) === 'foreground';
-  // 画像 ⇄ 単色の往復で前の色を復元するための ref
-  const savedBgColorRef = useRef<string>(bgEnabled ? (state.background_color as string) : '#1e1e2e');
 
   if (object === undefined) return null;
 
@@ -189,12 +188,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 { value: 'color', label: '単色' },
               ]}
               onChange={(v) => {
-                if (v === 'color') {
-                  set('background_color', savedBgColorRef.current);
-                } else {
-                  if (bgEnabled) savedBgColorRef.current = state.background_color as string;
-                  set('background_color', 'transparent');
-                }
+                set('color_enabled', v === 'color');
               }}
             />
           </AdSection>
@@ -284,7 +278,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AdSection label="背景色">
                 <AdCheckbox
                   checked={bgEnabled}
-                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
+                  onChange={(v) => set('color_enabled', v)}
                   label="背景色を使用"
                 />
                 {bgEnabled && (
@@ -473,7 +467,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AdSection label="背景色">
                 <AdCheckbox
                   checked={bgEnabled}
-                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
+                  onChange={(v) => set('color_enabled', v)}
                   label="背景色を使用"
                 />
                 {bgEnabled && (
@@ -543,12 +537,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                     { value: 'color', label: '単色' },
                   ]}
                   onChange={(v) => {
-                    if (v === 'color') {
-                      set('background_color', savedBgColorRef.current);
-                    } else {
-                      if (bgEnabled) savedBgColorRef.current = state.background_color as string;
-                      set('background_color', 'transparent');
-                    }
+                    set('color_enabled', v === 'color');
                   }}
                 />
               </AdSection>
