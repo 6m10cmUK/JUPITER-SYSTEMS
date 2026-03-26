@@ -221,7 +221,7 @@ export const openSecret = mutation({
 
     const msg = await ctx.db
       .query("messages")
-      .filter((q) => q.eq(q.field("id"), args.id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.id))
       .first();
     if (!msg) throw new Error("Message not found");
 

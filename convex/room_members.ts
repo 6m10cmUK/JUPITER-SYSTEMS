@@ -37,7 +37,7 @@ export const join = mutation({
 
     const room = await ctx.db
       .query("rooms")
-      .filter((q) => q.eq(q.field("id"), args.room_id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.room_id))
       .first();
 
     if (!room) {

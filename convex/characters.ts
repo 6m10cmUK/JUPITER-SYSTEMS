@@ -46,7 +46,7 @@ export const getBase = query({
   handler: async (ctx, args) => {
     return ctx.db
       .query("characters_base")
-      .filter((q) => q.eq(q.field("id"), args.id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.id))
       .first();
   },
 });
@@ -162,7 +162,7 @@ export const updateStats = mutation({
     const { id, ...updates } = args;
     const doc = await ctx.db
       .query("characters_stats")
-      .filter((q) => q.eq(q.field("id"), id))
+      .withIndex("by_custom_id", (q) => q.eq("id", id))
       .first();
     if (!doc) throw new Error("Character stats not found");
 
@@ -194,7 +194,7 @@ export const moveStats = mutation({
     const { id, ...updates } = args;
     const doc = await ctx.db
       .query("characters_stats")
-      .filter((q) => q.eq(q.field("id"), id))
+      .withIndex("by_custom_id", (q) => q.eq("id", id))
       .first();
     if (!doc) throw new Error("Character stats not found");
 
@@ -224,14 +224,14 @@ export const updateBase = mutation({
     const { id, ...updates } = args;
     const doc = await ctx.db
       .query("characters_base")
-      .filter((q) => q.eq(q.field("id"), id))
+      .withIndex("by_custom_id", (q) => q.eq("id", id))
       .first();
     if (!doc) throw new Error("Character base not found");
 
     // 対応する characters_stats を取得してオーナーを確認
     const statDoc = await ctx.db
       .query("characters_stats")
-      .filter((q) => q.eq(q.field("id"), id))
+      .withIndex("by_custom_id", (q) => q.eq("id", id))
       .first();
 
     const userId = getUserId(identity);
@@ -258,7 +258,7 @@ export const remove = mutation({
     // Delete from characters_stats
     const statDoc = await ctx.db
       .query("characters_stats")
-      .filter((q) => q.eq(q.field("id"), args.id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.id))
       .first();
     if (statDoc) {
       const userId = getUserId(identity);
@@ -278,7 +278,7 @@ export const remove = mutation({
     // Delete from characters_base
     const baseDoc = await ctx.db
       .query("characters_base")
-      .filter((q) => q.eq(q.field("id"), args.id))
+      .withIndex("by_custom_id", (q) => q.eq("id", args.id))
       .first();
     if (baseDoc) await ctx.db.delete(baseDoc._id);
   },
