@@ -28,3 +28,9 @@ bucket_name = "adrastea-assets-staging"
 binding = "DB"
 database_name = "adrastea-db-staging"
 database_id = "85dbbfe6-be34-4f1c-82a3-42d938053afa"
+
+[triggers]
+crons = ["0 0 * * 3", "0 0 * * 6"]
+
+[env.staging.triggers]
+crons = ["0 0 * * 3", "0 0 * * 6"]

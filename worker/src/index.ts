@@ -3,12 +3,11 @@
  *
  * - R2 ファイルアップロード/配信
  * - D1 ユーザー/ルーム/アセット管理
- * - Google OAuth2 認証 + 自前JWT
+ * - Supabase Auth (JWT HS256)
  * - WebRTC シグナリング (KV polling)
  * - 使用量制御 (KV カウンター)
  */
 
-import { handleAuth } from './routes/auth';
 import { handleRooms } from './routes/rooms';
 import { handleMessages } from './routes/messages';
 import { handleAssets } from './routes/assets';
@@ -18,39 +17,6 @@ import { corsHeaders } from './utils/cors';
 import { checkRateLimit } from './utils/rateLimit';
 import { verifyJwt } from './utils/jwt';
 import type { Env, AuthUser } from './types';
-
-async function handleAuthMe(
-  request: Request,
-  env: Env,
-  headers: Record<string, string>,
-  user: AuthUser,
-): Promise<Response> {
-  // GET /auth/me — プロフィール取得
-  if (request.method === 'GET') {
-    const row = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(user.uid).first();
-    if (!row) {
-      return Response.json({ uid: user.uid, display_name: user.displayName, avatar_url: user.avatarUrl }, { headers });
-    }
-    return Response.json(row, { headers });
-  }
-
-  // PATCH /auth/me — プロフィール更新
-  if (request.method === 'PATCH') {
-    const body = (await request.json()) as Record<string, unknown>;
-    const sets: string[] = ['updated_at = ?'];
-    const vals: unknown[] = [Date.now()];
-
-    if (body.display_name !== undefined) { sets.push('display_name = ?'); vals.push(body.display_name); }
-    if (body.avatar_url !== undefined) { sets.push('avatar_url = ?'); vals.push(body.avatar_url); }
-    if (body.encryption_key !== undefined) { sets.push('encryption_key = ?'); vals.push(body.encryption_key); }
-
-    vals.push(user.uid);
-    await env.DB.prepare(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`).bind(...vals).run();
-    return Response.json({ ok: true }, { headers });
-  }
-
-  return new Response('Method Not Allowed', { status: 405, headers });
-}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -68,6 +34,22 @@ export default {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return new Response(JSON.stringify({ error: msg }), { status: 500, headers: { ...headers, 'Content-Type': 'application/json' } });
+    }
+  },
+
+  // Supabase pause 予防 ping（週2回実行）
+  async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+    if (!env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return;
+    try {
+      const res = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?select=id&limit=1`, {
+        headers: {
+          'apikey': env.SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${env.SUPABASE_ANON_KEY}`,
+        },
+      });
+      console.log(`Supabase ping: ${res.status}`);
+    } catch (err) {
+      console.error('Supabase ping failed:', err);
     }
   },
 };
@@ -90,9 +72,9 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
       return handleR2.getFile(request, env, headers);
     }
 
-    // --- 認証エンドポイント（認証不要） ---
-    if (url.pathname.startsWith('/auth/') && !url.pathname.startsWith('/auth/me')) {
-      return handleAuth(request, url, env, headers);
+    // --- 認証エンドポイント（Supabase Auth が担当、Worker では不要） ---
+    if (url.pathname.startsWith('/auth/')) {
+      return new Response('Auth endpoint deprecated (use Supabase Auth)', { status: 410, headers });
     }
 
     // --- Messages Archive (JWT or X-Archive-Secret) ---
@@ -108,14 +90,9 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7), env.CONVEX_SITE_URL);
+    const user = await verifyJwt(authHeader.slice(7), env.SUPABASE_JWT_SECRET);
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
-    }
-
-    // --- /auth/me（認証必須） ---
-    if (url.pathname === '/auth/me') {
-      return handleAuthMe(request, env, headers, user);
     }
 
     // --- R2 アップロード/削除 ---

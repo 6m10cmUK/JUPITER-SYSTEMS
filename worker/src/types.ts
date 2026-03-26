@@ -2,11 +2,10 @@ export interface Env {
   R2_BUCKET: R2Bucket;
   DB: D1Database;
   ALLOWED_ORIGINS: string;
-  JWT_SECRET: string;
-  GOOGLE_CLIENT_ID: string;
-  GOOGLE_CLIENT_SECRET: string;
+  SUPABASE_JWT_SECRET: string;
   ADMIN_USER_IDS?: string;
-  CONVEX_SITE_URL?: string;
+  SUPABASE_URL?: string;
+  SUPABASE_ANON_KEY?: string;
   ARCHIVE_SECRET?: string;
 }
 
