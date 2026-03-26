@@ -453,21 +453,23 @@ export function ObjectLayerList({
             }}>
               {React.createElement(TYPE_ICON_COMPONENTS[obj.type], { size: 12 })}
             </span>
-            {obj.image_asset_id && resolveAssetId(obj.image_asset_id) && (
+            {obj.background_color && obj.background_color !== 'transparent' ? (
+              <div style={{
+                flexShrink: 0, width: '20px', height: '20px',
+                borderRadius: '2px', border: `1px solid ${theme.border}`,
+                background: obj.background_color,
+              }} />
+            ) : obj.image_asset_id && resolveAssetId(obj.image_asset_id) ? (
               <img
                 src={resolveAssetId(obj.image_asset_id) || ''}
                 alt=""
                 style={{
-                  flexShrink: 0,
-                  width: '20px',
-                  height: '20px',
-                  objectFit: 'contain',
-                  objectPosition: 'center center',
-                  borderRadius: '2px',
-                  border: `1px solid ${theme.border}`,
+                  flexShrink: 0, width: '20px', height: '20px',
+                  objectFit: 'contain', objectPosition: 'center center',
+                  borderRadius: '2px', border: `1px solid ${theme.border}`,
                 }}
               />
-            )}
+            ) : null}
             {renamingId === obj.id ? (
               <input
                 value={renameValue}
