@@ -1,8 +1,5 @@
 import type { Env, AuthUser } from '../types';
-
-function json(data: unknown, headers: Record<string, string>, status = 200): Response {
-  return Response.json(data, { status, headers: { ...headers, 'Content-Type': 'application/json' } });
-}
+import { json } from '../utils/json';
 
 export async function handleRooms(
   request: Request,
