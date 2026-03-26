@@ -179,25 +179,35 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
       {/* background: 画像・グリッドの編集 */}
       {isBackground && !isNew && (
         <>
-          <AdSection title="背景画像">
-            <AssetPicker
-              currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
-              onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+          <AdSection>
+            <AdToggleButtons
+              value={bgEnabled ? 'color' : 'image'}
+              options={[
+                { value: 'image', label: '画像' },
+                { value: 'color', label: '単色' },
+              ]}
+              onChange={(v) => {
+                if (v === 'color') {
+                  set('image_asset_id', null);
+                  if (!bgEnabled) set('background_color', '#1e1e2e');
+                } else {
+                  set('background_color', 'transparent');
+                }
+              }}
             />
           </AdSection>
-
-          <AdSection label="背景色">
-            <AdCheckbox
-              checked={bgEnabled}
-              onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
-              label="背景色を使用"
-            />
-            {bgEnabled && (
-              <div style={{ marginTop: '6px' }}>
-                <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
-              </div>
-            )}
-          </AdSection>
+          {bgEnabled ? (
+            <AdSection label="背景色">
+              <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
+            </AdSection>
+          ) : (
+            <AdSection title="背景画像">
+              <AssetPicker
+                currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
+                onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+              />
+            </AdSection>
+          )}
 
           <div style={{ marginBottom: '12px' }}>
             <AdCheckbox
@@ -524,37 +534,50 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
           {(state.type as string) === 'foreground' && (
             <>
               <AdSection>
-                <AssetPicker
-                  label="前景画像"
-                  currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
-                  onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+                <AdToggleButtons
+                  value={bgEnabled ? 'color' : 'image'}
+                  options={[
+                    { value: 'image', label: '画像' },
+                    { value: 'color', label: '単色' },
+                  ]}
+                  onChange={(v) => {
+                    if (v === 'color') {
+                      set('image_asset_id', null);
+                      if (!bgEnabled) set('background_color', '#1e1e2e');
+                    } else {
+                      set('background_color', 'transparent');
+                    }
+                  }}
                 />
               </AdSection>
-              {(state.image_asset_id as string) && (
-                <AdSection label="画像表示">
-                  <AdToggleButtons
-                    value={state.image_fit as string}
-                    options={[
-                      { value: 'contain', label: '全体表示' },
-                      { value: 'cover', label: 'トリミング' },
-                      { value: 'stretch', label: '引き伸ばし' },
-                    ]}
-                    onChange={(v) => set('image_fit', v)}
-                  />
+              {bgEnabled ? (
+                <AdSection label="前景色">
+                  <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
                 </AdSection>
+              ) : (
+                <>
+                  <AdSection>
+                    <AssetPicker
+                      label="前景画像"
+                      currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
+                      onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+                    />
+                  </AdSection>
+                  {(state.image_asset_id as string) && (
+                    <AdSection label="画像表示">
+                      <AdToggleButtons
+                        value={state.image_fit as string}
+                        options={[
+                          { value: 'contain', label: '全体表示' },
+                          { value: 'cover', label: 'トリミング' },
+                          { value: 'stretch', label: '引き伸ばし' },
+                        ]}
+                        onChange={(v) => set('image_fit', v)}
+                      />
+                    </AdSection>
+                  )}
+                </>
               )}
-              <AdSection label="前景色">
-                <AdCheckbox
-                  checked={bgEnabled}
-                  onChange={(v) => set('background_color', v ? '#1e1e2e' : 'transparent')}
-                  label="前景色を使用"
-                />
-                {bgEnabled && (
-                  <div style={{ marginTop: '6px' }}>
-                    <AdColorPicker value={state.background_color as string} onChange={(c) => set('background_color', c)} enableAlpha />
-                  </div>
-                )}
-              </AdSection>
               <AdSection label="位置">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
