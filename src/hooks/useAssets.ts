@@ -3,6 +3,7 @@ import type { Asset } from '../types/adrastea.types';
 import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';
 import { apiFetch } from '../config/api';
+import { supabase } from '../services/supabase';
 
 // モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
 let assetCache: { uid: string; assets: Asset[] } | null = null;
@@ -62,18 +63,14 @@ export function useAssets(options?: { disabled?: boolean }) {
     }
     setLoading(true);
     try {
-      const res = await apiFetch('/api/assets', undefined, token ?? undefined);
-      if (!res.ok) {
-        if (res.status === 401) {
-          console.warn('[useAssets] 401 Unauthorized - token expired or invalid');
-          setAssets([]);
-          setLoading(false);
-          return;
-        }
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const data: Asset[] = await res.json();
-      setAssets(data);
+      const { data, error: fetchError } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('owner_id', uid)
+        .order('created_at', { ascending: false });
+      if (fetchError) throw fetchError;
+      const next = (data ?? []).map((a: any) => ({ ...a, tags: a.tags ?? [] })) as Asset[];
+      setAssets(next);
     } catch (error) {
       console.error('アセットの取得に失敗:', error);
     } finally {
@@ -90,18 +87,13 @@ export function useAssets(options?: { disabled?: boolean }) {
 
       pendingFetches.add(assetId);
       try {
-        const res = await apiFetch(`/api/assets/${assetId}`, undefined, token ?? undefined);
-        if (!res.ok) {
-          if (res.status === 401) {
-            console.warn(`[useAssets] 401 Unauthorized for asset ${assetId}`);
-          } else {
-            console.error(`[useAssets] HTTP ${res.status} for asset ${assetId}`);
-          }
-          return;
-        }
-        const data = await res.json();
-        if (!data?.id) return;
-        const asset: Asset = { ...data, tags: data.tags ?? [] };
+        const { data: assetData, error: assetError } = await supabase
+          .from('assets')
+          .select('*')
+          .eq('id', assetId)
+          .single();
+        if (assetError || !assetData) return;
+        const asset: Asset = { ...assetData, tags: assetData.tags ?? [] };
         setAssets((prev) => {
           // 既に存在する場合はスキップ
           if (prev.some((a) => a.id === asset.id)) return prev;
@@ -172,33 +164,32 @@ export function useAssets(options?: { disabled?: boolean }) {
 
       const result = await uploadAssetToR2(file, uid, token);
       const title = file.name;
-      let res: Response;
       try {
-        res = await apiFetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: result.url,
-            r2_key: result.r2_key,
-            filename: file.name,
-            title,
-            size_bytes: result.size_bytes,
-            width: result.width,
-            height: result.height,
-            tags: [],
-            asset_type: 'image',
-          }),
-        }, token);
+        const { data: insertedAsset, error: insertError } = await supabase.from('assets').insert({
+          id: crypto.randomUUID(),
+          owner_id: uid,
+          url: result.url,
+          r2_key: result.r2_key,
+          filename: file.name,
+          title,
+          size_bytes: result.size_bytes,
+          width: result.width,
+          height: result.height,
+          tags: [],
+          asset_type: 'image',
+          created_at: Date.now(),
+        }).select().single();
+        if (insertError) throw insertError;
+        const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
+        setAssets((prev) => [created, ...prev]);
+        return created;
       } catch (e) {
-        // D1登録失敗 → R2ファイルを削除してロールバック
+        // Supabase登録失敗 → R2ファイルを削除してロールバック
         await deleteR2File(result.r2_key, token).catch((err) => {
           console.error('R2削除失敗（アセット登録ロールバック中）:', err);
         });
         throw e;
       }
-      const created: Asset = await res.json();
-      setAssets((prev) => [created, ...prev]);
-      return created;
     },
     [uid, token, disabled]
   );
@@ -231,32 +222,31 @@ export function useAssets(options?: { disabled?: boolean }) {
 
       const result = await uploadAudioAssetToR2(file, uid, token);
       const title = file.name;
-      let res: Response;
       try {
-        res = await apiFetch('/api/assets', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            url: result.url,
-            r2_key: result.r2_key,
-            filename: file.name,
-            title,
-            size_bytes: result.size_bytes,
-            width: 0,
-            height: 0,
-            tags: [],
-            asset_type: 'audio',
-          }),
-        }, token);
+        const { data: insertedAsset, error: insertError } = await supabase.from('assets').insert({
+          id: crypto.randomUUID(),
+          owner_id: uid,
+          url: result.url,
+          r2_key: result.r2_key,
+          filename: file.name,
+          title,
+          size_bytes: result.size_bytes,
+          width: 0,
+          height: 0,
+          tags: [],
+          asset_type: 'audio',
+          created_at: Date.now(),
+        }).select().single();
+        if (insertError) throw insertError;
+        const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
+        setAssets((prev) => [created, ...prev]);
+        return created;
       } catch (e) {
         await deleteR2File(result.r2_key, token).catch((err) => {
           console.error('R2削除失敗（オーディオアセット登録ロールバック中）:', err);
         });
         throw e;
       }
-      const created: Asset = await res.json();
-      setAssets((prev) => [created, ...prev]);
-      return created;
     },
     [uid, token, disabled]
   );
@@ -292,25 +282,25 @@ export function useAssets(options?: { disabled?: boolean }) {
         return asset;
       }
 
-      // 本番: D1に登録
+      // 本番: Supabaseに登録
       if (!uid || !token) return null;
 
-      const res = await apiFetch('/api/assets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: normalizedUrl,
-          r2_key: '',
-          filename,
-          title,
-          size_bytes: 0,
-          width: 0,
-          height: 0,
-          tags: [],
-          asset_type: assetType,
-        }),
-      }, token);
-      const created: Asset = await res.json();
+      const { data: insertedAsset, error: insertError } = await supabase.from('assets').insert({
+        id: crypto.randomUUID(),
+        owner_id: uid,
+        url: normalizedUrl,
+        r2_key: '',
+        filename,
+        title,
+        size_bytes: 0,
+        width: 0,
+        height: 0,
+        tags: [],
+        asset_type: assetType,
+        created_at: Date.now(),
+      }).select().single();
+      if (insertError) throw insertError;
+      const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
       setAssets((prev) => [created, ...prev]);
       return created;
     },
@@ -328,10 +318,16 @@ export function useAssets(options?: { disabled?: boolean }) {
       // 本番: API経由で削除
       if (!uid || !token) return;
 
-      await apiFetch(`/api/assets/${assetId}`, { method: 'DELETE' }, token);
+      // R2 ファイル削除は Worker API 経由（フロントから R2 直接操作不可）
+      const asset = assets.find(a => a.id === assetId);
+      if (asset?.r2_key) {
+        await apiFetch(`/delete?path=${encodeURIComponent(asset.r2_key)}`, { method: 'DELETE' }, token).catch(() => {});
+      }
+      // メタデータ削除は Supabase 直接
+      await supabase.from('assets').delete().eq('id', assetId);
       setAssets((prev) => prev.filter((a) => a.id !== assetId));
     },
-    [uid, token, disabled]
+    [uid, token, disabled, assets]
   );
 
   const updateAssetTags = useCallback(
@@ -345,11 +341,7 @@ export function useAssets(options?: { disabled?: boolean }) {
       // 本番: API経由で更新
       if (!uid || !token) return;
 
-      await apiFetch(`/api/assets/${assetId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags }),
-      }, token);
+      await supabase.from('assets').update({ tags }).eq('id', assetId);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, tags } : a)));
     },
     [uid, token, disabled]
@@ -366,11 +358,7 @@ export function useAssets(options?: { disabled?: boolean }) {
       // 本番: API経由で更新
       if (!uid || !token) return;
 
-      await apiFetch(`/api/assets/${assetId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title }),
-      }, token);
+      await supabase.from('assets').update({ title }).eq('id', assetId);
       setAssets((prev) => prev.map((a) => (a.id === assetId ? { ...a, title } : a)));
     },
     [uid, token, disabled]
