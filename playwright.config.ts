@@ -27,6 +27,15 @@ export default defineConfig({
       testMatch: /visual\.spec\.ts/,
       timeout: 60_000,
     },
+    {
+      name: 'e2e',
+      testMatch: /supabase-e2e\.spec\.ts/,
+      dependencies: ['setup'],
+      use: {
+        storageState: AUTH_FILE,
+        ignoreHTTPSErrors: true,
+      },
+    },
   ],
   webServer: {
     command: 'npm run dev',

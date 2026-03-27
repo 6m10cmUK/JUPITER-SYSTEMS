@@ -18,7 +18,7 @@ setup('authenticate', async ({ page }) => {
     console.log('⏰ 認証状態が24h超 — 再認証します');
   }
 
-  await page.goto('/adrastea');
+  await page.goto('/adrastea/');
   await page.waitForLoadState('networkidle');
 
   const googleBtn = page.getByRole('button', { name: /Google/i });
