@@ -20,9 +20,21 @@ export async function verifyJwt(token: string, jwtSecret: string): Promise<AuthU
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
 
     // HS256 で署名検証
+    // Supabase の JWT Secret は base64 エンコードされている場合がある
+    let keyData: ArrayBuffer;
+    try {
+      // base64 デコードを試みる
+      const binaryString = atob(jwtSecret);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) bytes[i] = binaryString.charCodeAt(i);
+      keyData = bytes.buffer;
+    } catch {
+      // base64 でなければ UTF-8 文字列として使う
+      keyData = new TextEncoder().encode(jwtSecret).buffer;
+    }
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(jwtSecret),
+      keyData,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify'],
