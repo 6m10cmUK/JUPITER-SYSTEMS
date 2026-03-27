@@ -9,8 +9,9 @@ export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
   use: {
-    baseURL: 'http://localhost:6100',
+    baseURL: 'https://localhost:6100',
     screenshot: 'only-on-failure',
+    ignoreHTTPSErrors: true,
   },
   projects: [
     {
