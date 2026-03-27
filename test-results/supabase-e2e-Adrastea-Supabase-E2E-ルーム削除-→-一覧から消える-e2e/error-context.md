@@ -1,0 +1,203 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Adrasteaα 0.2.0" [level=1] [ref=e5]:
+      - text: Adrastea
+      - generic [ref=e6]: α 0.2.0
+    - paragraph [ref=e7]: TRPGオンラインセッションツール
+    - generic [ref=e8]:
+      - button "プロフィール" [ref=e9] [cursor=pointer]:
+        - img "プロフィール" [ref=e10]
+      - button "ログアウト" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+        - text: ログアウト
+  - textbox "ルーム名・タグで検索..." [ref=e16]
+  - generic [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+        - text: ルームを作成
+      - button "🎲 テスト_1774578435488 2026/3/27" [ref=e21]:
+        - generic [ref=e23] [cursor=pointer]: 🎲
+        - generic [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]: テスト_1774578435488
+          - generic [ref=e26]: 2026/3/27
+        - generic [ref=e27]:
+          - button "共有" [ref=e28] [cursor=pointer]:
+            - img [ref=e29]
+          - button "編集" [ref=e35] [cursor=pointer]:
+            - img [ref=e36]
+          - button "削除" [ref=e39] [cursor=pointer]:
+            - img [ref=e40]
+      - button "🎲 テスト_1774578339775 2026/3/27" [ref=e43]:
+        - generic [ref=e45] [cursor=pointer]: 🎲
+        - generic [ref=e46] [cursor=pointer]:
+          - generic [ref=e47]: テスト_1774578339775
+          - generic [ref=e48]: 2026/3/27
+        - generic [ref=e49]:
+          - button "共有" [ref=e50] [cursor=pointer]:
+            - img [ref=e51]
+          - button "編集" [ref=e57] [cursor=pointer]:
+            - img [ref=e58]
+          - button "削除" [ref=e61] [cursor=pointer]:
+            - img [ref=e62]
+      - button "🎲 テスト_1774578271154 2026/3/27" [ref=e65]:
+        - generic [ref=e67] [cursor=pointer]: 🎲
+        - generic [ref=e68] [cursor=pointer]:
+          - generic [ref=e69]: テスト_1774578271154
+          - generic [ref=e70]: 2026/3/27
+        - generic [ref=e71]:
+          - button "共有" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+          - button "編集" [ref=e79] [cursor=pointer]:
+            - img [ref=e80]
+          - button "削除" [ref=e83] [cursor=pointer]:
+            - img [ref=e84]
+      - button "🎲 テスト_1774578227790 2026/3/27" [ref=e87]:
+        - generic [ref=e89] [cursor=pointer]: 🎲
+        - generic [ref=e90] [cursor=pointer]:
+          - generic [ref=e91]: テスト_1774578227790
+          - generic [ref=e92]: 2026/3/27
+        - generic [ref=e93]:
+          - button "共有" [ref=e94] [cursor=pointer]:
+            - img [ref=e95]
+          - button "編集" [ref=e101] [cursor=pointer]:
+            - img [ref=e102]
+          - button "削除" [ref=e105] [cursor=pointer]:
+            - img [ref=e106]
+      - button "🎲 テスト_1774572804130 2026/3/27" [ref=e109]:
+        - generic [ref=e111] [cursor=pointer]: 🎲
+        - generic [ref=e112] [cursor=pointer]:
+          - generic [ref=e113]: テスト_1774572804130
+          - generic [ref=e114]: 2026/3/27
+        - generic [ref=e115]:
+          - button "共有" [ref=e116] [cursor=pointer]:
+            - img [ref=e117]
+          - button "編集" [ref=e123] [cursor=pointer]:
+            - img [ref=e124]
+          - button "削除" [ref=e127] [cursor=pointer]:
+            - img [ref=e128]
+      - button "🎲 テスト_1774572764473 2026/3/27" [ref=e131]:
+        - generic [ref=e133] [cursor=pointer]: 🎲
+        - generic [ref=e134] [cursor=pointer]:
+          - generic [ref=e135]: テスト_1774572764473
+          - generic [ref=e136]: 2026/3/27
+        - generic [ref=e137]:
+          - button "共有" [ref=e138] [cursor=pointer]:
+            - img [ref=e139]
+          - button "編集" [ref=e145] [cursor=pointer]:
+            - img [ref=e146]
+          - button "削除" [ref=e149] [cursor=pointer]:
+            - img [ref=e150]
+      - button "🎲 テスト_1774572728488 2026/3/27" [ref=e153]:
+        - generic [ref=e155] [cursor=pointer]: 🎲
+        - generic [ref=e156] [cursor=pointer]:
+          - generic [ref=e157]: テスト_1774572728488
+          - generic [ref=e158]: 2026/3/27
+        - generic [ref=e159]:
+          - button "共有" [ref=e160] [cursor=pointer]:
+            - img [ref=e161]
+          - button "編集" [ref=e167] [cursor=pointer]:
+            - img [ref=e168]
+          - button "削除" [ref=e171] [cursor=pointer]:
+            - img [ref=e172]
+      - button "🎲 テスト_1774572673441 2026/3/27" [ref=e175]:
+        - generic [ref=e177] [cursor=pointer]: 🎲
+        - generic [ref=e178] [cursor=pointer]:
+          - generic [ref=e179]: テスト_1774572673441
+          - generic [ref=e180]: 2026/3/27
+        - generic [ref=e181]:
+          - button "共有" [ref=e182] [cursor=pointer]:
+            - img [ref=e183]
+          - button "編集" [ref=e189] [cursor=pointer]:
+            - img [ref=e190]
+          - button "削除" [ref=e193] [cursor=pointer]:
+            - img [ref=e194]
+      - button "🎲 テスト_1774572610477 2026/3/27" [ref=e197]:
+        - generic [ref=e199] [cursor=pointer]: 🎲
+        - generic [ref=e200] [cursor=pointer]:
+          - generic [ref=e201]: テスト_1774572610477
+          - generic [ref=e202]: 2026/3/27
+        - generic [ref=e203]:
+          - button "共有" [ref=e204] [cursor=pointer]:
+            - img [ref=e205]
+          - button "編集" [ref=e211] [cursor=pointer]:
+            - img [ref=e212]
+          - button "削除" [ref=e215] [cursor=pointer]:
+            - img [ref=e216]
+      - button "🎲 テスト_1774572533707 2026/3/27" [ref=e219]:
+        - generic [ref=e221] [cursor=pointer]: 🎲
+        - generic [ref=e222] [cursor=pointer]:
+          - generic [ref=e223]: テスト_1774572533707
+          - generic [ref=e224]: 2026/3/27
+        - generic [ref=e225]:
+          - button "共有" [ref=e226] [cursor=pointer]:
+            - img [ref=e227]
+          - button "編集" [ref=e233] [cursor=pointer]:
+            - img [ref=e234]
+          - button "削除" [ref=e237] [cursor=pointer]:
+            - img [ref=e238]
+      - button "🎲 テスト_1774572470877 2026/3/27" [ref=e241]:
+        - generic [ref=e243] [cursor=pointer]: 🎲
+        - generic [ref=e244] [cursor=pointer]:
+          - generic [ref=e245]: テスト_1774572470877
+          - generic [ref=e246]: 2026/3/27
+        - generic [ref=e247]:
+          - button "共有" [ref=e248] [cursor=pointer]:
+            - img [ref=e249]
+          - button "編集" [ref=e255] [cursor=pointer]:
+            - img [ref=e256]
+          - button "削除" [ref=e259] [cursor=pointer]:
+            - img [ref=e260]
+      - button "🎲 テスト_1774572441757 2026/3/27" [ref=e263]:
+        - generic [ref=e265] [cursor=pointer]: 🎲
+        - generic [ref=e266] [cursor=pointer]:
+          - generic [ref=e267]: テスト_1774572441757
+          - generic [ref=e268]: 2026/3/27
+        - generic [ref=e269]:
+          - button "共有" [ref=e270] [cursor=pointer]:
+            - img [ref=e271]
+          - button "編集" [ref=e277] [cursor=pointer]:
+            - img [ref=e278]
+          - button "削除" [ref=e281] [cursor=pointer]:
+            - img [ref=e282]
+      - button "🎲 テスト_1774572417198 2026/3/27" [ref=e285]:
+        - generic [ref=e287] [cursor=pointer]: 🎲
+        - generic [ref=e288] [cursor=pointer]:
+          - generic [ref=e289]: テスト_1774572417198
+          - generic [ref=e290]: 2026/3/27
+        - generic [ref=e291]:
+          - button "共有" [ref=e292] [cursor=pointer]:
+            - img [ref=e293]
+          - button "編集" [ref=e299] [cursor=pointer]:
+            - img [ref=e300]
+          - button "削除" [ref=e303] [cursor=pointer]:
+            - img [ref=e304]
+      - button "🎲 テスト_1774572374645 2026/3/27" [ref=e307]:
+        - generic [ref=e309] [cursor=pointer]: 🎲
+        - generic [ref=e310] [cursor=pointer]:
+          - generic [ref=e311]: テスト_1774572374645
+          - generic [ref=e312]: 2026/3/27
+        - generic [ref=e313]:
+          - button "共有" [ref=e314] [cursor=pointer]:
+            - img [ref=e315]
+          - button "編集" [ref=e321] [cursor=pointer]:
+            - img [ref=e322]
+          - button "削除" [ref=e325] [cursor=pointer]:
+            - img [ref=e326]
+      - button "🎲 テストルーム 2026/3/26" [ref=e329]:
+        - generic [ref=e331] [cursor=pointer]: 🎲
+        - generic [ref=e332] [cursor=pointer]:
+          - generic [ref=e333]: テストルーム
+          - generic [ref=e334]: 2026/3/26
+        - generic [ref=e335]:
+          - button "共有" [ref=e336] [cursor=pointer]:
+            - img [ref=e337]
+          - button "編集" [ref=e343] [cursor=pointer]:
+            - img [ref=e344]
+          - button "削除" [ref=e347] [cursor=pointer]:
+            - img [ref=e348]
+    - status [ref=e351]
+```
