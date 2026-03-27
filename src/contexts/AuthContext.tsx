@@ -97,7 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const user = supabaseUser ? authUserFromSupabase(supabaseUser) : null;
   const profile = supabaseUser ? profileFromSupabase(supabaseUser) : null;
   const onboarded = supabaseUser?.user_metadata?.onboarded ?? true;
-  const token = session?.access_token ?? null;
+  const token = session?.access_token || null;
 
   return (
     <AuthContext.Provider value={{
