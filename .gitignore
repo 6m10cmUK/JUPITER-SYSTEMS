@@ -68,3 +68,7 @@ public/pdf.js/
 e2e/.auth/.env.prod
 .env.prod
 e2e/.auth/
+
+.dev.vars*
+!.dev.vars.example
+!.env.example

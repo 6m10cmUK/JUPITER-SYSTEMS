@@ -2,7 +2,6 @@ export interface Env {
   R2_BUCKET: R2Bucket;
   DB: D1Database;
   ALLOWED_ORIGINS: string;
-  SUPABASE_JWT_SECRET: string;
   ADMIN_USER_IDS?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
