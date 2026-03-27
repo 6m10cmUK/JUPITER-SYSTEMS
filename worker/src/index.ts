@@ -231,7 +231,7 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response('Unauthorized', { status: 401, headers });
     }
-    const user = await verifyJwt(authHeader.slice(7), env.SUPABASE_JWT_SECRET);
+    const user = await verifyJwt(authHeader.slice(7), env.SUPABASE_URL ?? '');
     if (!user) {
       return new Response('Unauthorized', { status: 401, headers });
     }
