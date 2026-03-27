@@ -132,30 +132,27 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // ObjectLayerList の + ボタンを探す（title="追加"）
-    const objectPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('レイヤー').or(page.getByText('オブジェクト')) }).first();
-    if (await objectPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const addBtn = objectPanel.locator('button[title="追加"]').first();
-      if (await addBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await addBtn.click();
-        await page.waitForTimeout(500);
+    // ObjectLayerList の + ボタン（title="追加"）を直接探す
+    const addBtn = page.locator('button[title="追加"]').first();
+    if (await addBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      const layersBefore = await page.locator('[data-selection-panel]').count();
 
-        // ドロップダウンメニュー「シーン画像追加」
-        const addSceneImageOpt = page.getByText('シーン画像追加').first();
-        if (await addSceneImageOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await addSceneImageOpt.click();
-          await page.waitForTimeout(1500);
+      await addBtn.click();
+      await page.waitForTimeout(500);
 
-          // アセットライブラリモーダルが開く
-          const assetModal = page.locator('dialog, [role="dialog"]').first();
-          if (await assetModal.isVisible({ timeout: 2000 }).catch(() => false)) {
-            const closeBtn = page.getByRole('button', { name: /キャンセル|閉じる/ }).first();
-            if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-              await closeBtn.click();
-              await page.waitForTimeout(500);
-            }
-          } else {
-            test.skip();
+      // ドロップダウンメニュー「シーン画像追加」
+      const addSceneImageOpt = page.getByText('シーン画像追加').first();
+      if (await addSceneImageOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await addSceneImageOpt.click();
+        await page.waitForTimeout(1500);
+
+        // アセットライブラリモーダルが開く
+        const assetModal = page.locator('dialog, [role="dialog"]').first();
+        if (await assetModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+          const closeBtn = page.getByRole('button', { name: /キャンセル|閉じる/ }).first();
+          if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+            await closeBtn.click();
+            await page.waitForTimeout(500);
           }
         } else {
           test.skip();
@@ -174,30 +171,20 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
     await page.waitForTimeout(2000);
 
     // レイヤーパネルから「前景」を探す
-    const objectPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('レイヤー').or(page.getByText('オブジェクト')) }).first();
-    if (await objectPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const fgLayer = objectPanel.locator('div').filter({ hasText: '前景' }).first();
-      if (await fgLayer.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // 前景を選択
-        await fgLayer.click();
-        await page.waitForTimeout(300);
+    const fgLayer = page.locator('div').filter({ hasText: /^前景$/ }).first();
+    if (await fgLayer.isVisible({ timeout: 2000 }).catch(() => false)) {
+      // 前景を選択
+      await fgLayer.click();
+      await page.waitForTimeout(300);
 
-        // 可視性トグルボタン（目玉アイコン）を探す
-        const visibilityBtn = fgLayer.locator('button svg').first();
-        if (await visibilityBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-          // 前景の可視状態を取得
-          const visibilityToggleBtn = fgLayer.locator('button').filter({ has: visibilityBtn }).first();
-          if (await visibilityToggleBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await visibilityToggleBtn.click();
-            await page.waitForTimeout(500);
-            // トグルが成功したことを確認（再度クリック可能）
-            expect(await visibilityToggleBtn.isVisible({ timeout: 1000 }).catch(() => false)).toBeTruthy();
-          } else {
-            test.skip();
-          }
-        } else {
-          test.skip();
-        }
+      // 前景の行内から button を探し、その中の Eye アイコンをクリック
+      // Eye アイコンは button > svg 構造
+      const visibilityBtn = fgLayer.locator('button').first();
+      if (await visibilityBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await visibilityBtn.click();
+        await page.waitForTimeout(500);
+        // トグルが成功したことを確認（再度クリック可能）
+        expect(await visibilityBtn.isVisible({ timeout: 1000 }).catch(() => false)).toBeTruthy();
       } else {
         test.skip();
       }
@@ -216,11 +203,10 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
     // キャラクターパネルを探す
     const charPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('キャラクター') }).first();
     if (await charPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // パネルヘッダーの + ボタン（title="キャラクター追加"）
-      const addCharBtn = charPanel.locator('button').filter({ has: page.locator('button[style*="color"]') }).last();
-      const addCharBtnWithTitle = charPanel.locator('button').filter({ has: page.locator('svg') }).last();
+      // 追加前のキャラクター数を記録
+      const charItemsBefore = await charPanel.locator('[data-char-id]').count();
 
-      // title属性が「キャラクター追加」のボタンを探す
+      // title属性が「キャラクター追加」のボタンを探してクリック
       const buttons = await charPanel.locator('button').all();
       let foundAddBtn = false;
 
@@ -235,10 +221,9 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
       }
 
       if (foundAddBtn) {
-        // 新しいキャラクターが追加される（パネルに表示される）
-        // キャラクター数が増えたかを確認
-        const charItems = await charPanel.locator('[data-char-id]').count();
-        expect(charItems).toBeGreaterThan(0);
+        // 新しいキャラクターが追加されたことを確認（キャラクター数が増加）
+        const charItemsAfter = await charPanel.locator('[data-char-id]').count();
+        expect(charItemsAfter).toBeGreaterThan(charItemsBefore);
       } else {
         test.skip();
       }
@@ -254,25 +239,19 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // BGM パネルを探す（title="BGM"のアイコンを持つパネル）
-    const bgmPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('BGM') }).first();
-    if (await bgmPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // BGM パネルヘッダーの + ボタン（title="トラック追加"）
-      const addBgmBtn = bgmPanel.locator('button[title="トラック追加"]').first();
-      if (await addBgmBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await addBgmBtn.click();
-        await page.waitForTimeout(1500);
+    // BGM パネル内のトラック追加ボタン（title="トラック追加"）
+    const addBgmBtn = page.locator('button[title="トラック追加"]').first();
+    if (await addBgmBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await addBgmBtn.click();
+      await page.waitForTimeout(1500);
 
-        // アセットライブラリモーダルが開く
-        const assetModal = page.locator('dialog, [role="dialog"]').first();
-        if (await assetModal.isVisible({ timeout: 2000 }).catch(() => false)) {
-          const closeBtn = page.getByRole('button', { name: /キャンセル|閉じる/ }).first();
-          if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await closeBtn.click();
-            await page.waitForTimeout(500);
-          }
-        } else {
-          test.skip();
+      // アセットライブラリモーダルが開く
+      const assetModal = page.locator('dialog, [role="dialog"]').first();
+      if (await assetModal.isVisible({ timeout: 2000 }).catch(() => false)) {
+        const closeBtn = page.getByRole('button', { name: /キャンセル|閉じる/ }).first();
+        if (await closeBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+          await closeBtn.click();
+          await page.waitForTimeout(500);
         }
       } else {
         test.skip();
@@ -339,28 +318,14 @@ test.describe.serial('Adrastea 機能テスト (Tier 1)', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // トップバー（右上など）のアセットボタンを探す
-    // ボタンのaria-labelやtitle属性で「アセット」「Asset」を含むものを探す
-    const topBar = page.locator('header, nav, [role="toolbar"]').first();
-    if (await topBar.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const assetBtn = topBar.locator('button').filter({ has: page.locator('svg') }).filter({ hasText: /.*/ }).last();
-      if (await assetBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        const title = await assetBtn.getAttribute('title');
-        const ariaLabel = await assetBtn.getAttribute('aria-label');
+    // ツールバーの「アセットライブラリ」ボタン（title="アセットライブラリ"）
+    const assetBtn = page.locator('button[title="アセットライブラリ"]').first();
+    if (await assetBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await assetBtn.click();
+      await page.waitForTimeout(500);
 
-        if ((title && title.includes('アセット')) || (ariaLabel && ariaLabel.includes('アセット'))) {
-          await assetBtn.click();
-          await page.waitForTimeout(500);
-
-          // アセットライブラリモーダルが表示される
-          const assetModal = page.locator('dialog, [role="dialog"]').first();
-          await expect(assetModal).toBeVisible({ timeout: 3000 });
-        } else {
-          test.skip();
-        }
-      } else {
-        test.skip();
-      }
+      // アセットライブラリのタイトルが表示される
+      await expect(page.getByRole('heading', { name: 'アセットライブラリ' })).toBeVisible({ timeout: 3000 });
     } else {
       test.skip();
     }
