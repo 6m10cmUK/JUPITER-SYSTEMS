@@ -278,18 +278,32 @@ const Adrastea: React.FC = () => {
     if (roomId && user) {
       (async () => {
         try {
-          const { data } = await supabase
+          // 既存メンバーかチェック
+          const { data: existing } = await supabase
             .from('room_members')
-            .insert({
-              room_id: roomId,
-              user_id: user.uid,
-              role: 'user',
-              joined_at: Date.now(),
-            })
             .select('role')
-            .single();
-          if (data) {
-            setJoinedRole(data.role as 'owner' | 'sub_owner' | 'user' | 'guest');
+            .eq('room_id', roomId)
+            .eq('user_id', user.uid)
+            .maybeSingle();
+
+          if (existing) {
+            // 既に参加済み
+            setJoinedRole(existing.role as 'owner' | 'sub_owner' | 'user' | 'guest');
+          } else {
+            // 新規参加
+            const { data } = await supabase
+              .from('room_members')
+              .insert({
+                room_id: roomId,
+                user_id: user.uid,
+                role: 'user',
+                joined_at: Date.now(),
+              })
+              .select('role')
+              .single();
+            if (data) {
+              setJoinedRole(data.role as 'owner' | 'sub_owner' | 'user' | 'guest');
+            }
           }
         } catch (err) {
           console.error('Failed to join room:', err);

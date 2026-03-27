@@ -188,7 +188,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const loadMore = useCallback(async () => {
     if (inject) return;
     if (loadingMore || !hasMore) return;
-    if (!user) return;
+    if (!user || !token) return;
     setLoadingMore(true);
     try {
       // 最古のメッセージの created_at をカーソルにする
