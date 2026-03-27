@@ -1,0 +1,227 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]: Adrastea
+    - generic [ref=e6]: (α) 0.2.0
+    - generic [ref=e8]: feat_test_1774579483992
+    - button "設定" [ref=e10] [cursor=pointer]:
+      - img [ref=e11]
+      - text: 設定
+    - button "レイアウト" [ref=e15] [cursor=pointer]:
+      - img [ref=e16]
+      - text: レイアウト
+    - generic [ref=e19]: owner
+    - generic [ref=e21]:
+      - img [ref=e22]
+      - generic [ref=e26]: BGM
+    - generic [ref=e27]:
+      - button "ミュート" [ref=e28] [cursor=pointer]:
+        - img [ref=e29]
+      - 'slider "マスターボリューム: 50%" [ref=e33]': "0.5"
+    - button "アセットライブラリ" [ref=e35] [cursor=pointer]:
+      - img [ref=e36]
+      - text: アセットライブラリ
+    - button "ユーザー設定" [ref=e38] [cursor=pointer]
+  - generic [ref=e52]:
+    - generic [ref=e54]:
+      - generic [ref=e55]:
+        - generic [ref=e59] [cursor=pointer]:
+          - generic [ref=e60]: シーン
+          - img [ref=e62]
+        - button [ref=e68] [cursor=pointer]:
+          - img [ref=e69]
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: シーン
+          - generic [ref=e79]:
+            - button "シーンを複製" [disabled] [ref=e80]:
+              - img [ref=e81]
+            - button "シーンを削除" [disabled] [ref=e84]:
+              - img [ref=e85]
+            - button "シーンを追加" [active] [ref=e88] [cursor=pointer]:
+              - img [ref=e89]
+        - generic [ref=e90]:
+          - 'generic "背景ぼかし: あり 背景フェードイン: なし 前景フェードイン: なし BGM: なし" [ref=e91]':
+            - button "メイン" [ref=e92]:
+              - img [ref=e95]
+              - generic [ref=e106] [cursor=pointer]: メイン
+          - 'generic "背景ぼかし: あり 背景フェードイン: なし 前景フェードイン: なし BGM: なし" [ref=e107]':
+            - button "新しいシーン" [ref=e108]:
+              - img [ref=e111]
+              - generic [ref=e122] [cursor=pointer]: 新しいシーン
+          - status [ref=e123]
+    - generic [ref=e129]:
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - generic [ref=e136] [cursor=pointer]:
+            - generic [ref=e137]: キャラクター
+            - img [ref=e139]
+          - button [ref=e145] [cursor=pointer]:
+            - img [ref=e146]
+        - generic [ref=e152]:
+          - generic [ref=e153]:
+            - generic [ref=e154]: キャラクター
+            - generic [ref=e156]:
+              - button:
+                - img
+              - button:
+                - img
+              - button [ref=e157] [cursor=pointer]:
+                - img [ref=e158]
+          - generic [ref=e159]:
+            - status [ref=e160]
+            - generic [ref=e161]: キャラクターがありません
+      - generic [ref=e164]:
+        - generic [ref=e168] [cursor=pointer]:
+          - generic [ref=e169]: プロパティ
+          - img [ref=e171]
+        - button [ref=e177] [cursor=pointer]:
+          - img [ref=e178]
+    - generic [ref=e188]:
+      - generic [ref=e190]:
+        - generic [ref=e191]:
+          - generic [ref=e195] [cursor=pointer]:
+            - generic [ref=e196]: BGM
+            - img [ref=e198]
+          - button [ref=e204] [cursor=pointer]:
+            - img [ref=e205]
+        - generic [ref=e211]:
+          - generic [ref=e212]:
+            - generic [ref=e213]:
+              - generic "BGM" [ref=e214]:
+                - img [ref=e215]
+              - text: BGM
+              - generic [ref=e219]: メイン
+            - generic [ref=e221]:
+              - button [disabled] [ref=e222]:
+                - img [ref=e223]
+              - button [disabled] [ref=e225] [cursor=pointer]:
+                - img [ref=e226]
+              - button [disabled] [ref=e229]:
+                - img [ref=e230]
+              - button [ref=e233] [cursor=pointer]:
+                - img [ref=e234]
+          - generic [ref=e235]:
+            - status [ref=e236]
+            - generic [ref=e237]: トラックがありません
+      - generic [ref=e239]:
+        - generic [ref=e240]:
+          - generic [ref=e244] [cursor=pointer]:
+            - generic [ref=e245]: レイヤー
+            - img [ref=e247]
+          - button [ref=e253] [cursor=pointer]:
+            - img [ref=e254]
+        - generic [ref=e260]:
+          - generic [ref=e261]:
+            - generic [ref=e262]:
+              - generic [ref=e263]: レイヤー
+              - generic [ref=e265]:
+                - button [disabled] [ref=e266]:
+                  - img [ref=e267]
+                - button [disabled] [ref=e270]:
+                  - img [ref=e271]
+                - button "追加" [ref=e275] [cursor=pointer]:
+                  - img [ref=e276]
+            - generic [ref=e277]:
+              - button "キャラクター" [ref=e278]:
+                - generic [ref=e280]:
+                  - generic [ref=e281] [cursor=pointer]:
+                    - img [ref=e283]
+                    - img [ref=e286]
+                    - generic [ref=e291]: キャラクター
+                  - status [ref=e292]
+              - button "前景" [ref=e294]:
+                - img [ref=e296]
+                - generic [ref=e300]: 前景
+                - button [ref=e301] [cursor=pointer]:
+                  - img [ref=e302]
+              - button "背景" [disabled] [ref=e306]:
+                - img [ref=e308]
+                - generic [ref=e310]: 背景
+              - status [ref=e311]
+          - status [ref=e312]
+    - generic [ref=e318]:
+      - generic [ref=e321]:
+        - generic [ref=e327] [cursor=pointer]: Board
+        - generic [ref=e331]:
+          - generic [ref=e332]:
+            - slider [ref=e333]: "0.261"
+            - button "8%" [ref=e334] [cursor=pointer]
+            - button "全体表示" [ref=e335] [cursor=pointer]:
+              - img [ref=e336]
+          - button [ref=e341] [cursor=pointer]:
+            - img [ref=e342]
+      - generic [ref=e354]:
+        - generic [ref=e355]:
+          - generic [ref=e359] [cursor=pointer]:
+            - generic [ref=e360]: Debug Console
+            - img [ref=e362]
+          - button [ref=e368] [cursor=pointer]:
+            - img [ref=e369]
+        - generic [ref=e374]:
+          - generic [ref=e375]:
+            - generic [ref=e376]:
+              - generic [ref=e377]: Debug Console
+              - button "All (0)" [ref=e378] [cursor=pointer]
+              - button "error (0)" [ref=e379] [cursor=pointer]
+              - button "warn (0)" [ref=e380] [cursor=pointer]
+              - button "log (0)" [ref=e381] [cursor=pointer]
+              - button "info (0)" [ref=e382] [cursor=pointer]
+            - generic [ref=e383]:
+              - button "全コピー" [ref=e384] [cursor=pointer]:
+                - img [ref=e385]
+              - button [ref=e388] [cursor=pointer]:
+                - img [ref=e389]
+          - generic [ref=e393]: ログなし
+    - generic [ref=e399]:
+      - generic [ref=e401]:
+        - generic [ref=e402]:
+          - generic [ref=e406] [cursor=pointer]:
+            - generic [ref=e407]: チャットログ
+            - img [ref=e409]
+          - button [ref=e415] [cursor=pointer]:
+            - img [ref=e416]
+        - generic [ref=e422]:
+          - generic [ref=e423]:
+            - button "メイン" [ref=e424] [cursor=pointer]
+            - button "情報" [ref=e425] [cursor=pointer]
+            - button "雑談" [ref=e426] [cursor=pointer]
+          - button "メニュー" [ref=e429] [cursor=pointer]:
+            - img [ref=e430]
+      - generic [ref=e437]:
+        - generic [ref=e438]:
+          - generic [ref=e442] [cursor=pointer]:
+            - generic [ref=e443]: チャット入力
+            - img [ref=e445]
+          - button [ref=e451] [cursor=pointer]:
+            - img [ref=e452]
+        - generic [ref=e457]:
+          - generic [ref=e458]:
+            - button "キャラクター選択" [ref=e460] [cursor=pointer]:
+              - img [ref=e461]
+            - textbox "noname" [ref=e464]
+            - button "送信" [ref=e465] [cursor=pointer]:
+              - img [ref=e466]
+          - generic [ref=e468]:
+            - generic [ref=e469]:
+              - generic [ref=e470]:
+                - generic: メッセージを入力...
+              - generic [ref=e472]:
+                - button "太字" [ref=e473] [cursor=pointer]:
+                  - img [ref=e474]
+                - button "斜体" [ref=e476] [cursor=pointer]:
+                  - img [ref=e477]
+                - button "打消し" [ref=e479] [cursor=pointer]:
+                  - img [ref=e480]
+                - button "見出し" [ref=e483] [cursor=pointer]:
+                  - img [ref=e484]
+                - button "カラー" [ref=e490] [cursor=pointer]:
+                  - img [ref=e491]
+                - button "メイン" [ref=e498] [cursor=pointer]:
+                  - text: メイン
+                  - img [ref=e499]
+            - button "テキストエリアを拡大" [ref=e501] [cursor=pointer]:
+              - img [ref=e502]
+```
