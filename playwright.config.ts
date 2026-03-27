@@ -30,8 +30,9 @@ export default defineConfig({
     },
     {
       name: 'e2e',
-      testMatch: /supabase-e2e\.spec\.ts/,
+      testMatch: /(supabase-e2e|features-e2e)\.spec\.ts/,
       dependencies: ['setup'],
+      timeout: 60_000,
       use: {
         storageState: AUTH_FILE,
         ignoreHTTPSErrors: true,
