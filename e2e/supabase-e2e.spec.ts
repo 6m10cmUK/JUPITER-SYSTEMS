@@ -43,24 +43,25 @@ test.describe.serial('Adrastea Supabase E2E', () => {
     await expect(page.getByText('新しいシーン')).toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('チャットメッセージ送信 → ログに表示', async ({ page }) => {
+  test('チャットメッセージ送信 → ログに表示', async ({ page }) => {
     await page.goto(`https://localhost:6100/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     const testMsg = `e2e_test_${Date.now()}`;
     await sendChat(page, testMsg);
-    await expect(page.getByText(testMsg)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(testMsg).first()).toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('ダイスロール → 結果表示', async ({ page }) => {
+  test('ダイスロール → 結果表示', async ({ page }) => {
     await page.goto(`https://localhost:6100/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
     await sendChat(page, '1d6');
-    await expect(page.locator('text=/\\d+/')).toBeVisible({ timeout: 5000 });
+    // ダイス結果「1D6 > N」がチャットに表示される
+    await expect(page.getByText(/1D6/).first()).toBeVisible({ timeout: 5000 });
   });
 
-  test.skip('ルーム削除 → 一覧から消える', async ({ page }) => {
+  test('ルーム削除 → 一覧から消える', async ({ page }) => {
     await deleteRoom(page, ROOM_NAME);
     await goToLobby(page);
     await expect(page.getByText(ROOM_NAME)).not.toBeVisible({ timeout: 10000 });

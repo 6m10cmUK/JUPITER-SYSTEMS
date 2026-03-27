@@ -31,25 +31,27 @@ export async function addScene(page: Page): Promise<void> {
 }
 
 export async function sendChat(page: Page, message: string): Promise<void> {
-  // チャット入力パネルが表示されてるか確認。dockview タブをクリックする必要があるかも
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(2000); // dockview レイアウト完了待ち
   const editor = page.locator('[contenteditable="true"]').first();
-  await editor.waitFor({ timeout: 10000 });
+  await editor.waitFor({ state: 'visible', timeout: 10000 });
   await editor.click();
   await editor.pressSequentially(message, { delay: 30 });
   await page.keyboard.press('Enter');
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(2000); // Supabase Realtime 反映待ち
 }
 
 export async function deleteRoom(page: Page, roomName: string): Promise<void> {
   await goToLobby(page);
-  const roomCard = page.locator('button').filter({ has: page.getByText(roomName) });
+  // ルームカードを特定
+  const roomCard = page.locator(`button:has-text("${roomName}")`).first();
   if (await roomCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-    const deleteBtn = roomCard.getByRole('button', { name: '削除' });
-    if (await deleteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await deleteBtn.click();
-      const confirmBtn = page.getByRole('button', { name: '削除' }).last();
-      await confirmBtn.click();
-      await page.waitForTimeout(1000);
-    }
+    // カード内の削除ボタン（title="削除"）
+    const deleteIcon = roomCard.locator('button[title="削除"]');
+    await deleteIcon.click({ force: true });
+    await page.waitForTimeout(500);
+    // 確認モーダルの「削除」ボタン — AdButton variant="danger"
+    await page.getByRole('button', { name: '削除', exact: true }).last().click();
+    await page.waitForTimeout(2000);
   }
 }
