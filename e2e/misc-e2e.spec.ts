@@ -37,10 +37,10 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     // チャットパネルを探す
     const chatPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('チャット') }).first();
     if (await chatPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // チャンネルタブを探す（メイン、情報、雑談）
-      const mainTab = chatPanel.getByRole('tab', { name: /メイン|Main/ }).first();
-      const infoTab = chatPanel.getByRole('tab', { name: /情報|Info/ }).first();
-      const casualTab = chatPanel.getByRole('tab', { name: /雑談|Casual/ }).first();
+      // チャンネルタブを探す（button.adra-tab で実装）
+      const mainTab = chatPanel.locator('button.adra-tab').filter({ hasText: /メイン/ }).first();
+      const infoTab = chatPanel.locator('button.adra-tab').filter({ hasText: /情報/ }).first();
+      const casualTab = chatPanel.locator('button.adra-tab').filter({ hasText: /雑談/ }).first();
 
       if (await mainTab.isVisible({ timeout: 2000 }).catch(() => false)) {
         await mainTab.click();
@@ -217,7 +217,9 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     await expect(page.getByRole('heading', { name: 'アセットライブラリ' })).toBeVisible({ timeout: 3000 });
   });
 
-  test('クリーンアップ: ルーム削除', async ({ page }) => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage({ ignoreHTTPSErrors: true });
     await deleteRoom(page, ROOM_NAME);
+    await page.close();
   });
 });

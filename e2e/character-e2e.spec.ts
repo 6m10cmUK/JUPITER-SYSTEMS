@@ -101,9 +101,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     }
   });
 
-  // TODO: ダブルクリックはステータスパネルを開く（dialog ではない）。セレクタ修正が必要
-  test.skip('キャラクター ダブルクリック編集 → モーダルで名前変更', async ({ page }) => {
-    // TODO コメント: 実装側のセレクタが確認必要
+  test('キャラクター ダブルクリック編集 → モーダルで名前変更', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -112,21 +110,19 @@ test.describe.serial('キャラクター管理テスト', () => {
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       // ダブルクリック
       await charItem.dblclick();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000);
 
-      // キャラクター編集モーダルが開く
-      const modal = page.getByText('キャラクター編集').or(page.locator('dialog, [role="dialog"]')).first();
-      await expect(modal).toBeVisible({ timeout: 5000 });
+      // キャラクター編集モーダルが開く（タイトルで確認）
+      await expect(page.getByText('キャラクター編集').first()).toBeVisible({ timeout: 5000 });
 
-      // 名前入力フィールドを探して変更
-      const nameInput = modal.locator('input[type="text"], input[placeholder*="名前"], input[placeholder*="キャラクター"]').first();
-      if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await nameInput.fill('編集済みキャラ');
-        await page.waitForTimeout(300);
-      }
+      // 名前入力フィールド（最初のテキスト入力）
+      const nameInput = page.locator('input[type="text"]').first();
+      await expect(nameInput).toBeVisible({ timeout: 2000 });
+      await nameInput.fill('編集済みキャラ');
+      await page.waitForTimeout(300);
 
       // モーダル内の保存ボタンがあれば クリック、なければエスケープで自動保存扱い
-      const saveBtn = modal.getByRole('button', { name: /保存|完了|OK/ }).first();
+      const saveBtn = page.getByRole('button', { name: /保存|完了|OK/ }).first();
       if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
         await saveBtn.click();
       } else {
@@ -145,9 +141,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     }
   });
 
-  // TODO: [data-char-id] クリックが selectedCharIds を設定するタイミングの問題。要調査
-  test.skip('キャラクター複製（Ctrl+D）', async ({ page }) => {
-    // TODO コメント: selectedCharIds タイミング問題の確認・修正が必要
+  test('キャラクター複製（Ctrl+D）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -156,13 +150,13 @@ test.describe.serial('キャラクター管理テスト', () => {
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       // キャラクターを明示的にクリックして選択状態にする
       await charItem.click();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000);
 
       const charCountBefore = await page.locator('[data-char-id]').count();
 
       // Ctrl+D で複製
       await page.keyboard.press('Control+d');
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
 
       const charCountAfter = await page.locator('[data-char-id]').count();
       expect(charCountAfter).toBeGreaterThan(charCountBefore);
@@ -179,9 +173,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     }
   });
 
-  // TODO: Ctrl+D と同様の selectedCharIds タイミング問題。要調査
-  test.skip('キャラクター Ctrl+C → paste で複製', async ({ page }) => {
-    // TODO コメント: selectedCharIds タイミング問題の確認・修正が必要
+  test('キャラクター Ctrl+C → paste で複製', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -189,7 +181,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     const charItem = page.locator('[data-char-id]').first();
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
       await charItem.click();
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(1000);
 
       const charCountBefore = await page.locator('[data-char-id]').count();
 
@@ -265,7 +257,9 @@ test.describe.serial('キャラクター管理テスト', () => {
     await page.keyboard.press('Escape');
   });
 
-  test('クリーンアップ: ルーム削除', async ({ page }) => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage({ ignoreHTTPSErrors: true });
     await deleteRoom(page, ROOM_NAME);
+    await page.close();
   });
 });

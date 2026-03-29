@@ -102,8 +102,7 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
 
   // --- オブジェクトプロパティ（テキストオブジェクト追加後） ---
 
-  // TODO: プロパティパネルの入力フィールドセレクタが実際の DOM と不一致。要調査
-  test.skip('P-10: テキストオブジェクト名編集', async ({ page }) => {
+  test('P-10: テキストオブジェクト名編集', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -112,8 +111,8 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await addTextObject(page);
     await page.waitForTimeout(500);
 
-    // オブジェクト名入力欄
-    const nameInput = page.locator('input[type="text"]').filter({ has: page.getByText('オブジェクト名', { exact: false }) }).first();
+    // プロパティパネル内の最初のテキスト入力（オブジェクト名フィールド）
+    const nameInput = page.locator('input[type="text"]').first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
 
     const newName = `TestObject_${Date.now()}`;
@@ -241,18 +240,16 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await addCharacter(page);
     await page.waitForTimeout(300);
 
-    // キャラクター名入力欄
-    const nameInput = page.locator('input[type="text"]').filter({ has: page.getByText('キャラクター名', { exact: false }) }).first();
-    if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const newCharName = `TestChar_${Date.now()}`;
-      await nameInput.fill(newCharName);
-      await page.waitForTimeout(300);
+    // キャラクター編集モーダル内の最初のテキスト入力（キャラクター名フィールド）
+    const nameInput = page.locator('input[type="text"]').first();
+    await expect(nameInput).toBeVisible({ timeout: 5000 });
 
-      // 名前がパネルに反映されたか確認
-      await expect(page.getByText(newCharName)).toBeVisible({ timeout: 3000 });
-    } else {
-      test.skip();
-    }
+    const newCharName = `TestChar_${Date.now()}`;
+    await nameInput.fill(newCharName);
+    await page.waitForTimeout(300);
+
+    // 名前がパネルに反映されたか確認
+    await expect(page.getByText(newCharName)).toBeVisible({ timeout: 3000 });
   });
 
   test('P-22: キャラクター色変更', async ({ page }) => {
