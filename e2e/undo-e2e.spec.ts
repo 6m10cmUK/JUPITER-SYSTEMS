@@ -1,21 +1,28 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoom } from './helpers';
+import { goToLobby, createRoom, deleteRoom, BASE_URL } from './helpers';
 
-const BASE_URL = 'https://localhost:6100';
 const ROOM_NAME = `undo_test_${Date.now()}`;
 let roomId: string;
 
 test.describe.serial('Undo/Redo テスト', () => {
   test('ルーム作成 (準備)', async ({ page }) => {
-    await goToLobby(page);
+    await page.goto(`${BASE_URL}/adrastea/`);
+    await page.waitForLoadState('networkidle');
+    // 認証チェック: ログイン画面が表示されたら skip（storageState 期限切れ）
+    const loginBtn = page.getByText('Googleでログイン');
+    if (await loginBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      test.skip();
+      return;
+    }
+    await page.getByText('ルームを作成').waitFor({ timeout: 10000 });
     roomId = await createRoom(page, ROOM_NAME);
     expect(roomId).toBeTruthy();
   });
 
-  test('Ctrl+Z で Undo → Ctrl+Y で Redo', async ({ page }) => {
+  test('Ctrl+Z で Undo → Ctrl+Shift+Z で Redo', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1500);
 
     // シーン追加
     const addSceneBtn = page.locator('button[aria-label="シーンを追加"]').first();
@@ -24,7 +31,7 @@ test.describe.serial('Undo/Redo テスト', () => {
     const scenesBeforeCount = await page.locator('[data-scene-id]').count();
 
     await addSceneBtn.click({ force: true });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1500);
 
     // シーンが増えたことを確認
     const scenesAfterAdd = await page.locator('[data-scene-id]').count();
@@ -42,7 +49,7 @@ test.describe.serial('Undo/Redo テスト', () => {
     const scenesAfterUndo = await page.locator('[data-scene-id]').count();
     expect(scenesAfterUndo).toBe(scenesBeforeCount);
 
-    // Ctrl+Y を複数回押して Redo
+    // Ctrl+Shift+Z を複数回押して Redo
     for (let i = 0; i < 5; i++) {
       await page.keyboard.press('Control+Shift+z');
       await page.waitForTimeout(500);
@@ -58,7 +65,7 @@ test.describe.serial('Undo/Redo テスト', () => {
   test('Undo: オブジェクト追加→Ctrl+Z', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1500);
 
     // オブジェクト追加ボタン
     const addBtn = page.locator('button[aria-label="オブジェクト追加"]').first();
@@ -99,7 +106,7 @@ test.describe.serial('Undo/Redo テスト', () => {
   test('Undo: オブジェクト削除→Ctrl+Z で復活', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(1500);
 
     // テキストオブジェクトを探す
     const textObj = page.getByText('テキスト').first();
