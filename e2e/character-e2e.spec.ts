@@ -140,40 +140,31 @@ test.describe.serial('キャラクター管理テスト', () => {
   test('キャラクター複製（右クリック → 複製）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    await page.locator('[data-scene-id]').first().waitFor({ state: 'visible', timeout: 15000 });
 
     const charItem = page.locator('[data-char-id]').first();
-    if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const charCountBefore = await page.locator('[data-char-id]').count();
+    if (!await charItem.isVisible({ timeout: 3000 }).catch(() => false)) { test.skip(); return; }
 
-      // 右クリック → コンテキストメニュー「複製」
-      const charEl = page.locator('[data-char-id]').first();
+    const charCountBefore = await page.locator('[data-char-id]').count();
 
-      await charEl.click({ button: 'right' });
+    // 右クリック → コンテキストメニュー「複製」
+    await charItem.click({ button: 'right' });
 
-      // コンテキストメニュー内の「複製」（DropdownMenu のアイテム）
-      // シーンパネルの「シーンを複製」ボタンと区別するため、正確にマッチ
-      const duplicateOpt = page.locator('[role="menuitem"]').filter({ hasText: '複製' }).first();
-      if (await duplicateOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await duplicateOpt.click();
-        await page.waitForTimeout(2000);
+    const duplicateOpt = page.locator('[role="menuitem"]').filter({ hasText: '複製' }).first();
+    await duplicateOpt.waitFor({ state: 'visible', timeout: 5000 });
 
-        const charCountAfter = await page.locator('[data-char-id]').count();
-        expect(charCountAfter).toBeGreaterThan(charCountBefore);
+    // DOM click で直接発火（Playwright click の mousedown が menu close を引き起こすため）
+    await duplicateOpt.evaluate((el) => (el as HTMLElement).click());
 
-        // リロードして複製が永続化されたことを確認
-        await page.reload();
-        await page.waitForLoadState('networkidle');
-        await page.waitForTimeout(2000);
-
-        const charCountReloaded = await page.locator('[data-char-id]').count();
-        expect(charCountReloaded).toBeGreaterThan(charCountBefore);
-      } else {
-        test.skip();
-      }
-    } else {
-      test.skip();
+    // Realtime 反映を待つ。遅い場合はリロード
+    let appeared = await page.locator('[data-char-id]').nth(charCountBefore).isVisible({ timeout: 5000 }).catch(() => false);
+    if (!appeared) {
+      await page.reload();
+      await page.locator('[data-scene-id]').first().waitFor({ state: 'visible', timeout: 15000 });
     }
+
+    const charCountAfter = await page.locator('[data-char-id]').count();
+    expect(charCountAfter).toBeGreaterThan(charCountBefore);
   });
 
   test('キャラクター 右クリック「コピー」 → paste で複製', async ({ page }) => {

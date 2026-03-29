@@ -22,6 +22,9 @@ async function getSupabase() {
   return supabase;
 }
 
+/** デバッグ用: 認証済み Supabase クライアント */
+export async function getSupabaseForDebug() { return getSupabase(); }
+
 /** ルームに属するシーンの ID 一覧を取得 */
 export async function getSceneIds(roomId: string): Promise<string[]> {
   const supabase = await getSupabase();
