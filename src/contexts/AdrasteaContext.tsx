@@ -14,6 +14,8 @@ import { useChannels } from '../hooks/useChannels';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
 import { resolveAssetId } from '../hooks/useAssets';
+import { computeDiffs } from '../utils/undoDiff';
+import type { UndoEntry } from '../utils/undoDiff';
 import type { Piece, Scene, Character, BoardObject, BgmTrack } from '../types/adrastea.types';
 
 // ---------------------------------------------------------------------------
@@ -480,6 +482,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       user={user}
       activeChatChannel={activeChatChannel}
     >
+      <UndoBridge undoRedo={undoRedo} />
       <UIStateProvider setPendingEdit={setPendingEdit}>
         <AdrasteaContext.Provider value={value}>
           {children}
@@ -488,6 +491,130 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     </RoomDataProvider>
   );
 };
+
+/** Provider 内部: diff 検知 + undo/redo 実行 */
+function UndoBridge({ undoRedo }: { undoRedo: ReturnType<typeof useUndoRedo> }) {
+  const roomData = useRoomData();
+
+  const prevObjectsRef = useRef<any[]>([]);
+  const prevCharactersRef = useRef<any[]>([]);
+  const prevScenesRef = useRef<any[]>([]);
+  const prevBgmsRef = useRef<any[]>([]);
+  const undoReadyRef = useRef(false);
+
+  const { scenes, allObjects, characters, bgms } = roomData;
+
+  // 初期化
+  useEffect(() => {
+    if (!scenes?.length || undoReadyRef.current) return;
+    prevObjectsRef.current = allObjects ?? [];
+    prevCharactersRef.current = characters ?? [];
+    prevScenesRef.current = scenes ?? [];
+    prevBgmsRef.current = bgms ?? [];
+    undoReadyRef.current = true;
+  }, [scenes, allObjects, characters, bgms]);
+
+  // diff 検知: objects
+  useEffect(() => {
+    if (!undoReadyRef.current || !allObjects) return;
+    if (undoRedo.isOperatingRef.current) { prevObjectsRef.current = allObjects; return; }
+    computeDiffs('object', prevObjectsRef.current, allObjects).forEach(d => undoRedo.push(d));
+    prevObjectsRef.current = allObjects;
+  }, [allObjects]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // diff 検知: characters
+  useEffect(() => {
+    if (!undoReadyRef.current || !characters) return;
+    if (undoRedo.isOperatingRef.current) { prevCharactersRef.current = characters; return; }
+    computeDiffs('character', prevCharactersRef.current, characters).forEach(d => undoRedo.push(d));
+    prevCharactersRef.current = characters;
+  }, [characters]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // diff 検知: scenes
+  useEffect(() => {
+    if (!undoReadyRef.current || !scenes) return;
+    if (undoRedo.isOperatingRef.current) { prevScenesRef.current = scenes; return; }
+    computeDiffs('scene', prevScenesRef.current, scenes).forEach(d => undoRedo.push(d));
+    prevScenesRef.current = scenes;
+  }, [scenes]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // diff 検知: bgms
+  useEffect(() => {
+    if (!undoReadyRef.current || !bgms) return;
+    if (undoRedo.isOperatingRef.current) { prevBgmsRef.current = bgms; return; }
+    computeDiffs('bgm', prevBgmsRef.current, bgms).forEach(d => undoRedo.push(d));
+    prevBgmsRef.current = bgms;
+  }, [bgms]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // executeUndoEntry
+  const executeUndoEntry = useCallback(async (entry: UndoEntry, direction: 'undo' | 'redo') => {
+    undoRedo.isOperatingRef.current = true;
+    const data = direction === 'undo' ? entry.before : entry.after;
+    try {
+      if (direction === 'undo' && entry.operation === 'add') {
+        switch (entry.entityType) {
+          case 'object': await roomData.removeObject(entry.entityId); break;
+          case 'character': await roomData.removeCharacter(entry.entityId); break;
+          case 'scene': await roomData.removeScene(entry.entityId); break;
+          case 'bgm': await roomData.removeBgm(entry.entityId); break;
+        }
+      } else if (direction === 'undo' && entry.operation === 'remove') {
+        switch (entry.entityType) {
+          case 'object': await roomData.addObject(data as any); break;
+          case 'character': await roomData.addCharacter(data as any); break;
+          case 'scene': await roomData.addScene(data as any); break;
+          case 'bgm': await roomData.addBgm(data as any); break;
+        }
+      } else if (direction === 'redo' && entry.operation === 'add') {
+        switch (entry.entityType) {
+          case 'object': await roomData.addObject(data as any); break;
+          case 'character': await roomData.addCharacter(data as any); break;
+          case 'scene': await roomData.addScene(data as any); break;
+          case 'bgm': await roomData.addBgm(data as any); break;
+        }
+      } else if (direction === 'redo' && entry.operation === 'remove') {
+        switch (entry.entityType) {
+          case 'object': await roomData.removeObject(entry.entityId); break;
+          case 'character': await roomData.removeCharacter(entry.entityId); break;
+          case 'scene': await roomData.removeScene(entry.entityId); break;
+          case 'bgm': await roomData.removeBgm(entry.entityId); break;
+        }
+      } else {
+        switch (entry.entityType) {
+          case 'object': await roomData.updateObject(entry.entityId, data as any); break;
+          case 'character': await roomData.updateCharacter(entry.entityId, data as any); break;
+          case 'scene': await roomData.updateScene(entry.entityId, data as any); break;
+          case 'bgm': await roomData.updateBgm(entry.entityId, data as any); break;
+        }
+      }
+    } finally {
+      setTimeout(() => { undoRedo.isOperatingRef.current = false; }, 100);
+    }
+  }, [roomData, undoRedo.isOperatingRef]);
+
+  // Ctrl+Z / Ctrl+Shift+Z キーハンドラ
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.key !== 'z') return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        const entry = undoRedo.redo();
+
+        if (entry) executeUndoEntry(entry, 'redo');
+      } else {
+        const entry = undoRedo.undo();
+
+        if (entry) executeUndoEntry(entry, 'undo');
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [undoRedo, executeUndoEntry]);
+
+  return null; // レンダリングなし
+}
 
 // ---------------------------------------------------------------------------
 // Consumer hook (Backward compatible)
@@ -613,5 +740,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       flushPendingEdits: adrasteaCtx.flushPendingEdits,
       clearAllEditing: uiStateCtx.clearAllEditing,
     }),
+    // Undo/Redo
+    undoRedo: adrasteaCtx.undoRedo,
   };
 }

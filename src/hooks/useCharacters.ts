@@ -112,11 +112,10 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     `adrastea-char-order-${roomId}`
   );
 
-  // レイヤーパネルの並び順を別途管理（独立）
-  const { orderedItems: layerOrderedCharacters } = useLocalStorageOrder(
-    mergedCharacters,
-    `adrastea-layer-char-order-${roomId}`
-  );
+  // レイヤーパネルの並び順（DB の sort_order から導出）
+  const layerOrderedCharacters: Character[] = useMemo(() => {
+    return [...mergedCharacters].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  }, [mergedCharacters]);
 
   // chat_palette のローカルキャッシュオーバーレイ
   const charactersWithCachedPalette: Character[] = useMemo(() => {
@@ -179,7 +178,23 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         if (inj) {
           await inj.create(newChar);
         } else {
-          const statsData = omitKeys(newChar, ['created_at', 'updated_at']);
+          const statsData = {
+            id: newChar.id,
+            room_id: newChar.room_id,
+            owner_id: newChar.owner_id,
+            name: newChar.name,
+            color: newChar.color,
+            active_image_index: newChar.active_image_index,
+            statuses: newChar.statuses,
+            parameters: newChar.parameters,
+            is_hidden_on_board: newChar.is_hidden_on_board,
+            sort_order: newChar.sort_order,
+            board_x: newChar.board_x,
+            board_y: newChar.board_y,
+            board_visible: newChar.board_visible,
+            created_at: newChar.created_at,
+            updated_at: newChar.updated_at,
+          };
           const baseData = {
             id: newChar.id,
             room_id: newChar.room_id,
@@ -193,10 +208,12 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
             is_status_private: newChar.is_status_private,
           };
           // useSupabaseMutation 非経由: 2テーブル同時 INSERT のトランザクション保証が必要
-          await Promise.all([
+          const [statsResult, baseResult] = await Promise.all([
             supabase.from('characters_stats').insert([statsData]),
             supabase.from('characters_base').insert([baseData]),
           ]);
+          if (statsResult.error) throw statsResult.error;
+          if (baseResult.error) throw baseResult.error;
         }
       } catch (err) {
         console.error('キャラクター作成失敗:', err);
@@ -332,10 +349,24 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   );
 
   const reorderLayerCharacters = useCallback(
-    (orderedIds: string[]): void => {
-      localStorage.setItem(`adrastea-layer-char-order-${roomId}`, JSON.stringify(orderedIds));
+    async (orderedIds: string[]): Promise<void> => {
+      const inj = injectRef.current;
+      const now = Date.now();
+      try {
+        if (inj) {
+          await Promise.all(orderedIds.map((id, i) => inj.update(id, { sort_order: i, updated_at: now })));
+        } else {
+          await Promise.all(
+            orderedIds.map((id, i) =>
+              supabase.from('characters_stats').update({ sort_order: i, updated_at: now }).eq('id', id)
+            )
+          );
+        }
+      } catch (err) {
+        console.error('reorderLayerCharacters failed:', err);
+      }
     },
-    [roomId]
+    []
   );
 
   return { characters: charactersWithCachedPalette, layerOrderedCharacters, loading, addCharacter, updateCharacter, moveCharacter, removeCharacter, reorderCharacters, reorderLayerCharacters, fetchSecretMemo };

@@ -70,24 +70,6 @@ function AdrasteaRoom() {
     return () => document.removeEventListener('contextmenu', onContextMenu);
   }, []);
 
-  // Undo/Redo キーバインド（sub_owner 以上のみ）
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key !== 'z') return;
-      if (!can('object_edit')) return; // sub_owner 以上
-      const el = document.activeElement as HTMLElement | null;
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.contentEditable === 'true')) return;
-      e.preventDefault();
-      if (e.shiftKey) {
-        ctx.undoRedo.redo();
-      } else {
-        ctx.undoRedo.undo();
-      }
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [ctx.undoRedo, can]);
-
   // グローバルキーボードショートカット（Ctrl+C/D/Delete）
   useGlobalKeyboardShortcuts();
 

@@ -142,6 +142,7 @@ export function ScenarioTextPanel({
               <Tooltip label="テキストメモを追加">
                 <button
                   onClick={onAdd}
+                  aria-label="テキストメモを追加"
                   style={{ ...iconBtn, color: theme.accent, padding: '2px 4px' }}
                 >
                   <Plus size={15} />

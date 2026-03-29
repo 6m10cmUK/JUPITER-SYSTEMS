@@ -297,6 +297,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const guardedUpdateCharacter = withPermission('character_edit', updateCharacter);
   const guardedRemoveCharacter = withPermission('character_edit', removeCharacter);
   const guardedReorderCharacters = withPermission('character_edit', reorderCharacters);
+  const guardedReorderLayerCharacters = withPermission('character_edit', reorderLayerCharacters);
   const guardedReorderBgms = withPermission('bgm_manage', reorderBgms);
 
   // --- Context value ---
@@ -339,7 +340,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       updateCharacter: guardedUpdateCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters: guardedReorderCharacters,
-      reorderLayerCharacters,
+      reorderLayerCharacters: guardedReorderLayerCharacters,
 
       // Objects
       allObjects,

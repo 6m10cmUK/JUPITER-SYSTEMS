@@ -135,6 +135,7 @@ export function CharacterPanel({
           <Tooltip label="キャラクター追加">
             <button
               onClick={onAddCharacter}
+              aria-label="キャラクター追加"
               style={{ ...iconBtnStyle, color: theme.accent }}
             >
               <Plus size={16} />
