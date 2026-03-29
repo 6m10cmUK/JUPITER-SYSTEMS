@@ -242,22 +242,36 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
   test('P-21: キャラクター名編集', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(2000);
+    // ルーム UI が表示されるまで待つ
+    await page.locator('[data-scene-id]').first().waitFor({ state: 'visible', timeout: 15000 });
+
+    // キャラクタータブをクリックしてパネルをアクティブにする
+    const charTab = page.locator('[class*="tab"]').filter({ hasText: 'キャラクター' }).first();
+    if (await charTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await charTab.click();
+      await page.waitForTimeout(300);
+    }
 
     // キャラクター追加
     await addCharacter(page);
     await page.waitForTimeout(300);
 
-    // キャラクター編集モーダル内の最初のテキスト入力（キャラクター名フィールド）
-    const nameInput = page.locator('input[type="text"]').first();
+    // キャラクター編集モーダルが開くのを待つ
+    await expect(page.getByText('キャラクター編集').first()).toBeVisible({ timeout: 10000 });
+
+    // モーダル内の名前フィールド（placeholder="キャラクター名"）
+    const nameInput = page.locator('input[placeholder="キャラクター名"]').first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
 
     const newCharName = `TC_${Date.now()}`;
-    await nameInput.click({ clickCount: 3 });
+    await nameInput.click({ clickCount: 3, force: true });
     await nameInput.pressSequentially(newCharName, { delay: 30 });
 
     // 入力値が反映されたことを確認
     await expect(nameInput).toHaveValue(newCharName, { timeout: 3000 });
+
+    // モーダルを閉じる
+    await page.keyboard.press('Escape');
   });
 
   test('P-22: キャラクター色変更', async ({ page }) => {
