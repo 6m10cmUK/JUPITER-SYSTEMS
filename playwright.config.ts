@@ -28,7 +28,7 @@ export default defineConfig({
     },
     {
       name: 'e2e',
-      testMatch: /(supabase-e2e|scene-e2e|object-e2e|character-e2e|bgm-e2e|scenario-text-e2e|undo-e2e|misc-e2e|property-e2e|chat-e2e|selection-e2e|keyboard-e2e)\.spec\.ts/,
+      testMatch: /(supabase-e2e|scene-e2e|object-e2e|character-e2e|bgm-e2e|scenario-text-e2e|undo-e2e|misc-e2e|property-e2e|chat-e2e|selection-e2e|keyboard-e2e|permissions-e2e)\.spec\.ts/,
       dependencies: ['setup'],
       timeout: 60_000,
       use: {
