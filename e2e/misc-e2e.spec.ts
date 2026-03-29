@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoom, sendChat, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, sendChat, BASE_URL } from './helpers';
 
 const ROOM_NAME = `misc_test_${Date.now()}`;
 let roomId: string;
@@ -217,9 +217,7 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     await expect(page.getByRole('heading', { name: 'アセットライブラリ' })).toBeVisible({ timeout: 3000 });
   });
 
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage({ ignoreHTTPSErrors: true });
-    await deleteRoom(page, ROOM_NAME);
-    await page.close();
+  test.afterAll(async () => {
+    if (roomId) await deleteRoomById(roomId);
   });
 });

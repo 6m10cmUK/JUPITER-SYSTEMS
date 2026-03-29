@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, selectBackground, selectForeground, addTextObject, addCharacter, addBgmTrack, BASE_URL } from './helpers';
+import { goToLobby, createRoom, selectBackground, selectForeground, addTextObject, addCharacter, addBgmTrack, deleteRoomById, BASE_URL } from './helpers';
 const ROOM_NAME = `prop_test_${Date.now()}`;
 let roomId: string;
 
@@ -393,6 +393,10 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     } else {
       test.skip();
     }
+  });
+
+  test.afterAll(async () => {
+    if (roomId) await deleteRoomById(roomId);
   });
 
 });

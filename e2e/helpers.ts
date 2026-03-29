@@ -1,6 +1,26 @@
 import type { Page } from '@playwright/test';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
 
 export const BASE_URL = 'https://localhost:6100';
+
+const SUPABASE_URL = 'https://yrbunpqdbhlgxagifpau.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_J1PYr4e0chbEHislvQVTKw_F7Wx5-WH';
+
+/** Supabase API でルームを直接削除（UI 操作不要、確実） */
+export async function deleteRoomById(roomId: string): Promise<void> {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  await supabase.auth.signInWithPassword({
+    email: process.env.PLAYWRIGHT_TEST_EMAIL!,
+    password: process.env.PLAYWRIGHT_TEST_PASSWORD!,
+  });
+  await supabase.from('rooms').delete().eq('id', roomId);
+}
 
 export async function goToLobby(page: Page): Promise<void> {
   await page.goto(`${BASE_URL}/adrastea/`);
