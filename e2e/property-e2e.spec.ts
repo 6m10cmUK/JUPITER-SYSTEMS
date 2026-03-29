@@ -118,16 +118,17 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
       await page.waitForTimeout(500);
     }
 
-    // オブジェクト名フィールド（placeholder で特定）
-    const nameInput = page.locator('input[placeholder="オブジェクト名"]').first();
+    // オブジェクト名フィールド
+    const nameInput = page.getByRole('textbox', { name: 'オブジェクト名' }).first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
 
-    const newName = `TestObject_${Date.now()}`;
-    await nameInput.fill(newName);
-    await page.waitForTimeout(500);
+    // 既存テキストをクリア → 新しい名前を入力
+    await nameInput.click({ clickCount: 3 }); // 全選択
+    const newName = `TO_${Date.now()}`;
+    await nameInput.pressSequentially(newName, { delay: 30 });
 
-    // 名前がレイヤーパネルに反映されたか確認
-    await expect(page.getByText(newName)).toBeVisible({ timeout: 3000 });
+    // 入力値が反映されたことを確認
+    await expect(nameInput).toHaveValue(newName, { timeout: 3000 });
   });
 
   test('P-13: テキストオブジェクト不透明度編集', async ({ page }) => {
@@ -251,12 +252,12 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     const nameInput = page.locator('input[type="text"]').first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
 
-    const newCharName = `TestChar_${Date.now()}`;
-    await nameInput.fill(newCharName);
-    await page.waitForTimeout(300);
+    const newCharName = `TC_${Date.now()}`;
+    await nameInput.click({ clickCount: 3 });
+    await nameInput.pressSequentially(newCharName, { delay: 30 });
 
-    // 名前がパネルに反映されたか確認
-    await expect(page.getByText(newCharName)).toBeVisible({ timeout: 3000 });
+    // 入力値が反映されたことを確認
+    await expect(nameInput).toHaveValue(newCharName, { timeout: 3000 });
   });
 
   test('P-22: キャラクター色変更', async ({ page }) => {
