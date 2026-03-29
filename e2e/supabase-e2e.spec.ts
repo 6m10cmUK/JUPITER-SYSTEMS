@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, enterRoom, addScene, sendChat, deleteRoomById, BASE_URL } from './helpers';
+import { goToLobby, createRoom, enterRoom, addScene, sendChat, deleteRoom, deleteRoomById, BASE_URL } from './helpers';
 
 const ROOM_NAME = `テスト_${Date.now()}`;
 
@@ -61,6 +61,13 @@ test.describe.serial('Adrastea Supabase E2E', () => {
     await expect(page.getByText(/1D6/).first()).toBeVisible({ timeout: 5000 });
   });
 
+  test('ルーム削除 → 一覧から消える', async ({ page }) => {
+    await deleteRoom(page, ROOM_NAME);
+    await goToLobby(page);
+    await expect(page.getByText(ROOM_NAME)).not.toBeVisible({ timeout: 10000 });
+  });
+
+  // UI 削除テストが失敗してもルームを確実に消す
   test.afterAll(async () => {
     if (roomId) await deleteRoomById(roomId);
   });
