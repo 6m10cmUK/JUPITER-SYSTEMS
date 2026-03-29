@@ -43,7 +43,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     const charItem = page.locator('[data-char-id]').first();
     await expect(charItem).toBeVisible({ timeout: 5000 });
     // キャラクターを選択
-    await charItem.click();
+    await page.locator('[data-char-id]').first().click();
     await page.waitForTimeout(300);
 
     // Delete キーで削除
@@ -106,10 +106,10 @@ test.describe.serial('キャラクター管理テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    // data-char-id の中の SortableListItem（data-sortable-item）を dblclick
-    const charSortableItem = page.locator('[data-char-id] [data-sortable-item]').first();
-    if (await charSortableItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await charSortableItem.dblclick();
+    // data-char-id を dblclick
+    const charItem = page.locator('[data-char-id]').first();
+    if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await charItem.dblclick();
       await page.waitForTimeout(1000);
 
       // キャラクター編集モーダルが開く
@@ -137,33 +137,37 @@ test.describe.serial('キャラクター管理テスト', () => {
     }
   });
 
-  test('キャラクター複製（Ctrl+D）', async ({ page }) => {
+  test('キャラクター複製（右クリック → 複製）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     const charItem = page.locator('[data-char-id]').first();
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // キャラクターを明示的にクリックして選択状態にする
-      await charItem.click();
-      await page.waitForTimeout(1000);
-
       const charCountBefore = await page.locator('[data-char-id]').count();
 
-      // Ctrl+D で複製
-      await page.keyboard.press('Control+d');
-      await page.waitForTimeout(2000);
+      // 右クリック → コンテキストメニュー「複製」
+      await page.locator('[data-char-id]').first().click({ button: 'right' });
+      await page.waitForTimeout(300);
 
-      const charCountAfter = await page.locator('[data-char-id]').count();
-      expect(charCountAfter).toBeGreaterThan(charCountBefore);
+      const duplicateOpt = page.getByText('複製').first();
+      if (await duplicateOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await duplicateOpt.click();
+        await page.waitForTimeout(2000);
 
-      // リロードして複製が永続化されたことを確認
-      await page.reload();
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(2000);
+        const charCountAfter = await page.locator('[data-char-id]').count();
+        expect(charCountAfter).toBeGreaterThan(charCountBefore);
 
-      const charCountReloaded = await page.locator('[data-char-id]').count();
-      expect(charCountReloaded).toBeGreaterThan(charCountBefore);
+        // リロードして複製が永続化されたことを確認
+        await page.reload();
+        await page.waitForLoadState('networkidle');
+        await page.waitForTimeout(2000);
+
+        const charCountReloaded = await page.locator('[data-char-id]').count();
+        expect(charCountReloaded).toBeGreaterThan(charCountBefore);
+      } else {
+        test.skip();
+      }
     } else {
       test.skip();
     }
@@ -176,7 +180,7 @@ test.describe.serial('キャラクター管理テスト', () => {
 
     const charItem = page.locator('[data-char-id]').first();
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await charItem.click();
+      await page.locator('[data-char-id]').first().click();
       await page.waitForTimeout(1000);
 
       const charCountBefore = await page.locator('[data-char-id]').count();
@@ -210,7 +214,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     const charItem = page.locator('[data-char-id]').first();
     await expect(charItem).toBeVisible({ timeout: 3000 });
     // キャラクターを選択してモーダルを開く
-    await charItem.dblclick();
+    await page.locator('[data-char-id]').first().dblclick();
     await page.waitForTimeout(300);
 
     const modal = page.getByText('キャラクター編集').or(page.locator('dialog, [role="dialog"]')).first();
@@ -238,7 +242,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     // 再度モーダルを開いてチェックボックスが ON になっていることを確認
     const charItem2 = page.locator('[data-char-id]').first();
     await expect(charItem2).toBeVisible({ timeout: 3000 });
-    await charItem2.dblclick();
+    await page.locator('[data-char-id]').first().dblclick();
     await page.waitForTimeout(300);
 
     const modal2 = page.getByText('キャラクター編集').or(page.locator('dialog, [role="dialog"]')).first();

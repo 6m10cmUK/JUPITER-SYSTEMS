@@ -109,7 +109,14 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
 
     // テキストオブジェクト追加
     await addTextObject(page);
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
+
+    // 追加されたテキストオブジェクトをレイヤーパネルでクリック（プロパティパネルに表示させる）
+    const textItem = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
+    if (await textItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await textItem.click();
+      await page.waitForTimeout(500);
+    }
 
     // オブジェクト名フィールド（placeholder で特定）
     const nameInput = page.locator('input[placeholder="オブジェクト名"]').first();
