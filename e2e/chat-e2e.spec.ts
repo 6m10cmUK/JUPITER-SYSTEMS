@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, sendChat, BASE_URL } from './helpers';
+import { goToLobby, createRoom, sendChat, deleteRoomById, BASE_URL } from './helpers';
 const ROOM_NAME = `chat_test_${Date.now()}`;
 const CHARACTER_NAME = '新規キャラクター';
 let roomId: string;
@@ -453,6 +453,10 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     // ダイス結果にスタイルが適用されていることを確認
     const resultElement = page.locator('[class*="dice"], [style*="color"]').filter({ hasText: /2D6/ }).first();
     await expect(resultElement).toBeVisible({ timeout: 5000 });
+  });
+
+  test.afterAll(async () => {
+    if (roomId) await deleteRoomById(roomId);
   });
 
 });

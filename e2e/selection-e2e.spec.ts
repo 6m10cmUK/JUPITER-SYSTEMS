@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoom, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, BASE_URL } from './helpers';
 
 const ROOM_NAME = `sel_test_${Date.now()}`;
 let roomId: string;
@@ -141,9 +141,7 @@ test.describe.serial('複数選択テスト', () => {
     }
   });
 
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage({ ignoreHTTPSErrors: true });
-    await deleteRoom(page, ROOM_NAME);
-    await page.close();
+  test.afterAll(async () => {
+    if (roomId) await deleteRoomById(roomId);
   });
 });

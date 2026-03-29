@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoom, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, BASE_URL } from './helpers';
 const ROOM_NAME = `char_test_${Date.now()}`;
 let roomId: string;
 
@@ -265,9 +265,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     await page.keyboard.press('Escape');
   });
 
-  test.afterAll(async ({ browser }) => {
-    const page = await browser.newPage({ ignoreHTTPSErrors: true });
-    await deleteRoom(page, ROOM_NAME);
-    await page.close();
+  test.afterAll(async () => {
+    if (roomId) await deleteRoomById(roomId);
   });
 });
