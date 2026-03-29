@@ -562,6 +562,7 @@ export function BgmPanel() {
             <Tooltip label="トラック追加">
               <button
                 onClick={() => setShowAddPicker(true)}
+                aria-label="トラック追加"
                 style={{
                   background: 'transparent', border: 'none',
                   color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',

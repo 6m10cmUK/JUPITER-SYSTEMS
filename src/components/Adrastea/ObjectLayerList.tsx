@@ -342,6 +342,7 @@ export function ObjectLayerList({
                   alignItems: 'center',
                 }}
                 title="追加"
+                aria-label="オブジェクト追加"
               >
                 <Plus size={15} />
               </button>

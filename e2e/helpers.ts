@@ -55,3 +55,53 @@ export async function deleteRoom(page: Page, roomName: string): Promise<void> {
     await page.waitForTimeout(2000);
   }
 }
+
+export async function selectBackground(page: Page): Promise<void> {
+  const bgBtn = page.getByRole('button', { name: '背景' }).first();
+  await bgBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await bgBtn.click();
+  await page.waitForTimeout(300);
+}
+
+export async function selectForeground(page: Page): Promise<void> {
+  const fgBtn = page.getByRole('button', { name: '前景' }).first();
+  await fgBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await fgBtn.click();
+  await page.waitForTimeout(300);
+}
+
+export async function addTextObject(page: Page): Promise<void> {
+  // レイヤーパネルの + ボタン（テキストオブジェクト追加）
+  const addObjBtn = page.locator('button[aria-label*="追加"]').first();
+  await addObjBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await addObjBtn.click();
+  await page.waitForTimeout(500);
+  // タイプ選択（テキスト）
+  const textBtn = page.getByRole('button', { name: 'テキスト' }).first();
+  if (await textBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await textBtn.click();
+    await page.waitForTimeout(300);
+  }
+}
+
+export async function addCharacter(page: Page): Promise<void> {
+  // キャラクターパネルの + ボタン
+  const addCharBtn = page.locator('button[aria-label*="キャラクター"]').first();
+  await addCharBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await addCharBtn.click();
+  await page.waitForTimeout(500);
+}
+
+export async function addBgmTrack(page: Page, trackName: string = 'TestBGM'): Promise<void> {
+  // BGMパネルの + ボタン
+  const addBgmBtn = page.locator('button[aria-label*="BGM"]').first();
+  await addBgmBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await addBgmBtn.click();
+  await page.waitForTimeout(500);
+  // トラック名入力
+  const nameInput = page.getByRole('textbox', { name: 'トラック名' }).first();
+  if (await nameInput.isVisible({ timeout: 3000 }).catch(() => false)) {
+    await nameInput.fill(trackName);
+    await page.waitForTimeout(300);
+  }
+}

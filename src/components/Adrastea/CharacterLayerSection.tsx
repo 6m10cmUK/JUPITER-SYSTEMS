@@ -90,7 +90,7 @@ export function CharacterLayerSection({
     if (oldIndex < 0 || newIndex < 0) return;
     const newOrder = arrayMove(localChars, oldIndex, newIndex);
     setLocalChars(newOrder);
-    reorderLayerCharacters(newOrder.map(c => c.id));
+    void reorderLayerCharacters(newOrder.map(c => c.id));
   }, [localChars, reorderLayerCharacters]);
 
   const iconBtnStyle: React.CSSProperties = {

@@ -7,7 +7,6 @@ import { useLocalStorageOrder } from './useLocalStorageOrder';
 import { generateUUID } from '../utils/uuid';
 
 const ROOM_ORDER_KEY = 'adrastea-room-order';
-const ROOM_TAGS_PREFIX = 'adrastea-room-tags-';
 
 export type RoomUI = {
   id: string;
@@ -22,24 +21,11 @@ export type RoomUI = {
 // Re-export Room 型
 export type { Room };
 
-function loadRoomTags(roomId: string): string[] {
-  try {
-    const raw = localStorage.getItem(ROOM_TAGS_PREFIX + roomId);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveRoomTags(roomId: string, tags: string[]) {
-  localStorage.setItem(ROOM_TAGS_PREFIX + roomId, JSON.stringify(tags));
-}
-
 export function useRooms(_uid?: string) {
   const { user } = useAuth();
   const roomsQuery = useSupabaseQuery<Room>({
     table: 'rooms',
-    columns: 'id,name,dice_system,created_at,updated_at,thumbnail_asset_id,archived',
+    columns: 'id,name,dice_system,tags,created_at,updated_at,thumbnail_asset_id,archived',
     roomId: 'global',
     filter: (q) => q.eq('archived', false),
   });
@@ -53,7 +39,7 @@ export function useRooms(_uid?: string) {
       id: r.id,
       name: r.name ?? '',
       dice_system: r.dice_system ?? 'DiceBot',
-      tags: loadRoomTags(r.id),
+      tags: (r as any).tags ?? [],
       thumbnail_asset_id: r.thumbnail_asset_id ?? null,
       created_at: r.created_at,
       updated_at: r.updated_at,
@@ -107,14 +93,11 @@ export function useRooms(_uid?: string) {
 
   const updateRoom = useCallback(
     (roomId: string, data: Partial<Pick<RoomUI, 'name' | 'dice_system' | 'tags'>>) => {
-      // tags は localStorage に保存（Supabase同期なし）
-      if (data.tags !== undefined) {
-        saveRoomTags(roomId, data.tags);
-      }
-      // name/dice_system は Supabase に保存
-      const supabaseData: Partial<Pick<RoomUI, 'name' | 'dice_system'>> = {};
+      // name/dice_system/tags は Supabase に保存
+      const supabaseData: Partial<Pick<RoomUI, 'name' | 'dice_system' | 'tags'>> = {};
       if (data.name !== undefined) supabaseData.name = data.name;
       if (data.dice_system !== undefined) supabaseData.dice_system = data.dice_system;
+      if (data.tags !== undefined) supabaseData.tags = data.tags;
       if (Object.keys(supabaseData).length > 0) {
         void (async () => {
           try {
