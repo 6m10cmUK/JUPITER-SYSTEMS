@@ -81,8 +81,7 @@ test.describe.serial('オブジェクト管理テスト', () => {
     await expect(textObj).toBeVisible({ timeout: 5000 });
   });
 
-  // TODO: panelSelection がレイヤーに切り替わらず Delete がシーンに発火する問題。セレクタ修正が必要
-  test.skip('オブジェクト削除（Delete → 確認ダイアログ）', async ({ page }) => {
+  test('オブジェクト削除（Delete → 確認ダイアログ）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
@@ -98,17 +97,23 @@ test.describe.serial('オブジェクト管理テスト', () => {
       await page.waitForTimeout(1000);
     }
 
-    // レイヤーパネル内の「新規テキスト」を選択
-    const textObj = page.getByRole('button', { name: '新規テキスト' }).first();
-    await expect(textObj).toBeVisible({ timeout: 5000 });
-    await textObj.click();
-    await page.waitForTimeout(300);
+    // レイヤーパネル内のテキストオブジェクトアイテムを選択（data-sortable-item 内で テキスト を含む）
+    const layerPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('レイヤー') }).first();
+    const textItem = layerPanel.locator('[data-sortable-item]').filter({ hasText: /テキスト|新規テキスト/ }).first();
+    await expect(textItem).toBeVisible({ timeout: 5000 });
+    await textItem.click();
+    await page.waitForTimeout(500);
 
     // ヘッダーの削除ボタン（🗑 アイコン）をクリック
-    const layerPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('レイヤー') }).first();
-    const deleteBtn = layerPanel.locator('button').filter({ has: page.locator('svg') }).nth(1); // 削除ボタン（2番目のアイコンボタン）
-    await deleteBtn.click({ force: true });
-    await page.waitForTimeout(300);
+    const deleteBtn = layerPanel.locator('button[aria-label*="削除"], button[aria-label*="remove"]').first();
+    if (await deleteBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await deleteBtn.click({ force: true });
+      await page.waitForTimeout(300);
+    } else {
+      // 削除ボタンがない場合は Delete キーで削除
+      await page.keyboard.press('Delete');
+      await page.waitForTimeout(300);
+    }
 
     // 確認ダイアログ
     const confirmBtn = page.getByRole('button', { name: '削除' }).last();
@@ -121,7 +126,7 @@ test.describe.serial('オブジェクト管理テスト', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-    const remaining = await page.getByRole('button', { name: '新規テキスト' }).count();
+    const remaining = await layerPanel.locator('[data-sortable-item]').filter({ hasText: /テキスト|新規テキスト/ }).count();
     expect(remaining).toBe(0);
   });
 
@@ -151,7 +156,9 @@ test.describe.serial('オブジェクト管理テスト', () => {
     if (dialogVisible) await page.keyboard.press('Escape');
   });
 
-  test('クリーンアップ: ルーム削除', async ({ page }) => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage({ ignoreHTTPSErrors: true });
     await deleteRoom(page, ROOM_NAME);
+    await page.close();
   });
 });
