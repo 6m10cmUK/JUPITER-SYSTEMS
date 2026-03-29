@@ -26,14 +26,14 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await page.waitForTimeout(300);
 
     // グリッド表示チェックボックスを取得
-    const gridCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('グリッド表示') }).first();
+    const gridCheckbox = page.locator('[role="checkbox"]').filter({ hasText: 'グリッド表示' }).first();
     await expect(gridCheckbox).toBeVisible({ timeout: 5000 });
 
-    const isCheckedBefore = await gridCheckbox.isChecked();
+    const isCheckedBefore = (await gridCheckbox.getAttribute('aria-checked')) === 'true';
     await gridCheckbox.click();
     await page.waitForTimeout(500);
 
-    const isCheckedAfter = await gridCheckbox.isChecked();
+    const isCheckedAfter = (await gridCheckbox.getAttribute('aria-checked')) === 'true';
     expect(isCheckedAfter).toBe(!isCheckedBefore);
   });
 
@@ -47,14 +47,14 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await page.waitForTimeout(300);
 
     // 背景ぼかしチェックボックスを取得
-    const blurCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('背景ぼかし') }).first();
+    const blurCheckbox = page.locator('[role="checkbox"]').filter({ hasText: '背景ぼかし' }).first();
     await expect(blurCheckbox).toBeVisible({ timeout: 5000 });
 
-    const isCheckedBefore = await blurCheckbox.isChecked();
+    const isCheckedBefore = (await blurCheckbox.getAttribute('aria-checked')) === 'true';
     await blurCheckbox.click();
     await page.waitForTimeout(500);
 
-    const isCheckedAfter = await blurCheckbox.isChecked();
+    const isCheckedAfter = (await blurCheckbox.getAttribute('aria-checked')) === 'true';
     expect(isCheckedAfter).toBe(!isCheckedBefore);
   });
 
@@ -70,14 +70,14 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await page.waitForTimeout(300);
 
     // 位置ロックチェックボックスを取得
-    const posLockCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('位置を固定') }).first();
+    const posLockCheckbox = page.locator('[role="checkbox"]').filter({ hasText: '位置を固定' }).first();
     await expect(posLockCheckbox).toBeVisible({ timeout: 5000 });
 
-    const isCheckedBefore = await posLockCheckbox.isChecked();
+    const isCheckedBefore = (await posLockCheckbox.getAttribute('aria-checked')) === 'true';
     await posLockCheckbox.click();
     await page.waitForTimeout(500);
 
-    const isCheckedAfter = await posLockCheckbox.isChecked();
+    const isCheckedAfter = (await posLockCheckbox.getAttribute('aria-checked')) === 'true';
     expect(isCheckedAfter).toBe(!isCheckedBefore);
   });
 
@@ -91,14 +91,14 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await page.waitForTimeout(300);
 
     // サイズロックチェックボックスを取得
-    const sizeLockCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('サイズを固定') }).first();
+    const sizeLockCheckbox = page.locator('[role="checkbox"]').filter({ hasText: 'サイズを固定' }).first();
     await expect(sizeLockCheckbox).toBeVisible({ timeout: 5000 });
 
-    const isCheckedBefore = await sizeLockCheckbox.isChecked();
+    const isCheckedBefore = (await sizeLockCheckbox.getAttribute('aria-checked')) === 'true';
     await sizeLockCheckbox.click();
     await page.waitForTimeout(500);
 
-    const isCheckedAfter = await sizeLockCheckbox.isChecked();
+    const isCheckedAfter = (await sizeLockCheckbox.getAttribute('aria-checked')) === 'true';
     expect(isCheckedAfter).toBe(!isCheckedBefore);
   });
 
@@ -172,9 +172,9 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
       await page.waitForTimeout(300);
 
       // 位置ロックチェックボックスをON
-      const posLockCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('位置を固定') }).first();
+      const posLockCheckbox = page.locator('[role="checkbox"]').filter({ hasText: '位置を固定' }).first();
       if (await posLockCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isChecked = await posLockCheckbox.isChecked();
+        const isChecked = (await posLockCheckbox.getAttribute('aria-checked')) === 'true';
         if (!isChecked) {
           await posLockCheckbox.click();
           await page.waitForTimeout(500);
@@ -209,9 +209,9 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
       await page.waitForTimeout(300);
 
       // サイズロックチェックボックスをON
-      const sizeLockCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('サイズを固定') }).first();
+      const sizeLockCheckbox = page.locator('[role="checkbox"]').filter({ hasText: 'サイズを固定' }).first();
       if (await sizeLockCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isChecked = await sizeLockCheckbox.isChecked();
+        const isChecked = (await sizeLockCheckbox.getAttribute('aria-checked')) === 'true';
         if (!isChecked) {
           await sizeLockCheckbox.click();
           await page.waitForTimeout(500);
@@ -332,13 +332,13 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
       await page.waitForTimeout(300);
 
       // ループ再生チェックボックス
-      const loopCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('ループ再生') }).first();
+      const loopCheckbox = page.locator('[role="checkbox"]').filter({ hasText: 'ループ再生' }).first();
       if (await loopCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isCheckedBefore = await loopCheckbox.isChecked();
+        const isCheckedBefore = (await loopCheckbox.getAttribute('aria-checked')) === 'true';
         await loopCheckbox.click();
         await page.waitForTimeout(500);
 
-        const isCheckedAfter = await loopCheckbox.isChecked();
+        const isCheckedAfter = (await loopCheckbox.getAttribute('aria-checked')) === 'true';
         expect(isCheckedAfter).toBe(!isCheckedBefore);
       } else {
         test.skip();
@@ -360,13 +360,13 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
       await page.waitForTimeout(300);
 
       // フェードインチェックボックス
-      const fadeCheckbox = page.locator('input[type="checkbox"]').filter({ has: page.getByText('フェードイン') }).first();
+      const fadeCheckbox = page.locator('[role="checkbox"]').filter({ hasText: 'フェードイン' }).first();
       if (await fadeCheckbox.isVisible({ timeout: 3000 }).catch(() => false)) {
-        const isCheckedBefore = await fadeCheckbox.isChecked();
+        const isCheckedBefore = (await fadeCheckbox.getAttribute('aria-checked')) === 'true';
         await fadeCheckbox.click();
         await page.waitForTimeout(500);
 
-        const isCheckedAfter = await fadeCheckbox.isChecked();
+        const isCheckedAfter = (await fadeCheckbox.getAttribute('aria-checked')) === 'true';
         expect(isCheckedAfter).toBe(!isCheckedBefore);
       } else {
         test.skip();
