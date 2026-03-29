@@ -44,7 +44,7 @@ export async function createBgmTrackDirect(roomId: string, opts: {
   const supabase = await getSupabase();
   const id = crypto.randomUUID();
   const now = Date.now();
-  await supabase.from('bgms').insert({
+  const { error } = await supabase.from('bgms').insert({
     id,
     room_id: roomId,
     name: opts.name,
@@ -60,6 +60,7 @@ export async function createBgmTrackDirect(roomId: string, opts: {
     created_at: now,
     updated_at: now,
   });
+  if (error) throw new Error(`createBgmTrackDirect failed: ${error.message}`);
   return id;
 }
 
