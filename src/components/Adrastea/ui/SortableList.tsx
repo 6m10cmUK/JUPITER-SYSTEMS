@@ -233,6 +233,7 @@ interface SortableListItemProps {
   leadingSlot?: React.ReactNode;
   children: React.ReactNode;
   itemStyle?: React.CSSProperties;
+  dataAttributes?: Record<string, string>;
 }
 
 export function SortableListItem({
@@ -248,6 +249,7 @@ export function SortableListItem({
   leadingSlot,
   children,
   itemStyle,
+  dataAttributes,
 }: SortableListItemProps) {
   const {
     attributes,
@@ -290,6 +292,7 @@ export function SortableListItem({
       ref={setNodeRef}
       style={style}
       {...safeAttributes}
+      {...dataAttributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >

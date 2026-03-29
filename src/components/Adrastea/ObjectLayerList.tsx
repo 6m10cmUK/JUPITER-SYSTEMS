@@ -266,7 +266,17 @@ export function ObjectLayerList({
       style={{ minHeight: '100%' }}
       onContextMenu={(e) => {
         const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
-        if (objEl) return;
+        const objId = objEl?.getAttribute('data-obj-id');
+        if (objId) {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!selectedObjectIds.includes(objId)) {
+            setSelectedObjectIds([objId]);
+            setEditingObjectId(objId);
+          }
+          setContextMenu({ x: e.clientX, y: e.clientY, objId });
+          return;
+        }
         const charEl = (e.target as HTMLElement).closest('[data-char-id]');
         if (charEl) return;
         e.preventDefault();
@@ -389,22 +399,10 @@ export function ObjectLayerList({
         }
 
         return (
-          <div
-            key={obj.id}
-            data-obj-id={obj.id}
-            style={{ display: 'contents' }}
-            onContextMenu={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (!selectedObjectIds.includes(obj.id)) {
-                setSelectedObjectIds([obj.id]);
-                setEditingObjectId(obj.id);
-              }
-              setContextMenu({ x: e.clientX, y: e.clientY, objId: obj.id });
-            }}
-          >
           <SortableListItem
+            key={obj.id}
             id={obj.id}
+            dataAttributes={{ 'data-obj-id': obj.id }}
             disabled={obj.type === 'background'}
             hideHandle={obj.type === 'foreground'}
             isSelected={isSelected}
@@ -526,7 +524,6 @@ export function ObjectLayerList({
               </Tooltip>
             )}
           </SortableListItem>
-          </div>
         );
       })}
       <DragOverlay dropAnimation={null}>

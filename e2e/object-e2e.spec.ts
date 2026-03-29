@@ -101,11 +101,10 @@ test.describe.serial('オブジェクト管理テスト', () => {
     const textItem = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
     await expect(textItem).toBeVisible({ timeout: 5000 });
     await textItem.click({ button: 'right' });
-    await page.waitForTimeout(300);
 
-    // コンテキストメニュー「削除」
-    const deleteOpt = page.getByText('削除').first();
-    if (await deleteOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
+    // コンテキストメニュー「削除」（menuitem に限定、シーンパネルの「シーンを削除」と区別）
+    const deleteOpt = page.locator('[role="menuitem"]').filter({ hasText: '削除' }).first();
+    if (await deleteOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
       await deleteOpt.click();
       await page.waitForTimeout(300);
 

@@ -148,12 +148,13 @@ export function CharacterPanel({
       emptyMessage="キャラクターがありません"
     >
       {filteredCharacters.map((char) => (
-        <div key={char.id} data-char-id={char.id} style={{ display: 'contents' }}>
-          <SortableListItem
-            id={char.id}
-            onClick={(e: React.MouseEvent) => handleRowClick(e, char)}
-            onDoubleClick={() => onDoubleClickCharacter?.(char)}
-            isSelected={selectedCharIds.includes(char.id)}
+        <SortableListItem
+          key={char.id}
+          id={char.id}
+          dataAttributes={{ 'data-char-id': char.id }}
+          onClick={(e: React.MouseEvent) => handleRowClick(e, char)}
+          onDoubleClick={() => onDoubleClickCharacter?.(char)}
+          isSelected={selectedCharIds.includes(char.id)}
             leadingSlot={
               <div style={{
                 width: '3px',
@@ -261,7 +262,6 @@ export function CharacterPanel({
               </button>
             </Tooltip>
           </SortableListItem>
-        </div>
       ))}
       </SortableListPanel>
     </div>
