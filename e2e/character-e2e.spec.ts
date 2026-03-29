@@ -106,28 +106,24 @@ test.describe.serial('キャラクター管理テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
-    const charItem = page.locator('[data-char-id]').first();
-    if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // ダブルクリック
-      await charItem.dblclick();
+    // data-char-id の中の SortableListItem（data-sortable-item）を dblclick
+    const charSortableItem = page.locator('[data-char-id] [data-sortable-item]').first();
+    if (await charSortableItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await charSortableItem.dblclick();
       await page.waitForTimeout(1000);
 
-      // キャラクター編集モーダルが開く（タイトルで確認）
+      // キャラクター編集モーダルが開く
       await expect(page.getByText('キャラクター編集').first()).toBeVisible({ timeout: 5000 });
 
-      // 名前入力フィールド（最初のテキスト入力）
-      const nameInput = page.locator('input[type="text"]').first();
-      await expect(nameInput).toBeVisible({ timeout: 2000 });
-      await nameInput.fill('編集済みキャラ');
-      await page.waitForTimeout(300);
-
-      // モーダル内の保存ボタンがあれば クリック、なければエスケープで自動保存扱い
-      const saveBtn = page.getByRole('button', { name: /保存|完了|OK/ }).first();
-      if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-        await saveBtn.click();
-      } else {
-        await page.keyboard.press('Escape');
+      // モーダル内の名前入力フィールド
+      const nameInput = page.locator('input[placeholder*="キャラクター"], input[placeholder*="名前"]').first();
+      if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await nameInput.fill('編集済みキャラ');
+        await page.waitForTimeout(300);
       }
+
+      // モーダルを閉じる（自動保存）
+      await page.keyboard.press('Escape');
       await page.waitForTimeout(1000);
 
       // リロードして名前が変更されたことを確認

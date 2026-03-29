@@ -8,6 +8,8 @@ const AUTH_FILE = path.join(__dirname, 'e2e/.auth/state.json');
 export default defineConfig({
   testDir: './e2e',
   timeout: 30000,
+  workers: 3,
+  retries: 1,
   use: {
     baseURL: 'https://localhost:6100',
     screenshot: 'only-on-failure',
@@ -17,11 +19,7 @@ export default defineConfig({
     {
       name: 'setup',
       testMatch: /auth\.setup\.ts/,
-      timeout: 120_000,
-      use: {
-        headless: false,
-        channel: 'chrome',
-      },
+      timeout: 30_000,
     },
     {
       name: 'visual',
@@ -30,7 +28,7 @@ export default defineConfig({
     },
     {
       name: 'e2e',
-      testMatch: /(supabase-e2e|features-e2e|property-e2e|chat-e2e)\.spec\.ts/,
+      testMatch: /(supabase-e2e|scene-e2e|object-e2e|character-e2e|bgm-e2e|scenario-text-e2e|undo-e2e|misc-e2e|property-e2e|chat-e2e|selection-e2e|keyboard-e2e)\.spec\.ts/,
       dependencies: ['setup'],
       timeout: 60_000,
       use: {

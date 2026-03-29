@@ -93,7 +93,9 @@ test.describe.serial('キーボードショートカットテスト', () => {
     expect(scenesAfterCount).toBe(scenesBeforeCount);
   });
 
-  test('クリーンアップ: ルーム削除', async ({ page }) => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage({ ignoreHTTPSErrors: true });
     await deleteRoom(page, ROOM_NAME);
+    await page.close();
   });
 });

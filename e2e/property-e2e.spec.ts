@@ -111,8 +111,8 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await addTextObject(page);
     await page.waitForTimeout(500);
 
-    // プロパティパネル内の最初のテキスト入力（オブジェクト名フィールド）
-    const nameInput = page.locator('input[type="text"]').first();
+    // オブジェクト名フィールド（placeholder で特定）
+    const nameInput = page.locator('input[placeholder="オブジェクト名"]').first();
     await expect(nameInput).toBeVisible({ timeout: 5000 });
 
     const newName = `TestObject_${Date.now()}`;

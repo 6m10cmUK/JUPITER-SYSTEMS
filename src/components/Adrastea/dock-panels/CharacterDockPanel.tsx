@@ -34,6 +34,7 @@ export function CharacterDockPanel() {
       board_y: center?.y ?? 0,
     });
     ctx.setEditingCharacter(newChar);
+    setSelectedCharIds([newChar.id]);
     setModalChar(newChar);
   };
 
