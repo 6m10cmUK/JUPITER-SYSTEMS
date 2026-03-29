@@ -311,7 +311,9 @@ test.describe.serial('シーン管理テスト', () => {
     expect(scenesAfterCount).toBeGreaterThan(scenesBeforeCount);
   });
 
-  test('クリーンアップ: ルーム削除', async ({ page }) => {
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage({ ignoreHTTPSErrors: true });
     await deleteRoom(page, ROOM_NAME);
+    await page.close();
   });
 });

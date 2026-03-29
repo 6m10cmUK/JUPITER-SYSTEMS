@@ -259,6 +259,9 @@ export function SortableListItem({
     isDragging,
   } = useSortable({ id, disabled });
 
+  // attributes から aria-disabled を除外（DnD disabled ≠ インタラクション disabled）
+  const { 'aria-disabled': _ariaDisabled, ...safeAttributes } = attributes;
+
   const style: React.CSSProperties = {
     display: 'flex',
     alignItems: 'center',
@@ -286,7 +289,7 @@ export function SortableListItem({
       data-sortable-item
       ref={setNodeRef}
       style={style}
-      {...attributes}
+      {...safeAttributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
