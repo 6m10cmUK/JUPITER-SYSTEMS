@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../services/supabase';
 
 /**
@@ -23,106 +22,10 @@ export interface UseSupabaseQueryResult<T> {
 }
 
 /**
- * モジュールレベル チャネルキャッシュ
- * roomId → channel
- */
-const channelCache = new Map<string, RealtimeChannel>();
-
-/**
- * モジュールレベル リスナーレジストリ
- * roomId → table → Set<listener>
- */
-const listenerRegistry = new Map<string, Map<string, Set<(payload: any) => void>>>();
-
-/**
  * モジュールレベル echo suppression キャッシュ
  * テーブル → pending ID → timer ID
  */
 const pendingUpdatesRegistry = new Map<string, Map<string, NodeJS.Timeout>>();
-
-/**
- * 1ルーム1チャネルを取得・作成
- */
-function getOrCreateChannel(roomId: string): RealtimeChannel {
-  if (channelCache.has(roomId)) {
-    return channelCache.get(roomId)!;
-  }
-
-  const channel = supabase.channel(`room:${roomId}`);
-
-  // リスナーレジストリを初期化
-  listenerRegistry.set(roomId, new Map());
-
-  channel.subscribe();
-  channelCache.set(roomId, channel);
-
-  return channel;
-}
-
-/**
- * テーブル別リスナーを登録
- */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function registerListener(
-  roomId: string,
-  table: string,
-  listener: (payload: any) => void
-): void {
-  const channel = getOrCreateChannel(roomId);
-  const tableListeners = listenerRegistry.get(roomId)!;
-
-  if (!tableListeners.has(table)) {
-    tableListeners.set(table, new Set());
-
-    // Realtime イベント設定（テーブル初回時のみ）
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*', // INSERT, UPDATE, DELETE
-        schema: 'public',
-        table: table,
-      },
-      (payload) => {
-        // 全リスナーに通知
-        const listeners = tableListeners.get(table);
-        if (listeners) {
-          listeners.forEach((cb) => cb(payload));
-        }
-      }
-    );
-  }
-
-  tableListeners.get(table)!.add(listener);
-}
-
-/**
- * テーブル別リスナーを削除
- */
-function unregisterListener(
-  roomId: string,
-  table: string,
-  listener: (payload: any) => void
-): void {
-  const tableListeners = listenerRegistry.get(roomId)?.get(table);
-  if (tableListeners) {
-    tableListeners.delete(listener);
-
-    // 全リスナー削除時、チャネルをクリーンアップ
-    if (tableListeners.size === 0) {
-      const allEmpty = Array.from(listenerRegistry.get(roomId)!.values()).every(
-        (set) => set.size === 0
-      );
-      if (allEmpty) {
-        const channel = channelCache.get(roomId);
-        if (channel) {
-          channel.unsubscribe();
-          channelCache.delete(roomId);
-          listenerRegistry.delete(roomId);
-        }
-      }
-    }
-  }
-}
 
 /**
  * echo suppression: pending 更新を登録
@@ -182,7 +85,6 @@ export function useSupabaseQuery<T extends { id: string }>(
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const listenerRef = useRef<((payload: any) => void) | null>(null);
   const filterRef = useRef(filter);
   const orderByRef = useRef(orderBy);
 
@@ -198,86 +100,82 @@ export function useSupabaseQuery<T extends { id: string }>(
 
     let isMounted = true;
 
+    // 1. チャネル作成（テーブル別）
+    const channel = supabase.channel(`room:${roomId}:${table}`);
+
+    // 2. Realtime リスナー登録（subscribe の前に！）
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: table,
+      },
+      (payload: any) => {
+        const { eventType, new: newData, old: oldData } = payload;
+
+        if (!isMounted) return;
+
+        switch (eventType) {
+          case 'INSERT': {
+            if (!matchesFilter(newData, roomId)) return;
+            setData((prev) => {
+              const exists = prev.some((row) => row.id === newData.id);
+              if (exists) return prev;
+              return [...prev, newData];
+            });
+            break;
+          }
+          case 'UPDATE': {
+            const id = newData.id;
+            if (isPending(table, id)) {
+              clearPending(table, id);
+              return;
+            }
+            if (!matchesFilter(newData, roomId)) {
+              setData((prev) => prev.filter((row) => row.id !== id));
+              return;
+            }
+            setData((prev) =>
+              prev.map((row) => (row.id === id ? newData : row))
+            );
+            break;
+          }
+          case 'DELETE': {
+            const id = oldData.id;
+            clearPending(table, id);
+            setData((prev) => prev.filter((row) => row.id !== id));
+            break;
+          }
+        }
+      }
+    );
+
+    // 3. subscribe（.on() の後）
+    channel.subscribe();
+
+    // 4. 初回データ取得（並行）
     const fetchInitial = async () => {
       try {
-        // 初回取得
         let query = supabase.from(table).select(columns);
-
         if (filterRef.current) {
           query = filterRef.current(query);
         }
-
         if (orderByRef.current) {
           query = query.order(orderByRef.current.column, {
             ascending: orderByRef.current.ascending !== false,
           });
         }
-
         const { data: fetchedData, error: fetchError } = await query;
-
-        // デバッグ: テーブル名・カラムをログ出力（エラー時のみ）
         if (fetchError) {
           console.debug(`[useSupabaseQuery] ${table} / columns: ${columns}`, fetchError);
+          throw fetchError;
         }
-
-        if (fetchError) throw fetchError;
         if (!isMounted) return;
-
         setData((fetchedData || []) as unknown as T[]);
         setLoading(false);
         setError(null);
-
-        // Realtime リスナー定義
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const realtimeListener = (payload: any) => {
-          const { eventType, new: newData, old: oldData } = payload;
-
-          if (!isMounted) return;
-
-          switch (eventType) {
-            case 'INSERT': {
-              // フィルタを満たすかチェック（room_id等）
-              if (!matchesFilter(newData, roomId)) {
-                return;
-              }
-              setData((prev) => {
-                const exists = prev.some((row) => row.id === newData.id);
-                if (exists) return prev; // 重複防止
-                return [...prev, newData];
-              });
-              break;
-            }
-            case 'UPDATE': {
-              const id = newData.id;
-              if (isPending(table, id)) {
-                clearPending(table, id);
-                return; // echo suppression: スキップ
-              }
-
-              // フィルタを再チェック（room_idが変わった場合の削除対応）
-              if (!matchesFilter(newData, roomId)) {
-                setData((prev) => prev.filter((row) => row.id !== id));
-                return;
-              }
-
-              setData((prev) =>
-                prev.map((row) => (row.id === id ? newData : row))
-              );
-              break;
-            }
-            case 'DELETE': {
-              const id = oldData.id;
-              clearPending(table, id);
-              setData((prev) => prev.filter((row) => row.id !== id));
-              break;
-            }
-          }
-        };
-
-        listenerRef.current = realtimeListener;
-
-        // チャネルにリスナー登録（1ルーム1チャネル統合）
-        registerListener(roomId, table, realtimeListener);
       } catch (err) {
         if (isMounted) {
           setError(err as Error);
@@ -288,13 +186,10 @@ export function useSupabaseQuery<T extends { id: string }>(
 
     fetchInitial();
 
+    // 5. クリーンアップ
     return () => {
       isMounted = false;
-
-      // リスナー削除
-      if (listenerRef.current) {
-        unregisterListener(roomId, table, listenerRef.current);
-      }
+      channel.unsubscribe();
     };
   }, [table, columns, roomId, enabled]);
 

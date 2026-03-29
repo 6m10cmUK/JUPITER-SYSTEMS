@@ -169,3 +169,45 @@ export async function addBgmTrack(page: Page, trackName: string = 'TestBGM'): Pr
   await nameInput.waitFor({ state: 'visible', timeout: 5000 });
   await nameInput.fill(trackName);
 }
+
+/**
+ * 設定モーダルからパネルを開く（dockview レイアウトに追加）
+ * togglePanel なので、既に開いている場合は閉じてしまう点に注意。
+ */
+export async function openPanel(page: Page, panelTitle: string): Promise<void> {
+  // 設定ボタン（title="ルーム設定"）
+  await page.locator('button[title="ルーム設定"]').click();
+  await page.waitForTimeout(300);
+
+  // 設定モーダル内の「レイアウト」ナビボタン
+  const modal = page.locator('.adrastea-root').last();
+  await modal.getByRole('button', { name: 'レイアウト' }).click();
+  await page.waitForTimeout(300);
+
+  // パネル名の span を見つけて親の div 内のボタンを取得
+  const panelSpan = modal.locator('span').filter({ hasText: panelTitle });
+  await panelSpan.scrollIntoViewIfNeeded();
+  const row = panelSpan.locator('xpath=..');
+  const btn = row.locator('button');
+  const btnText = await btn.textContent({ timeout: 3000 });
+  if (btnText?.includes('表示する')) {
+    await btn.click();
+    await page.waitForTimeout(500);
+  }
+
+  // 設定モーダルを閉じる
+  await modal.locator('button[title="閉じる"]').click();
+  await page.waitForTimeout(300);
+}
+
+/**
+ * パネルが表示されていなければ openPanel で開く。
+ * checkSelector: パネルが表示されているか判定するセレクタ
+ * panelTitle: openPanel に渡すパネル名
+ */
+export async function ensurePanel(page: Page, checkSelector: string, panelTitle: string): Promise<void> {
+  const visible = await page.locator(checkSelector).first().isVisible({ timeout: 2000 }).catch(() => false);
+  if (!visible) {
+    await openPanel(page, panelTitle);
+  }
+}

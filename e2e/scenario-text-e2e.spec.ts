@@ -1,22 +1,24 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoomById, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, BASE_URL, openPanel, ensurePanel } from './helpers';
 
 const ROOM_NAME = `text_test_${Date.now()}`;
 let roomId: string;
 
-// TODO: ScenarioTextPanel はデフォルトレイアウトに含まれない。パネル追加ヘルパーの実装後に有効化
-test.describe.skip('シナリオテキスト管理テスト', () => {
+test.describe('シナリオテキスト管理テスト', () => {
   test.describe.configure({ mode: 'serial' });
   test('ルーム作成 (準備)', async ({ page }) => {
     await goToLobby(page);
     roomId = await createRoom(page, ROOM_NAME);
     expect(roomId).toBeTruthy();
+    // ScenarioTextPanel はデフォルトレイアウトに含まれないので設定から開く
+    await openPanel(page, 'テキストメモ');
   });
 
   test('シナリオテキスト作成', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
+    await ensurePanel(page, 'button[aria-label="テキストメモを追加"]', 'テキストメモ');
 
     const addBtn = page.locator('button[aria-label="テキストメモを追加"]').first();
     await expect(addBtn).toHaveCount(1, { timeout: 5000 });
@@ -31,6 +33,7 @@ test.describe.skip('シナリオテキスト管理テスト', () => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
+    await ensurePanel(page, '[data-text-id]', 'テキストメモ');
 
     const textItem = page.locator('[data-text-id]').first();
     if (await textItem.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -51,6 +54,7 @@ test.describe.skip('シナリオテキスト管理テスト', () => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
+    await ensurePanel(page, '[data-text-id]', 'テキストメモ');
 
     const textItem = page.locator('[data-text-id]').first();
     if (await textItem.isVisible({ timeout: 3000 }).catch(() => false)) {
@@ -73,6 +77,7 @@ test.describe.skip('シナリオテキスト管理テスト', () => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
+    await ensurePanel(page, '[data-text-id]', 'テキストメモ');
 
     const textItems = page.locator('[data-text-id]');
     const beforeCount = await textItems.count();
@@ -103,6 +108,7 @@ test.describe.skip('シナリオテキスト管理テスト', () => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
+    await ensurePanel(page, '[data-text-id]', 'テキストメモ');
 
     const textItem = page.locator('[data-text-id]').first();
     if (await textItem.isVisible({ timeout: 3000 }).catch(() => false)) {

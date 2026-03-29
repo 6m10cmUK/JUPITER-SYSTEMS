@@ -68,24 +68,32 @@ export function CharacterDockPanel() {
     }
   };
 
-  const handleRemoveCharacters = (ids: string[]) => {
-    Promise.all(ids.map(id => ctx.removeCharacter(id)));
+  const handleRemoveCharacters = async (ids: string[]) => {
+    try {
+      await Promise.all(ids.map(id => ctx.removeCharacter(id)));
+    } catch (err) {
+      console.error('キャラクター削除失敗:', err);
+    }
     setSelectedCharIds([]);
     if (ctx.editingCharacter && ids.includes(ctx.editingCharacter.id)) {
       ctx.setEditingCharacter(undefined);
     }
   };
 
-  const handleDuplicateCharacters = (ids: string[]) => {
+  const handleDuplicateCharacters = async (ids: string[]) => {
     const chars = ctx.characters.filter(c => ids.includes(c.id));
-    Promise.all(chars.map(char => {
-      const { id, _id, _creationTime, ...rest } = char as any;
-      return ctx.addCharacter({
-        ...rest,
-        owner_id: ctx.user?.uid ?? '',
-        name: `${char.name} (コピー)`,
-      });
-    }));
+    try {
+      await Promise.all(chars.map(char => {
+        const { id, _id, _creationTime, ...rest } = char as any;
+        return ctx.addCharacter({
+          ...rest,
+          owner_id: ctx.user?.uid ?? '',
+          name: `${char.name} (コピー)`,
+        });
+      }));
+    } catch (err) {
+      console.error('キャラクター複製失敗:', err);
+    }
   };
 
   const handleToggleBoardVisibleRaw = useCallback((charId: string) => {
