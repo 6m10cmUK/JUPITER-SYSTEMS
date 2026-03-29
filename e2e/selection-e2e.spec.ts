@@ -120,7 +120,7 @@ test.describe.serial('複数選択テスト', () => {
       // キャラクターパネル内をクリックして panelSelection をキャラクターに切り替え
       const charItem = page.locator('[data-char-id]').first();
       if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await charItem.click();
+        await page.locator('[data-char-id]').first().click();
         await page.waitForTimeout(300);
       }
 

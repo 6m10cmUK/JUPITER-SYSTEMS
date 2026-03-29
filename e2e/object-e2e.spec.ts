@@ -98,7 +98,7 @@ test.describe.serial('オブジェクト管理テスト', () => {
     }
 
     // レイヤーパネル内のテキストオブジェクトを右クリック → 「削除」
-    const textItem = page.locator('[data-sortable-item]').filter({ hasText: /テキスト|新規テキスト/ }).first();
+    const textItem = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
     await expect(textItem).toBeVisible({ timeout: 5000 });
     await textItem.click({ button: 'right' });
     await page.waitForTimeout(300);
@@ -124,7 +124,7 @@ test.describe.serial('オブジェクト管理テスト', () => {
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-    const remaining = await page.locator('[data-sortable-item]').filter({ hasText: /テキスト|新規テキスト/ }).count();
+    const remaining = await page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).count();
     expect(remaining).toBe(0);
   });
 

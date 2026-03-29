@@ -164,7 +164,7 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     // キャラクターアイテムを探す
     const charItem = page.locator('[data-char-id]').first();
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await charItem.click();
+      await page.locator('[data-char-id]').first().click();
       await page.waitForTimeout(300);
 
       // プロパティパネルが表示される（キャラクター編集またはプロパティ）
