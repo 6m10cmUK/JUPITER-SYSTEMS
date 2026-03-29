@@ -43,30 +43,39 @@ export async function sendChat(page: Page, message: string): Promise<void> {
 
 export async function deleteRoom(page: Page, roomName: string): Promise<void> {
   await goToLobby(page);
-  // ルームカードを特定
-  const roomCard = page.locator(`button:has-text("${roomName}")`).first();
-  if (await roomCard.isVisible({ timeout: 3000 }).catch(() => false)) {
-    // カード内の削除ボタン（title="削除"）
-    const deleteIcon = roomCard.locator('button[title="削除"]');
-    await deleteIcon.click({ force: true });
-    await page.waitForTimeout(500);
-    // 確認モーダルの「削除」ボタン — AdButton variant="danger"
-    await page.getByRole('button', { name: '削除', exact: true }).last().click();
-    await page.waitForTimeout(2000);
+  // ルームカードは div ベース（SortableRoomCard）
+  // ルーム名テキストから親カードを特定し、削除ボタンをクリック
+  const roomNameEl = page.getByText(roomName, { exact: true }).first();
+  if (await roomNameEl.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // ルーム名の親カード内の削除ボタン
+    const card = page.locator('div').filter({ has: roomNameEl }).first();
+    const deleteIcon = card.locator('button[title="削除"]');
+    if (await deleteIcon.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await deleteIcon.click({ force: true });
+      await page.waitForTimeout(500);
+      // 確認ダイアログ内の「削除」ボタン
+      const dialog = page.getByRole('dialog').first();
+      const confirmBtn = dialog.getByRole('button', { name: '削除', exact: true });
+      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await confirmBtn.click();
+        // 削除がDBに反映されるまで待つ
+        await page.waitForTimeout(3000);
+      }
+    }
   }
 }
 
 export async function selectBackground(page: Page): Promise<void> {
   const bgBtn = page.getByRole('button', { name: '背景' }).first();
   await bgBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await bgBtn.click();
+  await bgBtn.click({ force: true });
   await page.waitForTimeout(300);
 }
 
 export async function selectForeground(page: Page): Promise<void> {
   const fgBtn = page.getByRole('button', { name: '前景' }).first();
   await fgBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await fgBtn.click();
+  await fgBtn.click({ force: true });
   await page.waitForTimeout(300);
 }
 
