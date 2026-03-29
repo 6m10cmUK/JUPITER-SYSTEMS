@@ -136,6 +136,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               sender_uid: senderUid,
               sender_avatar: senderAvatar,
               channel,
+              created_at: Date.now(),
             });
 
             // 2. 送信者のみ向け結果メッセージ
@@ -166,11 +167,13 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_avatar: senderAvatar,
           channel,
           allowed_user_ids: finalAllowedUserIds,
+          created_at: Date.now(),
         });
 
         // 秘密ダイス時は2メッセージをアトミックに送信する必要があるため Supabase 直接
         if (messagesToInsert.length > 1) {
-          await supabase.from('messages').insert(messagesToInsert);
+          const { error } = await supabase.from('messages').insert(messagesToInsert);
+          if (error) throw error;
         } else {
           // 通常メッセージは楽観的更新を使用
           await chatMutation.insert(mainMessage);
