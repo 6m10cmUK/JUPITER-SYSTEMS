@@ -211,3 +211,19 @@ export async function ensurePanel(page: Page, checkSelector: string, panelTitle:
     await openPanel(page, panelTitle);
   }
 }
+
+/** Supabase API でテストユーザー自身のルームロールを直接変更 */
+export async function updateRoleDirect(
+  roomId: string,
+  newRole: 'guest' | 'user' | 'sub_owner' | 'owner'
+): Promise<void> {
+  const supabase = await getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  const { error } = await supabase
+    .from('room_members')
+    .update({ role: newRole })
+    .eq('room_id', roomId)
+    .eq('user_id', user.id);
+  if (error) throw new Error(`updateRoleDirect failed: ${error.message}`);
+}
