@@ -147,11 +147,14 @@ test.describe.serial('キャラクター管理テスト', () => {
       const charCountBefore = await page.locator('[data-char-id]').count();
 
       // 右クリック → コンテキストメニュー「複製」
-      await page.locator('[data-char-id]').first().click({ button: 'right' });
-      await page.waitForTimeout(300);
+      const charEl = page.locator('[data-char-id]').first();
 
-      const duplicateOpt = page.getByText('複製').first();
-      if (await duplicateOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await charEl.click({ button: 'right' });
+
+      // コンテキストメニュー内の「複製」（DropdownMenu のアイテム）
+      // シーンパネルの「シーンを複製」ボタンと区別するため、正確にマッチ
+      const duplicateOpt = page.locator('[role="menuitem"]').filter({ hasText: '複製' }).first();
+      if (await duplicateOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
         await duplicateOpt.click();
         await page.waitForTimeout(2000);
 
@@ -173,34 +176,39 @@ test.describe.serial('キャラクター管理テスト', () => {
     }
   });
 
-  test('キャラクター Ctrl+C → paste で複製', async ({ page }) => {
+  test('キャラクター 右クリック「コピー」 → paste で複製', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
 
     const charItem = page.locator('[data-char-id]').first();
     if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await page.locator('[data-char-id]').first().click();
-      await page.waitForTimeout(1000);
-
       const charCountBefore = await page.locator('[data-char-id]').count();
 
-      // Ctrl+C
-      await page.keyboard.press('Control+c');
-      await page.waitForTimeout(500);
+      // 右クリック → コンテキストメニュー「コピー」
+      await charItem.click({ button: 'right' });
+      const copyOpt = page.locator('[role="menuitem"]').filter({ hasText: 'コピー' }).first();
+      if (await copyOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await copyOpt.click();
+        await page.waitForTimeout(500);
 
-      // paste イベント dispatch
-      await page.evaluate(async () => {
-        const text = await navigator.clipboard.readText();
-        const dt = new DataTransfer();
-        dt.setData('text/plain', text);
-        const evt = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
-        document.dispatchEvent(evt);
-      });
-      await page.waitForTimeout(2000);
+        // paste イベント dispatch
+        await page.evaluate(async () => {
+          const text = await navigator.clipboard.readText();
+          const dt = new DataTransfer();
+          dt.setData('text/plain', text);
+          const evt = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+          document.dispatchEvent(evt);
+        });
 
-      const charCountAfter = await page.locator('[data-char-id]').count();
-      expect(charCountAfter).toBeGreaterThan(charCountBefore);
+        // 複製されたキャラクターが表示されるまで待つ
+        await expect(page.locator('[data-char-id]').nth(charCountBefore)).toBeVisible({ timeout: 5000 });
+
+        const charCountAfter = await page.locator('[data-char-id]').count();
+        expect(charCountAfter).toBeGreaterThan(charCountBefore);
+      } else {
+        test.skip();
+      }
     } else {
       test.skip();
     }

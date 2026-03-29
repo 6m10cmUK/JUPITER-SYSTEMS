@@ -77,14 +77,14 @@ export async function selectForeground(page: Page): Promise<void> {
 }
 
 export async function addTextObject(page: Page): Promise<void> {
-  // レイヤーパネルの + ボタン（テキストオブジェクト追加）
-  const addObjBtn = page.locator('button[aria-label*="追加"]').first();
+  const addObjBtn = page.locator('button[aria-label="オブジェクト追加"]').first();
   await addObjBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await addObjBtn.click();
-  // メニュー項目が表示されるまで待つ
-  const textBtn = page.getByRole('button', { name: 'テキスト' }).first();
-  await textBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await textBtn.click();
+  await addObjBtn.click({ force: true });
+  await page.waitForTimeout(300);
+  const textOpt = page.getByText('シーンテキスト追加').first();
+  await textOpt.waitFor({ state: 'visible', timeout: 3000 });
+  await textOpt.click();
+  await page.waitForTimeout(500);
 }
 
 export async function addCharacter(page: Page): Promise<void> {
