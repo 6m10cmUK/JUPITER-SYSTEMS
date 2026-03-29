@@ -41,30 +41,34 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     await expect(page.locator('[data-char-id]').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('チャットパレット設定（chat_palette フィールド）', async ({ page }) => {
+  test('チャットパレット設定（CharacterEditor モーダル）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // キャラクターを選択 → 詳細パネルで chat_palette を設定
-    const charElement = page.getByText(CHARACTER_NAME).first();
-    await charElement.click();
+    // キャラクターをダブルクリック → 編集モーダル
+    const charItem = page.locator('[data-char-id]').first();
+    await expect(charItem).toBeVisible({ timeout: 5000 });
+    await charItem.dblclick();
     await page.waitForTimeout(500);
 
-    // chat_palette テキストエリアを探す（キャラクターパネル内）
-    // セレクタが見つからない場合は skip（まだUI実装されていない可能性）
-    try {
-      const paletteInput = page.locator('textarea').filter({ has: page.getByText(/パレット|palette/) }).first();
-      const isVisible = await paletteInput.isVisible({ timeout: 1000 }).catch(() => false);
-      if (isVisible) {
-        await paletteInput.fill('行動\n会話\n確認');
-        await page.waitForTimeout(300);
-      } else {
-        test.skip();
-      }
-    } catch {
-      test.skip();
-    }
+    // モーダルが開いたことを確認
+    await expect(page.getByText('キャラクター編集').first()).toBeVisible({ timeout: 5000 });
+
+    // 「チャットパレット」セクションまでスクロール
+    const paletteLabel = page.getByText('チャットパレット', { exact: true }).first();
+    await paletteLabel.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+
+    // チャットパレット textarea に入力
+    const paletteTextarea = page.locator('textarea[placeholder*="通常攻撃"]').first();
+    await expect(paletteTextarea).toBeVisible({ timeout: 3000 });
+    await paletteTextarea.fill('行動\n会話\n確認');
+    await page.waitForTimeout(500);
+
+    // モーダルを閉じる（保存される）
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(500);
   });
 
   // --- C-01: マークアップ表示 太字 ---
@@ -273,54 +277,70 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // チャットパレットパネルがあるか確認
-    const palettePanel = page.locator('[data-panel-type="ChatPalette"]').first();
-    if (await palettePanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // パレットアイテム「行動」をクリック
-      const paletteItem = palettePanel.locator('button, div[role="button"]').filter({ hasText: '行動' }).first();
-      if (await paletteItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await paletteItem.click();
-        await page.waitForTimeout(500);
+    // 送信者名にキャラ名を入力して activeSpeakerCharId を設定
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
 
-        // エディタに「行動」が挿入されているか確認
-        const editor = page.locator('[contenteditable="true"]').first();
-        const editorText = await editor.innerText();
-        expect(editorText).toContain('行動');
-      } else {
-        test.skip();
-      }
+    // チャットパレットパネルの dockview タブをクリック
+    const paletteTab = page.getByText('チャットパレット').first();
+    if (await paletteTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await paletteTab.click();
+      await page.waitForTimeout(500);
+    }
+
+    // パレットアイテム「行動」をクリック
+    const paletteItem = page.locator('button[title="行動"]').first();
+    if (await paletteItem.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await paletteItem.click();
+      await page.waitForTimeout(500);
+
+      // エディタに「行動」が挿入されているか確認
+      const editor = page.locator('[contenteditable="true"]').first();
+      const editorText = await editor.innerText();
+      expect(editorText).toContain('行動');
     } else {
       test.skip();
     }
   });
 
-  test('C-10: チャットパレット Send アイコン → チャット送信', async ({ page }) => {
+  test('C-10: チャットパレット送信ボタン → チャット送信', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    const palettePanel = page.locator('[data-panel-type="ChatPalette"]').first();
-    if (await palettePanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // パレットアイテム「会話」の横にある Send ボタン
-      const paletteItem = palettePanel.locator('button, div').filter({ hasText: '会話' }).first();
-      if (await paletteItem.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // Send アイコン（aria-label="送信" または SendHorizonal icon）をクリック
-        const sendIcon = paletteItem.locator('button[title="送信"], button[aria-label="送信"]').first();
-        if (await sendIcon.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await sendIcon.click();
-          await page.waitForTimeout(1000);
+    // 送信者設定
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
 
-          // チャットログに「会話」が表示されている
-          const chatMsg = page.getByText('会話').first();
-          await expect(chatMsg).toBeVisible({ timeout: 5000 });
-        } else {
-          test.skip();
-        }
+    // チャットパレットタブ
+    const paletteTab = page.getByText('チャットパレット').first();
+    if (await paletteTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await paletteTab.click();
+      await page.waitForTimeout(500);
+    }
+
+    // 「行動」アイテムの送信ボタンをクリック
+    const sendBtn = page.locator('button[title="行動"]').first().locator('xpath=following-sibling::button[1]');
+    if (await sendBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await sendBtn.click();
+      await page.waitForTimeout(1000);
+
+      // チャットログに「行動」が表示される
+      await expect(page.getByText('行動').last()).toBeVisible({ timeout: 5000 });
+    } else {
+      // 送信ボタンが構造的に隣接でない場合、title="送信" で探す
+      const altSendBtn = page.locator('button[title="送信"]').first();
+      if (await altSendBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await altSendBtn.click();
+        await page.waitForTimeout(1000);
+        await expect(page.getByText('行動').last()).toBeVisible({ timeout: 5000 });
       } else {
         test.skip();
       }
-    } else {
-      test.skip();
     }
   });
 
@@ -342,15 +362,21 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
+    // 送信者にキャラ名を設定（chat_palette が設定されたキャラクター）
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
+
     const editor = page.locator('[contenteditable="true"]').first();
     await editor.click();
     await editor.pressSequentially('行');
     await page.waitForTimeout(500);
 
     // サジェスト（「行動」「会話」など）が表示される
-    const suggestion = page.locator('div').filter({ hasText: /行動|会話/ }).first();
+    const suggestion = page.locator('[role="listbox"], [role="option"]').first()
+      .or(page.locator('div').filter({ hasText: /^行動$/ }).first());
     await expect(suggestion).toBeVisible({ timeout: 3000 }).catch(() => {
-      // サジェスト機能がない場合はスキップ可能
       test.skip();
     });
   });
