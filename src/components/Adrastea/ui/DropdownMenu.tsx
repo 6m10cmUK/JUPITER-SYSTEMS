@@ -303,6 +303,7 @@ export function DropdownMenu({
 
       return (
         <button
+          role="menuitem"
           key={entry.id ? `item-${entry.id}` : `item-${index}`}
           ref={(el) => {
             if (el) {
@@ -445,6 +446,8 @@ export function DropdownMenu({
           <div
             ref={menuRef}
             data-selection-panel
+            data-dropdown-menu
+            role="menu"
             style={{
               position: 'fixed',
               top: `${menuPos.top}px`,

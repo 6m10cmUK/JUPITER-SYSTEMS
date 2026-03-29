@@ -12,14 +12,55 @@ export const BASE_URL = 'https://localhost:6100';
 const SUPABASE_URL = 'https://yrbunpqdbhlgxagifpau.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_J1PYr4e0chbEHislvQVTKw_F7Wx5-WH';
 
-/** Supabase API でルームを直接削除（UI 操作不要、確実） */
-export async function deleteRoomById(roomId: string): Promise<void> {
+/** 認証済み Supabase クライアントを取得 */
+async function getSupabase() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   await supabase.auth.signInWithPassword({
     email: process.env.PLAYWRIGHT_TEST_EMAIL!,
     password: process.env.PLAYWRIGHT_TEST_PASSWORD!,
   });
+  return supabase;
+}
+
+/** ルームに属するシーンの ID 一覧を取得 */
+export async function getSceneIds(roomId: string): Promise<string[]> {
+  const supabase = await getSupabase();
+  const { data } = await supabase.from('scenes').select('id').eq('room_id', roomId);
+  return data?.map(s => s.id) ?? [];
+}
+
+/** Supabase API でルームを直接削除 */
+export async function deleteRoomById(roomId: string): Promise<void> {
+  const supabase = await getSupabase();
   await supabase.from('rooms').delete().eq('id', roomId);
+}
+
+/** Supabase API で BGM トラックを直接作成 */
+export async function createBgmTrackDirect(roomId: string, opts: {
+  name: string;
+  bgmSource: string;
+  sceneIds?: string[];
+}): Promise<string> {
+  const supabase = await getSupabase();
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  await supabase.from('bgms').insert({
+    id,
+    room_id: roomId,
+    name: opts.name,
+    bgm_type: 'url',
+    bgm_source: opts.bgmSource,
+    bgm_volume: 0.5,
+    bgm_loop: true,
+    scene_ids: opts.sceneIds ?? [],
+    is_playing: false,
+    is_paused: false,
+    auto_play_scene_ids: [],
+    fade_in: false,
+    created_at: now,
+    updated_at: now,
+  });
+  return id;
 }
 
 export async function goToLobby(page: Page): Promise<void> {
