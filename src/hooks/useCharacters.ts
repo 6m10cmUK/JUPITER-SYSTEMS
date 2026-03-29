@@ -207,6 +207,9 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
             size: newChar.size,
             is_status_private: newChar.is_status_private,
           };
+          // 楽観的 UI 更新
+          statsQuery.setData((prev) => [...prev, statsData as unknown as CharacterStatsRow]);
+          baseQuery.setData((prev) => [...prev, baseData as unknown as CharacterBaseRow]);
           // useSupabaseMutation 非経由: 2テーブル同時 INSERT のトランザクション保証が必要
           const [statsResult, baseResult] = await Promise.all([
             supabase.from('characters_stats').insert([statsData]),
@@ -217,6 +220,9 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
         }
       } catch (err) {
         console.error('キャラクター作成失敗:', err);
+        // 楽観的更新をロールバック
+        statsQuery.setData((prev) => prev.filter((row) => row.id !== newChar.id));
+        baseQuery.setData((prev) => prev.filter((row) => row.id !== newChar.id));
         // ロールバック: 片方が成功した可能性があるため削除
         const statsResult = await supabase.from('characters_stats').delete().eq('id', newChar.id);
         if (statsResult.error) console.error('Rollback stats failed:', statsResult.error);
