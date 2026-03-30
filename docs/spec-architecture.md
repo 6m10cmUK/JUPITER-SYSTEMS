@@ -4,43 +4,55 @@ TRPGオンラインセッション向け盤面共有ツール。マップ・駒�
 
 ## 1. システム全体構成
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  ブラウザ（React 19 + TypeScript）                           │
-│  ┌─────────────────────────────────────────────────────────┐
-│  │ App.tsx                                                  │
-│  │ ├─ Adrastea.tsx（ルーティング・認証分岐）               │
-│  │ │  └─ AdrasteaProvider（RoomDataProvider + UIStateProvider）
-│  │ │     └─ AdrasteaRoom（DockLayout + TopToolbar）        │
-│  │ │        └─ Board, Panels, Overlays, Modals            │
-│  │ └─ RoomLobby.tsx（ルーム一覧・作成）                    │
-│  └─────────────────────────────────────────────────────────┘
-│          ↕（Supabase クライアント）
-├─────────────────────────────────────────────────────────────┤
-│ Supabase Auth (Google OAuth + 匿名認証)                     │
-└─────────────────────────────────────────────────────────────┘
-         ↕（PostgreSQL + Realtime API）
-┌─────────────────────────────────────────────────────────────┐
-│ Supabase バックエンド（PostgreSQL + Realtime + Auth）       │
-│ ├─ rooms テーブル（リアルタイム同期）                       │
-│ ├─ scenes, objects, bgms, cutins テーブル                  │
-│ ├─ characters_stats, characters_base テーブル              │
-│ ├─ messages テーブル（チャット）                            │
-│ ├─ room_members テーブル（権限管理）                        │
-│ └─ channels テーブル（チャットチャネル）                    │
-└─────────────────────────────────────────────────────────────┘
-         ↕（HTTP/REST）
-┌─────────────────────────────────────────────────────────────┐
-│ Cloudflare Workers（jupity-610 subdomain）                  │
-│ ├─ GET /rooms/:id/snapshot（スナップショット復元）          │
-│ ├─ assets API（R2アクセス）                                │
-│ └─ authentication filter                                    │
-└─────────────────────────────────────────────────────────────┘
-    ↕ R2 PUT/DELETE              ↕ D1 SELECT/INSERT
-  ┌──────────────┐            ┌─────────────────┐
-  │Cloudflare R2 │            │   D1 SQLite     │
-  │（アセット）   │            │（チャット履歴）  │
-  └──────────────┘            └─────────────────┘
+```mermaid
+flowchart TD
+    subgraph Browser["ブラウザ（React 19 + TypeScript）"]
+        direction LR
+        AppTsx["App.tsx"]
+        Adrastea["Adrastea.tsx<br/>（ルーティング・認証分岐）"]
+        Provider["AdrasteaProvider<br/>（RoomDataProvider +<br/>UIStateProvider）"]
+        Room["AdrasteaRoom<br/>（DockLayout + TopToolbar）"]
+        Content["Board, Panels, Overlays, Modals"]
+        Lobby["RoomLobby.tsx<br/>（ルーム一覧・作成）"]
+
+        AppTsx --> Adrastea
+        AppTsx --> Lobby
+        Adrastea --> Provider
+        Provider --> Room
+        Room --> Content
+    end
+
+    subgraph Auth["Supabase Auth<br/>Google OAuth + 匿名認証"]
+    end
+
+    subgraph Backend["Supabase バックエンド<br/>PostgreSQL + Realtime + Auth"]
+        Rooms["rooms テーブル<br/>（リアルタイム同期）"]
+        Scene["scenes, objects, bgms,<br/>cutins テーブル"]
+        Chars["characters_stats,<br/>characters_base テーブル"]
+        Messages["messages テーブル<br/>（チャット）"]
+        Members["room_members テーブル<br/>（権限管理）"]
+        Channels["channels テーブル<br/>（チャットチャネル）"]
+    end
+
+    subgraph Workers["Cloudflare Workers<br/>jupity-610 subdomain"]
+        Snapshot["GET /rooms/:id/snapshot<br/>（スナップショット復元）"]
+        Assets["assets API<br/>（R2アクセス）"]
+        AuthFilter["authentication filter"]
+    end
+
+    subgraph Storage["ストレージ"]
+        R2["Cloudflare R2<br/>（アセット）"]
+        D1["D1 SQLite<br/>（チャット履歴）"]
+    end
+
+    Browser -->|Supabase クライアント| Auth
+    Browser -->|PostgreSQL + Realtime API| Backend
+    Browser -->|HTTP/REST| Workers
+
+    Workers -->|R2 PUT/DELETE| R2
+    Workers -->|D1 SELECT/INSERT| D1
+
+    Auth -.->|認証トークン| Backend
 ```
 
 デプロイ：Vercel（フロント） + Supabase（バックエンド） + Cloudflare（Worker/R2/D1）
@@ -177,27 +189,33 @@ export interface AdrasteaContextValue {
 
 `DockLayout.tsx` で dockview を初期化。15パネル程度を自由に配置可能。レイアウトは localStorage + 新形式 layoutStorage で永続化。
 
-```
-┌─────────────────────────────────────────────────────┐
-│              TopToolbar（外部、常時表示）            │
-├─────────────────────────────────────────────────────┤
-│                                                      │
-│   ┌──────────────────┐  ┌──────────────────────┐   │
-│   │                  │  │                      │   │
-│   │  Board パネル    │  │  ScenePanel          │   │
-│   │                  │  │  CharacterPanel      │   │
-│   │  (閉じるボタン   │  │  LayerPanel          │   │
-│   │   なし、Konva)   │  │  AssetPanel          │   │
-│   │                  │  │  CutinPanel          │   │
-│   └──────────────────┘  │  ScenarioTextPanel   │   │
-│                         │  BgmPanel            │   │
-│   ┌──────────────────┐  │  ...                 │   │
-│   │  ChatLogPanel    │  └──────────────────────┘   │
-│   │  ChatInputPanel  │                             │
-│   │                  │                             │
-│   └──────────────────┘                             │
-│                                                      │
-└─────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    Toolbar["TopToolbar（外部、常時表示）"]
+
+    subgraph MainArea["メインレイアウト"]
+        subgraph Left["左側"]
+            Board["Board パネル<br/>（Konva）<br/>閉じるボタンなし"]
+            Chat["ChatLogPanel<br/>ChatInputPanel"]
+        end
+
+        subgraph Right["右側パネル"]
+            Scene["ScenePanel"]
+            Character["CharacterPanel"]
+            Layer["LayerPanel"]
+            Asset["AssetPanel"]
+            Cutin["CutinPanel"]
+            ScenarioText["ScenarioTextPanel"]
+            Bgm["BgmPanel"]
+        end
+    end
+
+    Toolbar --- MainArea
+
+    style Toolbar fill:#e3f2fd,stroke:#1976d2,stroke-width:2px
+    style MainArea fill:#f5f5f5,stroke:#999,stroke-width:1px
+    style Left fill:#fff9c4,stroke:#f9a825,stroke-width:1px,stroke-dasharray: 5 5
+    style Right fill:#c8e6c9,stroke:#388e3c,stroke-width:1px,stroke-dasharray: 5 5
 ```
 
 ### 3.2 主要パネル

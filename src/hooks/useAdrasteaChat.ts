@@ -136,8 +136,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               sender_uid: senderUid,
               sender_avatar: senderAvatar,
               channel,
-              created_at: Date.now(),
-            });
+            } as Omit<ChatMessage, 'created_at'>);
 
             // 2. 送信者のみ向け結果メッセージ
             finalAllowedUserIds = [senderUid];
@@ -167,8 +166,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_avatar: senderAvatar,
           channel,
           allowed_user_ids: finalAllowedUserIds,
-          created_at: Date.now(),
-        });
+        } as Omit<ChatMessage, 'created_at'>);
 
         // 秘密ダイス時は2メッセージをアトミックに送信する必要があるため Supabase 直接
         if (messagesToInsert.length > 1) {

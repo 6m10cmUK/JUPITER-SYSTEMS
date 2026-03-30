@@ -279,7 +279,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
     if (bgObject?.color_enabled && color) return colorToDataUrl(color);
     const assetId = bgObject?.image_asset_id ?? null;
     if (!assetId) return null;
-    return assets.find(a => a.id === assetId)?.url ?? null;
+    return assets.find(a => a.id === assetId)?.url ?? resolveAssetId(assetId) ?? null;
   }, [bgObject?.image_asset_id, bgObject?.background_color, bgObject?.color_enabled, assets]);
 
   const prevBgRef = useRef<{ url: string | null; color: string | null; opacity: number; blur: boolean }>({ url: null, color: null, opacity: 1, blur: false });

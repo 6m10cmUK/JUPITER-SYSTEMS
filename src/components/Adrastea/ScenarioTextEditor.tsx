@@ -201,7 +201,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                 speaker_character_id: found?.id ?? null,
               });
             }}
-            placeholder="発言者名"
+            placeholder="noname"
             maxLength={128}
             style={{
               flex: 1, padding: '4px 6px',

@@ -105,6 +105,7 @@ export interface RoomDataContextValue {
 
   // --- Derived ---
   activeScene: Scene | null;
+  dataReady: boolean;
 }
 
 export const RoomDataContext = createContext<RoomDataContextValue | null>(null);
