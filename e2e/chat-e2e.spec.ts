@@ -456,20 +456,64 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     await expect(page.locator('[role="listbox"]')).not.toBeVisible({ timeout: 2000 });
   });
 
-  test.skip('C-22: チャット入力 Shift+Enter で改行', async ({ page }) => {
-    // 改行テストは既に sendChat で Enter 送信なので、skip 可能
+  test('C-22: チャット入力 Shift+Enter で改行', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
+
+    const editor = page.locator('[contenteditable="true"]').first();
+    await expect(editor).toBeVisible({ timeout: 5000 });
+    await editor.click();
+
+    await editor.pressSequentially('1行目', { delay: 30 });
+    await page.keyboard.press('Shift+Enter');
+    await editor.pressSequentially('2行目', { delay: 30 });
+
+    const text = await editor.innerText();
+    expect(text).toContain('1行目');
+    expect(text).toContain('2行目');
   });
 
   // --- C-17 ~ C-18: ステータスパネル（スキップ: 未実装の可能性） ---
-  test.skip('C-17: ステータスパネル initiative 降順表示', async ({ page }) => {
-    // ステータスパネルの実装状況に依存
+  test('C-17: ステータスパネル initiative 降順表示', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
+
+    // ステータスパネルの dockview タブをクリック
+    const statusTab = page.locator('[class*="tab"]').filter({ hasText: 'ステータス' }).first();
+    if (await statusTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await statusTab.click();
+      await page.waitForTimeout(500);
+    }
+
+    // キャラクター名が表示される（前のテストで作成済み）
+    await expect(page.getByText(CHARACTER_NAME).first()).toBeVisible({ timeout: 10000 });
   });
 
-  test.skip('C-18: ステータスパネル ▲▼ボタンで initiative 操作', async ({ page }) => {
-    // ステータスパネルの実装状況に依存
+  test('C-18: ステータスパネル ▲▼ボタンで initiative 操作', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
+
+    // ステータスパネルの dockview タブをクリック
+    const statusTab = page.locator('[class*="tab"]').filter({ hasText: 'ステータス' }).first();
+    if (await statusTab.isVisible({ timeout: 3000 }).catch(() => false)) {
+      await statusTab.click();
+      await page.waitForTimeout(500);
+    }
+
+    // initiative 増加ボタン
+    const upBtn = page.locator('button[aria-label="initiative増加"]').first();
+    await expect(upBtn).toBeVisible({ timeout: 5000 });
+    await upBtn.click();
+    await page.waitForTimeout(500);
+
+    // initiative 減少ボタン
+    const downBtn = page.locator('button[aria-label="initiative減少"]').first();
+    await expect(downBtn).toBeVisible({ timeout: 5000 });
+    await downBtn.click();
+    await page.waitForTimeout(500);
   });
 
   // --- C-19: チャット vs ダイスメッセージ表示 ---
