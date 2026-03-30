@@ -251,7 +251,7 @@ async function handleRequest(request: Request, url: URL, env: Env, headers: Reco
 
     // --- Rooms API ---
     if (url.pathname.startsWith('/api/rooms')) {
-      return handleRooms(request, url, env, headers, user);
+      return handleRooms(request, url, env, headers, user, authHeader.slice(7));
     }
 
     // --- Admin API ---

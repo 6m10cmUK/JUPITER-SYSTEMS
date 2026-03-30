@@ -227,3 +227,62 @@ export async function updateRoleDirect(
     .eq('user_id', user.id);
   if (error) throw new Error(`updateRoleDirect failed: ${error.message}`);
 }
+
+/** Worker API でルームをアーカイブ（D1 退避 + archived=1） */
+export async function archiveRoom(roomId: string): Promise<void> {
+  const supabase = await getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) throw new Error('No auth token');
+
+  const workerUrl = process.env.VITE_R2_WORKER_URL;
+  if (!workerUrl) throw new Error('VITE_R2_WORKER_URL not set');
+
+  const res = await fetch(`${workerUrl}/api/rooms/${roomId}/archive`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`archiveRoom failed: ${res.status} ${body}`);
+  }
+}
+
+/** Supabase API でキャラクターを直接作成 */
+export async function createCharacterDirect(roomId: string, name: string): Promise<string> {
+  const supabase = await getSupabase();
+  const { data: { user } } = await supabase.auth.getUser();
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  const { error: statsError } = await supabase.from('characters_stats').insert({
+    id, room_id: roomId, owner_id: user!.id, name, color: '#555555',
+    active_image_index: 0, statuses: [], parameters: [],
+    is_hidden_on_board: false, sort_order: 0,
+    board_x: 0, board_y: 0, board_visible: true,
+    created_at: now, updated_at: now,
+  });
+  if (statsError) throw new Error(`createCharacterDirect stats failed: ${statsError.message}`);
+  const { error: baseError } = await supabase.from('characters_base').insert({
+    id, room_id: roomId, images: [], memo: '', secret_memo: '', chat_palette: '',
+    sheet_url: null, initiative: 0, size: 5, is_status_private: false,
+  });
+  if (baseError) throw new Error(`createCharacterDirect base failed: ${baseError.message}`);
+  return id;
+}
+
+/** Supabase API でシーンを直接作成 */
+export async function createSceneDirect(roomId: string, name: string): Promise<string> {
+  const supabase = await getSupabase();
+  const id = crypto.randomUUID();
+  const now = Date.now();
+  const { error } = await supabase.from('scenes').insert({
+    id, room_id: roomId, name,
+    foreground_opacity: 1, bg_transition: 'none', bg_transition_duration: 0,
+    fg_transition: 'none', fg_transition_duration: 0, bg_blur: false,
+    sort_order: 1, created_at: now, updated_at: now,
+  });
+  if (error) throw new Error(`createSceneDirect failed: ${error.message}`);
+  return id;
+}

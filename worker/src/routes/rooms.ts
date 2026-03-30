@@ -7,6 +7,7 @@ export async function handleRooms(
   env: Env,
   headers: Record<string, string>,
   user: AuthUser,
+  userToken?: string,
 ): Promise<Response> {
   const pathParts = url.pathname.replace('/api/rooms', '').split('/').filter(Boolean);
   const roomId = pathParts[0];
@@ -155,19 +156,19 @@ export async function handleRooms(
 
   // POST /api/rooms/:id/archive — ルームデータを D1 に退避
   if (subResource === 'archive' && request.method === 'POST') {
-    const room = await env.DB.prepare('SELECT owner_id FROM rooms WHERE id = ?')
-      .bind(roomId)
-      .first<{ owner_id: string }>();
-    if (!room || room.owner_id !== user.uid) {
+    const supabaseHeaders = {
+      'apikey': env.SUPABASE_ANON_KEY ?? '',
+      'Authorization': `Bearer ${userToken ?? env.SUPABASE_ANON_KEY ?? ''}`,
+    };
+    const ownerRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}&select=owner_id`, {
+      headers: supabaseHeaders,
+    });
+    const ownerData = (await ownerRes.json()) as { owner_id: string }[];
+    if (!ownerData?.[0] || ownerData[0].owner_id !== user.uid) {
       return json({ error: 'Forbidden' }, headers, 403);
     }
 
     try {
-      const supabaseHeaders = {
-        'apikey': env.SUPABASE_ANON_KEY ?? '',
-        'Authorization': `Bearer ${env.SUPABASE_ANON_KEY ?? ''}`,
-      };
-
       // Supabase から rooms, room_snapshots を取得
       const roomRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}`, {
         method: 'GET',
@@ -212,10 +213,15 @@ export async function handleRooms(
 
   // POST /api/rooms/:id/restore — D1 からルームデータを復元
   if (subResource === 'restore' && request.method === 'POST') {
-    const room = await env.DB.prepare('SELECT owner_id FROM rooms WHERE id = ?')
-      .bind(roomId)
-      .first<{ owner_id: string }>();
-    if (!room || room.owner_id !== user.uid) {
+    const supabaseHeaders = {
+      'apikey': env.SUPABASE_ANON_KEY ?? '',
+      'Authorization': `Bearer ${env.SUPABASE_ANON_KEY ?? ''}`,
+    };
+    const ownerRes = await fetch(`${env.SUPABASE_URL}/rest/v1/rooms?id=eq.${roomId}&select=owner_id`, {
+      headers: supabaseHeaders,
+    });
+    const ownerData = (await ownerRes.json()) as { owner_id: string }[];
+    if (!ownerData?.[0] || ownerData[0].owner_id !== user.uid) {
       return json({ error: 'Forbidden' }, headers, 403);
     }
 
@@ -233,7 +239,7 @@ export async function handleRooms(
 
       const supabaseHeaders = {
         'apikey': env.SUPABASE_ANON_KEY ?? '',
-        'Authorization': `Bearer ${env.SUPABASE_ANON_KEY ?? ''}`,
+        'Authorization': `Bearer ${userToken ?? env.SUPABASE_ANON_KEY ?? ''}`,
       };
 
       // Supabase に復元（room_snapshots INSERT）
