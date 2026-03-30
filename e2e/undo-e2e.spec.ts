@@ -108,9 +108,28 @@ test.describe.serial('Undo/Redo テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // テキストオブジェクトを探す
-    const textObj = page.getByText('テキスト').first();
-    if (await textObj.isVisible({ timeout: 3000 }).catch(() => false)) {
+    // テキストオブジェクトを探す、なければ作成
+    let textObj = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
+    let textObjExists = await textObj.isVisible({ timeout: 2000 }).catch(() => false);
+
+    if (!textObjExists) {
+      // オブジェクト追加ボタン
+      const addBtn = page.locator('button[aria-label="オブジェクト追加"]').first();
+      await addBtn.click({ force: true });
+      await page.waitForTimeout(500);
+
+      const addTextOpt = page.getByText('シーンテキスト追加').first();
+      if (await addTextOpt.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await addTextOpt.click();
+        await page.waitForTimeout(1500);
+      }
+
+      // オブジェクト再取得
+      textObj = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
+      textObjExists = await textObj.isVisible({ timeout: 2000 }).catch(() => false);
+    }
+
+    if (textObjExists) {
       // テキストオブジェクトを選択
       await textObj.click();
       await page.waitForTimeout(300);

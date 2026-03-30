@@ -128,6 +128,7 @@ function BgmTrackRow({
         id={track.id}
         onClick={(e) => onClick(track.id, e)}
         isSelected={isSelected}
+        dataAttributes={{ 'data-track-id': track.id }}
         handleExtra={
           <div
             onClick={(e) => {

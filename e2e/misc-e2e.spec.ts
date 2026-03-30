@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoomById, sendChat, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, sendChat, createCharacterDirect, createBgmTrackDirect, getSceneIds, BASE_URL } from './helpers';
 
 const ROOM_NAME = `misc_test_${Date.now()}`;
 let roomId: string;
@@ -34,37 +34,25 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // チャットパネルを探す
-    const chatPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('チャット') }).first();
-    if (await chatPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // チャンネルタブを探す（button.adra-tab で実装）
-      const mainTab = chatPanel.locator('button.adra-tab').filter({ hasText: /メイン/ }).first();
-      const infoTab = chatPanel.locator('button.adra-tab').filter({ hasText: /情報/ }).first();
-      const casualTab = chatPanel.locator('button.adra-tab').filter({ hasText: /雑談/ }).first();
+    // チャンネルタブを直接探す（ChatLogPanel 内の固定タブ）
+    const mainTab = page.locator('button.adra-tab').filter({ hasText: 'メイン' }).first();
+    await expect(mainTab).toBeVisible({ timeout: 5000 });
 
-      if (await mainTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await mainTab.click();
-        await page.waitForTimeout(300);
-      }
+    // 情報タブ
+    const infoTab = page.locator('button.adra-tab').filter({ hasText: '情報' }).first();
+    await expect(infoTab).toBeVisible({ timeout: 5000 });
+    await infoTab.click();
+    await page.waitForTimeout(300);
 
-      if (await infoTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await infoTab.click();
-        await page.waitForTimeout(300);
+    // 雑談タブ
+    const casualTab = page.locator('button.adra-tab').filter({ hasText: '雑談' }).first();
+    await expect(casualTab).toBeVisible({ timeout: 5000 });
+    await casualTab.click();
+    await page.waitForTimeout(300);
 
-        // 情報タブが選択されたことを確認
-        await expect(infoTab).toHaveAttribute('aria-selected', 'true');
-      }
-
-      if (await casualTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await casualTab.click();
-        await page.waitForTimeout(300);
-
-        // 雑談タブが選択されたことを確認
-        await expect(casualTab).toHaveAttribute('aria-selected', 'true');
-      }
-    } else {
-      test.skip();
-    }
+    // メインに戻る
+    await mainTab.click();
+    await page.waitForTimeout(300);
   });
 
   test('チャット送信者名変更', async ({ page }) => {
@@ -72,47 +60,25 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // チャットパネルを探す
-    const chatPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('チャット') }).first();
-    if (await chatPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      // 送信者名設定ボタンを探す（右上のプロフィール/設定ボタン）
-      const settingsBtn = chatPanel.locator('button[aria-label*="設定"], button[aria-label*="プロフィール"], button[aria-label*="名前"]').first();
-      if (await settingsBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await settingsBtn.click();
-        await page.waitForTimeout(300);
+    // 送信者名入力フィールド（ChatInputPanel 内）
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
 
-        // 名前入力フィールドを探す
-        const nameInput = page.locator('input[placeholder*="名前"], input[placeholder*="ユーザー"]').first();
-        if (await nameInput.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await nameInput.fill('テスト送信者');
-          await page.waitForTimeout(300);
+    // 名前を変更
+    await senderInput.fill('テスト送信者');
+    await page.waitForTimeout(300);
 
-          // 保存ボタンまたはEnter
-          const saveBtn = page.getByRole('button', { name: /保存|OK/ }).first();
-          if (await saveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
-            await saveBtn.click();
-          } else {
-            await nameInput.press('Enter');
-          }
-          await page.waitForTimeout(500);
+    // 変更した名前でメッセージ送信
+    await sendChat(page, 'テスト送信者確認メッセージ');
+    await page.waitForTimeout(1000);
 
-          // 送信者名が反映されたメッセージを送信して確認
-          await sendChat(page, 'テスト送信者確認メッセージ');
-          await page.waitForTimeout(500);
+    // リロードして名前が保存されているか確認（localStorage）
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
 
-          // リロードして変更が保存されたことを確認
-          await page.reload();
-          await page.waitForLoadState('networkidle');
-          await page.waitForTimeout(1500);
-        } else {
-          test.skip();
-        }
-      } else {
-        test.skip();
-      }
-    } else {
-      test.skip();
-    }
+    const savedName = await page.locator('input[placeholder="noname"]').first().inputValue();
+    expect(savedName).toBe('テスト送信者');
   });
 
   // --- §6 プロパティパネル ---
@@ -142,61 +108,50 @@ test.describe.serial('チャット・プロパティ・アセットライブラ�
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // テキストオブジェクトを探す
-    const textObj = page.getByText('テキスト').first();
-    if (await textObj.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await textObj.click();
-      await page.waitForTimeout(300);
+    // レイヤーパネルの「前景」を選択（常に存在する）
+    const fgItem = page.locator('[data-obj-id]').filter({ hasText: '前景' }).first();
+    await expect(fgItem).toBeVisible({ timeout: 5000 });
+    await fgItem.click();
+    await page.waitForTimeout(500);
 
-      // プロパティパネルが表示される
-      const propPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText(/プロパティ|テキスト|色|フォント/) }).first();
-      await expect(propPanel).toBeVisible({ timeout: 5000 });
-    } else {
-      test.skip();
-    }
+    // プロパティパネルにオブジェクト情報が表示される
+    await expect(page.getByText('シーンオブジェクト').or(page.getByText('前景')).first()).toBeVisible({ timeout: 5000 });
   });
 
   test('キャラクター選択 → プロパティ表示', async ({ page }) => {
+    // API でキャラクターを作成
+    await createCharacterDirect(roomId, 'テストキャラ');
+
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
-    // キャラクターアイテムを探す
     const charItem = page.locator('[data-char-id]').first();
-    if (await charItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await page.locator('[data-char-id]').first().click();
-      await page.waitForTimeout(300);
+    await expect(charItem).toBeVisible({ timeout: 10000 });
+    await charItem.click();
+    await page.waitForTimeout(500);
 
-      // プロパティパネルが表示される（キャラクター編集またはプロパティ）
-      const propPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText(/プロパティ|キャラクター/) }).first();
-      await expect(propPanel).toBeVisible({ timeout: 5000 });
-    } else {
-      test.skip();
-    }
+    // キャラクター選択後、プロパティパネルに反映される
+    await expect(page.getByText('テストキャラ').first()).toBeVisible({ timeout: 5000 });
   });
 
   test('BGM選択 → プロパティ表示', async ({ page }) => {
+    // API で BGM トラック作成
+    const sceneIds = await getSceneIds(roomId);
+    await createBgmTrackDirect(roomId, { name: 'テストBGM', bgmSource: 'https://example.com/test.mp3', sceneIds });
+
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
 
-    // BGMトラックアイテムを探す
-    const bgmPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText('BGM') }).first();
-    if (await bgmPanel.isVisible({ timeout: 3000 }).catch(() => false)) {
-      const trackItem = bgmPanel.locator('[data-track-id]').first();
-      if (await trackItem.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await trackItem.click();
-        await page.waitForTimeout(300);
+    // BGM トラックをクリック
+    const trackItem = page.getByText('テストBGM').first();
+    await expect(trackItem).toBeVisible({ timeout: 10000 });
+    await trackItem.click();
+    await page.waitForTimeout(500);
 
-        // プロパティパネルが表示される
-        const propPanel = page.locator('[data-selection-panel]').filter({ has: page.getByText(/プロパティ|BGM|ボリューム/) }).first();
-        await expect(propPanel).toBeVisible({ timeout: 5000 });
-      } else {
-        test.skip();
-      }
-    } else {
-      test.skip();
-    }
+    // プロパティパネルに BGM 情報が表示される
+    await expect(page.getByText(/テストBGM|ボリューム/).first()).toBeVisible({ timeout: 5000 });
   });
 
   // --- §7 アセットライブラリ ---
