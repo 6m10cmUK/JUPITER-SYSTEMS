@@ -15,20 +15,19 @@ TRPGオンラインセッション向け盤面共有ツール。マップ・駒�
 │  │ │        └─ Board, Panels, Overlays, Modals            │
 │  │ └─ RoomLobby.tsx（ルーム一覧・作成）                    │
 │  └─────────────────────────────────────────────────────────┘
-│          ↕（useQuery/useMutation）
+│          ↕（Supabase クライアント）
 ├─────────────────────────────────────────────────────────────┤
-│ Convex クライアント                                          │
-│ ConvexAuthProvider（Google OAuth + 匿名認証）               │
+│ Supabase Auth (Google OAuth + 匿名認証)                     │
 └─────────────────────────────────────────────────────────────┘
-         ↕（REST API）
+         ↕（PostgreSQL + Realtime API）
 ┌─────────────────────────────────────────────────────────────┐
-│ Convex バックエンド（デプロイメント: useful-jay-379）       │
-│ ├─ rooms.ts（リアルタイム同期）                             │
-│ ├─ scenes.ts, objects.ts, bgms.ts, cutins.ts              │
-│ ├─ characters.ts（キャラクター管理）                        │
-│ ├─ messages.ts（チャット）                                  │
-│ ├─ room_members.ts（権限管理）                              │
-│ └─ auth.ts（Google OAuth + 匿名）                          │
+│ Supabase バックエンド（PostgreSQL + Realtime + Auth）       │
+│ ├─ rooms テーブル（リアルタイム同期）                       │
+│ ├─ scenes, objects, bgms, cutins テーブル                  │
+│ ├─ characters_stats, characters_base テーブル              │
+│ ├─ messages テーブル（チャット）                            │
+│ ├─ room_members テーブル（権限管理）                        │
+│ └─ channels テーブル（チャットチャネル）                    │
 └─────────────────────────────────────────────────────────────┘
          ↕（HTTP/REST）
 ┌─────────────────────────────────────────────────────────────┐
@@ -44,7 +43,7 @@ TRPGオンラインセッション向け盤面共有ツール。マップ・駒�
   └──────────────┘            └─────────────────┘
 ```
 
-デプロイ：Vercel（フロント） + Convex（バックエンド） + Cloudflare（Worker/R2/D1）
+デプロイ：Vercel（フロント） + Supabase（バックエンド） + Cloudflare（Worker/R2/D1）
 
 ## 2. Reactコンテキスト設計（3層構造）
 
@@ -72,11 +71,11 @@ AdrasteaProvider (AdrasteaContext.tsx)
 
 ### 2.2 RoomDataProvider の責務
 
-Convex からのサーバーデータフェッチと楽観的UI更新を担当。
+Supabase からのサーバーデータフェッチと楽観的UI更新を担当。
 
 - 部屋・シーン・駒・キャラ・オブジェクト・BGM・メッセージ の CRUD
-- useQuery/useMutation での Convex 通信
-- withOptimisticUpdate による即座の UI 反映
+- Supabase Realtime subscription での通信
+- ローカルオーバーライドによる即座の UI 反映
 - 楽観値の自動クリア（サーバー値が到達後）
 
 主要フック：
@@ -234,9 +233,9 @@ export interface AdrasteaContextValue {
 const { pieces, room, movePiece, addPiece, removePiece, updatePiece, updateRoom } = useAdrastea(roomId);
 ```
 
-- useQuery(api.rooms.get)：ルーム情報
-- useQuery(api.pieces.list)：駒一覧
-- withOptimisticUpdate：即座に UI 反映
+- Supabase RLS ポリシー付き SELECT：ルーム情報
+- Supabase Realtime subscription：駒一覧
+- ローカルオーバーライド：即座に UI 反映
 
 #### useAdrasteaChat(roomId)
 
@@ -254,7 +253,7 @@ const { messages, loading, sendMessage, loadMore, hasMore, clearMessages } = use
 const { scenes, addScene, updateScene, removeScene, reorderScenes, activateScene } = useScenes(roomId);
 ```
 
-- inject オプション：モック/プリロード時に Convex 呼び出しをスキップ
+- inject オプション：モック/プリロード時に Supabase 呼び出しをスキップ
 - onObjectsCreated コールバック：複製時にオブジェクト一括作成
 
 #### useCharacters(roomId)
@@ -304,7 +303,7 @@ const { push, undo, redo, canUndo, canRedo, isOperatingRef } = useUndoRedo();
 const { can, withPermission } = usePermission();
 ```
 
-- can(permissionKey)：権限チェック（room role + Convex パーミッション）
+- can(permissionKey)：権限チェック（room role + room_members テーブル参照）
 - withPermission(key, fn)：権限ないと fn を実行しない HOF
 
 #### useThrottledUpdate(interval)
@@ -351,7 +350,7 @@ const { channels, upsertChannel, deleteChannel } = useChannels(roomId);
 ### 5.1 シンプルフロー（読み取り）
 
 ```
-Convex useQuery
+Supabase Realtime subscription
   ↓
 Hook（RoomDataProvider）
   ↓
@@ -375,11 +374,11 @@ const room = useAdrastea(roomId).room;
 ```
 Component
   ↓（ユーザーアクション）
-Hook mutation + withOptimisticUpdate
-  ├─ localStore.setQuery()：即座に UI 更新
-  └─ Convex へ非同期送信
+Hook mutation + ローカルオーバーライド
+  ├─ localSceneOverrides / localObjectOverrides：即座に UI 更新
+  └─ Supabase へ非同期送信
     ├─ サーバー側で処理
-    └─ useQuery が自動サブスクリプション更新
+    └─ Realtime subscription が自動更新
       ├─ 楽観値と一致 → 何もしない
       └─ 楽観値と相違 → Context 更新
         ↓
@@ -402,7 +401,7 @@ const movePiece = useCallback(
   [updatePieceMutation]
 );
 
-// withOptimisticUpdate で localStore.setQuery を実行
+// ローカルオーバーライドで localSceneOverrides を設定
 // → Pieces リスト即座更新 → Board re-render
 ```
 
@@ -429,8 +428,8 @@ ScenePanel.tsx
 ctx.activateScene(newSceneId)
   ↓ RoomDataProvider
 updateRoom({ active_scene_id: newSceneId })
-  ├─ Convex 送信
-  └─ withOptimisticUpdate
+  ├─ Supabase 送信
+  └─ ローカルオーバーライド
     ├─ room.active_scene_id 即座更新
     └─ useObjects の activeSceneId 変更トリガー
       ↓
@@ -543,11 +542,11 @@ Component で Ctrl+Z/Cmd+Z キャッチ（Adrastea.tsx）
 ctx.undoRedo.undo()
   ├─ undoStack.pop()
   ├─ redoStack.push()
-  └─ ロールバック（before 値を Convex に送信）
+  └─ ロールバック（before 値を Supabase に送信）
     ↓
-    Convex 処理
+    Supabase 処理（UPDATE / DELETE）
       ↓
-    Context 自動更新（useQuery サブスクリプション）
+    Context 自動更新（Realtime subscription）
       ↓
     Component re-render
 ```
@@ -586,31 +585,46 @@ export function withPermission<F extends (...args: any[]) => any>(
 }
 ```
 
-使用例：
+実装：
 
 ```typescript
+// room_members テーブルから権限取得
+const can = (permission: PermissionKey) => {
+  const member = roomMembers.find((m) => m.user_id === userId);
+  return member?.role === 'owner' || member?.permissions?.includes(permission);
+};
+
+// HOF で権限チェック + Supabase クエリ実行
 const handleDeleteObject = withPermission('object_edit', async (id) => {
-  await ctx.removeObject(id);
+  await ctx.removeObject(id);  // Supabase 呼び出し + RLS で二重チェック
 });
 ```
 
-### 8.3 Convex 側権限チェック
+### 8.3 Supabase RLS ポリシーによる権限チェック
+
+フロント側で権限判定（`room_members` テーブル参照）後、Supabase へクエリ送信。Supabase RLS ポリシーでサーバー側二重チェック。
 
 ```typescript
-// convex/objects.ts
-export const remove = mutation(
-  { args: { id: v.string() }, ... },
-  async (ctx, { id }) => {
-    const userIdentity = await ctx.auth.getUserIdentity();
-    if (!userIdentity) throw new Error('Unauthorized');
-
-    const obj = await ctx.db.get(id);
-    const canDelete = await checkPermission(ctx, obj.room_id, 'object_edit');
-    if (!canDelete) throw new Error('Forbidden');
-
-    await ctx.db.delete(id);
-  }
+// supabase/policies/objects.sql
+-- 削除時の権限チェック
+CREATE POLICY "Users can delete objects they have edit permission for"
+ON public.objects
+FOR DELETE
+USING (
+  EXISTS (
+    SELECT 1 FROM public.room_members
+    WHERE room_id = objects.room_id
+    AND user_id = auth.uid()
+    AND (role = 'owner' OR role = 'sub_owner' OR permission = 'object_edit')
+  )
 );
+
+-- フロント側でも確認
+const canDelete = await checkPermissionFromRoomMembers(roomId, 'object_edit');
+if (!canDelete) throw new Error('Forbidden');
+
+// Supabase RLS で二重チェック
+await supabase.from('objects').delete().eq('id', id);
 ```
 
 ## 9. デプロイ構成
@@ -629,44 +643,44 @@ vercel.com/hamadetakumi-works/jupiter-systems
 環境変数（.env.local / Vercel Dashboard）：
 
 ```
-VITE_CONVEX_URL=https://useful-jay-379.convex.cloud
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=xxxxx
 VITE_R2_WORKER_URL=https://jupity-610.hamadetakumi.workers.dev
 VITE_GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 VITE_API_URL=http://localhost:8000（開発用）
 ```
 
-### 9.2 Convex バックエンド
+### 9.2 Supabase バックエンド
 
 ```
-Dashboard: https://dashboard.convex.dev/d/useful-jay-379
+Dashboard: https://app.supabase.com/
 Project: adrastea
-Team: 6m10cm
+Region: リージョン選択済み
 
 デプロイ：
-  npm run build
-  npx convex deploy
+  - Supabase Dashboard で自動管理（手動デプロイ不要）
+  - マイグレーション：supabase migrations コマンドで管理
 ```
 
-環境変数（Convex Dashboard）：
+環境変数（Supabase Project Settings）：
 
 ```
-AUTH_GOOGLE_ID=xxx.apps.googleusercontent.com
-AUTH_GOOGLE_SECRET=xxx
-AUTH_SECRET=xxx
-JWT_PRIVATE_KEY=xxx
-JWKS={"keys":[...]}
-CONVEX_SITE_URL=https://adrastea-demo.vercel.app
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=xxxxx
+SUPABASE_JWT_SECRET=xxxxx（RLS トークン署名用）
 ```
 
-スキーマ：
+テーブルスキーマ（PostgreSQL）：
 
 ```
-defineSchema({
-  ...authTables,
-  users, rooms, scenes, pieces, characters_stats, characters_base,
-  objects, bgms, cutins, scenario_texts,
-  messages, room_members, channels
-})
+users, rooms, scenes, pieces, characters_stats, characters_base,
+objects, bgms, cutins, scenario_texts,
+messages, room_members, channels
+
+RLS ポリシー：
+- rooms：owner / sub_owner / user / guest の role チェック
+- objects, scenes, bgms, cutins：room_members テーブル経由の権限検証
+- messages：room_members の参加確認後の SELECT/INSERT 許可
 ```
 
 ### 9.3 Cloudflare Workers（R2/D1）
@@ -686,7 +700,7 @@ Routes：
 
 ```
 Frontend: https://adrastea-demo.vercel.app/adrastea
-Convex: https://useful-jay-379.convex.cloud
+Supabase: https://xxxxx.supabase.co
 Workers: https://jupity-610.hamadetakumi.workers.dev
 ```
 
@@ -703,11 +717,11 @@ git commit && git push
 
 Vercel 自動デプロイ：push を検知してビルド・デプロイ
 
-2. Convex（ローカル）：型チェック + デプロイ
+2. Supabase（自動）：変更は Supabase Dashboard で管理
 
 ```bash
-npm run build
-npx convex deploy
+# マイグレーション実行（必要に応じて）
+supabase migration up
 ```
 
 3. Worker（manual）：wrangler デプロイ
@@ -784,41 +798,72 @@ const setSelectedObjectIds: React.Dispatch<React.SetStateAction<string[]>> = use
 }, []);
 ```
 
-### 10.5 Convex 楽観更新テンプレート
+### 10.5 Supabase 楽観更新パターン
 
 ```typescript
-const updateMutation = useMutation(api.objects.update).withOptimisticUpdate(
-  (localStore, args) => {
-    const current = localStore.getQuery(api.objects.list, { room_id: roomId });
-    if (current !== undefined) {
-      localStore.setQuery(
-        api.objects.list,
-        { room_id: roomId },
-        current.map((o) => o.id === args.id ? { ...o, ...args } : o),
-      );
-    }
-  }
-);
+// RoomDataProvider 内で localObjectOverrides を管理
+const [localObjectOverrides, setLocalObjectOverrides] = useState<Record<string, Partial<BoardObject>>>({});
 
 const moveObject = useCallback(
-  (id: string, x: number, y: number) => {
-    updateMutation({ id, x, y }).catch(console.error);
+  async (id: string, x: number, y: number) => {
+    // 1. ローカルオーバーライド：即座に UI 更新
+    setLocalObjectOverrides((prev) => ({
+      ...prev,
+      [id]: { ...prev[id], board_x: x, board_y: y },
+    }));
+
+    // 2. Supabase へ非同期送信
+    try {
+      const { error } = await supabase
+        .from('objects')
+        .update({ board_x: x, board_y: y })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // 3. サーバー値が到達 → オーバーライド削除
+      setLocalObjectOverrides((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } catch (err) {
+      console.error('Failed to move object:', err);
+      // サーバー値で上書き（オーバーライド削除）
+      setLocalObjectOverrides((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
   },
-  [updateMutation]
+  []
 );
+
+// コンポーネントで使用時：オーバーライド値があれば優先
+const displayObject = {
+  ...object,
+  ...localObjectOverrides[object.id],
+};
 ```
 
-## 付記：God Context 分割の提案
+## 付記：God Context 分割（実装済み）
 
-現在の AdrasteaContext は 800 行超の God Context。以下の分割を検討：
+AdrasteaContext は RoomDataProvider と UIStateProvider に分割済み。
 
 ```
-AdrasteaContext
-├─ RoomDataContext（rooms, pieces, scenes, characters, objects, bgms）
-├─ ChatContext（messages, channels, sendMessage）
-├─ UIStateContext（editingScene, panelSelection, dockviewApi等）
-├─ AudioContext（bgm 再生, マスターボリューム）
-└─ UndoRedoContext（undoRedo スタック）
+AdrasteaProvider
+├─ RoomDataProvider
+│  ├─ rooms, pieces, scenes, characters, objects, bgms, messages データ管理
+│  ├─ Supabase Realtime subscription
+│  └─ ローカルオーバーライド管理
+│
+└─ UIStateProvider
+   ├─ editingScene, editingCharacter, editingObjectId 等
+   ├─ panelSelection（複数選択管理）
+   ├─ dockviewApi（パネルレイアウト API）
+   ├─ グリッド可視化フラグ
+   └─ マスターボリューム、BGM ミュート（localStorage）
 ```
 
-各 Context は細粒度で、必要な部分のみ購読可能に。パフォーマンス向上 + テスト容易性向上。
+この構造により各層は独立テスト可能。`AdrasteaContextValue` で統合インターフェース提供。
