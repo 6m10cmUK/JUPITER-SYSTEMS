@@ -291,60 +291,43 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
 
   // --- BGMプロパティ（BGMトラック追加後） ---
 
-  test.skip('P-31: BGMループ再生切替', async ({ page }) => {
-    // API で BGM トラック作成
+  test('P-31: BGMループ再生切替', async ({ page }) => {
+    // API で BGM トラック作成（dockview タブ非アクティブ問題を回避）
     const sceneIds = await getSceneIds(roomId);
     await createBgmTrackDirect(roomId, { name: 'PropBGM', bgmSource: 'https://example.com/test.mp3', sceneIds });
 
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(3000); // Convex sync 待機
-
-    // BGM パネルのタブをクリックしてアクティブにする
-    const bgmTab = page.locator('[class*="tab"]').filter({ hasText: 'BGM' }).first();
-    if (await bgmTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await bgmTab.click();
-      await page.waitForTimeout(500);
-    }
+    await page.waitForTimeout(2000);
 
     const bgmName = page.getByText('PropBGM').first();
     await expect(bgmName).toBeVisible({ timeout: 10000 });
-    await bgmName.click();
-    await page.waitForTimeout(300);
 
-    // ループボタン（BgmPanel 内の button[title="ループ"]）
+    // ループボタン（BgmPanel 内）
     const loopBtn = page.locator('button[title="ループ"]').first();
     await expect(loopBtn).toBeVisible({ timeout: 3000 });
-    const initialColor = await loopBtn.evaluate(el => (el as HTMLElement).style.color);
+    const colorBefore = await loopBtn.evaluate(el => getComputedStyle(el).color);
     await loopBtn.click();
     await page.waitForTimeout(300);
-    const afterColor = await loopBtn.evaluate(el => (el as HTMLElement).style.color);
-    expect(afterColor).not.toBe(initialColor);
+    const colorAfter = await loopBtn.evaluate(el => getComputedStyle(el).color);
+    expect(colorAfter).not.toBe(colorBefore);
   });
 
-  test.skip('P-32: BGMフェードイン切替', async ({ page }) => {
-    // P-31 で作成された PropBGM を使用（既にルーム内）
-
-    // BGM パネルのタブをクリックしてアクティブにする
-    const bgmTab = page.locator('[class*="tab"]').filter({ hasText: 'BGM' }).first();
-    if (await bgmTab.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await bgmTab.click();
-      await page.waitForTimeout(500);
-    }
+  test('P-32: BGMフェードイン切替', async ({ page }) => {
+    await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
 
     const bgmName = page.getByText('PropBGM').first();
     await expect(bgmName).toBeVisible({ timeout: 10000 });
-    await bgmName.click();
-    await page.waitForTimeout(300);
 
-    // フェードインボタン（BgmPanel 内の button[title*="フェードイン"]）
     const fadeBtn = page.locator('button[title*="フェードイン"]').first();
     await expect(fadeBtn).toBeVisible({ timeout: 3000 });
-    const initialOpacity = await fadeBtn.evaluate(el => (el as HTMLElement).style.opacity);
+    const opacityBefore = await fadeBtn.evaluate(el => getComputedStyle(el).opacity);
     await fadeBtn.click();
     await page.waitForTimeout(300);
-    const afterOpacity = await fadeBtn.evaluate(el => (el as HTMLElement).style.opacity);
-    expect(afterOpacity).not.toBe(initialOpacity);
+    const opacityAfter = await fadeBtn.evaluate(el => getComputedStyle(el).opacity);
+    expect(opacityAfter).not.toBe(opacityBefore);
   });
 
   test.afterAll(async () => {
