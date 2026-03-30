@@ -154,7 +154,7 @@ export function BoardDockPanel() {
       {imagePickerTarget && (
         <AssetLibraryModal
           onSelect={(_url, assetId) => {
-            ctx.updateObject(imagePickerTarget.id, { image_asset_id: assetId ?? null });
+            ctx.updateObject(imagePickerTarget.id, { image_asset_id: assetId ?? null, ...(assetId ? { color_enabled: false } : {}) });
             // 背景/前景オブジェクトの画像変更時、シーンのサムネイル用asset_idも同期
             const obj = ctx.activeObjects.find(o => o.id === imagePickerTarget.id);
             if (obj && ctx.activeScene) {
