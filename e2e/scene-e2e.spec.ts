@@ -243,38 +243,48 @@ test.describe.serial('シーン管理テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // 全シーンを削除してたった1つのシーンが残るようにする
-    // （ただし、テスト環境では事前に全削除している可能性があるため、スキップ可能に）
+    // シーンが1つだけになるまで余分なシーンを削除
     const allScenes = page.locator('[data-scene-id]');
-    const sceneCount = await allScenes.count();
+    let sceneCount = await allScenes.count();
 
-    if (sceneCount === 1) {
-      // 最後のシーンを選択
-      const lastScene = allScenes.first();
-      await lastScene.click();
+    while (sceneCount > 1) {
+      // 最後のシーンを選択して削除
+      await allScenes.last().click();
       await page.waitForTimeout(300);
-
-      // Delete キーで削除を試行
       await page.keyboard.press('Delete');
       await page.waitForTimeout(300);
 
-      // 確認ダイアログが出ない、またはトースト エラーが表示される
-      const errorToast = page.getByText(/削除できません|最後のシーン|削除不可/).first();
-      if (await errorToast.isVisible({ timeout: 2000 }).catch(() => false)) {
-        // エラートーストが表示された
-        await expect(errorToast).toBeVisible();
-      } else {
-        // 削除ダイアログが出なければOK
-        const confirmBtn = page.getByRole('button', { name: '削除' }).last();
-        const dialogVisible = await confirmBtn.isVisible({ timeout: 1000 }).catch(() => false);
-        expect(dialogVisible).toBe(false);
+      const confirmBtn = page.getByRole('button', { name: '削除' }).last();
+      if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await confirmBtn.click();
+        await page.waitForTimeout(500);
       }
-
-      // シーンが削除されていない
-      await expect(lastScene).toBeVisible({ timeout: 3000 });
-    } else {
-      test.skip();
+      sceneCount = await allScenes.count();
     }
+
+    expect(sceneCount).toBe(1);
+
+    // 最後の1シーンを選択して削除を試行
+    const lastScene = allScenes.first();
+    await lastScene.click();
+    await page.waitForTimeout(300);
+
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(500);
+
+    // 確認ダイアログが出ない、またはトースト エラーが表示される
+    const errorToast = page.getByText(/削除できません|最後のシーン|削除不可/).first();
+    if (await errorToast.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await expect(errorToast).toBeVisible();
+    } else {
+      // 削除ダイアログが出なければOK（ボタンが disabled で Delete キーが無視された）
+      const confirmBtn = page.getByRole('button', { name: '削除' }).last();
+      const dialogVisible = await confirmBtn.isVisible({ timeout: 1000 }).catch(() => false);
+      expect(dialogVisible).toBe(false);
+    }
+
+    // シーンが削除されていない
+    await expect(lastScene).toBeVisible({ timeout: 3000 });
   });
 
   // --- §9 クリップボード ---

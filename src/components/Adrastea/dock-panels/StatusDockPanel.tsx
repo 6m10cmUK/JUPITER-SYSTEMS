@@ -6,6 +6,7 @@ import { hasRole } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 import { DropdownMenu, shortcutLabel } from '../ui/DropdownMenu';
 import { resolveAssetId } from '../../../hooks/useAssets';
+import { usePermission } from '../../../hooks/usePermission';
 import { theme } from '../../../styles/theme';
 
 function isLightColor(hex: string): boolean {
@@ -193,6 +194,7 @@ function StatusBar({
 export function StatusDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
+  const { can: canEdit } = usePermission();
   const currentUserId = user?.uid ?? '';
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
@@ -224,6 +226,13 @@ export function StatusDockPanel() {
       i === statusIndex ? { ...s, value: Math.max(0, Math.min(s.max, newValue)) } : s
     );
     ctx.updateCharacter(charId, { statuses: newStatuses });
+  }, [ctx]);
+
+  const updateInitiative = useCallback((charId: string, delta: number) => {
+    const char = ctx.characters.find(c => c.id === charId);
+    if (!char) return;
+    const newInitiative = (char.initiative ?? 0) + delta;
+    ctx.updateCharacter(charId, { initiative: newInitiative });
   }, [ctx]);
 
   const handlePaste = useCallback(async () => {
@@ -315,21 +324,100 @@ export function StatusDockPanel() {
                     {char.name.charAt(0)}
                   </div>
                 )}
-                {/* イニシアチブバッジ */}
+                {/* イニシアチブバッジ + ボタン */}
                 <div style={{
                   position: 'absolute',
                   top: -2,
                   left: -2,
-                  background: char.color,
-                  color: textColor,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  padding: '0 3px',
-                  lineHeight: '16px',
-                  minWidth: 16,
-                  textAlign: 'center',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
                 }}>
-                  {isPrivate ? '?' : formatInitiative(initiative)}
+                  <div style={{
+                    background: char.color,
+                    color: textColor,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    padding: '0 3px',
+                    lineHeight: '16px',
+                    minWidth: 16,
+                    textAlign: 'center',
+                  }}>
+                    {isPrivate ? '?' : formatInitiative(initiative)}
+                  </div>
+                  {canEdit('character_edit') && !isPrivate && (
+                    <div style={{
+                      display: 'flex',
+                      gap: 1,
+                    }}>
+                      <button
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '1px 2px',
+                          fontSize: 10,
+                          lineHeight: 1,
+                          color: theme.textMuted,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'color 0.15s ease',
+                          minWidth: 12,
+                          height: 12,
+                        }}
+                        onMouseEnter={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = theme.textPrimary;
+                        }}
+                        onMouseLeave={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = theme.textMuted;
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateInitiative(char.id, 1);
+                        }}
+                        aria-label="initiative増加"
+                        title="initiative +1"
+                      >
+                        ▲
+                      </button>
+                      <button
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '1px 2px',
+                          fontSize: 10,
+                          lineHeight: 1,
+                          color: theme.textMuted,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'color 0.15s ease',
+                          minWidth: 12,
+                          height: 12,
+                        }}
+                        onMouseEnter={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = theme.textPrimary;
+                        }}
+                        onMouseLeave={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = theme.textMuted;
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          updateInitiative(char.id, -1);
+                        }}
+                        aria-label="initiative減少"
+                        title="initiative -1"
+                      >
+                        ▼
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               {/* 右側: 名前 + ステータスバー */}

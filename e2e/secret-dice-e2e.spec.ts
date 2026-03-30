@@ -30,12 +30,10 @@ test.describe('秘密ダイステスト', () => {
     // 通常メッセージが表示される
     await expect(page.getByText('hello').first()).toBeVisible({ timeout: 10000 });
 
-    // 秘密ダイスコマンド送信
-    const secretDice = page.waitForResponse(resp => resp.url().includes('bcdice.onlinesession.app'));
+    // 秘密ダイスコマンド送信（自前ダイスパーサーのため API 待機なし）
     await editor.click();
     await editor.pressSequentially('s2d6', { delay: 50 });
     await page.keyboard.press('Enter');
-    await secretDice;
 
     // 全員向け「シークレットダイス」通知が表示される
     await expect(page.getByText('シークレットダイス').first()).toBeVisible({ timeout: 10000 });
