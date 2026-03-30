@@ -42,7 +42,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     onClose: () => setCharContextMenu(null),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      await addCharacter({ ...rest, name: generateDuplicateName(c.name) });
+      await addCharacter({ ...rest, name: generateDuplicateName(c.name, layerOrderedCharacters.map(ch => ch.name)) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);
@@ -73,7 +73,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
               const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
               return addObject({
                 ...rest,
-                name: generateDuplicateName(obj.name),
+                name: generateDuplicateName(obj.name, activeObjects.map(o => o.name)),
                 sort_order: obj.sort_order + 1,
               });
             }));
@@ -201,6 +201,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     {charCtxConfirmModal}
     {pendingImageAdd && (
       <AssetLibraryModal
+        autoTags={['オブジェクト']}
         onClose={() => setPendingImageAdd(null)}
         onSelect={handleImageSelected}
       />

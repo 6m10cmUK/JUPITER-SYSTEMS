@@ -946,15 +946,16 @@ export function AdComboBox(props: AdComboBoxProps) {
   const suggestions = React.useMemo(() => {
     const allSuggestions = props.suggestions ?? [];
     const q = input.trim().toLowerCase();
-    if (!q) return allSuggestions.slice(0, 5);
+    const limit = 20;
     if (isSingleMode) {
-      // single モード: 既存タグ関係なく候補をフィルタ
-      return allSuggestions.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
+      if (!q) return allSuggestions.slice(0, limit);
+      return allSuggestions.filter((t) => t.toLowerCase().includes(q)).slice(0, limit);
     } else {
-      // multi モード: 既に選択済みのタグを除外
+      // multi モード: 既に選択済みのタグを常に除外
       const excluded = new Set((props as AdComboBoxMultiProps).tags);
       const available = allSuggestions.filter((t) => !excluded.has(t));
-      return available.filter((t) => t.toLowerCase().includes(q)).slice(0, 5);
+      if (!q) return available.slice(0, limit);
+      return available.filter((t) => t.toLowerCase().includes(q)).slice(0, limit);
     }
   }, [props.suggestions, props.mode, input, isSingleMode, ...(isSingleMode ? [] : [(props as AdComboBoxMultiProps).tags])]);
 
@@ -1009,12 +1010,15 @@ export function AdComboBox(props: AdComboBoxProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (composingRef.current) return;
     if (dropOpen && suggestions.length > 0) {
+      // 横並びタグ表示なので左右矢印
+      const prevKey = 'ArrowLeft';
+      const nextKey = 'ArrowRight';
       switch (e.key) {
-        case 'ArrowDown':
+        case nextKey:
           e.preventDefault();
           setHighlightIndex((i) => Math.min(i + 1, suggestions.length - 1));
           return;
-        case 'ArrowUp':
+        case prevKey:
           e.preventDefault();
           setHighlightIndex((i) => Math.max(i - 1, 0));
           return;
@@ -1084,18 +1088,20 @@ export function AdComboBox(props: AdComboBoxProps) {
               boxShadow: theme.shadowMd,
             }}
           >
-            <div ref={listRef}>
+            <div ref={listRef} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px' }}>
               {suggestions.map((tag, i) => (
                 <div
                   key={tag}
                   onClick={() => handleSelect(tag)}
                   onMouseEnter={() => setHighlightIndex(i)}
                   style={{
-                    padding: '4px 8px',
+                    padding: '2px 8px',
                     fontSize: FONT_SIZE,
                     cursor: 'pointer',
-                    background: i === highlightIndex ? theme.accentHighlight : 'transparent',
+                    background: i === highlightIndex ? theme.accentHighlight : theme.accentBgSubtle,
                     color: theme.textPrimary,
+                    borderRadius: '2px',
+                    border: `1px solid ${i === highlightIndex ? theme.accent : theme.accentBorderSubtle}`,
                   }}
                 >
                   {tag}
@@ -1119,6 +1125,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           {multiProps.tags.map((tag) => (
             <span
               key={tag}
+              data-testid="tag-chip"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -1214,18 +1221,20 @@ export function AdComboBox(props: AdComboBoxProps) {
             boxShadow: theme.shadowMd,
           }}
         >
-          <div ref={listRef}>
+          <div ref={listRef} data-testid="tag-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px' }}>
             {suggestions.map((tag, i) => (
               <div
                 key={tag}
                 onClick={() => handleSelect(tag)}
                 onMouseEnter={() => setHighlightIndex(i)}
                 style={{
-                  padding: '4px 8px',
+                  padding: '2px 8px',
                   fontSize: FONT_SIZE,
                   cursor: 'pointer',
-                  background: i === highlightIndex ? theme.accentHighlight : 'transparent',
+                  background: i === highlightIndex ? theme.accentHighlight : theme.accentBgSubtle,
                   color: theme.textPrimary,
+                  borderRadius: '2px',
+                  border: `1px solid ${i === highlightIndex ? theme.accent : theme.accentBorderSubtle}`,
                 }}
               >
                 {tag}

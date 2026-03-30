@@ -10,7 +10,7 @@ import { MessagePopup } from '../ui/MessagePopup';
 export function BoardDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
-  const [imagePickerTarget, setImagePickerTarget] = useState<{ id: string } | null>(null);
+  const [imagePickerTarget, setImagePickerTarget] = useState<{ id: string; type: string } | null>(null);
 
   const handleMoveObject = useCallback((id: string, x: number, y: number) => {
     ctx.moveObject(id, { x, y });
@@ -52,8 +52,8 @@ export function BoardDockPanel() {
   const handleEditObject = useCallback((id: string) => {
     if (!checkPermission(ctx.roomRole, 'object_edit')) return;
     const obj = ctx.activeObjects.find(o => o.id === id);
-    if (obj?.type === 'text') return;
-    setImagePickerTarget({ id });
+    if (!obj || obj.type === 'text') return;
+    setImagePickerTarget({ id, type: obj.type });
   }, [ctx.activeObjects, ctx.roomRole]);
 
   const handlePaste = useCallback(async () => {
@@ -76,6 +76,9 @@ export function BoardDockPanel() {
         ctx.updateObject,
         ctx.activeObjects,
         ctx.activeScene?.id ?? null,
+        undefined,
+        ctx.characters?.map(c => c.name),
+        ctx.scenarioTexts?.map(t => t.title),
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
@@ -153,6 +156,7 @@ export function BoardDockPanel() {
       </div>
       {imagePickerTarget && (
         <AssetLibraryModal
+          autoTags={[imagePickerTarget.type === 'background' ? '背景' : imagePickerTarget.type === 'foreground' ? '前景' : 'オブジェクト']}
           onSelect={(_url, assetId) => {
             ctx.updateObject(imagePickerTarget.id, { image_asset_id: assetId ?? null, ...(assetId ? { color_enabled: false } : {}) });
             // 背景/前景オブジェクトの画像変更時、シーンのサムネイル用asset_idも同期
