@@ -278,11 +278,16 @@ export function useSupabaseMutation<T extends { id: string }>(
     });
 
     try {
-      const { error } = await supabase.from(table).delete().eq('id', id);
+      const { error, count } = await supabase.from(table).delete({ count: 'exact' }).eq('id', id);
       if (error) {
         // ロールバック: closure のスナップショットを使用
         setData(snapshot);
         throw error;
+      }
+      if (count === 0) {
+        // RLS で拒否された（エラーなし・0件削除）→ ロールバック
+        setData(snapshot);
+        throw new Error(`削除権限がありません (${table}/${id})`);
       }
       // 成功時もclearPending
       clearPending(table, id);

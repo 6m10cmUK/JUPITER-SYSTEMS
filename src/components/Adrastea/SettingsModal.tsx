@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
-import { AdButton, AdInput, AdTextArea } from './ui';
+import { AdButton, AdInput, AdTextArea, ConfirmModal } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
@@ -79,6 +79,7 @@ function RoomSettingsSection({
   const [description, setDescription] = useState('');
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
   const [defaultLoginRole, setDefaultLoginRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_login_role as 'sub_owner' | 'user' | 'guest' ?? 'user');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const handleSave = () => {
     onSaveRoom({
@@ -90,13 +91,6 @@ function RoomSettingsSection({
       }),
     });
     onClose();
-  };
-
-  const handleDelete = () => {
-    if (window.confirm('このルームを削除してもよろしいですか？')) {
-      onDeleteRoom();
-      onClose();
-    }
   };
 
   return (
@@ -151,13 +145,22 @@ function RoomSettingsSection({
         </>
       )}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-        <AdButton variant="danger" onClick={handleDelete}>
+        <AdButton variant="danger" onClick={() => setShowDeleteConfirm(true)}>
           ルームを削除
         </AdButton>
         <AdButton variant="primary" onClick={handleSave}>
           保存
         </AdButton>
       </div>
+      {showDeleteConfirm && (
+        <ConfirmModal
+          message={`「${room.name}」を削除しますか？この操作は取り消せません。`}
+          confirmLabel="削除"
+          danger
+          onConfirm={() => onDeleteRoom()}
+          onCancel={() => setShowDeleteConfirm(false)}
+        />
+      )}
     </div>
   );
 }
@@ -747,6 +750,25 @@ export function SettingsModal({
                 {item.label}
               </button>
             ))}
+            <div style={{ flex: 1 }} />
+            <div style={{ borderTop: `1px solid ${theme.border}` }}>
+              <button
+                onClick={() => { window.location.href = '/adrastea'; }}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  border: 'none',
+                  width: '100%',
+                  textAlign: 'left',
+                  display: 'block',
+                  background: 'transparent',
+                  color: theme.textSecondary,
+                }}
+              >
+                ルームから退出
+              </button>
+            </div>
           </div>
 
           {/* 閉じるボタン */}

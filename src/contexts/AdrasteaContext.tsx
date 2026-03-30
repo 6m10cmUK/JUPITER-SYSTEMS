@@ -322,7 +322,17 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Delete room ---
   const deleteRoom = useCallback(async () => {
     if (!user) return;
-    // NOTE: room 情報は RoomDataProvider から取得するため、ここでは簡略化
+    const match = window.location.pathname.match(/\/adrastea\/([^/]+)/);
+    const roomId = match?.[1];
+    if (!roomId) {
+      window.location.href = '/adrastea/';
+      return;
+    }
+    const { supabase } = await import('../services/supabase');
+    const { error } = await supabase.from('rooms').delete().eq('id', roomId);
+    if (error) {
+      console.error('ルーム削除失敗:', error);
+    }
     window.location.href = '/adrastea/';
   }, [user]);
 
