@@ -67,7 +67,7 @@ export interface AdrasteaContextValue {
     messageType: any,
     characterName?: string,
     characterAvatar?: string | null,
-    channelOverride?: string,
+    channel?: string,
   ) => void;
   activeSpeakerCharId: string | null;
   setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;
