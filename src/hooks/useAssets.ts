@@ -21,6 +21,7 @@ function addToCache(asset: Asset, uid: string | undefined, disabled: boolean) {
 
 // バックグラウンドフェッチ用：進行中のリクエスト + fetchSingleAsset 関数への参照
 const pendingFetches = new Set<string>();
+const failedFetches = new Set<string>();
 let fetchSingleAssetFn: ((id: string) => void) | null = null;
 
 /** asset_id から URL を解決する。モジュールレベルキャッシュを直接参照。キャッシュミス時はバックグラウンドフェッチをトリガー。 */
@@ -30,7 +31,7 @@ export function resolveAssetId(assetId: string | null | undefined): string | nul
   const asset = assets.find(a => a.id === assetId);
   if (asset) return asset.url ?? null;
   // キャッシュミス → バックグラウンドフェッチをトリガー
-  if (fetchSingleAssetFn && !pendingFetches.has(assetId)) {
+  if (fetchSingleAssetFn && !pendingFetches.has(assetId) && !failedFetches.has(assetId)) {
     fetchSingleAssetFn(assetId);
   }
   return null;
@@ -39,6 +40,7 @@ export function resolveAssetId(assetId: string | null | undefined): string | nul
 export function useAssets(options?: { disabled?: boolean; defaultTags?: string[] }) {
   const disabled = options?.disabled ?? false;
   const defaultTags = options?.defaultTags ?? [];
+  const defaultTagsKey = JSON.stringify(defaultTags);
   const { user, token } = useAuth();
   const uid = user?.uid;
 
@@ -102,8 +104,11 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
           .from('assets')
           .select('*')
           .eq('id', assetId)
-          .single();
-        if (assetError || !assetData) return;
+          .maybeSingle();
+        if (assetError || !assetData) {
+          failedFetches.add(assetId);
+          return;
+        }
         const asset: Asset = { ...assetData, tags: assetData.tags ?? [] };
         setAssets((prev) => {
           // 既に存在する場合はスキップ
@@ -204,7 +209,7 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
         throw e;
       }
     },
-    [uid, token, disabled]
+    [uid, token, disabled, defaultTags, defaultTagsKey]
   );
 
   const uploadAudioAsset = useCallback(
@@ -262,7 +267,7 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
         throw e;
       }
     },
-    [uid, token, disabled]
+    [uid, token, disabled, defaultTags, defaultTagsKey]
   );
 
   const addAssetByUrl = useCallback(
@@ -319,7 +324,7 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
       setAssets((prev) => [created, ...prev]);
       return created;
     },
-    [uid, token, disabled]
+    [uid, token, disabled, defaultTags, defaultTagsKey]
   );
 
   const deleteAsset = useCallback(

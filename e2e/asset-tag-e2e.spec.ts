@@ -108,4 +108,138 @@ test.describe('アセットタグ自動付与テスト', () => {
     // ルーム名タグが表示される
     await expect(page.getByText(ROOM_NAME).first()).toBeVisible({ timeout: 5000 });
   });
+
+  test('タグ編集: 編集モーダルでタグ追加', async ({ page }) => {
+    await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // ツールバーの「アセットライブラリ」ボタンを開く
+    const assetLibBtn = page.locator('button[title="アセットライブラリ"]').first();
+    await expect(assetLibBtn).toBeVisible({ timeout: 5000 });
+    await assetLibBtn.click();
+    await page.waitForTimeout(500);
+
+    await expect(page.getByText('アセットライブラリ').first()).toBeVisible({ timeout: 5000 });
+
+    // 最初のアセットの編集ボタンをクリック
+    const editBtn = page.locator('button[title="編集"]').first();
+    await expect(editBtn).toBeVisible({ timeout: 5000 });
+    await editBtn.click();
+    await page.waitForTimeout(300);
+
+    // 編集モーダルが表示される
+    await expect(page.getByText('アセットを編集').first()).toBeVisible({ timeout: 3000 });
+
+    // タグエディタが表示される
+    const tagEditor = page.locator('[data-testid="tag-editor"]').first();
+    await expect(tagEditor).toBeVisible({ timeout: 3000 });
+
+    // 新規タグを入力して追加
+    const tagInput = tagEditor.locator('input');
+    await tagInput.fill('テストタグ');
+    const addBtn = tagEditor.getByText('追加').first();
+    await addBtn.click();
+    await page.waitForTimeout(300);
+
+    // チップとして「テストタグ」が表示される
+    await expect(tagEditor.getByText('テストタグ')).toBeVisible();
+
+    // 保存ボタンをクリック
+    const saveBtn = page.getByText('保存').first();
+    await saveBtn.click();
+    await page.waitForTimeout(1000);
+
+    // 保存後、アセットカードのタグ表示に「テストタグ」が含まれる
+    await expect(page.locator('[data-testid="asset-tags"]').first().getByText('テストタグ')).toBeVisible({ timeout: 5000 });
+  });
+
+  test('タグ編集: チップの ✕ ボタンでタグ削除', async ({ page }) => {
+    await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // アセットライブラリを開く
+    const assetLibBtn = page.locator('button[title="アセットライブラリ"]').first();
+    await assetLibBtn.click();
+    await page.waitForTimeout(500);
+
+    await expect(page.getByText('アセットライブラリ').first()).toBeVisible({ timeout: 5000 });
+
+    // 最初のアセットの編集ボタンをクリック
+    const editBtn = page.locator('button[title="編集"]').first();
+    await editBtn.click();
+    await page.waitForTimeout(300);
+
+    await expect(page.getByText('アセットを編集').first()).toBeVisible({ timeout: 3000 });
+
+    const tagEditor = page.locator('[data-testid="tag-editor"]').first();
+    await expect(tagEditor).toBeVisible({ timeout: 3000 });
+
+    // 既存タグのチップ数を取得
+    const chipsBefore = await tagEditor.locator('[data-testid="tag-chip"]').count();
+    expect(chipsBefore).toBeGreaterThan(0);
+
+    // 最初のチップの ✕ ボタンをクリック
+    const removeBtn = tagEditor.locator('[data-testid="tag-chip"]').first().locator('button');
+    await removeBtn.click();
+    await page.waitForTimeout(300);
+
+    // チップ数が1つ減っている
+    const chipsAfter = await tagEditor.locator('[data-testid="tag-chip"]').count();
+    expect(chipsAfter).toBe(chipsBefore - 1);
+
+    // 保存
+    const saveBtn = page.getByText('保存').first();
+    await saveBtn.click();
+    await page.waitForTimeout(1000);
+  });
+
+  test('タグ編集: 候補ドロップダウンから既存タグを選択', async ({ page }) => {
+    await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+
+    // アセットライブラリを開く
+    const assetLibBtn = page.locator('button[title="アセットライブラリ"]').first();
+    await assetLibBtn.click();
+    await page.waitForTimeout(500);
+
+    await expect(page.getByText('アセットライブラリ').first()).toBeVisible({ timeout: 5000 });
+
+    // 最初のアセットの編集ボタンをクリック
+    const editBtn = page.locator('button[title="編集"]').first();
+    await editBtn.click();
+    await page.waitForTimeout(300);
+
+    await expect(page.getByText('アセットを編集').first()).toBeVisible({ timeout: 3000 });
+
+    const tagEditor = page.locator('[data-testid="tag-editor"]').first();
+    await expect(tagEditor).toBeVisible({ timeout: 3000 });
+
+    // 入力欄をクリック → ドロップダウンが表示される
+    const tagInput = tagEditor.locator('input');
+    await tagInput.click();
+    await page.waitForTimeout(300);
+
+    // ドロップダウンの候補リストが表示される
+    const dropdown = tagEditor.locator('[data-testid="tag-suggestions"]');
+    await expect(dropdown).toBeVisible({ timeout: 3000 });
+
+    // 最初の候補をクリック
+    const firstSuggestion = dropdown.locator('li').first();
+    const suggestionText = await firstSuggestion.textContent();
+    await firstSuggestion.click();
+    await page.waitForTimeout(300);
+
+    // チップとして追加される
+    if (suggestionText) {
+      await expect(tagEditor.getByText(suggestionText)).toBeVisible();
+    }
+
+    // 保存
+    const saveBtn = page.getByText('保存').first();
+    await saveBtn.click();
+    await page.waitForTimeout(1000);
+  });
 });

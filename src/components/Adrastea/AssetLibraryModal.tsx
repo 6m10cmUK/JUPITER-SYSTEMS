@@ -1,11 +1,12 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import { X, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
+import { X, Upload, Link, Play, Square, ImageOff, Trash2, Pencil } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
-import { AdComboBox } from './ui';
+import { AdComboBox, AdModal, AdButton, AdInput, ConfirmModal } from './ui';
 
 /** blobCache 経由のサムネイル — キャッシュ済みなら即表示 */
 function CachedThumbnail({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
@@ -84,21 +85,38 @@ type AddMode = null | 'pick' | 'url';
 export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', autoTags }: AssetLibraryModalProps) {
   const ctx = useAdrasteaContext();
   const roomName = ctx.room?.name;
-  const defaultTags = [...new Set([...(roomName ? [roomName] : []), ...(autoTags ?? [])])];
+  const [searchTags, setSearchTags] = useState<string[]>(() => {
+    const tags: string[] = [];
+    if (roomName) tags.push(roomName);
+    if (autoTags?.[0]) tags.push(autoTags[0]);
+    return [...new Set(tags)];
+  });
+  const [searchText, setSearchText] = useState('');
+  const defaultTags = useMemo(() => [...new Set([...(roomName ? [roomName] : []), ...(autoTags ?? [])])], [roomName, autoTags]);
   const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets({ disabled: ctx.isDemo, defaultTags });
 
+  // 種別タグは登録済みアセットになくても常にタグとして認識
+  const BUILTIN_TAGS = ['背景', '前景', 'キャラクター', 'オブジェクト', 'カットイン'];
+
   const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
+    const tagSet = new Set<string>(BUILTIN_TAGS);
+    if (roomName) tagSet.add(roomName);
     assets.forEach(a => a.tags.forEach(t => tagSet.add(t)));
     return [...tagSet].sort();
   }, [assets]);
 
-  const [search, setSearch] = useState('');
+  const searchSuggestions = useMemo(() => {
+    const excluded = new Set(searchTags);
+    const q = searchText.trim().toLowerCase();
+    // 未入力時はビルトインタグのみ表示
+    if (!q) return BUILTIN_TAGS.filter(t => !excluded.has(t));
+    // 入力時は全タグからフィルタ
+    const available = allTags.filter(t => !excluded.has(t));
+    return available.filter(t => t.toLowerCase().includes(q)).slice(0, 20);
+  }, [allTags, searchTags, searchText]);
+
+  const hasSearchTags = searchTags.length > 0;
   const [uploading, setUploading] = useState(false);
-  const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
-  const [tagInput, setTagInput] = useState('');
-  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
-  const [titleInput, setTitleInput] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'image' | 'audio'>(initialTab);
   const [addMode, setAddMode] = useState<AddMode>(null);
@@ -107,6 +125,15 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewingId, setPreviewingId] = useState<string | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [searchDropOpen, setSearchDropOpen] = useState(false);
+  const [searchHighlight, setSearchHighlight] = useState(0);
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchDropRef = useRef<HTMLDivElement>(null);
+  const searchComposingRef = useRef(false);
 
   const handlePreviewAudio = useCallback((e: React.MouseEvent, asset: Asset) => {
     e.stopPropagation();
@@ -127,13 +154,18 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
 
   const filtered = assets.filter((a) => {
     if (a.asset_type !== activeTab) return false;
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      a.filename.toLowerCase().includes(q) ||
-      a.title.toLowerCase().includes(q) ||
-      a.tags.some((t) => t.toLowerCase().includes(q))
-    );
+    // タグフィルタ: 全 searchTags を含むもの
+    if (searchTags.length > 0 && !searchTags.every(t => a.tags.includes(t))) return false;
+    // テキストフィルタ: ファイル名・タイトル・タグで部分一致
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase();
+      return (
+        a.filename.toLowerCase().includes(q) ||
+        a.title.toLowerCase().includes(q) ||
+        a.tags.some((t) => t.toLowerCase().includes(q))
+      );
+    }
+    return true;
   });
 
   const handleUpload = useCallback(
@@ -146,10 +178,16 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
         } else {
           result = await uploadAsset(file);
         }
+        // タグ検索中なら検索タグを追加付与
+        if (result && hasSearchTags) {
+          const missingTags = searchTags.filter(t => !result.tags.includes(t));
+          if (missingTags.length > 0) {
+            await updateAssetTags(result.id, [...result.tags, ...missingTags]);
+          }
+        }
         if (result && onSelect) {
           previewAudioRef.current?.pause();
           onSelect(result.url, result.id, result.title || result.filename, result.width, result.height);
-          // onClose は呼ばない — AssetPicker 側の onSelect 内で setShowModal(false) が閉じる
         }
       } catch (err) {
         console.error('アップロード失敗:', err);
@@ -158,7 +196,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
         setAddMode(null);
       }
     },
-    [activeTab, uploadAsset, uploadAudioAsset, onSelect]
+    [activeTab, uploadAsset, uploadAudioAsset, onSelect, hasSearchTags, searchTags, updateAssetTags]
   );
 
   const dnd = useDragDropOverlay(handleUpload);
@@ -166,15 +204,24 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
   const handleAddByUrl = useCallback(async () => {
     const url = urlInput.trim();
     if (!url) return;
+    const result = await addAssetByUrl(url, activeTab);
+    // タグ検索中なら検索タグを追加付与
+    if (result && hasSearchTags) {
+      const missingTags = searchTags.filter(t => !result.tags.includes(t));
+      if (missingTags.length > 0) {
+        await updateAssetTags(result.id, [...result.tags, ...missingTags]);
+      }
+    }
     if (onSelect) {
-      onSelect(url);
-      onClose();
-    } else {
-      await addAssetByUrl(url, activeTab);
+      if (result) {
+        onSelect(result.url, result.id, result.title || result.filename, result.width, result.height);
+      } else {
+        onSelect(url);
+      }
     }
     setUrlInput('');
     setAddMode(null);
-  }, [urlInput, onSelect, onClose, activeTab, addAssetByUrl]);
+  }, [urlInput, onSelect, activeTab, addAssetByUrl, hasSearchTags, searchTags, updateAssetTags]);
 
   const handleDelete = useCallback(
     async (assetId: string, r2Key: string) => {
@@ -190,45 +237,52 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
     [deleteAsset]
   );
 
-  const handleSaveTags = useCallback(
-    async (assetId: string) => {
-      const tags = tagInput
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean);
-      try {
-        await updateAssetTags(assetId, tags);
-      } catch (err) {
-        console.error('タグ保存失敗:', err);
-        setError('タグの保存に失敗しました');
-      } finally {
-        setEditingTagsId(null);
-        setTagInput('');
-      }
-    },
-    [tagInput, updateAssetTags]
-  );
+  const openEditModal = useCallback((asset: Asset) => {
+    setEditingAsset(asset);
+    setEditTitle(asset.title || asset.filename);
+    setEditTags([...asset.tags]);
+  }, []);
 
-  const handleSaveTitle = useCallback(
-    async (assetId: string) => {
-      const title = titleInput.trim();
-      if (title) {
-        try {
-          await updateAssetTitle(assetId, title);
-        } catch (err) {
-          console.error('タイトル保存失敗:', err);
-        }
+  const handleSaveEdit = useCallback(async () => {
+    if (!editingAsset) return;
+    try {
+      if (editTitle.trim() && editTitle !== editingAsset.title) {
+        await updateAssetTitle(editingAsset.id, editTitle.trim());
       }
-      setEditingTitleId(null);
-      setTitleInput('');
-    },
-    [titleInput, updateAssetTitle]
-  );
+      const tagsChanged = JSON.stringify(editTags) !== JSON.stringify(editingAsset.tags);
+      if (tagsChanged) {
+        await updateAssetTags(editingAsset.id, editTags);
+      }
+    } catch (err) {
+      console.error('アセット編集失敗:', err);
+      setError('アセットの編集に失敗しました');
+    } finally {
+      setEditingAsset(null);
+    }
+  }, [editingAsset, editTitle, editTags, updateAssetTitle, updateAssetTags]);
 
   // モーダル閉じ時にプレビュー停止
   React.useEffect(() => {
     return () => { previewAudioRef.current?.pause(); };
   }, []);
+
+  // 候補ドロップダウン: 外側クリック時に閉じる
+  useEffect(() => {
+    if (!searchDropOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (
+        searchWrapRef.current && !searchWrapRef.current.contains(e.target as Node) &&
+        searchDropRef.current && !searchDropRef.current.contains(e.target as Node)
+      ) {
+        setSearchDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [searchDropOpen]);
+
+  // searchHighlight をリセット
+  useEffect(() => { setSearchHighlight(0); }, [searchText]);
 
   const handleAssetClick = useCallback(
     (url: string, assetId?: string, title?: string, width?: number, height?: number) => {
@@ -240,6 +294,43 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
     },
     [onSelect, onClose]
   );
+
+  const handleSearchSelect = useCallback((value: string) => {
+    if (allTags.includes(value) && !searchTags.includes(value)) {
+      setSearchTags(prev => [...prev, value]);
+      setSearchText('');
+    } else {
+      setSearchText(value);
+    }
+    setSearchDropOpen(false);
+  }, [allTags, searchTags]);
+
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (searchComposingRef.current) return;
+    if (searchDropOpen && searchSuggestions.length > 0) {
+      switch (e.key) {
+        case 'ArrowLeft':
+          e.preventDefault();
+          setSearchHighlight(i => Math.max(i - 1, 0));
+          return;
+        case 'ArrowRight':
+          e.preventDefault();
+          setSearchHighlight(i => Math.min(i + 1, searchSuggestions.length - 1));
+          return;
+        case 'Enter':
+          e.preventDefault();
+          handleSearchSelect(searchSuggestions[searchHighlight]);
+          return;
+        case 'Escape':
+          setSearchDropOpen(false);
+          return;
+      }
+    }
+    // Backspace で入力欄が空なら最後のタグチップを削除
+    if (e.key === 'Backspace' && !searchText && searchTags.length > 0) {
+      setSearchTags(prev => prev.slice(0, -1));
+    }
+  }, [searchDropOpen, searchSuggestions, searchHighlight, handleSearchSelect, searchText, searchTags]);
 
   const modalStyle: React.CSSProperties = {
     position: 'fixed', inset: 0, background: theme.bgOverlay,
@@ -272,115 +363,33 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
     cursor: 'pointer',
   });
 
-  const renderTagSection = (asset: Asset) => {
-    if (editingTagsId === asset.id) {
-      return (
-        <div style={{ marginBottom: '4px' }}>
-          <input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTags(asset.id); }}
-            placeholder="タグ（カンマ区切り）"
-            autoFocus
-            maxLength={128}
-            style={{ ...inputStyle, fontSize: '0.7rem', padding: '4px 6px', marginBottom: '4px' }}
-          />
-          <div style={{ display: 'flex', gap: '4px' }}>
-            <button
-              onClick={() => handleSaveTags(asset.id)}
+  const renderTagSection = (asset: Asset) => (
+    <div
+      data-testid="asset-tags"
+      style={{
+        fontSize: '0.65rem', color: theme.textMuted,
+        marginBottom: '4px', minHeight: '16px',
+      }}
+    >
+      {asset.tags.length > 0 ? (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
+          {asset.tags.map((tag) => (
+            <span
+              key={tag}
               style={{
-                flex: 1, padding: '2px 6px', fontSize: '0.7rem',
-                background: theme.accent, color: theme.textOnAccent,
-                border: 'none', borderRadius: 0, cursor: 'pointer',
+                background: theme.accentBgSubtle, padding: '1px 4px',
+                borderRadius: 0, fontSize: '0.6rem',
               }}
             >
-              保存
-            </button>
-            <button
-              className="adra-btn adra-btn--ghost"
-              onClick={() => { setEditingTagsId(null); setTagInput(''); }}
-              style={{
-                flex: 1, padding: '2px 6px', fontSize: '0.7rem',
-                background: 'transparent', color: theme.textPrimary,
-                border: 'none', borderRadius: 0, cursor: 'pointer',
-              }}
-            >
-              取消
-            </button>
-          </div>
+              {tag}
+            </span>
+          ))}
         </div>
-      );
-    }
-    return (
-      <div
-        onClick={(e) => { e.stopPropagation(); setEditingTagsId(asset.id); setTagInput(asset.tags.join(', ')); }}
-        style={{
-          fontSize: '0.65rem', color: theme.textMuted, cursor: 'pointer',
-          marginBottom: '4px', minHeight: '16px',
-        }}
-      >
-        {asset.tags.length > 0 ? (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px' }}>
-            {asset.tags.map((tag) => (
-              <span
-                key={tag}
-                style={{
-                  background: theme.accentBgSubtle, padding: '1px 4px',
-                  borderRadius: 0, fontSize: '0.6rem',
-                }}
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span style={{ fontStyle: 'italic' }}>タグを追加...</span>
-        )}
-      </div>
-    );
-  };
-
-  const renderDeleteSection = (asset: Asset) => {
-    if (confirmDeleteId === asset.id) {
-      return (
-        <div style={{ display: 'flex', gap: '4px' }}>
-          <button
-            onClick={(e) => { e.stopPropagation(); handleDelete(asset.id, asset.r2_key); }}
-            style={{
-              flex: 1, padding: '4px', fontSize: '0.7rem',
-              background: theme.danger, color: theme.textOnAccent,
-              border: 'none', borderRadius: 0, cursor: 'pointer',
-            }}
-          >
-            削除する
-          </button>
-          <button
-            className="adra-btn adra-btn--ghost"
-            onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(null); }}
-            style={{
-              flex: 1, padding: '4px', fontSize: '0.7rem',
-              background: 'transparent', color: theme.textPrimary,
-              border: 'none', borderRadius: 0, cursor: 'pointer',
-            }}
-          >
-            取消
-          </button>
-        </div>
-      );
-    }
-    return (
-      <button
-        onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(asset.id); }}
-        style={{
-          width: '100%', padding: '4px', fontSize: '0.7rem',
-          background: 'transparent', color: theme.danger,
-          border: `1px solid ${theme.danger}`, borderRadius: 0, cursor: 'pointer',
-        }}
-      >
-        削除
-      </button>
-    );
-  };
+      ) : (
+        <span style={{ fontStyle: 'italic', fontSize: '0.6rem' }}>タグなし</span>
+      )}
+    </div>
+  );
 
   const addCardStyle: React.CSSProperties = {
     border: `2px dashed ${theme.borderInput}`,
@@ -547,38 +556,108 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
         {/* タブ（選択モード時はタブ固定） */}
         {!onSelect && (
           <div style={{ display: 'flex', borderBottom: `1px solid ${theme.border}`, marginBottom: '8px' }}>
-            <button style={tabStyle('image')} onClick={() => { setActiveTab('image'); setAddMode(null); }}>画像</button>
-            <button style={tabStyle('audio')} onClick={() => { setActiveTab('audio'); setAddMode(null); }}>音声</button>
+            <button
+              style={tabStyle('image')}
+              onClick={() => { setActiveTab('image'); setAddMode(null); }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = theme.textPrimary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = activeTab === 'image' ? theme.textPrimary : theme.textSecondary; }}
+            >画像</button>
+            <button
+              style={tabStyle('audio')}
+              onClick={() => { setActiveTab('audio'); setAddMode(null); }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = theme.textPrimary; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = activeTab === 'audio' ? theme.textPrimary : theme.textSecondary; }}
+            >音声</button>
           </div>
         )}
 
-        {/* 検索バー + フォルダから追加 */}
+        {/* 検索バー + ファイルから追加 */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
-          <AdComboBox
-            mode="single"
-            value={search}
-            onChange={setSearch}
-            suggestions={allTags}
-            placeholder="ファイル名・タグで検索..."
-            style={{ flex: 1 }}
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploading}
+          <div
+            ref={searchWrapRef}
+            onClick={() => searchInputRef.current?.focus()}
             style={{
+              flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px',
+              padding: '3px 6px', minHeight: '28px',
               background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
-              borderRadius: 0, color: theme.textSecondary, cursor: 'pointer',
-              padding: '0 12px', fontSize: '0.8rem', whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+              cursor: 'text',
             }}
           >
-            <Upload size={14} />
-            {uploading ? 'アップロード中...' : 'ファイルから追加'}
-          </button>
+            {searchTags.map(tag => (
+              <span
+                key={tag}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  padding: '0 6px', fontSize: '0.75rem', lineHeight: '20px',
+                  background: theme.accentBgSubtle, color: theme.accent,
+                  border: `1px solid ${theme.accentBorderSubtle}`, borderRadius: '2px',
+                  flexShrink: 0,
+                }}
+              >
+                {tag}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setSearchTags(prev => prev.filter(t => t !== tag)); }}
+                  style={{
+                    background: 'transparent', border: 'none',
+                    color: theme.textMuted, cursor: 'pointer',
+                    padding: 0, fontSize: '11px', lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchText}
+              onChange={(e) => { setSearchText(e.target.value); setSearchDropOpen(true); }}
+              onFocus={() => setSearchDropOpen(true)}
+              onCompositionStart={() => { searchComposingRef.current = true; }}
+              onCompositionEnd={() => { searchComposingRef.current = false; }}
+              onKeyDown={handleSearchKeyDown}
+              placeholder={searchTags.length > 0 ? '' : 'ファイル名・タグで検索...'}
+              style={{
+                flex: 1, minWidth: '60px', border: 'none', outline: 'none',
+                background: 'transparent', color: theme.textPrimary,
+                fontSize: '0.85rem', padding: '2px 0',
+              }}
+            />
+          </div>
+          {activeTab === 'audio' ? (
+            <button
+              onClick={() => setAddMode('url')}
+              style={{
+                background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+                borderRadius: 0, color: theme.textSecondary, cursor: 'pointer',
+                padding: '0 12px', fontSize: '0.8rem', whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+              }}
+            >
+              <Link size={14} />
+              URLから追加
+            </button>
+          ) : (
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              style={{
+                background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
+                borderRadius: 0, color: theme.textSecondary, cursor: 'pointer',
+                padding: '0 12px', fontSize: '0.8rem', whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0,
+              }}
+            >
+              <Upload size={14} />
+              {uploading ? 'アップロード中...' : 'ファイルから追加'}
+            </button>
+          )}
         </div>
-        <div style={{ fontSize: '0.85rem', color: theme.textMuted, marginBottom: '8px' }}>
-          ドラッグ＆ドロップでもアップロードできます
-        </div>
+        {activeTab !== 'audio' && (
+          <div style={{ fontSize: '0.85rem', color: theme.textMuted, marginBottom: '8px' }}>
+            ドラッグ＆ドロップでもアップロードできます
+          </div>
+        )}
 
         {/* エラーバナー */}
         {error && (
@@ -625,7 +704,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
             </div>
           ) : activeTab === 'image' ? (
             /* 画像: グリッド表示 */
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '2px' }}>
               {/* 選択モード時: no image カード */}
               {onSelect && (
                 <div
@@ -643,6 +722,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                       border: `1px solid ${theme.border}`, borderRadius: 0,
                       overflow: 'hidden', background: 'rgba(0,0,0,0.2)',
                       cursor: onSelect ? 'pointer' : undefined,
+                      position: 'relative',
                     }}
                     onClick={() => handleAssetClick(asset.url, asset.id, asset.title || asset.filename, asset.width, asset.height)}
                   >
@@ -651,6 +731,39 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                       alt={asset.filename}
                       style={{ width: '100%', aspectRatio: '1', objectFit: 'contain', display: 'block' }}
                     />
+                    {/* 右上アクションボタン */}
+                    <div
+                      style={{
+                        position: 'absolute', top: '4px', right: '4px',
+                        display: 'flex', gap: '4px',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => openEditModal(asset)}
+                        title="編集"
+                        style={{
+                          width: '24px', height: '24px', borderRadius: '4px',
+                          background: 'rgba(0,0,0,0.6)', border: 'none',
+                          color: theme.textPrimary, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <Pencil size={12} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(asset.id)}
+                        title="削除"
+                        style={{
+                          width: '24px', height: '24px', borderRadius: '4px',
+                          background: 'rgba(0,0,0,0.6)', border: 'none',
+                          color: theme.danger, cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
                     <div style={{ padding: '4px' }}>
                       <div style={{
                         fontSize: '0.75rem', color: theme.textPrimary,
@@ -660,7 +773,6 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                         {asset.title || asset.filename}
                       </div>
                       {renderTagSection(asset)}
-                      {renderDeleteSection(asset)}
                     </div>
                   </div>
                 </LazyVisible>
@@ -698,42 +810,42 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                     >
                       {isPreviewing ? <Square size={14} /> : <Play size={14} />}
                     </button>
-                    {/* タイトル */}
+                    {/* タイトル + タグ */}
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      {editingTitleId === asset.id ? (
-                        <input
-                          value={titleInput}
-                          onChange={(e) => setTitleInput(e.target.value)}
-                          onBlur={() => handleSaveTitle(asset.id)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveTitle(asset.id); if (e.key === 'Escape') { setEditingTitleId(null); setTitleInput(''); } }}
-                          autoFocus
-                          onClick={(e) => e.stopPropagation()}
-                          maxLength={128}
-                          style={{
-                            width: '100%', padding: '2px 6px', fontSize: '0.8rem',
-                            background: theme.bgInput, border: `1px solid ${theme.borderInput}`,
-                            borderRadius: 0, color: theme.textPrimary, outline: 'none',
-                          }}
-                        />
-                      ) : (
-                        <div
-                          style={{
-                            fontSize: '0.8rem', color: theme.textPrimary,
-                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                          }}
-                          onDoubleClick={(e) => { e.stopPropagation(); setEditingTitleId(asset.id); setTitleInput(asset.title || asset.filename); }}
-                        >
-                          {asset.title || asset.filename}
-                        </div>
-                      )}
-                      {/* タグ */}
-                      <div onClick={(e) => e.stopPropagation()} style={{ marginTop: '2px' }}>
+                      <div style={{
+                        fontSize: '0.8rem', color: theme.textPrimary,
+                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      }}>
+                        {asset.title || asset.filename}
+                      </div>
+                      <div style={{ marginTop: '2px' }}>
                         {renderTagSection(asset)}
                       </div>
                     </div>
-                    {/* 削除 */}
-                    <div style={{ flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                      {renderDeleteSection(asset)}
+                    {/* 編集・削除ボタン */}
+                    <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => openEditModal(asset)}
+                        title="編集"
+                        style={{
+                          background: 'transparent', border: 'none',
+                          color: theme.textSecondary, cursor: 'pointer', padding: '2px',
+                          display: 'flex', alignItems: 'center',
+                        }}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(asset.id)}
+                        title="削除"
+                        style={{
+                          background: 'transparent', border: 'none',
+                          color: theme.danger, cursor: 'pointer', padding: '2px',
+                          display: 'flex', alignItems: 'center',
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -745,6 +857,101 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
 
       {/* 追加サブモーダル */}
       {renderAddSubModal()}
+
+      {/* 削除確認モーダル */}
+      {confirmDeleteId && (() => {
+        const asset = assets.find(a => a.id === confirmDeleteId);
+        if (!asset) return null;
+        return (
+          <ConfirmModal
+            message={`「${asset.title || asset.filename}」を削除しますか？この操作は取り消せません。`}
+            confirmLabel="削除"
+            danger
+            onConfirm={() => handleDelete(asset.id, asset.r2_key)}
+            onCancel={() => setConfirmDeleteId(null)}
+          />
+        );
+      })()}
+
+      {/* 編集モーダル */}
+      {editingAsset && (
+        <AdModal
+          title="アセットを編集"
+          width="400px"
+          onClose={() => setEditingAsset(null)}
+          footer={
+            <>
+              <AdButton onClick={() => setEditingAsset(null)}>キャンセル</AdButton>
+              <AdButton variant="primary" onClick={handleSaveEdit}>保存</AdButton>
+            </>
+          }
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <AdInput
+              label="タイトル"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+            />
+            <div>
+              <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '4px' }}>タグ</div>
+              <div data-testid="tag-editor">
+                <AdComboBox
+                  mode="multi"
+                  tags={editTags}
+                  onChange={setEditTags}
+                  suggestions={allTags}
+                  placeholder="タグを入力..."
+                />
+              </div>
+            </div>
+          </div>
+        </AdModal>
+      )}
+
+      {/* 検索候補ドロップダウン */}
+      {searchDropOpen && searchSuggestions.length > 0 && searchWrapRef.current && createPortal(
+        <div
+          ref={searchDropRef}
+          className="adrastea-root"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: searchWrapRef.current.getBoundingClientRect().bottom,
+            left: searchWrapRef.current.getBoundingClientRect().left,
+            width: searchWrapRef.current.getBoundingClientRect().width,
+            zIndex: 9999,
+            background: theme.bgElevated,
+            border: `1px solid ${theme.border}`,
+            maxHeight: '150px',
+            overflowY: 'auto',
+            boxShadow: theme.shadowMd,
+          }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px' }}>
+            {searchSuggestions.map((tag, i) => (
+              <div
+                key={tag}
+                onClick={() => handleSearchSelect(tag)}
+                onMouseEnter={() => setSearchHighlight(i)}
+                style={{
+                  padding: '2px 8px',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  background: i === searchHighlight ? theme.accentHighlight : theme.accentBgSubtle,
+                  color: theme.textPrimary,
+                  borderRadius: '2px',
+                  border: `1px solid ${i === searchHighlight ? theme.accent : theme.accentBorderSubtle}`,
+                }}
+              >
+                {tag}
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }
