@@ -30,6 +30,8 @@ name / color / size / initiative / sheet_url（キャラシートリンク）/ �
 
 タイトル・本文（テキストエリア、拡大表示可）・話者キャラクター（キャラクター一覧から選択）・話者名（手入力、キャラクター選択時は自動補完）・チャンネル割り当てを編集。
 
+フッターに「チャットに送信」ボタンを配置。クリックで content を channel_id のチャンネルに送信。送信時にテンプレート変数を展開（resolveTemplateVars）。
+
 ## カットインプロパティ
 
 name / image_url / text / animation / duration / text_color / background_color を編集。
