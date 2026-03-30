@@ -14,6 +14,24 @@
 
 前景の表示モードが単色指定の状態でAssetPicker経由で画像を設定した場合、表示モードを自動的に画像モードに切り替える。
 
+## 背景・前景・パネルの描画モード
+
+objects テーブルの color_enabled フラグで「単色モード」と「画像モード」を切り替える。
+
+単色モード（color_enabled = true）の場合、background_color の hex 色を colorToDataUrl で data URL 化し、img 要素の src に設定する。div の backgroundColor は使わない。
+
+画像モード（color_enabled = false）の場合、image_asset_id から解決した画像 URL を useAnimatedBlobSrc で blob 化し、img 要素に表示する。div の backgroundColor は transparent。画像未選択（image_asset_id = null）の場合は何も表示しない（transparent）。
+
+背景と前景の AssetPicker で画像を設定した際、表示モードが単色指定の状態であれば color_enabled を自動的に false に切り替える。
+
+各タイプのデフォルト background_color（新規作成時）:
+
+| タイプ | デフォルト色 |
+|--------|------------|
+| 背景 | #1e1e2e |
+| 前景 | #666666 |
+| パネル | #333333 |
+
 ## オブジェクトプロパティ
 
 選択オブジェクト（複数可）の name / x / y / width / height / visible / opacity / position_locked / size_locked / z_order（sort_order）を編集。
