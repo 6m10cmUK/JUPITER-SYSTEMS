@@ -453,10 +453,22 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
   const [popPos, setPopPos] = useState<{ top: number; left: number } | null>(null);
   const rgba = cssToRgba(value);
 
+  // ドラッグ中の色をローカルで保持
+  const [localRgba, setLocalRgba] = useState<RgbaColor>(rgba);
+  const localRgbaRef = useRef(localRgba);
+  localRgbaRef.current = localRgba;
+
   // value が変わったら textInput を同期
   useEffect(() => {
     setTextInput(value);
   }, [value]);
+
+  // ポップオーバーを開く時にローカルカラーを初期化
+  useEffect(() => {
+    if (open) {
+      setLocalRgba(cssToRgba(value));
+    }
+  }, [open, value]);
 
   // ポップオーバー位置計算（レンダー後に実測）
   useEffect(() => {
@@ -487,24 +499,29 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
         e.preventDefault();
         setOpen(false);
         setContextMenuOpen(false);
-        onClose?.(rgbaToCss(rgba));
+        // ローカルカラーを親に反映
+        const finalColor = rgbaToCss(localRgbaRef.current);
+        onChange(finalColor);
+        onClose?.(finalColor);
       }
     };
     document.addEventListener('mousedown', handler, true);
     return () => document.removeEventListener('mousedown', handler, true);
-  }, [open, rgba, onClose]);
+  }, [open, onChange, onClose]);
 
   const handleChange = useCallback((c: RgbaColor) => {
-    onChange(enableAlpha ? rgbaToCss(c) : rgbaToCss({ ...c, a: 1 }));
-  }, [onChange, enableAlpha]);
+    // ドラッグ中はローカルのみ更新。親への反映はポップオーバー閉じる時
+    setLocalRgba(enableAlpha ? c : { ...c, a: 1 });
+  }, [enableAlpha]);
 
   const handleSaveToPalette = useCallback(() => {
-    const colorToSave = enableAlpha ? rgba : { ...rgba, a: 1 };
+    // ポップオーバー内から呼ばれるので localRgba を保存
+    const colorToSave = enableAlpha ? localRgbaRef.current : { ...localRgbaRef.current, a: 1 };
     const css = rgbaToCss(colorToSave);
     const next = [css, ...palette.filter(c => c !== css)].slice(0, 16);
     setPalette(next);
     savePalette(next);
-  }, [rgba, palette, enableAlpha]);
+  }, [palette, enableAlpha]);
 
   const handleRemoveFromPalette = useCallback((index: number) => {
     const next = palette.filter((_, i) => i !== index);
@@ -550,7 +567,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
                 cursor: 'pointer', padding: 0, position: 'relative', flexShrink: 0,
               }}
             >
-              <div style={{ position: 'absolute', inset: 0, background: rgbaToDisplayBg(rgba) }} />
+              <div style={{ position: 'absolute', inset: 0, background: rgbaToDisplayBg(open ? localRgba : rgba) }} />
             </button>
             <input
               type="text"
@@ -600,7 +617,7 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
           {/* 左: カラーピッカー */}
           <div className="adra-color-picker-popover" data-hide-alpha={!enableAlpha ? "true" : undefined}>
             <RgbaColorPicker
-              color={enableAlpha ? rgba : { ...rgba, a: 1 }}
+              color={enableAlpha ? localRgba : { ...localRgba, a: 1 }}
               onChange={handleChange}
             />
           </div>
@@ -614,7 +631,11 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               {DEFAULT_PALETTE.filter(c => enableAlpha ? true : c.length <= 7).map((c, i) => (
                 <button
                   key={`d-${i}`}
-                  onClick={() => onChange(c)}
+                  onClick={() => {
+                    // パレットクリックは即反映
+                    setLocalRgba(cssToRgba(c));
+                    onChange(c);
+                  }}
                   title={c}
                   style={{
                     width: '16px', height: '16px', border: `1px solid ${theme.border}`,
@@ -649,7 +670,11 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               {palette.filter(c => enableAlpha ? true : cssToRgba(c).a >= 1).map((c, i) => (
                 <button
                   key={`u-${i}`}
-                  onClick={() => onChange(c)}
+                  onClick={() => {
+                    // パレットクリックは即反映
+                    setLocalRgba(cssToRgba(c));
+                    onChange(c);
+                  }}
                   onContextMenu={(e) => {
                     e.preventDefault();
                     setContextMenuPos({ x: e.clientX, y: e.clientY });
