@@ -104,6 +104,7 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
               label="コマ画像"
               currentUrl={ctx.resolveAssetId(imageAssetId) || null}
               onSelect={(_url, assetId) => setImageAssetId(assetId || '')}
+              autoTags={['オブジェクト']}
             />
           </div>
         )}

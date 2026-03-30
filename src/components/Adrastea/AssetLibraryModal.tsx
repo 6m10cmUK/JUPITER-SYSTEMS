@@ -75,13 +75,16 @@ interface AssetLibraryModalProps {
   onClose: () => void;
   onSelect?: (url: string, assetId?: string, title?: string, width?: number, height?: number) => void;
   initialTab?: 'image' | 'audio';
+  autoTags?: string[];
 }
 
 type AddMode = null | 'pick' | 'url';
 
-export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: AssetLibraryModalProps) {
-  const { isDemo } = useAdrasteaContext();
-  const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets({ disabled: isDemo });
+export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', autoTags }: AssetLibraryModalProps) {
+  const ctx = useAdrasteaContext();
+  const roomName = ctx.room?.name;
+  const defaultTags = [...new Set([...(roomName ? [roomName] : []), ...(autoTags ?? [])])];
+  const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets({ disabled: ctx.isDemo, defaultTags });
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
@@ -138,7 +141,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         if (result && onSelect) {
           previewAudioRef.current?.pause();
           onSelect(result.url, result.id, result.title || result.filename, result.width, result.height);
-          onClose();
+          // onClose は呼ばない — AssetPicker 側の onSelect 内で setShowModal(false) が閉じる
         }
       } catch (err) {
         console.error('アップロード失敗:', err);
@@ -147,7 +150,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
         setAddMode(null);
       }
     },
-    [activeTab, uploadAsset, uploadAudioAsset, onSelect, onClose]
+    [activeTab, uploadAsset, uploadAudioAsset, onSelect]
   );
 
   const dnd = useDragDropOverlay(handleUpload);
@@ -494,7 +497,10 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image' }: A
   };
 
   return (
-    <div style={modalStyle} onClick={onClose}>
+    <div
+      style={modalStyle}
+      onClick={onClose}
+    >
       <div
         style={{ ...panelStyle, position: 'relative' }}
         onClick={(e) => e.stopPropagation()}
