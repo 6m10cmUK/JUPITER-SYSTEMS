@@ -6,7 +6,7 @@ import type {
  * Persistence Injection パターン用インターフェース定義
  *
  * AdrasteaContext の各データレイヤーを inject として定義。
- * バックエンド（Convex/Firebase）と UI層の分離を実現する。
+ * バックエンド（Supabase）と UI層の分離を実現する。
  */
 
 // ---- Scenes Inject ----

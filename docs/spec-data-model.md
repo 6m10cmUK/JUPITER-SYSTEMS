@@ -263,7 +263,7 @@ Supabase (PostgreSQL) を利用したリアルタイムデータベースとし�
 | y | numeric | ✗ | | Y 座標 |
 | width | numeric | ✗ | | 幅 |
 | height | numeric | ✗ | | 高さ |
-| image_url | text | ✓ | | 画像 URL |
+| image_asset_id | text | ✓ | | 画像アセット ID |
 | label | text | ✗ | | ラベル |
 | color | text | ✗ | | 色 |
 | z_index | numeric | ✗ | | Z 順序 |
@@ -397,7 +397,7 @@ Supabase (PostgreSQL) を利用したリアルタイムデータベースとし�
 | room_id | text | ✗ | | ルーム ID |
 | sender_name | text | ✗ | | 送信者名 |
 | sender_uid | uuid | ✓ | | 送信者ユーザー ID |
-| sender_avatar | text | ✓ | | 送信者アバター URL |
+| sender_avatar_asset_id | text | ✓ | | 送信者アバターのアセット ID |
 | sender_color | text | ✓ | | 送信者カラー(旧互換) |
 | content | text | ✗ | | メッセージ内容 |
 | message_type | text | ✗ | | chat/dice/system |
