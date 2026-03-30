@@ -12,7 +12,7 @@ interface FieldDef {
 }
 
 interface UseEntityEditorOptions<T extends Record<string, unknown>> {
-  /** 現在のエンティティ（Convex useQuery の値）。null=新規、undefined=未読み込み */
+  /** 現在のエンティティ（Supabase の値）。null=新規、undefined=未読み込み */
   entity: T | null | undefined;
   /** エンティティID。null=新規 */
   entityId: string | null;
@@ -182,7 +182,7 @@ export function useEntityEditor<T extends Record<string, unknown>>(
     setLocalEdits(prev => ({ ...prev, [key]: value }));
 
     if (fieldDef?.immediate && optsRef.current.entityId) {
-      // immediate: Convex に直接書き込み
+      // immediate: Supabase に直接書き込み
       optsRef.current.onImmediateUpdate(
         optsRef.current.entityId,
         { [key]: value } as unknown as Partial<T>

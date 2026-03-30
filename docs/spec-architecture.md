@@ -469,9 +469,9 @@ assetService.uploadToR2()
   ├─ FormData 作成
   ├─ POST /upload → Cloudflare Worker
   │  └─ R2 PUT
-  └─ 完了後 image_url 返却
+  └─ 完了後 image_asset_id 返却
     ↓
-    component.updateObject({ image_url })
+    component.updateObject({ image_asset_id })
 ```
 
 ### 6.2 プリロード フロー
@@ -480,9 +480,9 @@ assetService.uploadToR2()
 AdrasteaRoom 初期化時
   ↓
 preloadImageBlobs()
-  ├─ 全シーンの background_url 抽出
-  ├─ 全オブジェクトの image_url 抽出
-  ├─ 全キャラの images[].url 抽出
+  ├─ 全シーンの background_asset_id を assets テーブルで解決して URL 抽出
+  ├─ 全オブジェクトの image_asset_id を assets テーブルで解決して URL 抽出
+  ├─ 全キャラの images[].asset_id を assets テーブルで解決して URL 抽出
   └─ 並列 fetch（URLからBlobへ）
     ├─ blobCache に保存（refCount管理）
     └─ preloadedBlobs に格納
@@ -524,10 +524,10 @@ const useAnimatedBlobSrc = () => {
 
 ### 6.4 画像ラベル生成
 
-`generateStableKeys(type, image_url)`：
+`generateStableKeys(type, assetUrl)`：
 
 ```typescript
-const stableKey = `${type}__${imageUrl}`;
+const stableKey = `${type}__${assetUrl}`;
 // e.g. "panel__https://example.com/img.png"
 ```
 

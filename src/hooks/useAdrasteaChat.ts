@@ -42,7 +42,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   const loading = inject ? false : messagesQuery.loading;
 
-  // ローカルキャッシュ: Convex から消えたメッセージも保持（archive 対策）
+  // ローカルキャッシュ: Supabase から消えたメッセージも保持（archive 対策）
   const localCacheRef = useRef<Map<string, ChatMessage>>(new Map());
   // D1 から取得した過去ログ
   const [archivedMessages, setArchivedMessages] = useState<ChatMessage[]>([]);
