@@ -14,7 +14,7 @@
 | BGM管理 | [bgm.md](specs/bgm.md) | `e2e/bgm-e2e.spec.ts` |
 | チャット | [chat.md](specs/chat.md) | `e2e/chat-e2e.spec.ts` |
 | カットイン | [cutin.md](specs/cutin.md) | — |
-| シナリオテキスト | [scenario-text.md](specs/scenario-text.md) | `e2e/scenario-text-e2e.spec.ts` |
+| テキストメモ | [text-memo.md](specs/text-memo.md) | `e2e/text-memo-e2e.spec.ts` |
 | プロパティパネル | [property.md](specs/property.md) | `e2e/property-e2e.spec.ts` |
 | クリップボード入出力 | [clipboard.md](specs/clipboard.md) | — |
 | Undo / Redo | [undo-redo.md](specs/undo-redo.md) | `e2e/undo-e2e.spec.ts` |
@@ -28,6 +28,7 @@
 | ロビー画面 | [lobby.md](specs/lobby.md) | — |
 | アーカイブ・復元 | [archive.md](specs/archive.md) | `e2e/archive-e2e.spec.ts` |
 | UI共通仕様 | [ui-common.md](specs/ui-common.md) | — |
+| デモページ | [demo.md](specs/demo.md) | — |
 
 ## 関連ドキュメント
 
