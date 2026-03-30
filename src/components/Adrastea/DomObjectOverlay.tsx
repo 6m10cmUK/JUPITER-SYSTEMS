@@ -743,6 +743,12 @@ const preloadedBlobs = new Map<string, Blob>();
  * 画像URLリストをバックグラウンドで fetch し preloadedBlobs に保持する。
  * blobCache（表示中の blob URL 管理）とは分離。fetch を省略するためだけに使う。
  */
+/** アップロード済みファイルの Blob を preloadedBlobs に直接登録する。fetch を経由しないため CORS の影響を受けない。 */
+export function registerPreloadedBlob(url: string, blob: Blob): void {
+  if (!url || blobCache.has(url) || preloadedBlobs.has(url)) return;
+  preloadedBlobs.set(url, blob);
+}
+
 export function preloadImageBlobs(urls: string[]): void {
   for (const url of urls) {
     if (!url || blobCache.has(url) || preloadedBlobs.has(url) || pendingFetches.has(url)) continue;

@@ -49,6 +49,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const {
     pieces,
     room,
+    loading: roomLoading,
     movePiece,
     addPiece,
     removePiece,
@@ -71,6 +72,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
 
   const {
     scenes,
+    loading: scenesLoading,
     addScene,
     updateScene,
     removeScene,
@@ -87,8 +89,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const {
     characters,
     layerOrderedCharacters,
+    loading: charsLoading,
     addCharacter,
     updateCharacter,
+    moveCharacter,
     removeCharacter,
     reorderCharacters,
     reorderLayerCharacters,
@@ -122,6 +126,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
 
   const {
     bgms,
+    loading: bgmsLoading,
     addBgm,
     updateBgm,
     removeBgm,
@@ -259,6 +264,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     }
   }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
 
+  // --- Loading state aggregate ---
+  const dataReady = !roomLoading && !scenesLoading && !charsLoading && !objectsLoading && !bgmsLoading;
+
   // --- Derived values ---
   const activeScene = useMemo(() => {
     if (!effectiveSceneId) return null;
@@ -339,6 +347,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       layerOrderedCharacters,
       addCharacter: guardedAddCharacter,
       updateCharacter: guardedUpdateCharacter,
+      moveCharacter,
       removeCharacter: guardedRemoveCharacter,
       reorderCharacters: guardedReorderCharacters,
       reorderLayerCharacters: guardedReorderLayerCharacters,
@@ -378,6 +387,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
 
       // Derived
       activeScene,
+      dataReady,
     }),
     [
       pieces,
@@ -408,9 +418,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       layerOrderedCharacters,
       guardedAddCharacter,
       guardedUpdateCharacter,
+      moveCharacter,
       guardedRemoveCharacter,
       guardedReorderCharacters,
-      reorderLayerCharacters,
+      guardedReorderLayerCharacters,
       allObjects,
       activeObjects,
       guardedAddObject,
@@ -426,6 +437,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       removeBgm,
       guardedReorderBgms,
       activeScene,
+      dataReady,
     ]
   );
 

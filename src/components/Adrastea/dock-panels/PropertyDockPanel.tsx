@@ -215,55 +215,40 @@ export function PropertyDockPanel() {
         ctx.setEditingScenarioTextId(null);
       };
       footer = (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-          <PropertyFooterActions
-            onCopy={() => {
-              navigator.clipboard.writeText(JSON.stringify({ kind: 'scenario_text', data: { title: scenarioText.title, content: scenarioText.content, speaker_character_id: scenarioText.speaker_character_id, speaker_name: scenarioText.speaker_name, channel_id: scenarioText.channel_id } }));
-              ctx.showToast(`${scenarioText.title || 'テキストメモ'} をコピーしました`, 'success');
-            }}
-            onDuplicate={async () => {
-              await ctx.addScenarioText({
-                title: generateDuplicateName(scenarioText.title),
-                content: scenarioText.content,
-                speaker_character_id: scenarioText.speaker_character_id,
-                speaker_name: scenarioText.speaker_name,
-                channel_id: scenarioText.channel_id,
-              });
-            }}
-          />
-          <button
-            aria-label="チャットに送信"
-            title="チャットに送信"
-            onClick={() => {
-              if (!scenarioText.content) return;
-              const char = scenarioText.speaker_character_id ? ctx.characters.find(c => c.id === scenarioText.speaker_character_id) : null;
-              const resolved = resolveTemplateVars(scenarioText.content, char ?? null);
-              const charName = scenarioText.speaker_name || char?.name;
-              const charAvatar = char ? (resolveAssetId(char.images[char.active_image_index]?.asset_id) ?? null) : null;
-              ctx.handleSendMessage(resolved, 'chat', charName, charAvatar, scenarioText.channel_id ?? undefined);
-              ctx.showToast('チャットに送信しました', 'success');
-            }}
-            disabled={!scenarioText.content}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '6px 12px',
-              background: scenarioText.content ? theme.accent : theme.bgInput,
-              color: scenarioText.content ? theme.textOnAccent : theme.textMuted,
-              border: 'none',
-              borderRadius: '4px',
-              fontSize: '12px',
-              cursor: scenarioText.content ? 'pointer' : 'default',
-              width: '100%',
-              justifyContent: 'center',
-              fontWeight: 500,
-            }}
-          >
-            <Send size={14} />
-            チャットに送信
-          </button>
-        </div>
+        <PropertyFooterActions
+          onCopy={() => {
+            navigator.clipboard.writeText(JSON.stringify({ kind: 'scenario_text', data: { title: scenarioText.title, content: scenarioText.content, speaker_character_id: scenarioText.speaker_character_id, speaker_name: scenarioText.speaker_name, channel_id: scenarioText.channel_id } }));
+            ctx.showToast(`${scenarioText.title || 'テキストメモ'} をコピーしました`, 'success');
+          }}
+          onDuplicate={async () => {
+            await ctx.addScenarioText({
+              title: generateDuplicateName(scenarioText.title),
+              content: scenarioText.content,
+              speaker_character_id: scenarioText.speaker_character_id,
+              speaker_name: scenarioText.speaker_name,
+              channel_id: scenarioText.channel_id,
+            });
+          }}
+        >
+          <Tooltip label="チャットに送信">
+            <button
+              aria-label="チャットに送信"
+              onClick={() => {
+                if (!scenarioText.content) return;
+                const char = scenarioText.speaker_character_id ? ctx.characters.find(c => c.id === scenarioText.speaker_character_id) : null;
+                const resolved = resolveTemplateVars(scenarioText.content, char ?? null);
+                const charName = scenarioText.speaker_name || char?.name;
+                const charAvatar = char ? (resolveAssetId(char.images[char.active_image_index]?.asset_id) ?? null) : null;
+                ctx.handleSendMessage(resolved, 'chat', charName, charAvatar, scenarioText.channel_id ?? undefined);
+                ctx.showToast('チャットに送信しました', 'success');
+              }}
+              disabled={!scenarioText.content}
+              style={{ ...iconBtn, color: scenarioText.content ? theme.accent : theme.textMuted }}
+            >
+              <Send size={16} />
+            </button>
+          </Tooltip>
+        </PropertyFooterActions>
       );
     }
   }

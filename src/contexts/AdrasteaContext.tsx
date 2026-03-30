@@ -329,7 +329,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   // --- Shortcut callback ---
   const onAddObject = useCallback(() => {}, []);
 
-  // --- Loading state (簡略化) ---
+  // --- Loading state (まずはダミー、useAdrasteaContext で上書き) ---
   const isLoading = false;
   const loadingProgress = 1;
   const loadingSteps = [{ label: 'Ready', done: true }];
@@ -682,6 +682,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       characters: roomDataCtx.characters,
       addCharacter: roomDataCtx.addCharacter,
       updateCharacter: roomDataCtx.updateCharacter,
+      moveCharacter: roomDataCtx.moveCharacter,
       removeCharacter: roomDataCtx.removeCharacter,
       reorderCharacters: roomDataCtx.reorderCharacters,
       layerOrderedCharacters: roomDataCtx.layerOrderedCharacters,
@@ -700,6 +701,10 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       removeBgm: roomDataCtx.removeBgm,
       reorderBgms: roomDataCtx.reorderBgms,
       activeScene: roomDataCtx.activeScene,
+      // Loading state
+      isLoading: !roomDataCtx.dataReady,
+      loadingProgress: roomDataCtx.dataReady ? 1 : 0.5,
+      loadingSteps: [{ label: roomDataCtx.dataReady ? 'Ready' : 'データ読み込み中...', done: roomDataCtx.dataReady }],
     }),
     // UIState の値で上書き
     ...(uiStateCtx && {

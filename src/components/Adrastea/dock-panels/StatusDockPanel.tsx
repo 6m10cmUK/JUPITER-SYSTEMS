@@ -199,7 +199,7 @@ export function StatusDockPanel() {
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
 
   const visible = [...ctx.characters]
-    .filter(c => !c.is_hidden_on_board)
+    .filter(c => !c.is_hidden_on_board && c.board_visible !== false)
     .sort((a, b) => (b.initiative ?? 0) - (a.initiative ?? 0));
 
   const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');

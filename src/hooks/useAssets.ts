@@ -4,10 +4,20 @@ import { useAuth } from '../contexts/AuthContext';
 import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services/assetService';
 import { apiFetch } from '../config/api';
 import { supabase } from '../services/supabase';
+import { registerPreloadedBlob } from '../components/Adrastea/DomObjectOverlay';
 
 // モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
 let assetCache: { uid: string; assets: Asset[] } | null = null;
 let demoCache: Asset[] | null = null;
+
+/** assetCache にアセットを即座に追加（setState を経由しないため、アンマウント後も確実に反映） */
+function addToCache(asset: Asset, uid: string | undefined, disabled: boolean) {
+  if (disabled) {
+    demoCache = demoCache ? [asset, ...demoCache] : [asset];
+  } else if (uid && assetCache) {
+    assetCache = { uid, assets: [asset, ...assetCache.assets] };
+  }
+}
 
 // バックグラウンドフェッチ用：進行中のリクエスト + fetchSingleAsset 関数への参照
 const pendingFetches = new Set<string>();
@@ -26,8 +36,9 @@ export function resolveAssetId(assetId: string | null | undefined): string | nul
   return null;
 }
 
-export function useAssets(options?: { disabled?: boolean }) {
+export function useAssets(options?: { disabled?: boolean; defaultTags?: string[] }) {
   const disabled = options?.disabled ?? false;
+  const defaultTags = options?.defaultTags ?? [];
   const { user, token } = useAuth();
   const uid = user?.uid;
 
@@ -151,7 +162,7 @@ export function useAssets(options?: { disabled?: boolean }) {
           size_bytes: file.size,
           width: dims.width,
           height: dims.height,
-          tags: [],
+          tags: defaultTags,
           asset_type: 'image',
           created_at: Date.now(),
         };
@@ -175,12 +186,14 @@ export function useAssets(options?: { disabled?: boolean }) {
           size_bytes: result.size_bytes,
           width: result.width,
           height: result.height,
-          tags: [],
+          tags: defaultTags,
           asset_type: 'image',
           created_at: Date.now(),
         }).select().single();
         if (insertError) throw insertError;
         const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
+        addToCache(created, uid, disabled);
+        registerPreloadedBlob(created.url, file);
         setAssets((prev) => [created, ...prev]);
         return created;
       } catch (e) {
@@ -209,7 +222,7 @@ export function useAssets(options?: { disabled?: boolean }) {
           size_bytes: file.size,
           width: 0,
           height: 0,
-          tags: [],
+          tags: defaultTags,
           asset_type: 'audio',
           created_at: Date.now(),
         };
@@ -233,12 +246,13 @@ export function useAssets(options?: { disabled?: boolean }) {
           size_bytes: result.size_bytes,
           width: 0,
           height: 0,
-          tags: [],
+          tags: defaultTags,
           asset_type: 'audio',
           created_at: Date.now(),
         }).select().single();
         if (insertError) throw insertError;
         const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
+        addToCache(created, uid, disabled);
         setAssets((prev) => [created, ...prev]);
         return created;
       } catch (e) {
@@ -274,7 +288,7 @@ export function useAssets(options?: { disabled?: boolean }) {
           size_bytes: 0,
           width: 0,
           height: 0,
-          tags: [],
+          tags: defaultTags,
           asset_type: assetType,
           created_at: Date.now(),
         };
@@ -295,12 +309,13 @@ export function useAssets(options?: { disabled?: boolean }) {
         size_bytes: 0,
         width: 0,
         height: 0,
-        tags: [],
+        tags: defaultTags,
         asset_type: assetType,
         created_at: Date.now(),
       }).select().single();
       if (insertError) throw insertError;
       const created: Asset = { ...insertedAsset, tags: insertedAsset.tags ?? [] };
+      addToCache(created, uid, disabled);
       setAssets((prev) => [created, ...prev]);
       return created;
     },
