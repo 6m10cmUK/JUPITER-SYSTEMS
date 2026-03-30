@@ -114,13 +114,9 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
         data.scale_x = s.scale_x;
         data.scale_y = s.scale_y;
       } else if (type === 'foreground') {
-        data.x = s.x;
-        data.y = s.y;
         data.image_asset_id = s.image_asset_id || null;
         data.color_enabled = s.color_enabled ?? false;
         data.background_color = (s.background_color as string) || '#666666';
-        data.width = s.width;
-        data.height = s.height;
         data.image_fit = s.image_fit;
       } else if (type === 'background') {
         data.image_asset_id = s.image_asset_id || null;
@@ -528,7 +524,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
             </>
           )}
 
-          {/* foreground: 画像 + サイズ */}
+          {/* foreground: 画像 + フェードイン */}
           {(state.type as string) === 'foreground' && (
             <>
               <AdSection>
@@ -572,50 +568,6 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   )}
                 </>
               )}
-              <AdSection label="位置">
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.x as number)}
-                    onChange={(e) => set('x', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.y as number)}
-                    onChange={(e) => set('y', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                </div>
-              </AdSection>
-              <AdSection label="サイズ">
-                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.width as number)}
-                    onChange={(e) => set('width', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.height as number)}
-                    onChange={(e) => set('height', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
-                  />
-                </div>
-              </AdSection>
-              <AdSection label="ロック">
-                <AdCheckbox checked={state.position_locked as boolean} onChange={(v) => set('position_locked', v)} label="位置を固定" />
-                <AdCheckbox checked={state.size_locked as boolean} onChange={(v) => set('size_locked', v)} label="サイズを固定" />
-              </AdSection>
 
               <div style={{ marginBottom: '12px' }}>
                 <AdCheckbox
