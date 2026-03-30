@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { goToLobby, createRoom, deleteRoomById, selectBackground, BASE_URL } from './helpers';
+import { goToLobby, createRoom, deleteRoomById, selectBackground, BASE_URL, getSupabase } from './helpers';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -21,6 +21,21 @@ test.describe('アセットタグ自動付与テスト', () => {
   });
 
   test.afterAll(async () => {
+    // テスト用アセット削除（Supabase assets テーブルから tags に ROOM_NAME を含むものを削除）
+    try {
+      const supabase = await getSupabase();
+      const { data: testAssets } = await supabase
+        .from('assets')
+        .select('id, r2_key')
+        .contains('tags', [ROOM_NAME]);
+      if (testAssets && testAssets.length > 0) {
+        const ids = testAssets.map((a: { id: string }) => a.id);
+        await supabase.from('assets').delete().in('id', ids);
+      }
+    } catch (e) {
+      console.error('テスト用アセット削除失敗:', e);
+    }
+
     if (roomId) await deleteRoomById(roomId);
     if (fs.existsSync(TEST_IMAGE_PATH)) {
       fs.unlinkSync(TEST_IMAGE_PATH);
