@@ -20,6 +20,7 @@ export const handleR2 = {
         ...headers,
         'Content-Type': object.httpMetadata?.contentType ?? 'application/octet-stream',
         'Cache-Control': 'public, max-age=31536000, immutable',
+        'Vary': 'Origin',
         'X-Content-Type-Options': 'nosniff',
       },
     });
