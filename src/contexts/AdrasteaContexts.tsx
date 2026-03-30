@@ -50,6 +50,7 @@ export interface RoomDataContextValue {
     messageType: ChatMessage['message_type'],
     characterName?: string,
     characterAvatar?: string | null,
+    channel?: string,
   ) => void;
   activeSpeakerCharId: string | null;
   setActiveSpeakerCharId: React.Dispatch<React.SetStateAction<string | null>>;

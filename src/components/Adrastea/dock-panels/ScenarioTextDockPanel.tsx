@@ -3,6 +3,7 @@ import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { ScenarioTextPanel } from '../ScenarioTextPanel';
 import { generateDuplicateName } from '../../../utils/nameUtils';
 import { resolveAssetId } from '../../../hooks/useAssets';
+import { resolveTemplateVars } from '../utils/chatEditorUtils';
 
 export function ScenarioTextDockPanel() {
   const ctx = useAdrasteaContext();
@@ -46,10 +47,11 @@ export function ScenarioTextDockPanel() {
         const t = ctx.scenarioTexts.find(st => st.id === textId);
         if (!t || !t.content) return;
         const char = t.speaker_character_id ? ctx.characters.find(c => c.id === t.speaker_character_id) : null;
+        const resolved = resolveTemplateVars(t.content, char ?? null);
         const msgType = 'chat' as const;
         const charName = t.speaker_name || char?.name;
         const charAvatar = resolveAssetId(char?.images[char.active_image_index]?.asset_id) ?? null;
-        ctx.handleSendMessage(t.content, msgType, charName, charAvatar, t.channel_id ?? undefined);
+        ctx.handleSendMessage(resolved, msgType, charName, charAvatar, t.channel_id ?? undefined);
       }}
       onCopy={(ids) => {
         const items = ctx.scenarioTexts.filter(t => ids.includes(t.id));

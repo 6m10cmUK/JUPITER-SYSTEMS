@@ -213,9 +213,10 @@ export const MockAdrasteaProvider: React.FC<MockAdrasteaProviderProps> = ({
       _messageType: string,
       characterName?: string,
       characterAvatar?: string | null,
+      channel?: string,
     ) => {
       const senderName = characterName ?? 'デモユーザー';
-      sendMessage(senderName, content, 'chat', 'demo-user', characterAvatar ?? null, undefined, activeChatChannel);
+      sendMessage(senderName, content, 'chat', 'demo-user', characterAvatar ?? null, undefined, channel ?? activeChatChannel);
     },
     [sendMessage, activeChatChannel],
   );

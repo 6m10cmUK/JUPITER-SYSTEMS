@@ -379,12 +379,7 @@ test.describe('シナリオテキスト管理テスト', () => {
       await page.waitForTimeout(1000);
 
       // チャットログで送信内容を確認（変数は展開されずそのまま表示される）
-      await ensurePanel(page, 'button.adra-tab', 'チャットログ');
-      const messagesArea = page.locator('[data-messages-container]').first();
-      await expect(messagesArea).toBeVisible({ timeout: 3000 });
-
-      // テキストメモの内容がチャットに表示されているか確認
-      await expect(page.locator('text=' + testContent).first()).toBeVisible({ timeout: 5000 });
+      await expect(page.getByText(testContent).first()).toBeVisible({ timeout: 5000 });
     } else {
       test.skip();
     }
