@@ -25,6 +25,7 @@
 | アセットライブラリ | [asset-library.md](specs/asset-library.md) | — |
 | PDFパネル | [pdf-panel.md](specs/pdf-panel.md) | — |
 | パネルレイアウト | [panel-layout.md](specs/panel-layout.md) | — |
+| ロビー画面 | [lobby.md](specs/lobby.md) | — |
 | アーカイブ・復元 | [archive.md](specs/archive.md) | `e2e/archive-e2e.spec.ts` |
 | UI共通仕様 | [ui-common.md](specs/ui-common.md) | — |
 
