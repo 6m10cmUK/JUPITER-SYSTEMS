@@ -142,7 +142,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       content: string,
       messageType: ChatMessage['message_type'],
       characterName?: string,
-      characterAvatar?: string | null,
+      characterAvatarAssetId?: string | null,
       channel?: string,
     ) => {
       const senderName = characterName ?? 'noname';
@@ -150,7 +150,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       // キャラクター名からキャラクターを検索し、テンプレート変数を展開
       const character = characterName ? (characters.find(c => c.name === characterName) ?? null) : null;
       const resolved = resolveTemplateVars(content, character);
-      sendMessage(senderName, resolved, messageType, senderUid, characterAvatar ?? null, room?.dice_system, channel ?? activeChatChannel);
+      sendMessage(senderName, resolved, messageType, senderUid, characterAvatarAssetId ?? null, room?.dice_system, channel ?? activeChatChannel);
     },
     [sendMessage, user?.uid, activeChatChannel, room?.dice_system, characters],
   );

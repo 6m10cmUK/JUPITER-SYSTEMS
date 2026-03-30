@@ -49,7 +49,7 @@ export interface RoomDataContextValue {
     content: string,
     messageType: ChatMessage['message_type'],
     characterName?: string,
-    characterAvatar?: string | null,
+    characterAvatarAssetId?: string | null,
     channel?: string,
   ) => void;
   activeSpeakerCharId: string | null;

@@ -226,7 +226,7 @@ export interface ChatMessage {
   room_id: string;
   sender_name: string;
   sender_uid?: string;
-  sender_avatar?: string | null;
+  sender_avatar_asset_id?: string | null;
   content: string;
   message_type: 'chat' | 'dice' | 'system';
   channel?: string;
