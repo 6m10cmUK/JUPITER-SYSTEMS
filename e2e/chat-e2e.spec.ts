@@ -344,16 +344,28 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     }
   });
 
-  test.skip('C-11: チャットパレット変数展開（テンプレート变量）', async ({ page }) => {
-    // 注: 変数展開（${var}, @player 等）は実装に依存
-    // skip 可能
+  test('C-11: チャットパレット変数展開（テンプレート変数）', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
-  });
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
 
-  test.skip('C-12: チャットパレット複数選択テキスト', async ({ page }) => {
-    // 注: 複数選択はUIに依存
-    // skip 可能
-    await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    // 送信者にキャラ名を設定
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
+
+    // チャット入力欄に変数を含むテキストを入力して送信
+    const editor = page.locator('[contenteditable="true"]').first();
+    await editor.click();
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Backspace');
+    await editor.pressSequentially('{未定義変数}テスト', { delay: 30 });
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+
+    // 該当なし変数はそのまま残る
+    await expect(page.getByText('{未定義変数}テスト').last()).toBeVisible({ timeout: 5000 });
   });
 
   // --- C-13 ~ C-16, C-22: チャット入力サジェスト ---
@@ -362,7 +374,7 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // 送信者にキャラ名を設定（chat_palette が設定されたキャラクター）
+    // 送信者にキャラ名を設定
     const senderInput = page.locator('input[placeholder="noname"]').first();
     await expect(senderInput).toBeVisible({ timeout: 5000 });
     await senderInput.fill(CHARACTER_NAME);
@@ -370,15 +382,17 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
 
     const editor = page.locator('[contenteditable="true"]').first();
     await editor.click();
-    await editor.pressSequentially('行');
+
+    // エディタをクリア（前のテストの入力が残っている場合）
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Backspace');
+    await page.waitForTimeout(200);
+
+    await editor.pressSequentially('行', { delay: 50 });
     await page.waitForTimeout(500);
 
-    // サジェスト（「行動」「会話」など）が表示される
-    const suggestion = page.locator('[role="listbox"], [role="option"]').first()
-      .or(page.locator('div').filter({ hasText: /^行動$/ }).first());
-    await expect(suggestion).toBeVisible({ timeout: 3000 }).catch(() => {
-      test.skip();
-    });
+    // サジェスト（role="listbox"）が表示される
+    await expect(page.locator('[role="listbox"]').first()).toBeVisible({ timeout: 3000 });
   });
 
   test('C-14: サジェスト Tab キーで確定', async ({ page }) => {
