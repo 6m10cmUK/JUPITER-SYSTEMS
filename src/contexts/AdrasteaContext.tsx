@@ -704,7 +704,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       // Loading state
       isLoading: !roomDataCtx.dataReady,
       loadingProgress: roomDataCtx.dataReady ? 1 : 0.5,
-      loadingSteps: [{ label: roomDataCtx.dataReady ? 'Ready' : 'データ読み込み中...', done: roomDataCtx.dataReady }],
+      loadingSteps: [{ label: 'ルームデータ', done: roomDataCtx.dataReady }],
     }),
     // UIState の値で上書き
     ...(uiStateCtx && {
