@@ -288,6 +288,9 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         ctx.updateObject,
         ctx.activeObjects,
         ctx.activeScene?.id ?? null,
+        undefined,
+        ctx.characters?.map(c => c.name),
+        ctx.scenarioTexts?.map(t => t.title),
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
@@ -1026,6 +1029,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
         <DomCharacterItem
           key={char.id}
           char={char}
+          characters={characters}
           zIndex={baseZIndex != null ? baseZIndex + (visibleChars.length - 1 - idx) : (visibleChars.length - idx)}
           onUpdatePosition={onUpdatePosition}
           stageRef={stageRef}
@@ -1043,6 +1047,7 @@ const DomCharacterLayer = memo(function DomCharacterLayer({
 // --- CharacterItem (個別キャラクター表示) ---
 const DomCharacterItem = memo(function DomCharacterItem({
   char,
+  characters,
   onUpdatePosition,
   stageRef,
   currentUserId,
@@ -1053,6 +1058,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   assets: _assets,
 }: {
   char: Character;
+  characters: Character[];
   onUpdatePosition?: (charId: string, x: number, y: number) => void;
   stageRef: React.RefObject<any>;
   currentUserId?: string;
@@ -1082,6 +1088,15 @@ const DomCharacterItem = memo(function DomCharacterItem({
         text,
         (data) => ctx.addCharacter({ ...data, owner_id: ctx.user?.uid ?? '' }),
         ctx.showToast,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        ctx.characters?.map(c => c.name),
+        ctx.scenarioTexts?.map(t => t.title),
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');
@@ -1092,7 +1107,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
     onClose: () => setContextMenuPos(null),
     onDuplicate: (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      addCharacter({ ...rest, name: generateDuplicateName(c.name) });
+      addCharacter({ ...rest, name: generateDuplicateName(c.name, characters?.map((ch: Character) => ch.name) ?? []) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);

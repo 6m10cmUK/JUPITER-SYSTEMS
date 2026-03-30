@@ -85,7 +85,7 @@ export function SceneDockPanel() {
       const nextSortOrder = getInsertSortOrder(scene.id);
       const result = await ctx.addScene(
         {
-          name: generateDuplicateName(scene.name),
+          name: generateDuplicateName(scene.name, ctx.scenes.map(s => s.name)),
           background_asset_id: scene.background_asset_id ?? null,
           foreground_asset_id: scene.foreground_asset_id ?? null,
           foreground_opacity: scene.foreground_opacity,
@@ -178,6 +178,9 @@ export function SceneDockPanel() {
         undefined,
         undefined,
         ctx.activeScene?.id ?? null,
+        undefined,
+        ctx.characters?.map(c => c.name),
+        ctx.scenarioTexts?.map(t => t.title),
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');

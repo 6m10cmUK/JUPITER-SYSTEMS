@@ -188,7 +188,7 @@ function CharacterEditorComponent({
   const handleDuplicate = () => {
     if (!onDuplicate) return;
     onDuplicate({
-      name: generateDuplicateName(state.name as string),
+      name: generateDuplicateName(state.name as string, ctx.characters?.map(c => c.name) ?? []),
       color: state.color as string,
       sheet_url: (state.sheet_url as string) || null,
       images: state.images as CharacterImage[],

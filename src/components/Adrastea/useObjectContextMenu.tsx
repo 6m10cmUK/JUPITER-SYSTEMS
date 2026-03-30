@@ -29,7 +29,7 @@ export function useObjectContextMenu(
   targets: BoardObject[],
   { onClose, onAfterDuplicate, onPaste, showUndoRedo = false }: UseObjectContextMenuOptions
 ): UseObjectContextMenuResult {
-  const { addObject, updateObject, removeObject, undoRedo } = useAdrasteaContext();
+  const { addObject, updateObject, removeObject, undoRedo, allObjects } = useAdrasteaContext();
   const { can } = usePermission();
   const canEdit = can('object_edit');
   const [pendingRemove, setPendingRemove] = useState<BoardObject[] | null>(null);
@@ -45,7 +45,7 @@ export function useObjectContextMenu(
         const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
         return addObject({
           ...rest,
-          name: generateDuplicateName(obj.name),
+          name: generateDuplicateName(obj.name, allObjects?.map(o => o.name) ?? []),
           sort_order: obj.sort_order + 1,
         });
       })

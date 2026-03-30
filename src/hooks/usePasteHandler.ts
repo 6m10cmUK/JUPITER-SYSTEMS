@@ -14,6 +14,8 @@ export interface UsePasteHandlerOptions {
   updateObject?: (id: string, data: Partial<BoardObject>) => Promise<void>;
   allObjects?: BoardObject[];
   activeSceneId?: string | null;
+  existingCharacterNames?: string[];
+  existingScenarioTitles?: string[];
 }
 
 /**
@@ -31,6 +33,8 @@ export async function handleClipboardImport(
   allObjects?: BoardObject[],
   activeSceneId?: string | null,
   addScenarioText?: (data: ScenarioTextClipData) => Promise<any>,
+  existingCharacterNames?: string[],
+  existingScenarioTitles?: string[],
 ): Promise<void> {
   const result = parseClipboardData(text);
 
@@ -47,7 +51,7 @@ export async function handleClipboardImport(
 
   if (result.type === 'character') {
     try {
-      await Promise.all(result.data.map(d => addCharacter({ ...d, name: d.name ? generateDuplicateName(d.name) : undefined })));
+      await Promise.all(result.data.map(d => addCharacter({ ...d, name: d.name ? generateDuplicateName(d.name, existingCharacterNames) : undefined })));
       const count = result.data.length;
       showToast(count > 1 ? `${count}件のキャラクターをインポートしました` : `キャラクター "${result.data[0]?.name ?? '不明'}" をインポートしました`, 'success');
     } catch {
@@ -73,7 +77,7 @@ export async function handleClipboardImport(
             continue;
           }
         }
-        const objToAdd = { ...d, name: d.name ? generateDuplicateName(d.name) : undefined };
+        const objToAdd = { ...d, name: d.name ? generateDuplicateName(d.name, allObjects?.map(o => o.name)) : undefined };
         await addObject(objToAdd);
       }
       const nonFgBg = result.data.filter(d => d.type !== 'foreground' && d.type !== 'background');
@@ -111,7 +115,7 @@ export async function handleClipboardImport(
     if (!addScenarioText) return;
     try {
       await Promise.all(result.data.map(d => addScenarioText({
-        title: d.title ? generateDuplicateName(d.title) : '新規テキストメモ',
+        title: d.title ? generateDuplicateName(d.title, existingScenarioTitles) : '新規テキストメモ',
         content: d.content ?? '',
         speaker_character_id: d.speaker_character_id ?? null,
         speaker_name: d.speaker_name ?? null,
@@ -129,7 +133,7 @@ export async function handleClipboardImport(
  * グローバル paste イベントを監視し、
  * クリップボード内容に応じてキャラクターインポートやトースト表示を行うフック
  */
-export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId }: UsePasteHandlerOptions): void {
+export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId, existingCharacterNames, existingScenarioTitles }: UsePasteHandlerOptions): void {
   const handlePaste = useCallback(
     (e: ClipboardEvent) => {
       // テキスト入力中はスキップ（通常のペースト動作を妨げない）
@@ -157,9 +161,9 @@ export function usePasteHandler({ addCharacter, addObject, addScene, addBgm, add
       e.preventDefault();
 
       // 非同期でインポート処理
-      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm, updateObject, allObjects, activeSceneId, addScenarioText);
+      handleClipboardImport(text, addCharacter, showToast, addObject, addScene, addBgm, updateObject, allObjects, activeSceneId, addScenarioText, existingCharacterNames, existingScenarioTitles);
     },
-    [addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId],
+    [addCharacter, addObject, addScene, addBgm, addScenarioText, showToast, updateObject, allObjects, activeSceneId, existingCharacterNames, existingScenarioTitles],
   );
 
   useEffect(() => {

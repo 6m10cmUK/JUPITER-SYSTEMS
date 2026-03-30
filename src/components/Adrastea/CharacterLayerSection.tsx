@@ -142,7 +142,7 @@ export function CharacterLayerSection({
     onClose: onContextMenuClose ?? (() => {}),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
-      await addCharacter({ ...rest, name: generateDuplicateName(c.name) });
+      await addCharacter({ ...rest, name: generateDuplicateName(c.name, characters.map(ch => ch.name)) });
     },
     onRemove: (charId) => {
       removeCharacter(charId);
