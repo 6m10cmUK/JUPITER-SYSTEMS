@@ -1,42 +1,41 @@
 # Adrastea データモデル仕様書
 
-本ドキュメントは Adrastea（TRPG オンラインセッション盤面共有ツール）のデータモデルを定義する。Convex を利用したリアルタイムデータベースとして実装される。
+本ドキュメントは Adrastea（TRPG オンラインセッション盤面共有ツール）のデータモデルを定義する。Supabase (PostgreSQL) を利用したリアルタイムデータベースとして実装される。
 
 ## 概要
 
-Convex スキーマ（`convex/schema.ts`）に基づき、以下の 13 エンティティを管理する。各エンティティはテーブル単位で定義され、ドキュメント ID（Convex の `_id` フィールド）により一意に識別される。テーブル横断検索は定義済みインデックスを通じて実施される。
+Supabase (PostgreSQL) を利用したリアルタイムデータベースとして実装。以下の 14 テーブルを管理する。
+
+- **全タイムスタンプ**: bigint でミリ秒 UNIX 時刻（Date.now() 形式）
+- **RLS（Row Level Security）**: 全テーブルで `is_room_member()` 関数により認可。ルームメンバーのみアクセス可
+- **配列型**: PostgreSQL の `text[]` / `uuid[]`
+- **複雑オブジェクト**: JSONB
+- **assets テーブル**: 認証済みユーザーなら誰でも読み取り可
 
 ---
 
-## エンティティ定義
+## テーブル定義
 
 ### 1. users
 
-**概要**: アプリケーションユーザーの認証・プロフィール情報。Convex Auth フレームワークで管理される。
+**概要**: アプリケーションユーザーの認証・プロフィール情報。Supabase Auth で管理される。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"users">` | ✓ | Convex が自動生成するドキュメント ID |
-| `email` | `string` | ✓ | ユーザーメールアドレス（認証キー） |
-| `name` | `string` | - | ユーザー表示名 |
-| `image` | `string` | - | プロフィール画像 URL |
-| `emailVerificationTime` | `number` | - | メール検証タイムスタンプ |
-| `phone` | `string` | - | 電話番号（将来用） |
-| `phoneVerificationTime` | `number` | - | 電話検証タイムスタンプ |
-| `isAnonymous` | `boolean` | - | 匿名ユーザーフラグ |
-| `onboarded` | `boolean` | - | オンボーディング完了フラグ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | uuid | ✗ | | PK。auth.users に紐付 |
+| display_name | text | ✗ | 'ユーザー' | 表示名 |
+| avatar_url | text | ✓ | | アバター画像 URL |
+| onboarded | boolean | ✗ | false | オンボーディング完了フラグ |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
-**インデックス**:
-- Convex Auth が自動管理（email は一意）
-
-**制約・バリデーション**:
-- メールアドレスは Convex Auth にて一意性が強制される
-- 認証済みユーザーと匿名ユーザーは `isAnonymous` で区別
+**認証**: Supabase Auth (Google OAuth + Anonymous)。メールアドレスは `auth.users` で管理。
 
 **関連**:
-- `room_members.user_id` → `users._id`（ルームメンバーシップ）
-- `characters_stats.owner_id` → `users._id`（キャラクター所有者）
-- `pieces.character_id` → `characters_stats.id`（盤面コマ）
+- `room_members.user_id` → `users.id`（ルームメンバーシップ）
+- `characters_stats.owner_id` → `users.id`（キャラクター所有者）
+
+**RLS**: 各ユーザーは自分のプロフィールのみ更新可。読み取りは公開。
 
 ---
 
@@ -44,39 +43,41 @@ Convex スキーマ（`convex/schema.ts`）に基づき、以下の 13 エンテ
 
 **概要**: TRPG セッションの管理単位。ゲームマスター（owner）が作成し、複数のユーザーが参加する。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"rooms">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | ユーザー指定の一意識別子（URL フレンドリー） |
-| `name` | `string` | ✓ | ルーム名（セッション名） |
-| `description` | `string` | - | ルーム説明文 |
-| `owner_id` | `string` | ✓ | 所有者の user_id |
-| `active_scene_id` | `string \| null` | ✓ | 現在表示中のシーン ID |
-| `foreground_url` | `string \| null` | ✓ | 前景画像 URL（ルーム全体） |
-| `active_cutin` | `{ cutin_id: string, triggered_at: number } \| null` | ✓ | 現在表示中のカットイン |
-| `dice_system` | `string` | ✓ | ダイスシステム名（"DnD", "Coc7" など） |
-| `gm_can_see_secret_memo` | `boolean` | ✓ | GM が秘密メモを見えるかどうか |
-| `default_login_role` | `'sub_owner' \| 'user' \| 'guest'` | - | ゲストの初期ロール（未指定時は guest） |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ（ミリ秒） |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ（ミリ秒） |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK。URL フレンドリーID |
+| name | text | ✗ | | ルーム名（セッション名） |
+| description | text | ✓ | | ルーム説明文 |
+| owner_id | uuid | ✗ | | 所有者ユーザー ID |
+| active_scene_id | text | ✓ | | アクティブシーン ID |
+| thumbnail_asset_id | text | ✓ | | サムネイルアセット ID |
+| active_cutin | jsonb | ✓ | | {cutin_id, triggered_at} or null |
+| dice_system | text | ✗ | | ダイスシステム名 |
+| gm_can_see_secret_memo | boolean | ✗ | | GM が秘密メモを見られるか |
+| default_login_role | text | ✓ | | デフォルトログインロール |
+| tags | jsonb | ✓ | | ルームタグ配列 |
+| archived | boolean | ✗ | false | アーカイブ済みフラグ |
+| last_accessed_at | bigint | ✓ | | 最終アクセス時刻 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_owner`: `["owner_id"]`（ユーザー所有ルーム一覧）
+- `by_owner`: (owner_id)（ユーザー所有ルーム一覧）
 
 **制約・バリデーション**:
-- `id` はユーザー指定のため、ルーム作成時にグローバル一意性チェックが必須（クライアント側で実施）
-- `dice_system` は事前定義されたシステムから選択（共通リスト管理）
-- `gm_can_see_secret_memo` は owner のみ更新可能
+- `id` はユーザー指定のため、ルーム作成時にグローバル一意性チェックが必須
+- `dice_system` は事前定義されたシステムから選択
 
 **関連**:
 - `room_members.room_id` → `rooms.id`（メンバーシップ）
 - `scenes.room_id` → `rooms.id`（シーン）
 - `objects.room_id` → `rooms.id`（盤面オブジェクト）
-- `pieces.room_id` → `rooms.id`（コマ）
 - `characters_stats.room_id` → `rooms.id`（キャラクター）
 - `messages.room_id` → `rooms.id`（チャット）
 - `bgms.room_id` → `rooms.id`（BGM）
 - `cutins.room_id` → `rooms.id`（カットイン）
+
+**RLS**: `is_room_member()` でメンバー確認。owner のみ更新可（gm_can_see_secret_memo 除外）。
 
 ---
 
@@ -84,593 +85,457 @@ Convex スキーマ（`convex/schema.ts`）に基づき、以下の 13 エンテ
 
 **概要**: TRPG セッション内のシーン。背景画像、演出、グリッド表示を管理する。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"scenes">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | シーン識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `name` | `string` | ✓ | シーン名 |
-| `background_url` | `string \| null` | ✓ | 背景画像 URL |
-| `foreground_url` | `string \| null` | ✓ | 前景画像 URL（シーン固有） |
-| `foreground_opacity` | `number` | ✓ | 前景透明度（0.0 ～ 1.0） |
-| `bg_transition` | `'none' \| 'fade'` | ✓ | 背景切替トランジション |
-| `bg_transition_duration` | `number` | ✓ | 背景トランジション時間（ミリ秒） |
-| `fg_transition` | `'none' \| 'fade'` | ✓ | 前景切替トランジション |
-| `fg_transition_duration` | `number` | ✓ | 前景トランジション時間（ミリ秒） |
-| `bg_blur` | `boolean` | ✓ | 背景にぼかしを適用するか |
-| `grid_visible` | `boolean` | - | グリッド表示フラグ |
-| `sort_order` | `number` | ✓ | シーン並び順（昇順） |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| name | text | ✗ | | シーン名 |
+| background_asset_id | text | ✓ | | 背景アセット ID |
+| foreground_asset_id | text | ✓ | | 前景アセット ID |
+| foreground_opacity | numeric | ✗ | | 前景オパシティ(0-1) |
+| bg_transition | text | ✓ | | 背景遷移効果(none/fade) |
+| bg_transition_duration | numeric | ✗ | | 背景遷移時間(ms) |
+| fg_transition | text | ✓ | | 前景遷移効果(none/fade) |
+| fg_transition_duration | numeric | ✗ | | 前景遷移時間(ms) |
+| bg_blur | boolean | ✗ | | 背景ぼかし |
+| grid_visible | boolean | ✓ | | グリッド表示 |
+| sort_order | numeric | ✗ | | 並び順 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内シーン一覧）
-- `by_room_order`: `["room_id", "sort_order"]`（ルーム内シーン順序取得）
+- `by_room`: (room_id)（ルーム内シーン一覧）
 
 **制約・バリデーション**:
-- `sort_order >= 0`
-- `foreground_opacity`: 0.0 ～ 1.0
-- `bg_transition_duration`, `fg_transition_duration` は非負数
-- 更新権限は `room_members.role` が `'sub_owner'` 以上のユーザーのみ
+- `foreground_opacity` は 0.0 ～ 1.0 の範囲
+- `bg_transition_duration`, `fg_transition_duration` はミリ秒単位の非負整数
+- `sort_order` はシーン一覧表示の順序決定
 
 **関連**:
-- `rooms.active_scene_id` → `scenes.id`（現在のアクティブシーン）
-- `objects.scene_ids[]` → `scenes.id`（マルチシーン対応オブジェクト）
-- `bgms.scene_ids[]` → `scenes.id`（BGM 割当）
+- `background_asset_id` → `assets.id`（背景画像）
+- `foreground_asset_id` → `assets.id`（前景画像）
+- `objects.scene_ids` 配列に含まれる（シーン固有オブジェクト）
+- `bgms.scene_ids` 配列に含まれる（シーン割当 BGM）
+
+**RLS**: `is_room_member()` でメンバー確認。editor ロール以上で更新可。
 
 ---
 
-### 4. pieces
+### 4. objects
 
-**概要**: 盤面上のコマ（キャラクター駒）。**古い設計であり、新規開発では使用されない。キャラクター管理は `characters_stats` と `characters_base` に移行済み。**
+**概要**: 盤面上の配置オブジェクト。パネル、テキスト、背景、前景、キャラクターレイヤーを管理する。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"pieces">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | コマ識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `x` | `number` | ✓ | X 座標（グリッド単位） |
-| `y` | `number` | ✓ | Y 座標（グリッド単位） |
-| `width` | `number` | ✓ | 幅（グリッド単位） |
-| `height` | `number` | ✓ | 高さ（グリッド単位） |
-| `image_url` | `string \| null` | ✓ | コマ画像 URL |
-| `label` | `string` | ✓ | コマラベル（表示名） |
-| `color` | `string` | ✓ | コマ色（16 進数カラーコード） |
-| `z_index` | `number` | ✓ | Z オーダー（重ね順） |
-| `statuses` | `PieceStatus[]` | ✓ | ステータス配列 |
-| `initiative` | `number` | ✓ | イニシアティブ（ターン順） |
-| `memo` | `string` | ✓ | コマ固有メモ |
-| `character_id` | `string \| null` | ✓ | リンク先キャラクター ID（存在する場合） |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| type | text | ✗ | | panel/text/foreground/background/characters_layer |
+| name | text | ✗ | | 名前 |
+| global | boolean | ✗ | | 全シーン共通か |
+| scene_ids | text[] | ✗ | {} | スコープシーン ID 配列 |
+| x | numeric | ✗ | | X 座標 |
+| y | numeric | ✗ | | Y 座標 |
+| width | numeric | ✗ | | 幅 |
+| height | numeric | ✗ | | 高さ |
+| visible | boolean | ✗ | | 表示フラグ |
+| opacity | numeric | ✗ | | 透明度(0-1) |
+| sort_order | numeric | ✗ | | Z 順序 |
+| position_locked | boolean | ✗ | | 位置ロック |
+| size_locked | boolean | ✗ | | サイズロック |
+| image_asset_id | text | ✓ | | 画像アセット ID |
+| background_color | text | ✗ | | 背景色(hex) |
+| image_fit | text | ✓ | | contain/cover/stretch |
+| color_enabled | boolean | ✓ | | 背景色有効フラグ |
+| text_content | text | ✓ | | テキスト内容 |
+| font_size | numeric | ✗ | | フォントサイズ |
+| font_family | text | ✗ | | フォントファミリー |
+| letter_spacing | numeric | ✗ | | 文字間隔 |
+| line_height | numeric | ✗ | | 行高さ |
+| auto_size | boolean | ✗ | | 自動サイズ |
+| text_align | text | ✓ | | left/center/right |
+| text_vertical_align | text | ✓ | | top/middle/bottom |
+| text_color | text | ✗ | | テキスト色 |
+| scale_x | numeric | ✗ | | X スケール |
+| scale_y | numeric | ✗ | | Y スケール |
+| memo | text | ✓ | | メモ |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内コマ一覧）
+- `by_room_type`: (room_id, type)（ルーム内オブジェクトタイプ別）
 
 **制約・バリデーション**:
-- `z_index` は任意の整数
-- `initiative >= 0`
-- 幅・高さは正数
+- `type` は列挙値のいずれか（panel/text/foreground/background/characters_layer）
+- `global` = true 時 `scene_ids` は空配列、false 時 `scene_ids` は非空配列
+- `opacity` は 0.0 ～ 1.0 の範囲
+- テキストオブジェクトは `text_content`, `font_size`, `font_family` 必須
+- 画像オブジェクトは `image_asset_id` 必須
 
 **関連**:
-- `room_id` → `rooms.id`
-- **推奨**: 将来は `characters_stats` への統合
+- `image_asset_id` → `assets.id`（画像参照）
+
+**RLS**: `is_room_member()` でメンバー確認。editor ロール以上で更新可。
 
 ---
 
 ### 5. characters_stats
 
-**概要**: キャラクター統計情報（ボード上の表示・配置）。複数画像対応、HP/MP などのステータス管理。
+**概要**: キャラクターの表示・ステータス情報。盤面上での配置、ステータスゲージ、参照画像管理。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"characters_stats">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | キャラクター識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `owner_id` | `string` | ✓ | 所有ユーザー ID |
-| `name` | `string` | ✓ | キャラクター名 |
-| `color` | `string` | ✓ | キャラクター色（16 進数） |
-| `active_image_index` | `number` | ✓ | 現在表示中の画像インデックス（0 ～） |
-| `statuses` | `PieceStatus[]` | ✓ | ステータス配列（HP, MP など） |
-| `parameters` | `CharacterParameter[]` | ✓ | パラメータ配列（力, 敏捷性など） |
-| `is_hidden_on_board` | `boolean` | ✓ | ボード上で非表示か |
-| `sort_order` | `number` | - | キャラクターパネル内での並び順 |
-| `on_board` | `boolean` | - | ボード上に配置されているか |
-| `board_x` | `number` | - | ボード上の X 座標 |
-| `board_y` | `number` | - | ボード上の Y 座標（足元基準） |
-| `board_height` | `number` | - | ボード上の表示高さ |
-| `board_visible` | `boolean` | - | ボード上で表示か |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| owner_id | uuid | ✗ | | 所有ユーザー ID |
+| name | text | ✗ | | キャラクター名 |
+| color | text | ✗ | | カラー(hex) |
+| active_image_index | numeric | ✗ | | アクティブ画像 index |
+| statuses | jsonb | ✗ | [] | [{label,value,max,color}] |
+| parameters | jsonb | ✗ | [] | [{label,value}] |
+| is_hidden_on_board | boolean | ✗ | | 盤面非表示 |
+| is_speech_hidden | boolean | ✓ | | 発言非表示 |
+| sort_order | numeric | ✓ | | 並び順 |
+| board_x | numeric | ✓ | | 盤面 X 座標 |
+| board_y | numeric | ✓ | | 盤面 Y 座標(足元基準) |
+| board_height | numeric | ✓ | | 盤面表示高さ |
+| board_visible | boolean | ✓ | | 盤面表示 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内キャラクター一覧）
+- `by_room_owner`: (room_id, owner_id)（ユーザーが所有するルーム内キャラ一覧）
 
 **制約・バリデーション**:
-- `active_image_index >= 0` かつ `characters_base.images` の配列長以下
-- `sort_order >= 0`（定義されている場合）
-- `board_y` は足元基準（size 変更時に自動調整不要）
+- `statuses` は `{label: string, value: number, max: number, color: string}` 配列
+- `parameters` は `{label: string, value: string|number}` 配列
+- `board_y` は足元基準（size 変更時の自動調整不要）
+- `active_image_index` は `characters_base.images` 配列の有効な index
 
 **関連**:
-- `characters_base.id` → `characters_stats.id`（1:1 の補足情報）
-- `owner_id` → `users._id`（キャラクター所有者）
+- 1:1 で `characters_base.id` に紐付
+- `owner_id` → `users.id`（キャラクター所有者）
+
+**RLS**: `is_room_member()` でメンバー確認。owner のみ更新可。
 
 ---
 
 ### 6. characters_base
 
-**概要**: キャラクター基本情報（画像、メモ、シートリンク）。キャラクター設定の詳細。
+**概要**: キャラクター詳細情報。画像一覧、メモ、シートリンク。characters_stats と 1:1 対応。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"characters_base">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | キャラクター識別子（`characters_stats.id` と同一） |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `images` | `CharacterImage[]` | ✓ | 画像配列（`{ url, label }` ） |
-| `memo` | `string` | ✓ | GM メモ（全員表示） |
-| `secret_memo` | `string` | ✓ | 秘密メモ（GM のみ表示） |
-| `chat_palette` | `string` | ✓ | チャットパレット（定型文） |
-| `sheet_url` | `string \| null` | ✓ | キャラクターシート外部 URL |
-| `initiative` | `number` | ✓ | イニシアティブ（デフォルト） |
-| `size` | `number` | ✓ | サイズ係数（ボード表示スケール） |
-| `is_status_private` | `boolean` | ✓ | ステータスを秘密にするか |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK。characters_stats.id と 1:1 |
+| room_id | text | ✗ | | ルーム ID |
+| images | jsonb | ✗ | | [{asset_id, label}] |
+| memo | text | ✗ | | メモ |
+| secret_memo | text | ✗ | | 秘密メモ(GM/Owner のみ) |
+| chat_palette | text | ✗ | | チャットパレット |
+| sheet_url | text | ✓ | | キャラシート URL |
+| initiative | numeric | ✗ | | イニシアティブ |
+| size | numeric | ✗ | | サイズ倍率 |
+| is_status_private | boolean | ✗ | | ステータス非公開 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内キャラクター基本情報一覧）
+- `by_room`: (room_id)（ルーム内キャラクター詳細一覧）
 
 **制約・バリデーション**:
-- `images.length >= 1`（最低 1 つの画像が必須）
-- `images[].url` は有効な URL
-- `size > 0`
-- `initiative >= 0`
+- `images` は `{asset_id: string, label: string}` 配列
+- `secret_memo` は room owner およびキャラクター owner のみ読み取り可
+- `size` は正の数値（倍率）
 
 **関連**:
-- `characters_stats.id` → `characters_base.id`（1:1 対応）
-- `room_id` → `rooms.id`
+- `images[].asset_id` → `assets.id`（キャラクター画像）
+
+**RLS**: `is_room_member()` でメンバー確認。secret_memo は owner のみ読み取り可。
 
 ---
 
-### 7. objects
+### 7. pieces（レガシー）
 
-**概要**: 統合オブジェクト。パネル、テキスト、前景・背景、キャラクターレイヤーを一つのテーブルで管理。
+**概要**: 非推奨。新規開発では characters_stats + characters_base に移行済み。段階的廃止予定。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"objects">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | オブジェクト識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `type` | `'panel' \| 'text' \| 'foreground' \| 'background' \| 'characters_layer'` | ✓ | オブジェクトタイプ |
-| `name` | `string` | ✓ | オブジェクト名 |
-| `global` | `boolean` | ✓ | グローバル（全シーン共通）か |
-| `scene_ids` | `string[]` | ✓ | 表示対象シーン ID 配列（global=false なら複数可） |
-| `x` | `number` | ✓ | X 座標（グリッド単位） |
-| `y` | `number` | ✓ | Y 座標（グリッド単位） |
-| `width` | `number` | ✓ | 幅（グリッド単位） |
-| `height` | `number` | ✓ | 高さ（グリッド単位） |
-| `visible` | `boolean` | ✓ | 表示可視性 |
-| `opacity` | `number` | ✓ | 透明度（0.0 ～ 1.0） |
-| `sort_order` | `number` | ✓ | Z オーダー（重ね順） |
-| `position_locked` | `boolean` | ✓ | 位置ロック |
-| `size_locked` | `boolean` | ✓ | サイズロック |
-| `image_url` | `string \| null` | ✓ | 画像 URL（panel 用） |
-| `image_asset_id` | `string \| null` | ✓ | アセット ID（R2 参照用） |
-| `background_color` | `string` | ✓ | 背景色（16 進数） |
-| `image_fit` | `'contain' \| 'cover' \| 'stretch'` | ✓ | 画像フィッティング |
-| `text_content` | `string \| null` | ✓ | テキスト内容（text 型用） |
-| `font_size` | `number` | ✓ | フォントサイズ（ピクセル） |
-| `font_family` | `string` | ✓ | フォントファミリー |
-| `letter_spacing` | `number` | ✓ | 文字間隔 |
-| `line_height` | `number` | ✓ | 行間隔 |
-| `auto_size` | `boolean` | ✓ | テキスト自動サイジング |
-| `text_align` | `'left' \| 'center' \| 'right'` | ✓ | 水平テキスト配置 |
-| `text_vertical_align` | `'top' \| 'middle' \| 'bottom'` | ✓ | 垂直テキスト配置 |
-| `text_color` | `string` | ✓ | テキスト色（16 進数） |
-| `scale_x` | `number` | ✓ | X スケール（1.0 = 100%） |
-| `scale_y` | `number` | ✓ | Y スケール（1.0 = 100%） |
-| `memo` | `string` | - | オブジェクト固有メモ |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| x | numeric | ✗ | | X 座標 |
+| y | numeric | ✗ | | Y 座標 |
+| width | numeric | ✗ | | 幅 |
+| height | numeric | ✗ | | 高さ |
+| image_url | text | ✓ | | 画像 URL |
+| label | text | ✗ | | ラベル |
+| color | text | ✗ | | 色 |
+| z_index | numeric | ✗ | | Z 順序 |
+| statuses | jsonb | ✗ | [] | ステータス配列 |
+| initiative | numeric | ✗ | | イニシアティブ |
+| memo | text | ✗ | | メモ |
+| character_id | text | ✓ | | キャラクター ID |
+| created_at | bigint | ✗ | | 作成時刻 |
 
-**インデックス**:
-- `by_room`: `["room_id"]`（ルーム内全オブジェクト）
-
-**制約・バリデーション**:
-- `opacity`: 0.0 ～ 1.0
-- `sort_order`: 非負数
-- `global=true` なら `scene_ids` は空配列（全シーンで表示）
-- `global=false` なら `scene_ids.length >= 1`
-- `type` ごとに必須フィールド：
-  - `panel`: `image_url` または `image_asset_id` が必須
-  - `text`: `text_content` が必須
-  - `foreground`, `background`: `image_url` が必須
-  - `characters_layer`: 画像フィールド不要
-- 更新権限は `room_members.role` が `'sub_owner'` 以上のユーザーのみ
-
-**関連**:
-- `room_id` → `rooms.id`
-- `scene_ids[]` → `scenes.id`（複数シーン対応）
-- `image_asset_id` → `assets.id`（R2 アセット参照）
+**RLS**: `is_room_member()` でメンバー確認。削除推奨。
 
 ---
 
-### 8. messages
+### 8. bgms
 
-**概要**: チャットメッセージ。ダイス結果、システムメッセージも含む。秘密メッセージ対応。
+**概要**: ルーム内の BGM 管理。複数トラック、シーン割当、フェード効果。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"messages">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | メッセージ識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `sender_name` | `string` | ✓ | 送信者表示名 |
-| `sender_uid` | `string \| null` | ✓ | 送信者ユーザー ID |
-| `sender_avatar` | `string \| null` | ✓ | 送信者アバター URL |
-| `sender_color` | `string` | - | 送信者色（旧互換フィールド） |
-| `content` | `string` | ✓ | メッセージ本文 |
-| `message_type` | `'chat' \| 'dice' \| 'system'` | ✓ | メッセージタイプ |
-| `channel` | `string` | - | チャットチャネル ID |
-| `allowed_user_ids` | `string[]` | - | 秘密メッセージ（許可ユーザー ID 配列）。空でなければ許可ユーザーのみ表示 |
-| `created_at` | `number` | ✓ | 送信タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| name | text | ✗ | | BGM 名 |
+| bgm_type | text | ✓ | | youtube/url/upload |
+| bgm_source | text | ✓ | | ソース URL |
+| bgm_asset_id | text | ✓ | | アップロードアセット ID |
+| bgm_volume | numeric | ✗ | | 音量(0-1) |
+| bgm_loop | boolean | ✗ | | ループ再生 |
+| scene_ids | text[] | ✗ | {} | 関連シーン ID 配列 |
+| is_playing | boolean | ✗ | | 再生中 |
+| is_paused | boolean | ✗ | | 一時停止中 |
+| auto_play_scene_ids | text[] | ✗ | {} | 自動再生シーン ID 配列 |
+| fade_in | boolean | ✗ | | フェードイン有効 |
+| fade_in_duration | numeric | ✓ | | フェードイン時間(ms) |
+| fade_out | boolean | ✓ | | フェードアウト有効 |
+| fade_duration | numeric | ✓ | | フェード時間(ms) |
+| sort_order | numeric | ✓ | | 並び順 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内メッセージ一覧）
-- `by_room_time`: `["room_id", "created_at"]`（時系列ソート）
+- `by_room`: (room_id)（ルーム内 BGM 一覧）
 
 **制約・バリデーション**:
-- `message_type` ごとの content 形式:
-  - `'chat'`: 自由テキスト
-  - `'dice'`: ダイスロール記法 + 結果
-  - `'system'`: システムイベント
-- `allowed_user_ids.length > 0` ならば秘密メッセージ（未認証・許可されていないユーザーには非表示）
-- クエリ時は最新 100 件を返す
+- `bgm_type` は youtube / url / upload のいずれか
+- `bgm_volume` は 0.0 ～ 1.0 の範囲
+- `bgm_type` = upload 時 `bgm_asset_id` 必須。その他の型は `bgm_source` 必須
+- `scene_ids` が空の場合、scene_ids 配列に含まれないシーンで自動削除
+- `auto_play_scene_ids` に含まれるシーンで自動再生
 
 **関連**:
-- `room_id` → `rooms.id`
-- `sender_uid` → `users._id`
-- `channel` → `channels.channel_id`
-- `allowed_user_ids[]` → `users._id`
+- `bgm_asset_id` → `assets.id`（アップロード BGM ファイル）
+
+**RLS**: `is_room_member()` でメンバー確認。editor ロール以上で更新可。
 
 ---
 
-### 9. bgms
+### 9. cutins
 
-**概要**: BGM トラック。YouTube / URL / アップロード対応。複数シーン割当、自動再生、フェード効果。
+**概要**: カットイン演出。アニメーション、テキスト、色設定。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"bgms">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | BGM トラック識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `name` | `string` | ✓ | トラック名 |
-| `bgm_type` | `'youtube' \| 'url' \| 'upload' \| null` | ✓ | ソースタイプ |
-| `bgm_source` | `string \| null` | ✓ | ソース URL または ID |
-| `bgm_volume` | `number` | ✓ | 音量（0.0 ～ 1.0） |
-| `bgm_loop` | `boolean` | ✓ | ループ再生 |
-| `scene_ids` | `string[]` | ✓ | 割当シーン ID 配列 |
-| `is_playing` | `boolean` | ✓ | 再生中か |
-| `is_paused` | `boolean` | ✓ | 一時停止中か |
-| `auto_play_scene_ids` | `string[]` | ✓ | 自動再生対象シーン ID 配列 |
-| `fade_in` | `boolean` | ✓ | フェードイン有効か |
-| `fade_in_duration` | `number` | - | フェードイン時間（ミリ秒） |
-| `fade_out` | `boolean` | - | フェードアウト有効か |
-| `fade_duration` | `number` | - | フェード時間（ミリ秒） |
-| `sort_order` | `number` | - | BGM リスト内での並び順 |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| name | text | ✗ | | 名前 |
+| image_asset_id | text | ✓ | | 画像アセット ID |
+| text | text | ✗ | | テキスト |
+| animation | text | ✗ | | slide/fade/zoom |
+| duration | numeric | ✗ | | 表示時間(ms) |
+| text_color | text | ✗ | | テキスト色 |
+| background_color | text | ✗ | | 背景色 |
+| sort_order | numeric | ✗ | | 並び順 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内 BGM 一覧）
+- `by_room`: (room_id)（ルーム内カットイン一覧）
 
 **制約・バリデーション**:
-- `bgm_volume`: 0.0 ～ 1.0
-- `bgm_type` が null の場合、`bgm_source` も null
-- `scene_ids.length >= 0`（空でも良い、割当なしを示す）
-- `is_playing=true` かつ `is_paused=true` は通常起こらない（前段階で制御）
-- `sort_order >= 0`
+- `animation` は slide / fade / zoom のいずれか
+- `duration` はミリ秒単位の正の整数
+- `text_color`, `background_color` は hex 色コード
 
 **関連**:
-- `room_id` → `rooms.id`
-- `scene_ids[]` → `scenes.id`
-- `auto_play_scene_ids[]` → `scenes.id`
+- `image_asset_id` → `assets.id`（カットイン背景画像）
+
+**RLS**: `is_room_member()` でメンバー確認。editor ロール以上で更新可。
 
 ---
 
-### 10. cutins
+### 10. scenario_texts
 
-**概要**: カットイン（演出画像＋テキスト）。スライド、フェード、ズームアニメーション対応。
+**概要**: シナリオテキスト・セリフ。キャラクター紐付け、チャンネル管理。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"cutins">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | カットイン識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `name` | `string` | ✓ | カットイン名 |
-| `image_url` | `string \| null` | ✓ | 画像 URL |
-| `text` | `string` | ✓ | 表示テキスト |
-| `animation` | `'slide' \| 'fade' \| 'zoom'` | ✓ | アニメーションタイプ |
-| `duration` | `number` | ✓ | 表示時間（ミリ秒） |
-| `text_color` | `string` | ✓ | テキスト色（16 進数） |
-| `background_color` | `string` | ✓ | 背景色（16 進数） |
-| `sort_order` | `number` | ✓ | カットインリスト内での並び順 |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| title | text | ✗ | | タイトル |
+| content | text | ✗ | | 内容 |
+| visible | boolean | ✗ | | 表示フラグ |
+| speaker_character_id | text | ✓ | | 話者キャラクター ID |
+| speaker_name | text | ✓ | | 話者名 |
+| channel_id | text | ✓ | | チャンネル ID |
+| sort_order | numeric | ✗ | | 並び順 |
+| created_at | bigint | ✗ | | 作成時刻 |
+| updated_at | bigint | ✗ | | 更新時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内カットイン一覧）
+- `by_room`: (room_id)（ルーム内シナリオテキスト一覧）
 
 **制約・バリデーション**:
-- `duration > 0`
-- `sort_order >= 0`
-- `animation` の値は定義済みのみ
-- `text_color`, `background_color` は有効な 16 進数カラーコード
+- `speaker_character_id` または `speaker_name` のいずれか必須
+- `visible` = false のテキストは表示されない
 
 **関連**:
-- `room_id` → `rooms.id`
-- `rooms.active_cutin.cutin_id` → `cutins.id`（現在表示中のカットイン）
+- `speaker_character_id` → `characters_stats.id`（話者キャラクター）
+- `channel_id` → `channels.channel_id`（所属チャンネル）
+
+**RLS**: `is_room_member()` でメンバー確認。editor ロール以上で更新可。
 
 ---
 
-### 11. scenario_texts
+### 11. messages
 
-**概要**: シナリオテキスト（演出や説明文）。チャネル別に整理可能。キャラクター発話対応。
+**概要**: ルーム内チャット・ダイスロール・システムメッセージ。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"scenario_texts">` | ✓ | Convex ドキュメント ID |
-| `id` | `string` | ✓ | シナリオテキスト識別子 |
-| `room_id` | `string` | ✓ | 所属ルーム ID |
-| `title` | `string` | ✓ | タイトル |
-| `content` | `string` | ✓ | テキスト内容 |
-| `visible` | `boolean` | ✓ | 表示中か |
-| `speaker_character_id` | `string \| null` | - | 発話キャラクター ID |
-| `speaker_name` | `string \| null` | - | 発話者名（キャラクター指定なし時） |
-| `channel_id` | `string \| null` | - | 割当チャネル ID |
-| `sort_order` | `number` | ✓ | リスト内での並び順 |
-| `created_at` | `number` | ✓ | 作成タイムスタンプ |
-| `updated_at` | `number` | ✓ | 最終更新タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| sender_name | text | ✗ | | 送信者名 |
+| sender_uid | uuid | ✓ | | 送信者ユーザー ID |
+| sender_avatar | text | ✓ | | 送信者アバター URL |
+| sender_color | text | ✓ | | 送信者カラー(旧互換) |
+| content | text | ✗ | | メッセージ内容 |
+| message_type | text | ✗ | | chat/dice/system |
+| channel | text | ✓ | | チャンネル ID |
+| allowed_user_ids | uuid[] | ✓ | {} | 秘密メッセージ許可 UID 配列 |
+| created_at | bigint | ✗ | | 作成時刻 |
 
 **インデックス**:
-- `by_room`: `["room_id"]`（ルーム内シナリオテキスト一覧）
+- `by_room_created`: (room_id, created_at desc)（ルーム内メッセージ時系列）
 
 **制約・バリデーション**:
-- `sort_order >= 0`
-- `speaker_character_id` と `speaker_name` は同時に指定可（character_id 優先）
-- `title` は非空
+- `message_type` は chat / dice / system のいずれか
+- `allowed_user_ids` が空でない場合、ホイッスル/秘密メッセージ
+- `channel` が null の場合はメインチャンネル
 
 **関連**:
-- `room_id` → `rooms.id`
-- `speaker_character_id` → `characters_stats.id`（キャラクター発話）
-- `channel_id` → `channels.channel_id`（チャネル割当）
+- `sender_uid` → `users.id`（送信者）
+- `channel` → `channels.channel_id`（所属チャンネル）
+
+**RLS**: `is_room_member()` でメンバー確認。秘密メッセージは `sender_uid` または `allowed_user_ids` 内のメンバーのみ読み取り可。
 
 ---
 
 ### 12. room_members
 
-**概要**: ルームメンバーシップ管理。ロールベースアクセス制御（RBAC）。
+**概要**: ルームメンバーシップ・ロール管理。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"room_members">` | ✓ | Convex ドキュメント ID |
-| `room_id` | `string` | ✓ | ルーム ID |
-| `user_id` | `string` | ✓ | ユーザー ID |
-| `role` | `'owner' \| 'sub_owner' \| 'user' \| 'guest'` | ✓ | ロール |
-| `joined_at` | `number` | ✓ | 参加タイムスタンプ |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | bigserial | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| user_id | uuid | ✗ | | ユーザー ID |
+| role | text | ✗ | | owner/sub_owner/user/guest |
+| joined_at | bigint | ✗ | | 参加時刻 |
 
-**インデックス**:
-- `by_room`: `["room_id"]`（ルーム内メンバー一覧）
-- `by_room_user`: `["room_id", "user_id"]`（特定ユーザーのロール確認）
-- `by_user`: `["user_id"]`（ユーザーが参加するルーム一覧）
-
-**制約・バリデーション**:
-- (room_id, user_id) の組み合わせは一意（重複メンバーシップ禁止）
-- ロール階層（権限の強い順）: owner > sub_owner > user > guest
-- owner は 1 名のみ（最初のオーナーは rooms.owner_id）
-- 各ロールが実行可能な操作:
-  - `'owner'`: 全操作（ルーム削除も含む）
-  - `'sub_owner'`: シーン・オブジェクト・BGM 管理
-  - `'user'`: メッセージ送信、キャラクター管理
-  - `'guest'`: 閲覧のみ（メッセージ送信・リソース編集不可）
+**制約**:
+- UNIQUE(room_id, user_id)
+- `role` は owner / sub_owner / user / guest のいずれか
 
 **関連**:
-- `room_id` → `rooms.id`
-- `user_id` → `users._id`
+- `room_id` → `rooms.id`（ルーム）
+- `user_id` → `users.id`（ユーザー）
+
+**RLS**: `is_room_member()` でメンバー確認。自分のロール情報のみ読み取り可。owner のみロール更新可。
 
 ---
 
 ### 13. channels
 
-**概要**: チャットチャネル。複数チャネルでメッセージ整理。アーカイブ機能。権限管理。
+**概要**: ルーム内のチャットチャンネル。複数チャンネル、アクセス権限。
 
-| フィールド名 | 型 | 必須 | 説明 |
-|---|---|---|---|
-| `_id` | `Id<"channels">` | ✓ | Convex ドキュメント ID |
-| `room_id` | `string` | ✓ | ルーム ID |
-| `channel_id` | `string` | ✓ | チャネル識別子（ユーザー指定） |
-| `label` | `string` | ✓ | チャネル表示名 |
-| `order` | `number` | ✓ | チャネルリスト内での並び順 |
-| `is_archived` | `boolean` | ✓ | アーカイブ状態か |
-| `allowed_user_ids` | `string[]` | ✓ | アクセス許可ユーザー ID 配列（空 = 全員） |
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | bigserial | ✗ | | PK |
+| room_id | text | ✗ | | ルーム ID |
+| channel_id | text | ✗ | | チャンネル識別子 |
+| label | text | ✗ | | 表示名 |
+| order | numeric | ✗ | | 並び順 |
+| is_archived | boolean | ✗ | | アーカイブ済み |
+| allowed_user_ids | uuid[] | ✗ | {} | アクセス許可 UID 配列 |
 
-**インデックス**:
-- `by_room`: `["room_id"]`（ルーム内チャネル一覧）
-- `by_room_channel`: `["room_id", "channel_id"]`（特定チャネル取得）
-
-**制約・バリデーション**:
-- `order >= 0`
-- (room_id, channel_id) の組み合わせは一意
-- `allowed_user_ids` が空の場合、全員がアクセス可
+**制約**:
+- UNIQUE(room_id, channel_id)
 
 **関連**:
-- `room_id` → `rooms.id`
-- `allowed_user_ids[]` → `users._id`
-- `messages.channel` → `channels.channel_id`
-- `scenario_texts.channel_id` → `channels.channel_id`
+- `room_id` → `rooms.id`（ルーム）
+- `allowed_user_ids[]` → `users.id`（アクセス許可ユーザー）
+
+**RLS**: `is_room_member()` でメンバー確認。アクセス許可済みメンバーのみ読み取り可。editor ロール以上で更新可。
 
 ---
 
-## エンティティ関連図（ER 図）
+### 14. assets
+
+**概要**: 画像・音声ファイルのメタデータ。R2 ストレージ参照。
+
+| カラム | 型 | NULL | デフォルト | 説明 |
+|--------|-----|------|-----------|------|
+| id | text | ✗ | | PK |
+| owner_id | uuid | ✗ | | 所有者 UID |
+| url | text | ✗ | | 公開 URL |
+| r2_key | text | ✗ | | R2 キー |
+| filename | text | ✗ | | ファイル名 |
+| title | text | ✗ | | タイトル |
+| size_bytes | bigint | ✗ | 0 | サイズ(bytes) |
+| width | integer | ✗ | 0 | 画像幅(px) |
+| height | integer | ✗ | 0 | 画像高さ(px) |
+| tags | text[] | ✗ | {} | タグ配列 |
+| asset_type | text | ✗ | 'image' | image/audio |
+| created_at | bigint | ✗ | | 作成時刻 |
+
+**インデックス**:
+- `by_owner`: (owner_id)（ユーザー所有アセット一覧）
+- `by_asset_type`: (asset_type)（タイプ別）
+
+**制約・バリデーション**:
+- `asset_type` は image / audio のいずれか
+- `width`, `height` は非負整数（画像のみ）
+- `r2_key` は Cloudflare R2 での一意キー
+
+**認可**: 認証済みユーザーなら誰でも読み取り可。所有者のみ削除可。
+
+**RLS**: WHERE 句なし。認証済みユーザーすべてが読み取り可。削除は owner_id でチェック。
+
+---
+
+## ER 図
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Adrastea Data Model                         │
-└─────────────────────────────────────────────────────────────────────┘
+users (認証・プロフィール)
+  ├─ room_members (ルームメンバーシップ)
+  ├─ characters_stats (キャラクターステータス)
+  ├─ characters_base (キャラクター詳細)
+  └─ assets (所有アセット)
 
-┌──────────────┐
-│    users     │
-│──────────────│
-│ _id (PK)     │
-│ email        │ (unique)
-│ name         │
-│ image        │
-│ onboarded    │
-└──────────────┘
-       │
-       │ 1:N owns
-       └──────────────────┐
-                          │
-                    ┌──────────────────┐
-                    │     rooms        │
-                    │──────────────────│
-                    │ _id (PK)         │
-                    │ id (unique)      │
-                    │ owner_id (FK)    │
-                    │ name             │
-                    │ active_scene_id  │
-                    │ foreground_url   │
-                    │ active_cutin     │
-                    │ dice_system      │
-                    │ gm_can_see_..    │
-                    │ created_at       │
-                    │ updated_at       │
-                    └──────────────────┘
-                       │   │   │   │   │
-         ┌─────────────┼───┼───┼───┼───┼────────┐
-         │             │   │   │   │   │        │
-      1:N contains  1:N │   │   │   │ 1:N  1:N │
-         │             │   │   │   │        │  │
-    ┌────────┐   ┌──────────┐  │  ┌──────────┐ │
-    │ scenes │   │ objects  │  │  │  pieces  │ │
-    ├────────┤   ├──────────┤  │  ├──────────┤ │
-    │ id (PK)    │ id (PK)  │  │  │ id (PK)  │ │
-    │ room_id    │ room_id  │  │  │ room_id  │ │
-    │ name       │ type     │  │  │ label    │ │
-    │ bg_url     │ global   │  │  │ x, y, w, h
-    │ fg_url     │ scene_ids│  │  │ z_index  │ │
-    │ fg_opacity │ x, y, w, h  │  │ initiative
-    │ bg/fg_tran │ visible  │  │  │ color    │ │
-    │ bg_blur    │ opacity  │  │  │ statuses │ │
-    │ grid_vis   │ image_url│  │  │ memo     │ │
-    │ sort_order │ text_... │  │  │ char_id  │ │
-    │ created_at │ created_at  │  │ created_at
-    └────────┘   └──────────┘  │  └──────────┘ │
-       │              │         │       │       │
-       │     N:M      │         │ 0:1   │       │
-       └──────────────┘    references  │       │
-                           │           │       │
-        ┌──────────────────┴──────────────────┐
-        │                                     │
-    ┌────────────────┐            ┌─────────────────┐
-    │ characters_    │            │  characters_    │
-    │    stats       │ 1:1 pairs  │     base        │
-    ├────────────────┤────────────├─────────────────┤
-    │ id (PK)        │            │ id (PK)         │
-    │ room_id        │            │ room_id         │
-    │ owner_id (FK)  │            │ images[]        │
-    │ name           │            │ memo            │
-    │ color          │            │ secret_memo     │
-    │ active_image   │            │ chat_palette    │
-    │ statuses[]     │            │ sheet_url       │
-    │ parameters[]   │            │ initiative      │
-    │ is_hidden...   │            │ size            │
-    │ is_speech...   │            │ is_status_priv. │
-    │ board_x, y, h  │            └─────────────────┘
-    │ board_visible  │
-    │ created_at     │
-    └────────────────┘
+rooms (セッション管理)
+  ├─ room_members (メンバーシップ)
+  ├─ scenes (背景・遷移)
+  │   └─ objects (配置オブジェクト)
+  ├─ characters_stats (キャラクター)
+  │   └─ characters_base (詳細情報)
+  ├─ bgms (BGM トラック)
+  ├─ cutins (カットイン演出)
+  ├─ messages (チャット)
+  ├─ channels (チャットチャンネル)
+  └─ scenario_texts (シナリオセリフ)
 
-┌──────────────┐         ┌──────────────┐
-│     bgms     │         │    cutins    │
-├──────────────┤         ├──────────────┤
-│ id (PK)      │         │ id (PK)      │
-│ room_id (FK) │         │ room_id (FK) │
-│ name         │         │ name         │
-│ bgm_type     │         │ image_url    │
-│ bgm_source   │         │ text         │
-│ bgm_volume   │         │ animation    │
-│ bgm_loop     │         │ duration     │
-│ scene_ids[]  │         │ text_color   │
-│ is_playing   │         │ bg_color     │
-│ is_paused    │         │ sort_order   │
-│ auto_play... │         │ created_at   │
-│ fade_in/out  │         │ updated_at   │
-│ sort_order   │         └──────────────┘
-│ created_at   │              │
-│ updated_at   │              │ active
-└──────────────┘              │ on rooms
-       │                      │
-       │ N:M                  │ 0:1
-       │ assigned             │
-       └──────────┬───────────┘
-                  │
-           ┌──────────────┐
-           │   messages   │
-           ├──────────────┤
-           │ id (PK)      │
-           │ room_id (FK) │
-           │ sender_name  │
-           │ sender_uid   │
-           │ sender_avatar│
-           │ content      │
-           │ msg_type     │
-           │ channel      │
-           │ allowed_..   │
-           │ created_at   │
-           └──────────────┘
-                  │
-                  │ N:1 in
-                  │
-           ┌──────────────┐
-           │   channels   │
-           ├──────────────┤
-           │ room_id      │
-           │ channel_id   │
-           │ label        │
-           │ order        │
-           │ is_archived  │
-           │ allowed_..   │
-           └──────────────┘
+assets (R2 参照)
+  ├─ scenes.background_asset_id
+  ├─ scenes.foreground_asset_id
+  ├─ objects.image_asset_id
+  ├─ characters_base.images[].asset_id
+  ├─ bgms.bgm_asset_id
+  ├─ cutins.image_asset_id
+  └─ rooms.thumbnail_asset_id
 
-┌──────────────────┐
-│ scenario_texts   │
-├──────────────────┤
-│ id (PK)          │
-│ room_id (FK)     │
-│ title            │
-│ content          │
-│ visible          │
-│ speaker_char_id  │
-│ speaker_name     │
-│ channel_id       │
-│ sort_order       │
-│ created_at       │
-│ updated_at       │
-└──────────────────┘
-        │
-        └─ references characters_stats
-        └─ references channels
-
-┌──────────────────┐
-│  room_members    │
-├──────────────────┤
-│ room_id (PK,FK)  │
-│ user_id (PK,FK)  │
-│ role             │
-│ joined_at        │
-└──────────────────┘
-        │
-        ├─ N:1 to rooms
-        └─ N:1 to users
-
-(assets テーブルは参考用ツール側で管理)
+pieces (レガシー - 非推奨)
+  └─ characters_stats (移行済み)
 ```
 
 ---
@@ -679,46 +544,72 @@ Convex スキーマ（`convex/schema.ts`）に基づき、以下の 13 エンテ
 
 ### マルチシーン対応
 
-`objects` と `bgms` の `scene_ids` フィールドにより、複数シーンに同じオブジェクト・BGM を割り当て可能。`global=true` の場合は `scene_ids` を空配列で統一される。
+各オブジェクト（characters_stats, objects, bgms）は複数シーンに対応。
 
-### キャラクター設計
+- **global**: true の場合、`scene_ids` は空配列。全シーン共通
+- **global**: false の場合、`scene_ids` に含まれるシーン固有
+- シーン表示時のフィルタリングはアプリケーション層で実施（SQL WHERE 不使用）
 
-`characters_stats` と `characters_base` の 2 テーブル分割：
-- **分離の理由**: ボード上の表示・配置（stats）と、キャラクター詳細情報（base）の更新頻度と構造が異なる
-- **1:1 対応**: `id` フィールドで統合されるため、クライアント側で両テーブルを一緒に扱う必要がある
+### キャラクター 2 テーブル分割
 
-### 権限管理
+`characters_stats` と `characters_base` で責任を分離。
 
-すべてのミューテーション（scenes, objects, messages など）で `room_members` テーブルを参照し、ロール階層を確認：
-- `'owner'` / `'sub_owner'`: 盤面操作（シーン・オブジェクト管理）
-- `'user'` / `'guest'`: 閲覧・メッセージ送受信
+- **stats**: 盤面表示・ステータス・画像選択（更新頻度高）
+- **base**: 詳細情報・シートリンク・メモ（相対的に低頻度）
 
-### インデックス戦略
+RLS で `secret_memo` は room owner のみアクセス可。
 
-各テーブルは以下のインデックスを定義：
-- `by_room`: room_id での一括取得（最頻出）
-- `by_room_order`: room_id + sort_order での順序取得（scenes, objects）
-- `by_room_time`: room_id + created_at での時系列取得（messages）
-- `by_room_user`: room_id + user_id での権限確認（room_members）
-- `by_user`: user_id での横断検索（room_members）
-- `by_owner`: owner_id での所有者検索（rooms）
+### 権限管理（RLS）
+
+全テーブルで `is_room_member()` 関数を用いた行レベルセキュリティ。
+
+- **メンバー確認**: room_id 経由で room_members テーブル照会
+- **役割チェック**: room_members.role の値に基づく
+- **秘密メモ**: room owner およびキャラクター owner のみ読み取り
+- **assets**: owner_id チェックで削除権限管理
+
+### アセット管理
+
+`image_url` から `*_asset_id` に統一。
+
+- **scenes**: background_asset_id, foreground_asset_id
+- **objects**: image_asset_id
+- **characters_base**: images[].asset_id
+- **bgms**: bgm_asset_id
+- **cutins**: image_asset_id
+- **rooms**: thumbnail_asset_id
+
+アセット URL 解決は `assets` テーブルから取得。R2 キャッシュ戦略（TTL: 7 日）。
+
+### 認証
+
+Supabase Auth (Google OAuth + Anonymous)。
+
+- **メールアドレス**: auth.users で管理。users テーブルには保存しない
+- **匿名ユーザー**: isAnonymous フラグ（移行済み）
+- **セッション**: JWT トークン（HttpOnly Cookie）
+
+### 廃止予定
+
+- **pieces テーブル**: 非推奨。characters_stats + characters_base に移行。段階的削除
+
+### 時系列データ
+
+- **messages**: created_at のインデックス整備で時系列クエリ最適化
+- **スナップショット**: 自動保存機構別テーブルで検討（将来）
+
+### マルチユーザー同期
+
+Supabase Realtime（WebSocket）でリアルタイム同期。
+
+- **subscription**: room_id, channel_id 単位で購読
+- **debounce**: クライアント側で非同期 UPDATE（楽観的更新）
+- **conflict**: last-write-wins（タイムスタンプベース）
 
 ---
 
-## マイグレーション・互換性ノート
+## 互換性ノート
 
-### 既知の互換フィールド
+- **messages.sender_color**: 旧互換フィールド。characters_stats.color から解決推奨
+- **pieces テーブル**: 非推奨。新規開発では使用禁止。既存データは characters_stats に移行手順準備中
 
-- `messages.sender_color`: 旧設計の互換フィールド。新規では使用しない
-
-### 将来の統合予定
-
-- `pieces` テーブルは非推奨。新規キャラクター・コマはすべて `characters_stats` で管理される。旧 pieces の段階的廃止が計画中
-
----
-
-## 参考資料
-
-- **スキーマ定義**: `convex/schema.ts`
-- **ミューテーション**: `convex/rooms.ts`, `convex/scenes.ts`, `convex/characters.ts`, `convex/objects.ts`, `convex/messages.ts` など
-- **型定義**: `src/types/adrastea.types.ts`
