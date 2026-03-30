@@ -13,7 +13,7 @@ const SUPABASE_URL = 'https://yrbunpqdbhlgxagifpau.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_J1PYr4e0chbEHislvQVTKw_F7Wx5-WH';
 
 /** 認証済み Supabase クライアントを取得 */
-async function getSupabase() {
+export async function getSupabase() {
   const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   await supabase.auth.signInWithPassword({
     email: process.env.PLAYWRIGHT_TEST_EMAIL!,
