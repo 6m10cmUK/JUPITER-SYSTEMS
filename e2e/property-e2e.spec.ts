@@ -58,7 +58,7 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
 
   // --- 前景プロパティ ---
 
-  test('P-08: 前景位置ロック切替', async ({ page }) => {
+  test('P-08: 前景に位置ロック表示なし', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -67,19 +67,12 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await selectForeground(page);
     await page.waitForTimeout(300);
 
-    // 位置ロックチェックボックスを取得（label[role="checkbox"]）
-    const posLockCheckbox = page.locator('label[role="checkbox"]:has-text("位置を固定")').first();
-    await expect(posLockCheckbox).toBeVisible({ timeout: 5000 });
-
-    const isCheckedBefore = (await posLockCheckbox.getAttribute('aria-checked')) === 'true';
-    await posLockCheckbox.click();
-    await page.waitForTimeout(200);
-
-    const isCheckedAfter = (await posLockCheckbox.getAttribute('aria-checked')) === 'true';
-    expect(isCheckedAfter).toBe(!isCheckedBefore);
+    // 位置ロック/サイズロック/位置/サイズセクションが表示されないことを確認
+    await expect(page.locator('label[role="checkbox"]:has-text("位置を固定")')).not.toBeVisible({ timeout: 2000 });
+    await expect(page.locator('label[role="checkbox"]:has-text("サイズを固定")')).not.toBeVisible({ timeout: 2000 });
   });
 
-  test('P-09: 前景サイズロック切替', async ({ page }) => {
+  test('P-09: 前景にはAssetPicker・画像表示モード・フェードインのみ表示', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(2000);
@@ -88,16 +81,13 @@ test.describe.serial('Adrastea プロパティパネルテスト', () => {
     await selectForeground(page);
     await page.waitForTimeout(300);
 
-    // サイズロックチェックボックスを取得（label[role="checkbox"]）
-    const sizeLockCheckbox = page.locator('label[role="checkbox"]:has-text("サイズを固定")').first();
-    await expect(sizeLockCheckbox).toBeVisible({ timeout: 5000 });
+    // 前景画像の AssetPicker が表示されることを確認
+    const assetPicker = page.locator('text=前景画像').first();
+    await expect(assetPicker).toBeVisible({ timeout: 5000 });
 
-    const isCheckedBefore = (await sizeLockCheckbox.getAttribute('aria-checked')) === 'true';
-    await sizeLockCheckbox.click();
-    await page.waitForTimeout(200);
-
-    const isCheckedAfter = (await sizeLockCheckbox.getAttribute('aria-checked')) === 'true';
-    expect(isCheckedAfter).toBe(!isCheckedBefore);
+    // 前景フェードインチェックボックスが表示されることを確認
+    const fadeCheckbox = page.locator('label[role="checkbox"]:has-text("前景フェードイン")').first();
+    await expect(fadeCheckbox).toBeVisible({ timeout: 5000 });
   });
 
   // --- オブジェクトプロパティ（テキストオブジェクト追加後） ---
