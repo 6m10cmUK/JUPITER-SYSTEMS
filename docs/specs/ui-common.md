@@ -39,3 +39,7 @@ disabled 状態: `opacity: 0.3`, `cursor: default`
 ### キャラクターサムネイル
 
 40×40px。images[active_image_index].url を cover fit・上寄せで表示。立ち絵未設定時はプレースホルダー表示。
+
+## ボードズーム
+
+ZoomBar コンポーネントでボード表示倍率を制御。スライダーで 0.02〜4倍の範囲を調整可能。リセットボタンで 100% に戻す。
