@@ -13,7 +13,6 @@ import { Trash2, Clipboard, CopyPlus, Send } from 'lucide-react';
 import { objectToClipboardJson, bgmToClipboardJson } from '../../../utils/clipboardImport';
 import { generateDuplicateName } from '../../../utils/nameUtils';
 import { resolveTemplateVars } from '../utils/chatEditorUtils';
-import { resolveAssetId } from '../../../hooks/useAssets';
 import type React from 'react';
 
 const iconBtn = { background: 'none', border: 'none', cursor: 'pointer', padding: '4px', display: 'flex' } as const;
@@ -238,8 +237,8 @@ export function PropertyDockPanel() {
                 const char = scenarioText.speaker_character_id ? ctx.characters.find(c => c.id === scenarioText.speaker_character_id) : null;
                 const resolved = resolveTemplateVars(scenarioText.content, char ?? null);
                 const charName = scenarioText.speaker_name || char?.name;
-                const charAvatar = char ? (resolveAssetId(char.images[char.active_image_index]?.asset_id) ?? null) : null;
-                ctx.handleSendMessage(resolved, 'chat', charName, charAvatar, scenarioText.channel_id ?? undefined);
+                const charAvatarAssetId = char ? (char.images[char.active_image_index]?.asset_id ?? null) : null;
+                ctx.handleSendMessage(resolved, 'chat', charName, charAvatarAssetId, scenarioText.channel_id ?? undefined);
                 ctx.showToast('チャットに送信しました', 'success');
               }}
               disabled={!scenarioText.content}

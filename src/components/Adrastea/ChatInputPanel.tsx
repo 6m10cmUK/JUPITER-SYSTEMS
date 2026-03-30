@@ -12,7 +12,7 @@ import type { ChatEditorHandle } from './ChatEditor';
 
 interface ChatInputPanelProps {
   characters?: Character[];
-  onSendMessage: (content: string, messageType: 'chat' | 'dice' | 'system', characterName?: string, characterAvatar?: string | null) => void;
+  onSendMessage: (content: string, messageType: 'chat' | 'dice' | 'system', characterName?: string, characterAvatarAssetId?: string | null) => void;
 }
 
 const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
@@ -79,10 +79,10 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
 
     const charName = senderName.trim() || 'noname';
     if (senderName.trim()) localStorage.setItem('adrastea-last-sender', senderName.trim());
-    const charAvatar = resolveAssetId(selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.asset_id) ?? null;
+    const charAvatarAssetId = selectedCharacterForIcon?.images[selectedCharacterForIcon.active_image_index]?.asset_id ?? null;
 
     const resolved = resolveTemplateVars(trimmedText, selectedCharacterForIcon);
-    onSendMessage(resolved, 'chat', charName, charAvatar);
+    onSendMessage(resolved, 'chat', charName, charAvatarAssetId);
 
     editorRef.current?.clear();
   }, [senderName, selectedCharacterForIcon, onSendMessage]);

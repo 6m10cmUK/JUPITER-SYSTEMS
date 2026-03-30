@@ -65,7 +65,7 @@ export interface ChatInject {
     content: string,
     messageType: ChatMessage['message_type'],
     senderUid?: string,
-    senderAvatar?: string | null,
+    senderAvatarAssetId?: string | null,
     diceSystem?: string,
     channel?: string,
     allowedUserIds?: string[],

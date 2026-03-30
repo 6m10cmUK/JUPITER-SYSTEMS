@@ -14,7 +14,7 @@ interface ArchiveMessagesResponse {
     room_id: string;
     sender_name: string;
     sender_uid: string | null;
-    sender_avatar: string | null;
+    sender_avatar_asset_id: string | null;
     content: string;
     message_type: string;
     channel?: string;
@@ -32,7 +32,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   const messagesQuery = useSupabaseQuery<ChatMessage>({
     table: 'messages',
-    columns: 'id,room_id,sender_name,sender_uid,sender_avatar,content,message_type,channel,allowed_user_ids,created_at',
+    columns: 'id,room_id,sender_name,sender_uid,sender_avatar_asset_id,content,message_type,channel,allowed_user_ids,created_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(200),
     enabled: !inject,
@@ -63,7 +63,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       room_id: m.room_id,
       sender_name: m.sender_name,
       sender_uid: m.sender_uid ?? undefined,
-      sender_avatar: m.sender_avatar ?? null,
+      sender_avatar_asset_id: m.sender_avatar_asset_id ?? null,
       content: m.content,
       message_type: m.message_type as ChatMessage['message_type'],
       channel: m.channel ?? 'main',
@@ -103,14 +103,14 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       content: string,
       messageType: ChatMessage['message_type'] = 'chat',
       senderUid?: string,
-      senderAvatar?: string | null,
+      senderAvatarAssetId?: string | null,
       diceSystem?: string,
       channel?: string,
       allowedUserIds?: string[]
     ) => {
       const inj = injectRef.current;
       if (inj) {
-        return await inj.send(senderName, content, messageType, senderUid, senderAvatar, diceSystem, channel, allowedUserIds);
+        return await inj.send(senderName, content, messageType, senderUid, senderAvatarAssetId, diceSystem, channel, allowedUserIds);
       }
       try {
         let finalContent = content;
@@ -134,7 +134,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               content: 'シークレットダイス',
               message_type: 'dice' as const,
               sender_uid: senderUid,
-              sender_avatar: senderAvatar,
+              sender_avatar_asset_id: senderAvatarAssetId,
               channel,
             } as Omit<ChatMessage, 'created_at'>);
 
@@ -151,7 +151,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           content: finalContent,
           message_type: finalType,
           sender_uid: senderUid,
-          sender_avatar: senderAvatar,
+          sender_avatar_asset_id: senderAvatarAssetId,
           channel,
           allowed_user_ids: finalAllowedUserIds,
           created_at: Date.now(),
@@ -163,7 +163,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           content: finalContent,
           message_type: finalType,
           sender_uid: senderUid,
-          sender_avatar: senderAvatar,
+          sender_avatar_asset_id: senderAvatarAssetId,
           channel,
           allowed_user_ids: finalAllowedUserIds,
         } as Omit<ChatMessage, 'created_at'>);
@@ -228,7 +228,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           room_id: m.room_id,
           sender_name: m.sender_name,
           sender_uid: m.sender_uid ?? undefined,
-          sender_avatar: m.sender_avatar ?? null,
+          sender_avatar_asset_id: m.sender_avatar_asset_id ?? null,
           content: m.content,
           message_type: m.message_type as ChatMessage['message_type'],
           channel: m.channel ?? 'main',

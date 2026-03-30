@@ -6,7 +6,6 @@ import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor'
 import { AdModal } from '../ui';
 import { Pencil, Send } from 'lucide-react';
 import { resolveTemplateVars } from '../utils/chatEditorUtils';
-import { resolveAssetId } from '../../../hooks/useAssets';
 
 export function ChatPaletteDockPanel() {
   const { user } = useAuth();
@@ -27,7 +26,7 @@ export function ChatPaletteDockPanel() {
   const handleSendPaletteMessage = (text: string) => {
     if (!activeCharacter) return;
     const resolved = resolveTemplateVars(text, activeCharacter);
-    ctx.handleSendMessage(resolved, 'chat', activeCharacter.name, resolveAssetId(activeCharacter.images[activeCharacter.active_image_index]?.asset_id) ?? null);
+    ctx.handleSendMessage(resolved, 'chat', activeCharacter.name, activeCharacter.images[activeCharacter.active_image_index]?.asset_id ?? null);
   };
 
   const handleModalCloseWithSave = () => {

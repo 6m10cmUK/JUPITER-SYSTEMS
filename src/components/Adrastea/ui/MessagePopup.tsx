@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { theme } from '../../../styles/theme';
 import { parseContent } from '../ChatLogPanel';
+import { resolveAssetId } from '../../../hooks/useAssets';
 
 interface MessagePopupProps {
-  message: { sender_name: string; content: string; sender_avatar?: string | null } | null;
+  message: { sender_name: string; content: string; sender_avatar_asset_id?: string | null } | null;
   charColor?: string | null;
 }
 
 export function MessagePopup({ message, charColor }: MessagePopupProps) {
-  const [display, setDisplay] = useState<{ sender_name: string; content: string; sender_avatar?: string | null } | null>(null);
+  const [display, setDisplay] = useState<{ sender_name: string; content: string; sender_avatar_asset_id?: string | null } | null>(null);
   const [phase, setPhase] = useState<'hidden' | 'enter' | 'visible' | 'exit'>('hidden');
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevIdRef = useRef<string>('');
@@ -91,9 +92,9 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          {display.sender_avatar ? (
+          {display.sender_avatar_asset_id ? (
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor ?? undefined, flexShrink: 0, overflow: 'hidden' }}>
-              <img src={display.sender_avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+              <img src={resolveAssetId(display.sender_avatar_asset_id) ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
             </div>
           ) : (
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor || theme.bgInput, flexShrink: 0 }} />

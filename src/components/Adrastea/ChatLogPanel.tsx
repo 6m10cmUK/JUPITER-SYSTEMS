@@ -20,6 +20,7 @@ import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.t
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
+import { resolveAssetId } from '../../hooks/useAssets';
 import { ConfirmModal, DropdownMenu } from './ui';
 import { genId } from '../../utils/id';
 import { API_BASE_URL } from '../../config/api';
@@ -276,7 +277,7 @@ async function fetchAllArchivedMessages(roomId: string, token: string, existingM
       room_id: m.room_id,
       sender_name: m.sender_name,
       sender_uid: m.sender_uid ?? undefined,
-      sender_avatar: m.sender_avatar ?? null,
+      sender_avatar_asset_id: m.sender_avatar_asset_id ?? null,
       content: m.content,
       message_type: m.message_type as ChatMessage['message_type'],
       channel: m.channel ?? 'main',
@@ -676,7 +677,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
             borderBottom: `1px solid ${theme.borderSubtle}`,
           }}
         >
-          <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
+          <Avatar src={resolveAssetId(msg.sender_avatar_asset_id)} name={msg.sender_name} color={charColor} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
@@ -733,7 +734,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           borderBottom: `1px solid ${theme.borderSubtle}`,
         }}
       >
-        <Avatar src={msg.sender_avatar} name={msg.sender_name} color={charColor} />
+        <Avatar src={resolveAssetId(msg.sender_avatar_asset_id)} name={msg.sender_name} color={charColor} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>

@@ -14,7 +14,7 @@ export function useAdrastea(roomId: string) {
 
   const piecesQuery = useSupabaseQuery<Piece>({
     table: 'pieces',
-    columns: 'id,room_id,x,y,width,height,label,color,image_url,z_index,statuses,initiative,memo,character_id,created_at',
+    columns: 'id,room_id,x,y,width,height,label,color,image_asset_id,z_index,statuses,initiative,memo,character_id,created_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
   });
