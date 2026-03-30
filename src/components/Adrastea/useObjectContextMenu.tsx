@@ -55,9 +55,9 @@ export function useObjectContextMenu(
     onClose();
   }, [deletableTargets, addObject, onAfterDuplicate, onClose]);
 
-  const handleConfirmDelete = useCallback(() => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!pendingRemove) return;
-    Promise.all(pendingRemove.map(obj => removeObject(obj.id)));
+    await Promise.all(pendingRemove.map(obj => removeObject(obj.id)));
     setPendingRemove(null);
   }, [pendingRemove, removeObject]);
 

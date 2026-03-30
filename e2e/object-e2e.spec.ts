@@ -86,45 +86,36 @@ test.describe.serial('オブジェクト管理テスト', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
-    // テキストオブジェクトを新規作成
-    const addBtn = page.locator('button[aria-label="オブジェクト追加"]').first();
-    await expect(addBtn).toHaveCount(1, { timeout: 5000 });
-    await addBtn.click({ force: true });
-    await page.waitForTimeout(300);
-    const addTextOpt = page.getByText('シーンテキスト追加').first();
-    if (await addTextOpt.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await addTextOpt.click();
-      await page.waitForTimeout(1000);
-    }
+    // 削除前のテキストオブジェクト数を記録
+    const textFilter = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ });
+    const countBefore = await textFilter.count();
+    expect(countBefore).toBeGreaterThan(0);
 
     // レイヤーパネル内のテキストオブジェクトを右クリック → 「削除」
-    const textItem = page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).first();
-    await expect(textItem).toBeVisible({ timeout: 5000 });
+    const textItem = textFilter.first();
     await textItem.click({ button: 'right' });
 
-    // コンテキストメニュー「削除」（menuitem に限定、シーンパネルの「シーンを削除」と区別）
+    // コンテキストメニュー「削除」
     const deleteOpt = page.locator('[role="menuitem"]').filter({ hasText: '削除' }).first();
-    if (await deleteOpt.isVisible({ timeout: 5000 }).catch(() => false)) {
-      await deleteOpt.click();
-      await page.waitForTimeout(300);
+    await expect(deleteOpt).toBeVisible({ timeout: 5000 });
+    await deleteOpt.click();
+    await page.waitForTimeout(300);
 
-      // 確認ダイアログ
-      const confirmBtn = page.getByRole('button', { name: '削除' }).last();
-      if (await confirmBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-        await confirmBtn.click();
-        await page.waitForTimeout(500);
-      }
-    } else {
-      test.skip();
-      return;
-    }
+    // 確認ダイアログ
+    const confirmBtn = page.getByRole('button', { name: '削除' }).last();
+    await expect(confirmBtn).toBeVisible({ timeout: 5000 });
+    await confirmBtn.click();
+
+    // 確認モーダルが消えるまで待つ（= Supabase DELETE 完了）
+    await expect(page.locator('text=削除しますか')).not.toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500);
 
     // 削除されたことを確認（リロードして永続化チェック）
     await page.reload();
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
-    const remaining = await page.locator('[data-obj-id]').filter({ hasText: /テキスト|新規テキスト/ }).count();
-    expect(remaining).toBe(0);
+    const countAfter = await textFilter.count();
+    expect(countAfter).toBe(countBefore - 1);
   });
 
   test('背景・前景は Delete 削除不可', async ({ page }) => {
