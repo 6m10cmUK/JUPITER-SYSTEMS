@@ -4,7 +4,7 @@ import { theme } from '../../styles/theme';
 import { useRooms, type RoomUI } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
-import { AdModal, AdInput, AdButton, AdComboBox } from './ui/AdComponents';
+import { AdModal, AdInput, AdButton, AdComboBox, ConfirmModal } from './ui/AdComponents';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import {
   DndContext,
@@ -622,21 +622,13 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
 
       {/* 削除確認モーダル */}
       {deleteTarget && (
-        <AdModal
-          title="ルームを削除"
-          width="360px"
-          onClose={() => setDeleteTarget(null)}
-          footer={
-            <>
-              <AdButton onClick={() => setDeleteTarget(null)}>キャンセル</AdButton>
-              <AdButton variant="danger" onClick={confirmDelete}>削除</AdButton>
-            </>
-          }
-        >
-          <div style={{ fontSize: '13px', color: theme.textSecondary, padding: '8px 0' }}>
-            「{deleteTarget.name}」を削除しますか？この操作は取り消せません。
-          </div>
-        </AdModal>
+        <ConfirmModal
+          message={`「${deleteTarget.name}」を削除しますか？この操作は取り消せません。`}
+          confirmLabel="削除"
+          danger
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
 
       {/* 共有モーダル */}
