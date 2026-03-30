@@ -381,16 +381,25 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     });
   });
 
-  // TODO: chat_palette が設定されたキャラクターが必要。現在のテストユーザーでは未設定
-  test.skip('C-14: サジェスト Tab キーで確定', async ({ page }) => {
+  test('C-14: サジェスト Tab キーで確定', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(1500);
 
+    // 送信者にキャラ名を設定（chat_palette が設定されたキャラクター）
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
+
     const editor = page.locator('[contenteditable="true"]').first();
     await editor.click();
     await editor.pressSequentially('行');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
+
+    // サジェストが表示されることを確認
+    const suggestion = page.locator('[role="option"]').first();
+    await expect(suggestion).toBeVisible({ timeout: 3000 });
 
     await page.keyboard.press('Tab');
     await page.waitForTimeout(500);
@@ -420,9 +429,31 @@ test.describe.serial('Adrastea チャット詳細テスト', () => {
     });
   });
 
-  test.skip('C-16: サジェスト Escape で閉じる', async ({ page }) => {
-    // Escape で閉じる動作は実装に依存
+  test('C-16: サジェスト Escape で閉じる', async ({ page }) => {
     await page.goto(`${BASE_URL}/adrastea/${roomId}`);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(1500);
+
+    // 送信者にキャラ名を設定
+    const senderInput = page.locator('input[placeholder="noname"]').first();
+    await expect(senderInput).toBeVisible({ timeout: 5000 });
+    await senderInput.fill(CHARACTER_NAME);
+    await page.waitForTimeout(500);
+
+    const editor = page.locator('[contenteditable="true"]').first();
+    await editor.click();
+    await editor.pressSequentially('行');
+    await page.waitForTimeout(500);
+
+    // サジェストが表示される
+    await expect(page.locator('[role="listbox"]').first()).toBeVisible({ timeout: 3000 });
+
+    // Escape で閉じる
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+
+    // サジェストが消える
+    await expect(page.locator('[role="listbox"]')).not.toBeVisible({ timeout: 2000 });
   });
 
   test.skip('C-22: チャット入力 Shift+Enter で改行', async ({ page }) => {

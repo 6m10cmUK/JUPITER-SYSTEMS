@@ -153,8 +153,7 @@ test.describe.serial('キャラクター管理テスト', () => {
     const duplicateOpt = page.locator('[role="menuitem"]').filter({ hasText: '複製' }).first();
     await duplicateOpt.waitFor({ state: 'visible', timeout: 5000 });
 
-    // DOM click で直接発火（Playwright click の mousedown が menu close を引き起こすため）
-    await duplicateOpt.evaluate((el) => (el as HTMLElement).click());
+    await duplicateOpt.click();
 
     // Realtime 反映を待つ。遅い場合はリロード
     let appeared = await page.locator('[data-char-id]').nth(charCountBefore).isVisible({ timeout: 5000 }).catch(() => false);

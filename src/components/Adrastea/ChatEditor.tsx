@@ -595,6 +595,7 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
         {suggestions.length > 0 && suggestionPos && createPortal(
           <div
             ref={suggestionRef}
+            role="listbox"
             style={{
               position: 'fixed',
               top: suggestionPos.top,
@@ -611,6 +612,8 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
             {suggestions.map((item, i) => (
               <div
                 key={i}
+                role="option"
+                aria-selected={i === suggestionIndex}
                 onMouseDown={(e) => {
                   e.preventDefault();
                   applySuggestion(item);

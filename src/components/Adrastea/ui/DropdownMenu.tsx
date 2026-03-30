@@ -198,8 +198,10 @@ export function DropdownMenu({
 
     const handleMouseDown = (event: MouseEvent) => {
       const target = event.target as Node;
+      const targetEl = target instanceof HTMLElement ? target : null;
+      const inMenuByRole = targetEl?.closest('[role="menuitem"], [role="menu"]');
 
-      const inMenu = menuRef.current?.contains(target);
+      const inMenu = menuRef.current?.contains(target) || inMenuByRole;
       const inSubmenu = submenuRef.current?.contains(target);
 
       if (mode === 'trigger') {
