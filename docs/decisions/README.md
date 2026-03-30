@@ -29,5 +29,6 @@
 
 | # | タイトル | ステータス |
 |---|---------|-----------|
-| 0001 | P2P廃止・Convex採用 | 承認 |
-| 0002 | Firebase Auth → Convex Auth 移行 | 承認 |
+| 0001 | P2P廃止・Convex採用 | 廃止（0003 で Supabase に移行） |
+| 0002 | Firebase Auth → Convex Auth 移行 | 廃止（0003 で Supabase Auth に移行） |
+| 0003 | Convex → Supabase 移行 | 承認 |

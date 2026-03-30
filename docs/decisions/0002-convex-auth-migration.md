@@ -1,7 +1,7 @@
 # 0002: Firebase Auth → Convex Auth 移行
 
 ## ステータス
-承認（2026-03-12）
+廃止（2026-03）— 0003 で Supabase Auth に移行
 
 ## コンテキスト
 Convex 採用に伴い、認証も Convex エコシステムに統一する方が管理が楽。Firebase Auth は Convex との連携に追加設定が必要。
