@@ -1,10 +1,11 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { X, Upload, Link, Play, Square, ImageOff } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
+import { AdComboBox } from './ui';
 
 /** blobCache 経由のサムネイル — キャッシュ済みなら即表示 */
 function CachedThumbnail({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
@@ -85,6 +86,13 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
   const roomName = ctx.room?.name;
   const defaultTags = [...new Set([...(roomName ? [roomName] : []), ...(autoTags ?? [])])];
   const { assets, loading, uploadAsset, uploadAudioAsset, addAssetByUrl, deleteAsset, updateAssetTags, updateAssetTitle } = useAssets({ disabled: ctx.isDemo, defaultTags });
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    assets.forEach(a => a.tags.forEach(t => tagSet.add(t)));
+    return [...tagSet].sort();
+  }, [assets]);
+
   const [search, setSearch] = useState('');
   const [uploading, setUploading] = useState(false);
   const [editingTagsId, setEditingTagsId] = useState<string | null>(null);
@@ -546,12 +554,13 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
 
         {/* 検索バー + フォルダから追加 */}
         <div style={{ display: 'flex', gap: '6px', marginBottom: '4px' }}>
-          <input
-            style={{ ...inputStyle, flex: 1 }}
+          <AdComboBox
+            mode="single"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={setSearch}
+            suggestions={allTags}
             placeholder="ファイル名・タグで検索..."
-            maxLength={128}
+            style={{ flex: 1 }}
           />
           <button
             onClick={() => fileInputRef.current?.click()}
