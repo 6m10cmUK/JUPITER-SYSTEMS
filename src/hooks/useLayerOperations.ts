@@ -62,7 +62,7 @@ export function useLayerOperations() {
     // キャラクター選択中かつオブジェクトが選択されていない場合
     if (editingCharacter && selectedObjectIds.length === 0 && !editingObjectId) {
       const { id, created_at, updated_at, ...rest } = editingCharacter;
-      await addCharacter({ ...rest, name: generateDuplicateName(editingCharacter.name) });
+      await addCharacter({ ...rest, name: generateDuplicateName(editingCharacter.name, layerOrderedCharacters.map(c => c.name)) });
       return;
     }
 
@@ -77,7 +77,7 @@ export function useLayerOperations() {
       const { id, created_at, updated_at, ...rest } = obj;
       const newObjId = await addObject({
         ...rest,
-        name: generateDuplicateName(obj.name),
+        name: generateDuplicateName(obj.name, activeObjects.map(o => o.name)),
         sort_order: obj.sort_order + 1,
       });
       if (newObjId) newIds.push(newObjId);

@@ -255,6 +255,9 @@ export function StatusDockPanel() {
         ctx.updateObject,
         ctx.activeObjects,
         ctx.activeScene?.id ?? null,
+        undefined,
+        ctx.characters?.map(c => c.name),
+        ctx.scenarioTexts?.map(t => t.title),
       );
     } catch {
       ctx.showToast('クリップボードの読み取りに失敗しました', 'error');

@@ -45,6 +45,8 @@ function AdrasteaDemoRoom() {
     updateObject: ctx.updateObject,
     allObjects: ctx.activeObjects,
     activeSceneId: ctx.activeScene?.id ?? null,
+    existingCharacterNames: ctx.characters?.map(c => c.name),
+    existingScenarioTitles: ctx.scenarioTexts?.map(t => t.title),
   });
 
   const handleAddPiece = React.useCallback((label: string, color: string) => {

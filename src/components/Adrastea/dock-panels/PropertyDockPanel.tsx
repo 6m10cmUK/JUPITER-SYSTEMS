@@ -115,7 +115,7 @@ export function PropertyDockPanel() {
           onCopy={() => { navigator.clipboard.writeText(objectToClipboardJson(obj)); ctx.showToast(`${obj.name} をコピーしました`, 'success'); }}
           onDuplicate={async () => {
             const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = obj as any;
-            await ctx.addObject({ ...rest, name: generateDuplicateName(obj.name), sort_order: obj.sort_order + 1 });
+            await ctx.addObject({ ...rest, name: generateDuplicateName(obj.name, ctx.activeObjects.map(o => o.name)), sort_order: obj.sort_order + 1 });
           }}
         />
       );
@@ -222,7 +222,7 @@ export function PropertyDockPanel() {
           }}
           onDuplicate={async () => {
             await ctx.addScenarioText({
-              title: generateDuplicateName(scenarioText.title),
+              title: generateDuplicateName(scenarioText.title, ctx.scenarioTexts.map(s => s.title)),
               content: scenarioText.content,
               speaker_character_id: scenarioText.speaker_character_id,
               speaker_name: scenarioText.speaker_name,

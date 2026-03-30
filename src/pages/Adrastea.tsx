@@ -92,6 +92,8 @@ function AdrasteaRoom() {
     updateObject: ctx.updateObject,
     allObjects: ctx.activeObjects,
     activeSceneId: ctx.activeScene?.id ?? null,
+    existingCharacterNames: ctx.characters?.map(c => c.name),
+    existingScenarioTitles: ctx.scenarioTexts?.map(t => t.title),
   });
 
   // メンバー管理（ownerのみ実データ取得）
@@ -272,13 +274,20 @@ const Adrastea: React.FC = () => {
             // 既に参加済み
             setJoinedRole(existing.role as 'owner' | 'sub_owner' | 'user' | 'guest');
           } else {
-            // 新規参加
+            // 新規参加: ルームの default_login_role を取得してロール決定
+            const { data: roomData } = await supabase
+              .from('rooms')
+              .select('default_login_role')
+              .eq('id', roomId)
+              .single();
+            const defaultRole = roomData?.default_login_role ?? 'user';
+
             const { data } = await supabase
               .from('room_members')
               .insert({
                 room_id: roomId,
                 user_id: user.uid,
-                role: 'user',
+                role: defaultRole,
                 joined_at: Date.now(),
               })
               .select('role')

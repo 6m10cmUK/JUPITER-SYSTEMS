@@ -75,7 +75,7 @@ export function ScenarioTextDockPanel() {
         const items = ctx.scenarioTexts.filter(t => ids.includes(t.id));
         items.forEach(t => {
           ctx.addScenarioText({
-            title: generateDuplicateName(t.title),
+            title: generateDuplicateName(t.title, ctx.scenarioTexts.map(s => s.title)),
             content: t.content,
             speaker_character_id: t.speaker_character_id,
             speaker_name: t.speaker_name,
@@ -89,7 +89,7 @@ export function ScenarioTextDockPanel() {
           const parsed = JSON.parse(text);
           if (parsed?.kind === 'scenario_text' && parsed.data) {
             await ctx.addScenarioText({
-              title: parsed.data.title ? generateDuplicateName(parsed.data.title) : '新規テキストメモ',
+              title: parsed.data.title ? generateDuplicateName(parsed.data.title, ctx.scenarioTexts.map(s => s.title)) : '新規テキストメモ',
               content: parsed.data.content ?? '',
               speaker_character_id: parsed.data.speaker_character_id ?? null,
               speaker_name: parsed.data.speaker_name ?? null,
