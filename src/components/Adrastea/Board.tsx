@@ -294,7 +294,7 @@ export const Board = forwardRef<BoardHandle, BoardProps>(function Board({ pieces
 
   useEffect(() => {
     const url = bgImageUrl;
-    const color = bgObject?.background_color ?? 'transparent';
+    const color = (bgObject?.color_enabled && bgObject?.background_color) ? bgObject.background_color : 'transparent';
     const opacity = bgObject?.opacity ?? 1;
     const blur = !!activeScene?.bg_blur;
 

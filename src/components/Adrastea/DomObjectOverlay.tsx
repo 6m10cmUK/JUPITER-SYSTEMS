@@ -787,7 +787,7 @@ const DomPanelObject = memo(function DomPanelObject({
     >
       <div style={{
         width: '100%', height: '100%',
-        backgroundColor: obj.background_color,
+        backgroundColor: obj.color_enabled ? obj.background_color : 'transparent',
         overflow: 'hidden',
       }}>
         {blobSrc ? (
@@ -960,7 +960,7 @@ const DomForegroundObject = memo(function DomForegroundObject({
               });
             }
           }}
-          style={{ width: '100%', height: '100%', backgroundColor: obj.background_color ?? 'transparent', position: 'relative', zIndex: 1 }}
+          style={{ width: '100%', height: '100%', backgroundColor: 'transparent', position: 'relative', zIndex: 1 }}
         >
           {blobSrc && (
             <img src={blobSrc} alt="" style={{ width: '100%', height: '100%', objectFit: obj.image_fit === 'stretch' ? 'fill' : obj.image_fit, display: 'block' }} draggable={false} />
