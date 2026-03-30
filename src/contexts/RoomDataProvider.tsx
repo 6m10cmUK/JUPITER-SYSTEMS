@@ -10,6 +10,7 @@ import { useScenes } from '../hooks/useScenes';
 import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
+import { useAssets, resolveAssetId } from '../hooks/useAssets';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
@@ -132,6 +133,8 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeBgm,
     reorderBgms,
   } = useBgms(roomId);
+
+  const { loading: assetsLoading } = useAssets();
 
   // --- handleSendMessage: sendMessage の wrapper ---
   const handleSendMessage = useCallback(
@@ -265,7 +268,38 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
 
   // --- Loading state aggregate ---
-  const dataReady = !roomLoading && !scenesLoading && !charsLoading && !objectsLoading && !bgmsLoading;
+  const [imagesReady, setImagesReady] = useState(false);
+  const dataQueryReady = !roomLoading && !scenesLoading && !charsLoading && !objectsLoading && !bgmsLoading && !assetsLoading;
+
+  // アクティブシーンの bg/fg 画像フェッチ完了を待つ
+  useEffect(() => {
+    if (!dataQueryReady || imagesReady) return;
+
+    // アクティブシーンの背景/前景オブジェクトの画像を先にfetch
+    const bgObj = activeObjects.find(o => o.type === 'background');
+    const fgObj = activeObjects.find(o => o.type === 'foreground');
+
+    const urls: string[] = [];
+    if (bgObj?.image_asset_id && !bgObj.color_enabled) {
+      const url = resolveAssetId(bgObj.image_asset_id);
+      if (url) urls.push(url);
+    }
+    if (fgObj?.image_asset_id && !fgObj.color_enabled) {
+      const url = resolveAssetId(fgObj.image_asset_id);
+      if (url) urls.push(url);
+    }
+
+    if (urls.length === 0) {
+      setImagesReady(true);
+      return;
+    }
+
+    // 全画像の fetch 完了を待つ
+    Promise.all(urls.map(url => fetch(url).then(r => r.blob()).catch(() => null)))
+      .then(() => setImagesReady(true));
+  }, [dataQueryReady, imagesReady, activeObjects]);
+
+  const dataReady = dataQueryReady && imagesReady;
 
   // --- Derived values ---
   const activeScene = useMemo(() => {
@@ -438,6 +472,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       guardedReorderBgms,
       activeScene,
       dataReady,
+      imagesReady,
     ]
   );
 
