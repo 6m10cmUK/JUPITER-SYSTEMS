@@ -201,6 +201,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AssetPicker
                 currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
                 onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+                autoTags={['背景']}
               />
             </AdSection>
           )}
@@ -260,6 +261,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   label="画像"
                   currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
                   onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+                  autoTags={['オブジェクト']}
                 />
               </AdSection>
               {(state.image_asset_id as string) && (
@@ -552,6 +554,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                       label="前景画像"
                       currentUrl={ctx.resolveAssetId(state.image_asset_id as string) || null}
                       onSelect={(_url, assetId) => set('image_asset_id', assetId ?? null)}
+                      autoTags={['前景']}
                     />
                   </AdSection>
                   {(state.image_asset_id as string) && (

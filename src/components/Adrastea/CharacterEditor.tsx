@@ -321,6 +321,7 @@ function CharacterEditorComponent({
                     <AssetPicker
                       currentUrl={ctx.resolveAssetId(img.asset_id) || null}
                       onSelect={(_url, assetId) => updateImage(i, 'asset_id', assetId || '')}
+                      autoTags={['キャラクター']}
                     />
                   </div>
                   <button onClick={() => removeImage(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>

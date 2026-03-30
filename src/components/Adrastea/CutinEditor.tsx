@@ -57,6 +57,7 @@ export function CutinEditor({ cutin, roomId: _roomId, onSave, onDelete, onClose 
           label="演出画像"
           currentUrl={ctx.resolveAssetId(imageAssetId) || null}
           onSelect={(_url, assetId) => setImageAssetId(assetId || '')}
+          autoTags={['カットイン']}
         />
       </AdSection>
 

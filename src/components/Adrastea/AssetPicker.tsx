@@ -11,9 +11,10 @@ interface AssetPickerProps {
   currentUrl?: string | null;
   onSelect: (url: string, assetId?: string) => void;
   label?: string;
+  autoTags?: string[];
 }
 
-export function AssetPicker({ currentUrl, onSelect, label }: AssetPickerProps) {
+export function AssetPicker({ currentUrl, onSelect, label, autoTags }: AssetPickerProps) {
   const [showModal, setShowModal] = useState(false);
 
   return (
@@ -78,6 +79,7 @@ export function AssetPicker({ currentUrl, onSelect, label }: AssetPickerProps) {
             setShowModal(false);
           }}
           onClose={() => setShowModal(false)}
+          autoTags={autoTags}
         />
       )}
     </div>
