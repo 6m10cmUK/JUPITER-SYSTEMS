@@ -179,7 +179,7 @@ export function ScenarioTextPanel({
                 isSelected={selectedIds.includes(text.id)}
                 onClick={(e: React.MouseEvent) => handleItemClick(text.id, e)}
               >
-                <Tooltip label={text.speaker_name ? `送信名：${text.speaker_name}` : '送信名：未設定'}>
+                <Tooltip label={text.speaker_name ? `送信名：${text.speaker_name.length > 20 ? text.speaker_name.slice(0, 20) + '…' : text.speaker_name}` : '送信名：未設定'}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '4px', fontSize: '12px' }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.textPrimary, fontWeight: 600 }}>
