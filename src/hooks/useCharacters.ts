@@ -107,7 +107,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   }, [inject, statsData, baseData, statsQuery.loading, baseQuery.loading]);
 
   // useLocalStorageOrder を使用してチャーパネルの並び順を管理
-  const { orderedItems: characters } = useLocalStorageOrder(
+  const { orderedItems: characters, saveOrder: saveCharOrder } = useLocalStorageOrder(
     mergedCharacters,
     `adrastea-char-order-${roomId}`
   );
@@ -349,9 +349,9 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
   // メモ: ここで characters ではなく mergedCharacters を再取得し saveOrder を呼ぶ
   const reorderCharacters = useCallback(
     (orderedIds: string[]): void => {
-      localStorage.setItem(`adrastea-char-order-${roomId}`, JSON.stringify(orderedIds));
+      saveCharOrder(orderedIds);
     },
-    [roomId]
+    [saveCharOrder]
   );
 
   const reorderLayerCharacters = useCallback(

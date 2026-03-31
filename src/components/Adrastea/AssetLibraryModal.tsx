@@ -187,8 +187,15 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
     return true;
   });
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
   const handleUpload = useCallback(
     async (file: File) => {
+      if (file.size > MAX_FILE_SIZE) {
+        ctx.showToast(`ファイルサイズが大きすぎます（${(file.size / 1024 / 1024).toFixed(1)}MB / 上限5MB）`, 'error');
+        onClose();
+        return;
+      }
       setUploading(true);
       try {
         let result: Asset | null = null;

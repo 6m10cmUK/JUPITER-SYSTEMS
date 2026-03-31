@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { Trash2, Plus, Eye, EyeOff, Copy } from 'lucide-react';
-import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
@@ -64,12 +63,31 @@ export function CharacterPanel({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !onReorderCharacters) return;
-    const oldIndex = filteredCharacters.findIndex(c => c.id === active.id);
-    const newIndex = filteredCharacters.findIndex(c => c.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(filteredCharacters, oldIndex, newIndex);
-    onReorderCharacters(reordered.map(c => c.id));
-  }, [filteredCharacters, onReorderCharacters]);
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 複数選択中なら選択アイテム全部、そうでなければドラッグしたもの1つ
+    const dragIds = selectedCharIds.includes(activeId) && selectedCharIds.length > 1
+      ? selectedCharIds
+      : [activeId];
+    const dragSet = new Set(dragIds);
+    if (dragSet.has(overId)) return;
+
+    // ドラッグ対象を除外した残りリスト
+    const rest = filteredCharacters.filter(item => !dragSet.has(item.id));
+    const draggedItems = filteredCharacters.filter(item => dragSet.has(item.id));
+
+    // 挿入位置を計算
+    const activeOrigIdx = filteredCharacters.findIndex(item => item.id === activeId);
+    const overOrigIdx = filteredCharacters.findIndex(item => item.id === overId);
+    const overIdx = rest.findIndex(item => item.id === overId);
+    if (overIdx < 0) return;
+    const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
+
+    rest.splice(insertIdx, 0, ...draggedItems);
+    onReorderCharacters(rest.map(item => item.id));
+  }, [filteredCharacters, selectedCharIds, onReorderCharacters]);
 
   const handleRowClick = useCallback((e: React.MouseEvent, char: Character) => {
     if (e.shiftKey && selectedCharIds.length > 0) {
@@ -163,36 +181,6 @@ export function CharacterPanel({
                 borderRadius: '1px',
                 flexShrink: 0,
               }} />
-            }
-            handleExtra={
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const isSelected = selectedCharIds.includes(char.id);
-                  onSelectedCharIdsChange(
-                    isSelected
-                      ? selectedCharIds.filter(id => id !== char.id)
-                      : [...selectedCharIds, char.id]
-                  );
-                }}
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  border: `1px solid ${theme.textMuted}`,
-                  borderRadius: '2px',
-                  background: selectedCharIds.includes(char.id) ? theme.textMuted : 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: theme.bgBase,
-                  lineHeight: 1,
-                  flexShrink: 0,
-                }}
-              >
-                {selectedCharIds.includes(char.id) && '✓'}
-              </div>
             }
           >
             {/* アバター */}

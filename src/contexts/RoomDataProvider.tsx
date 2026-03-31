@@ -228,6 +228,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     }
   }, [initialLoadDone, objectsLoading, allObjects, addObject, updateObject]);
 
+
   // --- 浮きBGMトラックの自動クリーンアップ ---
   // scenes と bgms の両方がロード完了してから実行（scenes 空状態での誤削除を防ぐ）
   const bgmCleanupDoneRef = useRef(false);

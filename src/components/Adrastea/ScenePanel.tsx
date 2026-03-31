@@ -1,6 +1,5 @@
 
 import { useState, useCallback } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Scene, BgmTrack, BoardObject } from '../../types/adrastea.types';
@@ -50,12 +49,31 @@ export function ScenePanel({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !onReorderScenes) return;
-    const oldIndex = scenes.findIndex(s => s.id === active.id);
-    const newIndex = scenes.findIndex(s => s.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(scenes, oldIndex, newIndex);
-    onReorderScenes(reordered.map(s => s.id));
-  }, [scenes, onReorderScenes]);
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 複数選択中なら選択アイテム全部、そうでなければドラッグしたもの1つ
+    const dragIds = selectedSceneIds.includes(activeId) && selectedSceneIds.length > 1
+      ? selectedSceneIds
+      : [activeId];
+    const dragSet = new Set(dragIds);
+    if (dragSet.has(overId)) return;
+
+    // ドラッグ対象を除外した残りリスト
+    const rest = scenes.filter(item => !dragSet.has(item.id));
+    const draggedItems = scenes.filter(item => dragSet.has(item.id));
+
+    // 挿入位置を計算
+    const activeOrigIdx = scenes.findIndex(item => item.id === activeId);
+    const overOrigIdx = scenes.findIndex(item => item.id === overId);
+    const overIdx = rest.findIndex(item => item.id === overId);
+    if (overIdx < 0) return;
+    const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
+
+    rest.splice(insertIdx, 0, ...draggedItems);
+    onReorderScenes(rest.map(item => item.id));
+  }, [scenes, selectedSceneIds, onReorderScenes]);
 
   const startEdit = (scene: Scene) => {
     setEditingId(scene.id);
@@ -207,34 +225,6 @@ export function ScenePanel({
           isActive={activeSceneId === scene.id}
           isSelected={isSelected}
           onClick={(e) => handleRowClick(e, scene)}
-          handleExtra={
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                onSelectedSceneIdsChange(
-                  isSelected
-                    ? selectedSceneIds.filter(id => id !== scene.id)
-                    : [...selectedSceneIds, scene.id]
-                );
-              }}
-              style={{
-                width: '12px',
-                height: '12px',
-                border: `1px solid ${theme.textMuted}`,
-                borderRadius: '2px',
-                background: isSelected ? theme.textMuted : 'transparent',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '10px',
-                color: theme.bgBase,
-                lineHeight: 1,
-              }}
-            >
-              {isSelected && '✓'}
-            </div>
-          }
         >
           <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '0px' }}>
             {/* サムネイル: 斜め分割（左2/3 前景、右1/3 背景） */}
