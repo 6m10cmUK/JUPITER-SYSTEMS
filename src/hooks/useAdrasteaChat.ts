@@ -42,6 +42,49 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
 
   const loading = inject ? false : messagesQuery.loading;
 
+  // 秘密ダイス Broadcast 送信用チャネル ref
+  const broadcastChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+
+  // 秘密ダイス Broadcast 購読（他ユーザーの秘密ダイス通知を受信）
+  useEffect(() => {
+    if (inject) return;
+    const channel = supabase.channel(`room:${roomId}:broadcast`);
+    broadcastChannelRef.current = channel;
+    channel.on('broadcast', { event: 'secret_dice' }, (payload) => {
+      const p = payload.payload as {
+        message_id: string;
+        sender_name: string;
+        sender_uid: string;
+        sender_avatar_asset_id: string | null;
+        channel?: string;
+        created_at: number;
+      };
+      // 自分が送信者なら無視（既にローカルに結果がある）
+      if (p.sender_uid === user?.uid) return;
+      // ダミーメッセージをローカル state に追加
+      const dummyMsg: ChatMessage = {
+        id: p.message_id,
+        room_id: roomId,
+        sender_name: p.sender_name,
+        sender_uid: p.sender_uid,
+        sender_avatar_asset_id: p.sender_avatar_asset_id,
+        content: 'シークレットダイス',
+        message_type: 'secret_dice',
+        channel: p.channel,
+        created_at: p.created_at,
+      };
+      messagesQuery.setData((prev) => {
+        if (prev.some((m) => m.id === p.message_id)) return prev;
+        return [...prev, dummyMsg];
+      });
+    });
+    channel.subscribe();
+    return () => {
+      broadcastChannelRef.current = null;
+      supabase.removeChannel(channel);
+    };
+  }, [roomId, inject, user?.uid, messagesQuery]);
+
   // ローカルキャッシュ: Supabase から消えたメッセージも保持（archive 対策）
   const localCacheRef = useRef<Map<string, ChatMessage>>(new Map());
   // D1 から取得した過去ログ
@@ -115,37 +158,18 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
       try {
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
-        let finalAllowedUserIds = allowedUserIds;
-        const messagesToInsert: ChatMessage[] = [];
+        let isSecret = false;
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
           const color = (result.success) ? '#4a90d9' : '#e05555';
           finalContent = `${content} <color=${color}>${result.text}</color>`;
-          finalType = 'dice';
-
-          // 秘密ダイスの場合、全員向け通知と送信者向け結果の2メッセージをバッチ送信
-          if (result.isSecret && senderUid) {
-            // 1. 全員向け通知メッセージ（allowed_user_ids なし）
-            messagesToInsert.push({
-              id: genId(),
-              room_id: roomId,
-              sender_name: senderName,
-              content: 'シークレットダイス',
-              message_type: 'secret_dice_notification' as const,
-              sender_uid: senderUid,
-              sender_avatar_asset_id: senderAvatarAssetId,
-              channel,
-              created_at: Date.now(),
-            } as ChatMessage);
-
-            // 2. 送信者のみ向け結果メッセージ
-            finalAllowedUserIds = [senderUid];
-          }
+          finalType = result.isSecret ? 'secret_dice' : 'dice';
+          isSecret = result.isSecret;
         }
 
         const id = genId();
-        const mainMessage: ChatMessage = {
+        const msg: ChatMessage = {
           id,
           room_id: roomId,
           sender_name: senderName,
@@ -154,34 +178,29 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_uid: senderUid,
           sender_avatar_asset_id: senderAvatarAssetId,
           channel,
-          allowed_user_ids: finalAllowedUserIds,
           created_at: Date.now(),
         };
-        messagesToInsert.push({
-          id,
-          room_id: roomId,
-          sender_name: senderName,
-          content: finalContent,
-          message_type: finalType,
-          sender_uid: senderUid,
-          sender_avatar_asset_id: senderAvatarAssetId,
-          channel,
-          allowed_user_ids: finalAllowedUserIds,
-          created_at: Date.now(),
-        } as ChatMessage);
 
-        // 秘密ダイス時は2メッセージをアトミックに送信する必要があるため Supabase 直接
-        if (messagesToInsert.length > 1) {
-          const { error } = await supabase.from('messages').insert(messagesToInsert);
-          if (error) throw error;
-          // 全メッセージをローカル state に追加（Realtime の重複受信を防ぐ）
-          messagesQuery.setData(prev => [...prev, ...messagesToInsert]);
-        } else {
-          // 通常メッセージは楽観的更新を使用
-          await chatMutation.insert(mainMessage);
+        // 楽観的更新でローカルに追加（送信者は結果が見える）
+        await chatMutation.insert(msg);
+
+        // 秘密ダイス: 他ユーザーに通知（content なし）
+        if (isSecret && senderUid && broadcastChannelRef.current) {
+          broadcastChannelRef.current.send({
+            type: 'broadcast',
+            event: 'secret_dice',
+            payload: {
+              message_id: id,
+              sender_name: senderName,
+              sender_uid: senderUid,
+              sender_avatar_asset_id: senderAvatarAssetId,
+              channel,
+              created_at: msg.created_at,
+            },
+          });
         }
 
-        return mainMessage;
+        return msg;
       } catch (error) {
         console.error('メッセージ送信失敗:', error);
         return null;
@@ -285,16 +304,15 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
   const openSecretDice = useCallback(
     async (messageId: string) => {
       try {
-        // 楽観的更新: allowed_user_ids を空配列に（null ではなく全員に公開）
+        // 楽観的更新: message_type を 'dice' に変更（全ユーザーに公開）
         messagesQuery.setData((prev) =>
           prev.map((msg) =>
-            msg.id === messageId ? { ...msg, allowed_user_ids: undefined } : msg
+            msg.id === messageId ? { ...msg, message_type: 'dice' as const } : msg
           )
         );
 
-        const { error } = await supabase.from('messages').update({ allowed_user_ids: null }).eq('id', messageId);
+        const { error } = await supabase.from('messages').update({ message_type: 'dice' }).eq('id', messageId);
         if (error) {
-          // ロールバック（エラー時）
           location.reload();
           throw error;
         }

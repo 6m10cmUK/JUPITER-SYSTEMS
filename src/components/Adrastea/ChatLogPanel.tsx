@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { theme } from '../../styles/theme';
-import { Trash2, MoreVertical, Plus, Download } from 'lucide-react';
+import { Trash2, MoreVertical, Plus, Download, MessageSquareShare } from 'lucide-react';
 import type { ChatMessage, Character, ChatChannel } from '../../types/adrastea.types';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -493,8 +493,6 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
   const filteredMessages = useMemo(
     () => messages.filter(m => {
       if ((m.channel ?? 'main') !== activeChatChannel) return false;
-      // 送信者自身の秘密ダイス通知を非表示（結果メッセージだけ表示）
-      if (m.message_type === 'secret_dice_notification' && m.sender_uid === user?.uid) return false;
       return true;
     }),
     [messages, activeChatChannel, user?.uid]
@@ -665,9 +663,9 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       );
     }
 
-    if (msg.message_type === 'dice') {
+    if (msg.message_type === 'dice' || msg.message_type === 'secret_dice') {
       const accent = getDiceAccentColor(msg.content);
-      const isSecretDice = msg.allowed_user_ids && msg.allowed_user_ids.length > 0;
+      const isSecretDice = msg.message_type === 'secret_dice';
       const isSender = user?.uid === msg.sender_uid;
       const canOpen = isSecretDice && isSender;
 
@@ -692,35 +690,37 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 {formatTime(msg.created_at)}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
-              <div style={{ color: theme.textPrimary, fontSize: '12px', flex: 1 }}>
+            <div style={{ marginTop: '1px', position: 'relative' }}>
+              <div style={{ color: theme.textPrimary, fontSize: '12px' }}>
                 {parseContent(msg.content)}
               </div>
               {canOpen && onOpenSecretDice && (
-                <button
-                  type="button"
-                  onClick={() => onOpenSecretDice(msg.id)}
-                  style={{
-                    padding: '2px 6px',
-                    fontSize: '10px',
-                    fontWeight: 500,
-                    color: theme.textPrimary,
-                    background: theme.bgInput,
-                    border: `1px solid ${theme.border}`,
-                    borderRadius: '3px',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = theme.bgHover ?? theme.bgInput;
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = theme.bgInput;
-                  }}
-                >
-                  オープン
-                </button>
+                <Tooltip text="メッセージを公開">
+                  <button
+                    type="button"
+                    onClick={() => onOpenSecretDice(msg.id)}
+                    style={{
+                      position: 'absolute',
+                      top: '-14px',
+                      right: 0,
+                      padding: '2px',
+                      color: theme.textMuted,
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color = theme.textPrimary;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.color = theme.textMuted;
+                    }}
+                  >
+                    <MessageSquareShare size={13} />
+                  </button>
+                </Tooltip>
               )}
             </div>
           </div>
