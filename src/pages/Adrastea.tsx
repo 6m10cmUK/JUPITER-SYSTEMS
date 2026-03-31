@@ -497,10 +497,6 @@ const Adrastea: React.FC = () => {
     const handleCompleteOnboarding = async () => {
       try {
         await supabase.auth.updateUser({ data: { onboarded: true } });
-        await supabase
-          .from('users')
-          .update({ onboarded: true })
-          .eq('id', user?.uid ?? '');
       } catch (err) {
         console.error('Failed to complete onboarding:', err);
       }
