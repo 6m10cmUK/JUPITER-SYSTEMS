@@ -8,7 +8,7 @@ import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
 import { FadeInIcon } from './ui/FadeInIcon';
 import type { BgmTrack } from '../../types/adrastea.types';
 import {
-  Play, Pause, Square, Trash2, Plus, Music,
+  Trash2, Plus, Music,
   Volume2, VolumeX, Repeat, Zap,
 } from 'lucide-react';
 import { AssetLibraryModal } from './AssetLibraryModal';
@@ -42,7 +42,16 @@ const normalizeAudioUrl = (url: string): string => {
 
 // --- Volume Fader (OBS-style) ---
 function VolumeFader({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const pct = Math.round(value * 100);
+  const [dragging, setDragging] = useState(false);
+  const [localValue, setLocalValue] = useState(value);
+
+  // 外部から value が変わったら（ドラッグ中でなければ）ローカルに反映
+  useEffect(() => {
+    if (!dragging) setLocalValue(value);
+  }, [value, dragging]);
+
+  const displayValue = dragging ? localValue : value;
+  const pct = Math.round(displayValue * 100);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '16px' }}>
@@ -69,8 +78,10 @@ function VolumeFader({ value, onChange }: { value: number; onChange: (v: number)
       <input
         type="range"
         min="0" max="1" step="0.01"
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
+        value={displayValue}
+        onChange={(e) => setLocalValue(Number(e.target.value))}
+        onMouseDown={() => setDragging(true)}
+        onMouseUp={() => { setDragging(false); onChange(localValue); }}
         style={{
           position: 'absolute', inset: 0,
           width: '100%', height: '100%',
@@ -162,32 +173,36 @@ function BgmTrackRow({
           marginBottom: '4px', fontSize: '12px',
         }}>
           {/* Play/Pause */}
-          <button
-            style={{ ...iconBtn, color: track.is_playing && !track.is_paused ? theme.accent : theme.textSecondary }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!track.is_playing) {
-                onUpdate(track.id, { is_playing: true, is_paused: false });
-              } else if (track.is_paused) {
-                onUpdate(track.id, { is_paused: false });
-              } else {
-                onUpdate(track.id, { is_paused: true });
-              }
-            }}
-            title={track.is_playing && !track.is_paused ? '一時停止' : '再生'}
-          >
-            {track.is_playing && !track.is_paused ? <Pause size={15} /> : <Play size={15} />}
-          </button>
+          <Tooltip label={track.is_playing && !track.is_paused ? '一時停止' : '再生'}>
+            <button
+              style={{ ...iconBtn, color: track.is_playing && !track.is_paused ? theme.accent : theme.textSecondary }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!track.is_playing) {
+                  onUpdate(track.id, { is_playing: true, is_paused: false });
+                } else if (track.is_paused) {
+                  onUpdate(track.id, { is_paused: false });
+                } else {
+                  onUpdate(track.id, { is_paused: true });
+                }
+              }}
+            >
+              {track.is_playing && !track.is_paused
+                ? <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="5" height="18" rx="1" /><rect x="14" y="3" width="5" height="18" rx="1" /></svg>
+                : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3v18l15-9z" /></svg>}
+            </button>
+          </Tooltip>
 
           {/* Stop */}
-          <button
-            style={{ ...iconBtn, color: !track.is_playing ? theme.accent : theme.textSecondary }}
-            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { is_playing: false, is_paused: false }); }}
-            title="停止"
-            disabled={!track.is_playing}
-          >
-            <Square size={13} />
-          </button>
+          <Tooltip label="停止">
+            <button
+              style={{ ...iconBtn, color: !track.is_playing ? theme.accent : theme.textSecondary }}
+              onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { is_playing: false, is_paused: false }); }}
+              disabled={!track.is_playing}
+            >
+              <div style={{ width: 11, height: 11, background: 'currentColor', borderRadius: 1 }} />
+            </button>
+          </Tooltip>
 
           {/* Track name */}
           {renamingId === track.id ? (
@@ -221,54 +236,58 @@ function BgmTrackRow({
             </span>
           )}
 
-          <button
-            title="自動再生"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!currentSceneId) return;
-              const isAuto = track.auto_play_scene_ids.includes(currentSceneId);
-              onUpdate(track.id, {
-                auto_play_scene_ids: isAuto
-                  ? track.auto_play_scene_ids.filter(id => id !== currentSceneId)
-                  : [...track.auto_play_scene_ids, currentSceneId],
-              });
-            }}
-            style={{ ...iconBtn, color: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? theme.accent : theme.textMuted, opacity: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? 1 : 0.3 }}
-          >
-            <Zap size={13} />
-          </button>
-          <button
-            title="ループ"
-            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { bgm_loop: !track.bgm_loop }); }}
-            style={{ ...iconBtn, color: track.bgm_loop ? theme.accent : theme.textMuted, opacity: track.bgm_loop ? 1 : 0.3 }}
-          >
-            <Repeat size={13} />
-          </button>
-          <button
-            title={track.fade_in ? `フェードイン ${track.fade_in_duration}ms` : 'フェードインなし'}
-            onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { fade_in: !track.fade_in }); }}
-            style={{ ...iconBtn, color: track.fade_in ? theme.accent : theme.textMuted, opacity: track.fade_in ? 1 : 0.3 }}
-          >
-            <FadeInIcon size={18} />
-          </button>
+          <Tooltip label="自動再生">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!currentSceneId) return;
+                const isAuto = track.auto_play_scene_ids.includes(currentSceneId);
+                onUpdate(track.id, {
+                  auto_play_scene_ids: isAuto
+                    ? track.auto_play_scene_ids.filter(id => id !== currentSceneId)
+                    : [...track.auto_play_scene_ids, currentSceneId],
+                });
+              }}
+              style={{ ...iconBtn, color: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? theme.accent : theme.textMuted, opacity: currentSceneId && track.auto_play_scene_ids.includes(currentSceneId) ? 1 : 0.3 }}
+            >
+              <Zap size={13} />
+            </button>
+          </Tooltip>
+          <Tooltip label="ループ">
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { bgm_loop: !track.bgm_loop }); }}
+              style={{ ...iconBtn, color: track.bgm_loop ? theme.accent : theme.textMuted, opacity: track.bgm_loop ? 1 : 0.3 }}
+            >
+              <Repeat size={13} />
+            </button>
+          </Tooltip>
+          <Tooltip label={track.fade_in ? `フェードイン ${track.fade_in_duration}ms` : 'フェードインなし'}>
+            <button
+              onClick={(e) => { e.stopPropagation(); onUpdate(track.id, { fade_in: !track.fade_in }); }}
+              style={{ ...iconBtn, color: track.fade_in ? theme.accent : theme.textMuted, opacity: track.fade_in ? 1 : 0.3 }}
+            >
+              <FadeInIcon size={18} />
+            </button>
+          </Tooltip>
         </div>
 
         {/* Fader row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <button
-            style={{
-              ...iconBtn,
-              color: localMuted ? theme.danger : theme.textSecondary,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              setLocalMuted(!localMuted);
-              onUpdate(track.id, { bgm_volume: localMuted ? track.bgm_volume : 0 });
-            }}
-            title={localMuted ? 'ミュート解除' : 'ミュート'}
-          >
-            {localMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-          </button>
+          <Tooltip label={localMuted ? 'ミュート解除' : 'ミュート'}>
+            <button
+              style={{
+                ...iconBtn,
+                color: localMuted ? theme.danger : theme.textSecondary,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setLocalMuted(!localMuted);
+                onUpdate(track.id, { bgm_volume: localMuted ? track.bgm_volume : 0 });
+              }}
+            >
+              {localMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+            </button>
+          </Tooltip>
 
           <div style={{ flex: 1 }}>
             <VolumeFader
@@ -482,8 +501,9 @@ export function BgmPanel() {
     }
 
     if (isYoutube) {
-      let title = assetTitle || videoId;
-      if (!assetTitle) {
+      const validTitle = assetTitle && assetTitle !== 'watch' ? assetTitle : null;
+      let title = validTitle || videoId;
+      if (!validTitle) {
         try {
           const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`);
           const data = await res.json();
@@ -511,7 +531,7 @@ export function BgmPanel() {
       <SortableListPanel
         title="BGM"
         subtitle={activeScene?.name}
-        titleIcon={<span title="BGM"><Music size={14} /></span>}
+        titleIcon={<Tooltip label="BGM"><Music size={14} /></Tooltip>}
         onBackgroundClick={() => {
           setEditingBgmId(null);
           setPanelSelection(null);
@@ -529,7 +549,9 @@ export function BgmPanel() {
                   opacity: localBgms.length === 0 ? 0.3 : 1,
                 }}
               >
-                {hasPlaying ? <Pause size={15} /> : <Play size={15} />}
+                {hasPlaying
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="3" width="5" height="18" rx="1" /><rect x="14" y="3" width="5" height="18" rx="1" /></svg>
+                  : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3v18l15-9z" /></svg>}
               </button>
             </Tooltip>
             <Tooltip label="全て停止">
@@ -543,7 +565,7 @@ export function BgmPanel() {
                   opacity: localBgms.length === 0 ? 0.3 : 1,
                 }}
               >
-                <Square size={13} />
+                <div style={{ width: 11, height: 11, background: 'currentColor', borderRadius: 1 }} />
               </button>
             </Tooltip>
             <div style={{ width: '1px', height: '14px', background: theme.border, margin: '0 2px', flexShrink: 0 }} />
