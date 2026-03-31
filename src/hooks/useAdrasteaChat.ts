@@ -174,14 +174,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         if (messagesToInsert.length > 1) {
           const { error } = await supabase.from('messages').insert(messagesToInsert);
           if (error) throw error;
-          // 楽観的にローカル state に追加（DB には既に INSERT 済み）
-          // 送信者には結果メッセージだけ表示（「シークレットダイス」通知は Realtime で他ユーザーに届く）
-          const visibleMsgs = messagesToInsert.filter(msg =>
-            msg.allowed_user_ids && msg.allowed_user_ids.length > 0 && msg.allowed_user_ids.includes(senderUid ?? '')
-          );
-          if (visibleMsgs.length > 0) {
-            messagesQuery.setData(prev => [...prev, ...visibleMsgs]);
-          }
+          // 全メッセージをローカル state に追加（Realtime の重複受信を防ぐ）
+          messagesQuery.setData(prev => [...prev, ...messagesToInsert]);
         } else {
           // 通常メッセージは楽観的更新を使用
           await chatMutation.insert(mainMessage);

@@ -491,8 +491,13 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
 
   // アクティブチャンネルでメッセージをフィルタ
   const filteredMessages = useMemo(
-    () => messages.filter(m => (m.channel ?? 'main') === activeChatChannel),
-    [messages, activeChatChannel]
+    () => messages.filter(m => {
+      if ((m.channel ?? 'main') !== activeChatChannel) return false;
+      // 送信者自身の秘密ダイス通知を非表示（結果メッセージだけ表示）
+      if (m.content === 'シークレットダイス' && m.sender_uid === user?.uid) return false;
+      return true;
+    }),
+    [messages, activeChatChannel, user?.uid]
   );
 
   // 未読チャンネルを検出
