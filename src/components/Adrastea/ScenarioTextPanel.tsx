@@ -1,5 +1,4 @@
 import { useCallback, useState, useEffect } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { Plus, Send, Trash2, Copy } from 'lucide-react';
 import { theme } from '../../styles/theme';
@@ -44,12 +43,31 @@ export function ScenarioTextPanel({
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !onReorderTexts) return;
-    const oldIndex = texts.findIndex(t => t.id === active.id);
-    const newIndex = texts.findIndex(t => t.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(texts, oldIndex, newIndex);
-    onReorderTexts(reordered.map(t => t.id));
-  }, [texts, onReorderTexts]);
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 複数選択中なら選択アイテム全部、そうでなければドラッグしたもの1つ
+    const dragIds = selectedIds.includes(activeId) && selectedIds.length > 1
+      ? selectedIds
+      : [activeId];
+    const dragSet = new Set(dragIds);
+    if (dragSet.has(overId)) return;
+
+    // ドラッグ対象を除外した残りリスト
+    const rest = texts.filter(item => !dragSet.has(item.id));
+    const draggedItems = texts.filter(item => dragSet.has(item.id));
+
+    // 挿入位置を計算
+    const activeOrigIdx = texts.findIndex(item => item.id === activeId);
+    const overOrigIdx = texts.findIndex(item => item.id === overId);
+    const overIdx = rest.findIndex(item => item.id === overId);
+    if (overIdx < 0) return;
+    const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
+
+    rest.splice(insertIdx, 0, ...draggedItems);
+    onReorderTexts(rest.map(item => item.id));
+  }, [texts, selectedIds, onReorderTexts]);
 
   const handleItemClick = useCallback((textId: string, e: React.MouseEvent) => {
     if (e.shiftKey && selectedIds.length > 0) {
@@ -160,36 +178,6 @@ export function ScenarioTextPanel({
                 id={text.id}
                 isSelected={selectedIds.includes(text.id)}
                 onClick={(e: React.MouseEvent) => handleItemClick(text.id, e)}
-                handleExtra={
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const isSelected = selectedIds.includes(text.id);
-                      onSelectIds(
-                        isSelected
-                          ? selectedIds.filter(id => id !== text.id)
-                          : [...selectedIds, text.id]
-                      );
-                    }}
-                    style={{
-                      width: '12px',
-                      height: '12px',
-                      border: `1px solid ${theme.textMuted}`,
-                      borderRadius: '2px',
-                      background: selectedIds.includes(text.id) ? theme.textMuted : 'transparent',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      color: theme.bgBase,
-                      lineHeight: 1,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {selectedIds.includes(text.id) && '✓'}
-                  </div>
-                }
               >
                 <Tooltip label={text.speaker_name ? `送信名：${text.speaker_name}` : '送信名：未設定'}>
                 <div style={{ flex: 1, minWidth: 0 }}>

@@ -118,12 +118,12 @@ export function ObjectLayerList({
 
     if (dragSet.has(overId)) return;
 
-    // background のみ固定。characters_layer は他と同様に並び替え可能
+    // background のみ完全固定（最下、DnD不可、ドロップ先にもならない）
+    // foreground / characters_layer は DnD 不可だがドロップ先にはなる（オブジェクトがその上下に入れる）
     const allMovable = sortedObjects.filter(o => o.type !== 'background');
     const draggedItems = allMovable.filter(o => dragSet.has(o.id));
     const rest = allMovable.filter(o => !dragSet.has(o.id));
 
-    // background の上にドロップした場合は無視
     const overObj = sortedObjects.find(o => o.id === overId);
     if (overObj?.type === 'background') return;
     const overIdx = rest.findIndex(o => o.id === overId);
@@ -135,23 +135,25 @@ export function ObjectLayerList({
 
     rest.splice(insertIdx, 0, ...draggedItems);
 
-    // グローバルなsort_orderを振り直す（リスト表示は降順なので末尾ほどsort_order大=前面）
-    const maxOrder = rest.length - 1;
-    const overrideMap = new Map<string, number>();
-    rest.forEach((o, i) => overrideMap.set(o.id, maxOrder - i));
-    setLocalOrderOverride(overrideMap);
+    // sort_order 振り直し: background=0 固定、残りは 1~N
+    const bg = sortedObjects.find(o => o.type === 'background');
 
-    // 一括バッチ更新（パスは全て rooms/{roomId}/objects）
     const updates: { id: string; sort: number }[] = [];
+    const overrideMap = new Map<string, number>();
+
+    if (bg) { overrideMap.set(bg.id, 0); if (bg.sort_order !== 0) updates.push({ id: bg.id, sort: 0 }); }
+
+    const maxOrder = rest.length;
     rest.forEach((o, i) => {
       const newOrder = maxOrder - i;
-      if (o.sort_order !== newOrder) {
-        updates.push({ id: o.id, sort: newOrder });
-      }
+      overrideMap.set(o.id, newOrder);
+      if (o.sort_order !== newOrder) updates.push({ id: o.id, sort: newOrder });
     });
+
+    setLocalOrderOverride(overrideMap);
+
     if (updates.length > 0) {
       batchUpdateSort(updates);
-      // localOrderOverride は activeObjects 更新時の useEffect でクリアされる
     }
   }, [selectedObjectIds, sortedObjects, batchUpdateSort]);
 
@@ -373,7 +375,7 @@ export function ObjectLayerList({
       onDragEnd={handleDragEnd}
       emptyMessage="オブジェクトがありません"
     >
-      <SortableContext items={sortedObjects.map(o => o.id)} strategy={verticalListSortingStrategy}>
+      <SortableContext items={sortedObjects.filter(o => o.type !== 'background').map(o => o.id)} strategy={verticalListSortingStrategy}>
       {sortedObjects.map((obj) => {
         const isSelected = obj.type !== 'characters_layer' && selectedObjectIds.includes(obj.id);
         const isDragGroupMember = activeDragId != null
@@ -388,7 +390,7 @@ export function ObjectLayerList({
             <SortableListItem
               key={obj.id}
               id={obj.id}
-              hideHandle
+              disabled
               isSelected={false}
               itemStyle={{ padding: 0 }}
             >
@@ -404,8 +406,7 @@ export function ObjectLayerList({
             key={obj.id}
             id={obj.id}
             dataAttributes={{ 'data-obj-id': obj.id }}
-            disabled={obj.type === 'background'}
-            hideHandle={obj.type === 'foreground'}
+            disabled={obj.type === 'background' || obj.type === 'foreground'}
             isSelected={isSelected}
             isGroupDrag={isDragGroupMember}
             onClick={(e) => handleRowClick(e, obj)}
@@ -415,36 +416,6 @@ export function ObjectLayerList({
                 : undefined
             }
           >
-            {obj.type !== 'background' && obj.type !== 'foreground' && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (isSelected) {
-                    setSelectedObjectIds(prev => prev.filter(id => id !== obj.id));
-                  } else {
-                    setSelectedObjectIds(prev => [...prev, obj.id]);
-                    setEditingObjectId(obj.id);
-                  }
-                }}
-                style={{
-                  flexShrink: 0,
-                  width: '12px',
-                  height: '12px',
-                  border: `1px solid ${theme.textMuted}`,
-                  borderRadius: '2px',
-                  background: isSelected ? theme.textMuted : 'transparent',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '10px',
-                  color: theme.bgBase,
-                  lineHeight: 1,
-                }}
-              >
-                {isSelected && '✓'}
-              </div>
-            )}
             <span style={{
               flexShrink: 0, width: '20px', height: '20px',
               display: 'flex', alignItems: 'center', justifyContent: 'center',

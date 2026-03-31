@@ -60,7 +60,11 @@ export function NumberDragInput({
         const dx = moveEvent.clientX - dragStartRef.current.x;
         if (Math.abs(dx) > 2) movedRef.current = true;
         if (movedRef.current) {
-          let newValue = Math.round(dragStartRef.current.startValue + dx * step);
+          const fine = moveEvent.shiftKey;
+          const effectiveStep = fine ? step * 0.01 : step;
+          let newValue = fine
+            ? Math.round((dragStartRef.current.startValue + dx * effectiveStep) * 100) / 100
+            : Math.round(dragStartRef.current.startValue + dx * effectiveStep);
           if (relativeRange !== undefined) {
             const lo = dragStartRef.current.startValue - relativeRange;
             const hi = dragStartRef.current.startValue + relativeRange;

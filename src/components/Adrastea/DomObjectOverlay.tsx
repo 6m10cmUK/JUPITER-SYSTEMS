@@ -44,8 +44,9 @@ export function colorToDataUrl(color: string): string {
   return `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="${color}"/></svg>`)}`;
 }
 
-function snapToGrid(val: number): number {
-  return Math.round(val / GRID_SIZE) * GRID_SIZE;
+function snapToGrid(val: number, fine = false): number {
+  const snap = fine ? GRID_SIZE * 0.01 : GRID_SIZE;
+  return Math.round(val / snap) * snap;
 }
 
 interface Edge { top: boolean; bottom: boolean; left: boolean; right: boolean }
@@ -416,7 +417,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         el.style.height = `${newH}px`;
       };
 
-      const onPointerUp = () => {
+      const onPointerUp = (upEvent: PointerEvent) => {
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
         if (stage?.draggable) stage.draggable(true);
@@ -425,16 +426,16 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         resizeRef.current = null;
         if (!rs || !el) return;
 
-        const finalX = snapToGrid(parseFloat(el.style.left));
-        const finalY = snapToGrid(parseFloat(el.style.top));
-        const finalW = snapToGrid(parseFloat(el.style.width));
-        const finalH = snapToGrid(parseFloat(el.style.height));
+        const fine = upEvent.shiftKey;
+        const round = (v: number) => fine ? Math.round(v * 100) / 100 : Math.round(v);
+        const finalX = snapToGrid(parseFloat(el.style.left), fine);
+        const finalY = snapToGrid(parseFloat(el.style.top), fine);
+        const finalW = snapToGrid(parseFloat(el.style.width), fine);
+        const finalH = snapToGrid(parseFloat(el.style.height), fine);
 
         el.style.left = `${finalX}px`;
         el.style.top = `${finalY}px`;
 
-        // auto_size (extraStyle で width/height が上書きされる) 場合はインラインスタイルをクリア
-        // → React の再レンダーで max-content/auto が適用される
         if (extraStyle?.width || extraStyle?.height) {
           el.style.width = '';
           el.style.height = '';
@@ -443,8 +444,8 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
           el.style.height = `${finalH}px`;
         }
 
-        onMove(obj.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
-        onResize(obj.id, Math.max(1, finalW / GRID_SIZE), Math.max(1, finalH / GRID_SIZE));
+        onMove(obj.id, round(finalX / GRID_SIZE), round(finalY / GRID_SIZE));
+        onResize(obj.id, Math.max(fine ? 0.01 : 1, round(finalW / GRID_SIZE)), Math.max(fine ? 0.01 : 1, round(finalH / GRID_SIZE)));
         setIsInteracting(false);
       };
 
@@ -452,7 +453,22 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
       window.addEventListener('pointermove', onPointerMove);
       window.addEventListener('pointerup', onPointerUp);
     } else if (isDraggable && !obj.position_locked) {
-      // ドラッグ開始
+      // ドラッグ開始 — 選択済みの全オブジェクトを一緒に動かす
+      const selectedIds = ctx.selectedObjectIds ?? [];
+      const isMulti = selectedIds.includes(obj.id) && selectedIds.length > 1;
+      const dragTargets: { id: string; el: HTMLElement; origX: number; origY: number }[] = [];
+
+      if (isMulti) {
+        for (const sid of selectedIds) {
+          const targetEl = document.querySelector(`[data-dom-obj-id="${sid}"]`) as HTMLElement | null;
+          if (targetEl) {
+            dragTargets.push({ id: sid, el: targetEl, origX: parseFloat(targetEl.style.left) || 0, origY: parseFloat(targetEl.style.top) || 0 });
+          }
+        }
+      } else {
+        dragTargets.push({ id: obj.id, el, origX: pxX, origY: pxY });
+      }
+
       dragRef.current = {
         startPointerX: e.clientX / scale,
         startPointerY: e.clientY / scale,
@@ -462,31 +478,35 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
 
       const onPointerMove = (me: PointerEvent) => {
         const ds = dragRef.current;
-        if (!ds || !el) return;
+        if (!ds) return;
         const currentScale = stage?.scaleX?.() ?? 1;
-        const curX = me.clientX / currentScale;
-        const curY = me.clientY / currentScale;
-        const dx = curX - ds.startPointerX;
-        const dy = curY - ds.startPointerY;
+        const dx = me.clientX / currentScale - ds.startPointerX;
+        const dy = me.clientY / currentScale - ds.startPointerY;
 
-        el.style.left = `${ds.origPxX + dx}px`;
-        el.style.top = `${ds.origPxY + dy}px`;
+        for (const t of dragTargets) {
+          t.el.style.left = `${t.origX + dx}px`;
+          t.el.style.top = `${t.origY + dy}px`;
+        }
       };
 
-      const onPointerUp = () => {
+      const onPointerUp = (upEvent: PointerEvent) => {
         window.removeEventListener('pointermove', onPointerMove);
         window.removeEventListener('pointerup', onPointerUp);
 
         const ds = dragRef.current;
         dragRef.current = null;
-        if (!ds || !el) return;
+        if (!ds) return;
 
-        const finalX = snapToGrid(parseFloat(el.style.left));
-        const finalY = snapToGrid(parseFloat(el.style.top));
-        el.style.left = `${finalX}px`;
-        el.style.top = `${finalY}px`;
+        const fine = upEvent.shiftKey;
+        const round = (v: number) => fine ? Math.round(v * 100) / 100 : Math.round(v);
 
-        onMove(obj.id, finalX / GRID_SIZE, finalY / GRID_SIZE);
+        for (const t of dragTargets) {
+          const finalX = snapToGrid(parseFloat(t.el.style.left), fine);
+          const finalY = snapToGrid(parseFloat(t.el.style.top), fine);
+          t.el.style.left = `${finalX}px`;
+          t.el.style.top = `${finalY}px`;
+          onMove(t.id, round(finalX / GRID_SIZE), round(finalY / GRID_SIZE));
+        }
         setIsInteracting(false);
       };
 
@@ -579,6 +599,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
         onOpenChange={(open) => { if (!open) setContextMenuPos(null); }}
         position={contextMenuPos ?? { x: 0, y: 0 }}
         items={ctxMenuItems}
+        footer={obj.type !== 'foreground' && obj.type !== 'background' ? 'Shift+ドラッグで微調整' : undefined}
       />
       {confirmModal}
     </div>

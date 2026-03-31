@@ -18,7 +18,6 @@ import {
   useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical } from 'lucide-react';
 import { theme } from '../../../styles/theme';
 
 // --- SortableListPanel ---
@@ -149,15 +148,14 @@ export function SortableListPanel({
             if (sortableEl) {
               setDraggedHtml(sortableEl.outerHTML);
             }
-            // 掴んだ位置を計算
+            // 掴んだ位置を計算（DOM の実際の rect を使用）
             const activatorEvent = event.activatorEvent as PointerEvent | null;
-            const initialRect = event.active.rect.current?.initial;
-            if (activatorEvent && initialRect) {
+            const elRect = sortableEl?.getBoundingClientRect();
+            if (activatorEvent && elRect) {
               setGrabOffset({
-                x: activatorEvent.clientX - initialRect.left,
-                y: activatorEvent.clientY - initialRect.top,
+                x: activatorEvent.clientX - elRect.left,
+                y: activatorEvent.clientY - elRect.top,
               });
-              // 初期カーソル位置をセット（pointermove を待たずに overlay 表示）
               setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
             } else {
               setGrabOffset({ x: 16, y: 14 });
@@ -223,13 +221,11 @@ export function SortableListPanel({
 interface SortableListItemProps {
   id: string;
   disabled?: boolean;
-  hideHandle?: boolean;
   isSelected?: boolean;
   isActive?: boolean;
   isGroupDrag?: boolean;
   onClick?: (e: React.MouseEvent) => void;
   onDoubleClick?: (e: React.MouseEvent) => void;
-  handleExtra?: React.ReactNode;
   leadingSlot?: React.ReactNode;
   children: React.ReactNode;
   itemStyle?: React.CSSProperties;
@@ -239,13 +235,11 @@ interface SortableListItemProps {
 export function SortableListItem({
   id,
   disabled,
-  hideHandle,
   isSelected,
   isActive,
   isGroupDrag,
   onClick,
   onDoubleClick,
-  handleExtra,
   leadingSlot,
   children,
   itemStyle,
@@ -255,11 +249,10 @@ export function SortableListItem({
     attributes,
     listeners,
     setNodeRef,
-    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id, disabled });
+  } = useSortable({ id });
 
   // attributes から aria-disabled を除外（DnD disabled ≠ インタラクション disabled）
   const { 'aria-disabled': _ariaDisabled, ...safeAttributes } = attributes;
@@ -290,34 +283,14 @@ export function SortableListItem({
     <div
       data-sortable-item
       ref={setNodeRef}
-      style={style}
+      style={{ ...style, cursor: disabled ? 'default' : 'grab' }}
       {...safeAttributes}
+      {...(!disabled ? listeners : {})}
       {...dataAttributes}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
     >
       {leadingSlot}
-      {!disabled && !hideHandle && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '12px',
-            flexShrink: 0,
-            cursor: disabled ? 'default' : 'grab',
-          }}
-          {...(!disabled ? listeners : {})}
-          ref={!disabled ? setActivatorNodeRef : undefined}
-        >
-          <span
-            style={{ display: 'flex', touchAction: 'none' }}
-          >
-            <GripVertical size={12} color={theme.textMuted} />
-          </span>
-          {handleExtra}
-        </div>
-      )}
       {children}
     </div>
   );

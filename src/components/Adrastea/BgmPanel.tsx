@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { arrayMove } from '@dnd-kit/sortable';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { theme } from '../../styles/theme';
@@ -100,7 +99,6 @@ interface BgmTrackRowProps {
   onClick: (id: string, e: React.MouseEvent) => void;
   onUpdate: (id: string, data: Partial<BgmTrack>) => void;
   onContextMenu?: (e: React.MouseEvent, id: string) => void;
-  onToggleSelect?: (id: string) => void;
   renamingId?: string | null;
   renameValue?: string;
   onRenameChange?: (value: string) => void;
@@ -109,7 +107,7 @@ interface BgmTrackRowProps {
 }
 
 function BgmTrackRow({
-  track, currentSceneId, isSelected, onClick, onUpdate, onContextMenu, onToggleSelect,
+  track, currentSceneId, isSelected, onClick, onUpdate, onContextMenu,
   renamingId, renameValue, onRenameChange, onRenameSubmit, onRenameCancel,
 }: BgmTrackRowProps) {
   const [localMuted, setLocalMuted] = useState(false);
@@ -140,31 +138,6 @@ function BgmTrackRow({
         onClick={(e) => onClick(track.id, e)}
         isSelected={isSelected}
         dataAttributes={{ 'data-track-id': track.id }}
-        handleExtra={
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleSelect?.(track.id);
-            }}
-            style={{
-              width: '12px',
-              height: '12px',
-              border: `1px solid ${theme.textMuted}`,
-              borderRadius: '2px',
-              background: isSelected ? theme.textMuted : 'transparent',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '10px',
-              color: theme.bgBase,
-              lineHeight: 1,
-              flexShrink: 0,
-            }}
-          >
-            {isSelected && '✓'}
-          </div>
-        }
       >
       <div style={{ flex: 1, minWidth: 0 }}>
         {/* Top row: controls */}
@@ -358,26 +331,35 @@ export function BgmPanel() {
     }
   }, [localBgms, panelSelection, clearAllEditing, setEditingBgmId, setPanelSelection]);
 
-  const handleToggleSelect = useCallback((id: string) => {
-    const currentIds = panelSelection?.panel === 'bgm' ? panelSelection.ids : [];
-    const newIds = currentIds.includes(id)
-      ? currentIds.filter(i => i !== id)
-      : [...currentIds, id];
-    setPanelSelection(newIds.length > 0 ? { panel: 'bgm', ids: newIds } : null);
-    if (newIds.length === 1) setEditingBgmId(newIds[0]);
-    else if (newIds.length === 0) setEditingBgmId(null);
-  }, [panelSelection, setPanelSelection, setEditingBgmId]);
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = localBgms.findIndex(b => b.id === active.id);
-    const newIndex = localBgms.findIndex(b => b.id === over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(localBgms, oldIndex, newIndex);
-    setLocalBgms(reordered);
-    reorderBgms(reordered.map(b => b.id));
-  }, [localBgms, reorderBgms]);
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // 複数選択中なら選択アイテム全部、そうでなければドラッグしたもの1つ
+    const dragIds = selectedIds.includes(activeId) && selectedIds.length > 1
+      ? selectedIds
+      : [activeId];
+    const dragSet = new Set(dragIds);
+    if (dragSet.has(overId)) return;
+
+    // ドラッグ対象を除外した残りリスト
+    const rest = localBgms.filter(item => !dragSet.has(item.id));
+    const draggedItems = localBgms.filter(item => dragSet.has(item.id));
+
+    // 挿入位置を計算
+    const activeOrigIdx = localBgms.findIndex(item => item.id === activeId);
+    const overOrigIdx = localBgms.findIndex(item => item.id === overId);
+    const overIdx = rest.findIndex(item => item.id === overId);
+    if (overIdx < 0) return;
+    const insertIdx = activeOrigIdx < overOrigIdx ? overIdx + 1 : overIdx;
+
+    rest.splice(insertIdx, 0, ...draggedItems);
+    setLocalBgms(rest);
+    reorderBgms(rest.map(item => item.id));
+  }, [localBgms, selectedIds, reorderBgms]);
 
   const hasPlaying = localBgms.some(b => b.is_playing && !b.is_paused);
   const hasAnyPlaying = localBgms.some(b => b.is_playing);
@@ -610,7 +592,6 @@ export function BgmPanel() {
             onClick={handleItemClick}
             onUpdate={updateBgm}
             onContextMenu={handleContextMenu}
-            onToggleSelect={handleToggleSelect}
             renamingId={renamingId}
             renameValue={renameValue}
             onRenameChange={setRenameValue}

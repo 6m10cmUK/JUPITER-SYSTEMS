@@ -45,6 +45,9 @@ export interface DropdownMenuProps {
 
   // カスタム描画
   renderItem?: (item: DropdownMenuItem, isSelected: boolean) => React.ReactNode;
+
+  // フッター（tips 等）
+  footer?: React.ReactNode;
 }
 
 export function DropdownMenu({
@@ -58,6 +61,7 @@ export function DropdownMenu({
   mode = 'trigger',
   position,
   renderItem,
+  footer,
 }: DropdownMenuProps) {
   // --- Internal state management ---
   const [isOpenInternal, setIsOpenInternal] = useState(false);
@@ -472,6 +476,11 @@ export function DropdownMenu({
             }}
           >
             {renderMenuItems()}
+            {footer && (
+              <div style={{ padding: '4px 12px', fontSize: '10px', color: theme.textMuted, borderTop: `1px solid ${theme.border}`, marginTop: '4px' }}>
+                {footer}
+              </div>
+            )}
           </div>,
           document.body
         )
