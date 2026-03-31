@@ -116,7 +116,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         let finalContent = content;
         let finalType: ChatMessage['message_type'] = messageType;
         let finalAllowedUserIds = allowedUserIds;
-        const messagesToInsert: Omit<ChatMessage, 'created_at'>[] = [];
+        const messagesToInsert: ChatMessage[] = [];
 
         const result = await rollDice(content, diceSystem || 'DiceBot');
         if (result) {
@@ -136,7 +136,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               sender_uid: senderUid,
               sender_avatar_asset_id: senderAvatarAssetId,
               channel,
-            } as Omit<ChatMessage, 'created_at'>);
+              created_at: Date.now(),
+            } as ChatMessage);
 
             // 2. 送信者のみ向け結果メッセージ
             finalAllowedUserIds = [senderUid];
@@ -166,7 +167,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
           sender_avatar_asset_id: senderAvatarAssetId,
           channel,
           allowed_user_ids: finalAllowedUserIds,
-        } as Omit<ChatMessage, 'created_at'>);
+          created_at: Date.now(),
+        } as ChatMessage);
 
         // 秘密ダイス時は2メッセージをアトミックに送信する必要があるため Supabase 直接
         if (messagesToInsert.length > 1) {
