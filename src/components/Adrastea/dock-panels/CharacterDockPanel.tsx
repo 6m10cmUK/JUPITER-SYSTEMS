@@ -180,6 +180,10 @@ export function CharacterDockPanel() {
         onToggleBoardVisible={handleToggleBoardVisible}
         onPaste={handlePaste}
         onCopy={handleCopy}
+        members={ctx.members}
+        onTransferCharacter={(charId, newOwnerId) => {
+          ctx.updateCharacter(charId, { owner_id: newOwnerId });
+        }}
       />
       {modalChar !== undefined && ctx.roomId && (
         <AdModal

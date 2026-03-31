@@ -191,6 +191,9 @@ export interface AdrasteaContextValue {
   keyboardActionsRef: React.MutableRefObject<KeyboardActions>;
   // Demo mode
   isDemo?: boolean;
+  // Room members
+  members: Array<{ user_id: string; role: string; display_name: string | null; avatar_url: string | null }>;
+  setMembers: React.Dispatch<React.SetStateAction<Array<{ user_id: string; role: string; display_name: string | null; avatar_url: string | null }>>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -272,6 +275,9 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   const [activeChatChannel, setActiveChatChannel] = useState<string>('main');
   const [chatInjectText, setChatInjectText] = useState<string | null>(null);
   const [characterToOpenModal, setCharacterToOpenModal] = useState<Character | null>(null);
+
+  // --- Room members ---
+  const [members, setMembers] = useState<Array<{ user_id: string; role: string; display_name: string | null; avatar_url: string | null }>>([]);
 
   // --- Undo/Redo ---
   const undoRedo = useUndoRedo();
@@ -492,6 +498,8 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       undoRedo,
       resolveAssetId,
       keyboardActionsRef,
+      members,
+      setMembers,
     };
   }, [
     roomId, roomRole, activeChatChannel, chatInjectText, channels, upsertChannel, deleteChannel,
@@ -500,6 +508,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     unregisterPanel, toasts, showToast, undoRedo,
     scenarioTexts, addScenarioText, updateScenarioText, removeScenarioText, reorderScenarioTexts,
     cutins, addCutin, updateCutin, removeCutin, reorderCutins, triggerCutin, clearCutin,
+    members,
   ]);
 
   return (

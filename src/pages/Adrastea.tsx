@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useSupabaseQuery } from '../hooks/useSupabaseQuery';
@@ -96,14 +96,31 @@ function AdrasteaRoom() {
     existingScenarioTitles: ctx.scenarioTexts?.map(t => t.title),
   });
 
-  // メンバー管理（ownerのみ実データ取得）
+  // メンバー管理（全メンバーが取得可能、users JOIN で display_name/avatar_url も取得）
   const { data: members = [] } = useSupabaseQuery<any>({
     table: 'room_members',
-    columns: 'room_id,user_id,role,joined_at',
+    columns: 'room_id,user_id,role,joined_at,users(display_name,avatar_url)',
     roomId: ctx.room?.id ?? 'null',
     filter: (q) => q.eq('room_id', ctx.room?.id ?? ''),
-    enabled: isOwner && !!ctx.room,
+    enabled: !!ctx.room,
   });
+
+  // members を SettingsModal / CharacterPanel 向けにフラット化
+  const flatMembers = useMemo(() =>
+    members.map((m: any) => ({
+      user_id: m.user_id,
+      role: m.role,
+      joined_at: m.joined_at,
+      display_name: m.users?.display_name ?? null,
+      avatar_url: m.users?.avatar_url ?? null,
+    })),
+    [members]
+  );
+
+  // members を AdrasteaContext に同期
+  useEffect(() => {
+    ctx.setMembers(flatMembers);
+  }, [flatMembers, ctx]);
 
   const handleAssignRole = useCallback(
     async (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => {
@@ -188,7 +205,7 @@ function AdrasteaRoom() {
             await ctx.updateProfile(data);
           }}
           isOwner={isOwner}
-          members={members ?? []}
+          members={flatMembers}
           onAssignRole={handleAssignRole}
           onSignOut={ctx.signOut}
           onClose={() => ctx.setShowSettings(false)}

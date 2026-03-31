@@ -2,13 +2,14 @@ import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useS
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character, Asset } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
-import { DropdownMenu } from './ui';
+import { DropdownMenu, AdModal } from './ui';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useObjectContextMenu } from './useObjectContextMenu';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { handleClipboardImport } from '../../hooks/usePasteHandler';
 import { generateDuplicateName } from '../../utils/nameUtils';
 import { resolveAssetId, useAssets } from '../../hooks/useAssets';
+import { theme } from '../../styles/theme';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -1097,6 +1098,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   const startPosRef = useRef<{ x: number; y: number } | null>(null);
   const [hovered, setHovered] = useState(false);
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [transferTarget, setTransferTarget] = useState<Character | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const ctx = useAdrasteaContext();
   const { addCharacter, removeCharacter } = ctx;
@@ -1135,6 +1137,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
       removeCharacter(charId);
     },
     onPaste: charHandlePaste,
+    onTransfer: (c) => setTransferTarget(c),
     showUndoRedo: true,
   });
 
@@ -1325,6 +1328,51 @@ const DomCharacterItem = memo(function DomCharacterItem({
         items={charCtxMenuItems}
       />
       {charConfirmModal}
+      {transferTarget && ctx.members && ctx.members.length > 1 && (
+        <AdModal
+          title={`「${transferTarget.name}」を譲渡`}
+          width="320px"
+          onClose={() => setTransferTarget(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {ctx.members
+              .filter(m => m.user_id !== currentUserId)
+              .map(m => (
+                <button
+                  key={m.user_id}
+                  type="button"
+                  onClick={() => {
+                    ctx.updateCharacter(transferTarget.id, { owner_id: m.user_id });
+                    setTransferTarget(null);
+                  }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',
+                    background: 'none', border: `1px solid ${theme.borderSubtle}`, borderRadius: '6px',
+                    cursor: 'pointer', color: theme.textPrimary, fontSize: '13px', textAlign: 'left',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgHover ?? theme.bgInput; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                >
+                  {m.avatar_url ? (
+                    <img src={m.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{
+                      width: 28, height: 28, borderRadius: '50%', background: theme.bgInput,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '12px', color: theme.textMuted,
+                    }}>
+                      {(m.display_name ?? '?')[0]}
+                    </div>
+                  )}
+                  <div>
+                    <div style={{ fontWeight: 500 }}>{m.display_name ?? 'ユーザー'}</div>
+                    <div style={{ fontSize: '10px', color: theme.textMuted }}>{m.role}</div>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </AdModal>
+      )}
     </div>
   );
 });

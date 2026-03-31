@@ -8,6 +8,43 @@ import { rollDice } from '../services/diceRoller';
 import { genId } from '../utils/id';
 import { API_BASE_URL } from '../config/api';
 
+// localStorage キーとヘルパー関数
+const SECRET_DICE_STORAGE_KEY = 'adrastea:secret_dice_notifications';
+
+function loadSecretDiceNotifications(roomId: string): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(`${SECRET_DICE_STORAGE_KEY}:${roomId}`);
+    if (!raw) return [];
+    return JSON.parse(raw) as ChatMessage[];
+  } catch {
+    return [];
+  }
+}
+
+function saveSecretDiceNotification(roomId: string, msg: ChatMessage) {
+  try {
+    const existing = loadSecretDiceNotifications(roomId);
+    // 重複チェック
+    if (existing.some((m) => m.id === msg.id)) return;
+    existing.push(msg);
+    // 最大100件保持（古いものから削除）
+    const trimmed = existing.slice(-100);
+    localStorage.setItem(`${SECRET_DICE_STORAGE_KEY}:${roomId}`, JSON.stringify(trimmed));
+  } catch {
+    // localStorage 容量オーバー等は無視
+  }
+}
+
+function removeSecretDiceNotification(roomId: string, messageId: string) {
+  try {
+    const existing = loadSecretDiceNotifications(roomId);
+    const filtered = existing.filter((m) => m.id !== messageId);
+    localStorage.setItem(`${SECRET_DICE_STORAGE_KEY}:${roomId}`, JSON.stringify(filtered));
+  } catch {
+    // ignore
+  }
+}
+
 interface ArchiveMessagesResponse {
   messages: Array<{
     id: string;
@@ -50,6 +87,17 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     if (inject) return;
     const channel = supabase.channel(`room:${roomId}:broadcast`);
     broadcastChannelRef.current = channel;
+
+    // リロード時: localStorage から秘密ダイス通知を復元
+    const savedNotifications = loadSecretDiceNotifications(roomId);
+    if (savedNotifications.length > 0) {
+      messagesQuery.setData((prev) => {
+        const newMsgs = savedNotifications.filter((saved) => !prev.some((m) => m.id === saved.id));
+        if (newMsgs.length === 0) return prev;
+        return [...prev, ...newMsgs];
+      });
+    }
+
     channel.on('broadcast', { event: 'secret_dice' }, (payload) => {
       const p = payload.payload as {
         message_id: string;
@@ -73,6 +121,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         channel: p.channel,
         created_at: p.created_at,
       };
+      // localStorage に保存（リロード時復元用）
+      saveSecretDiceNotification(roomId, dummyMsg);
       messagesQuery.setData((prev) => {
         if (prev.some((m) => m.id === p.message_id)) return prev;
         return [...prev, dummyMsg];
@@ -116,9 +166,13 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     // キャッシュに追加
     for (const msg of msgs) {
       localCacheRef.current.set(msg.id, msg);
+      // DB に同じ id で dice メッセージがあれば localStorage から削除（オープン済み）
+      if (msg.message_type === 'dice') {
+        removeSecretDiceNotification(roomId, msg.id);
+      }
     }
     return msgs;
-  }, [inject, messagesData]);
+  }, [inject, messagesData, roomId]);
 
   // 全メッセージ = Supabase キャッシュ + D1 アーカイブ（ID重複排除、created_at ソート）
   // inject モードでは inject.data をそのまま返す
@@ -310,6 +364,8 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
             msg.id === messageId ? { ...msg, message_type: 'dice' as const } : msg
           )
         );
+        // localStorage からも削除（オープン済みは通知不要）
+        removeSecretDiceNotification(roomId, messageId);
 
         const { error } = await supabase.from('messages').update({ message_type: 'dice' }).eq('id', messageId);
         if (error) {
@@ -321,7 +377,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         throw err;
       }
     },
-    [messagesQuery]
+    [messagesQuery, roomId]
   );
 
   return {
