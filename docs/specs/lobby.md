@@ -74,3 +74,15 @@ Supabase auth.updateUser()（full_name, avatar_url）+ users テーブル（disp
 ## DebugConsole
 
 Owner ロール専用の開発者パネル。console.log/warn/error と uncaught exceptions をリアルタイム表示。ログクリア・コピー・レベルフィルタ機能。dockview の DebugConsoleDockPanel として登録。
+
+## ルーム設定モーダル
+
+ルーム編集時に表示されるモーダル。ルーム名・ダイスシステム・タグ変更に加え、以下の機能を提供する。
+
+### ルーム退出
+
+ルーム設定モーダル内に「ルームから退出」ボタンを配置。クリックすると、自分自身を room_members から削除してロビー画面に戻る。所有者の場合、退出前に警告を表示する。
+
+### デフォルトログインロール
+
+ルーム設定でデフォルトログインロール（default_login_role）を owner のみ変更可能。新規ユーザーがルームに入室した際、この設定が自動適用される。
