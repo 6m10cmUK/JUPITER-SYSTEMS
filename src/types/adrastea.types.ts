@@ -228,7 +228,7 @@ export interface ChatMessage {
   sender_uid?: string;
   sender_avatar_asset_id?: string | null;
   content: string;
-  message_type: 'chat' | 'dice' | 'system' | 'secret_dice_notification';
+  message_type: 'chat' | 'dice' | 'system' | 'secret_dice';
   channel?: string;
   allowed_user_ids?: string[];
   created_at: number;
