@@ -680,6 +680,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
         <ProfileEditModal
           profile={profile}
           onSave={updateProfile}
+          onSignOut={signOut}
           onClose={() => setShowProfileEdit(false)}
         />
       )}

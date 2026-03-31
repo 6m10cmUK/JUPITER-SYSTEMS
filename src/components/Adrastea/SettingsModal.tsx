@@ -7,12 +7,11 @@ import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
 import { X, Trash2 } from 'lucide-react';
-import { AssetPicker } from './AssetPicker';
 import { getAvailableSystems } from '../../services/diceRoller';
 import { getSavedLayouts, addLayout, deleteLayout, setGmDefault, setPlDefault, getGmDefaultId, getPlDefaultId, validateForPl, scaleLayout } from '../../services/layoutStorage';
 import { relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
 
-type SettingsSection = 'room' | 'layout' | 'user' | 'members';
+type SettingsSection = 'room' | 'layout' | 'members';
 
 interface SettingsModalProps {
   initialSection?: SettingsSection;
@@ -21,9 +20,6 @@ interface SettingsModalProps {
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
-  profile: { display_name?: string; avatar_url?: string | null } | null;
-  onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
-  onSignOut: () => void;
   onClose: () => void;
   isOwner: boolean;
   members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
@@ -56,7 +52,6 @@ const PANEL_DEFS: PanelDef[] = [
 const NAV_ITEMS: Array<{ key: SettingsSection; label: string }> = [
   { key: 'room', label: 'ルーム設定' },
   { key: 'layout', label: 'レイアウト' },
-  { key: 'user', label: 'ユーザー' },
   { key: 'members', label: 'メンバー管理' },
 ];
 
@@ -594,77 +589,6 @@ function MembersSection({
   );
 }
 
-function UserSection({
-  profile,
-  onSaveProfile,
-  onSignOut,
-  onClose,
-}: {
-  profile: { display_name?: string; avatar_url?: string | null } | null;
-  onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
-  onSignOut: () => void;
-  onClose: () => void;
-}) {
-  const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
-  const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '');
-  const [profileSaving, setProfileSaving] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
-
-  return (
-    <div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {profileError && (
-          <div style={{ padding: '6px 10px', background: theme.danger, color: theme.textOnAccent, fontSize: 12 }}>
-            {profileError}
-          </div>
-        )}
-        <AdInput
-          label="表示名"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="表示名を入力"
-        />
-        <AssetPicker
-          label="アイコン画像"
-          currentUrl={avatarUrl || null}
-          onSelect={(url) => setAvatarUrl(url)}
-        />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-          <div /> {/* spacer */}
-          <AdButton
-            variant="primary"
-            disabled={profileSaving || !displayName.trim()}
-            onClick={async () => {
-              if (!displayName.trim()) return;
-              setProfileSaving(true);
-              setProfileError(null);
-              try {
-                await onSaveProfile({
-                  display_name: displayName.trim(),
-                  avatar_url: avatarUrl.trim() || null,
-                });
-              } catch {
-                setProfileError('プロフィールの保存に失敗しました');
-              } finally {
-                setProfileSaving(false);
-              }
-            }}
-          >
-            {profileSaving ? '保存中...' : '保存'}
-          </AdButton>
-        </div>
-        <div style={{ height: 1, background: theme.border }} />
-        <AdButton
-          variant="danger"
-          onClick={() => { onSignOut(); onClose(); }}
-        >
-          ログアウト
-        </AdButton>
-      </div>
-
-    </div>
-  );
-}
 
 export function SettingsModal({
   initialSection = 'room',
@@ -673,9 +597,6 @@ export function SettingsModal({
   onDeleteRoom,
   dockviewApi,
   can,
-  profile,
-  onSaveProfile,
-  onSignOut,
   onClose,
   isOwner,
   members,
@@ -840,14 +761,6 @@ export function SettingsModal({
             <LayoutSection
               dockviewApi={dockviewApi}
               can={can}
-              onClose={onClose}
-            />
-          )}
-          {section === 'user' && (
-            <UserSection
-              profile={profile}
-              onSaveProfile={onSaveProfile}
-              onSignOut={onSignOut}
               onClose={onClose}
             />
           )}
