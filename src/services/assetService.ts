@@ -78,3 +78,39 @@ export async function deleteR2File(r2Key: string, token: string): Promise<void> 
   );
   if (!res.ok) throw new Error(`削除失敗: ${res.status}`);
 }
+
+/**
+ * アバター画像を 128x128 webp に圧縮して R2 にアップロードする。
+ * 固定パス users/{uid}/avatar.webp に上書き保存。
+ */
+export async function uploadAvatarToR2(
+  file: File | Blob,
+  uid: string,
+  token: string,
+): Promise<string> {
+  // canvas で 128x128 にリサイズ + webp 圧縮
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d')!;
+  // アスペクト比を維持して中央クロップ
+  const size = Math.min(bitmap.width, bitmap.height);
+  const sx = (bitmap.width - size) / 2;
+  const sy = (bitmap.height - size) / 2;
+  ctx.drawImage(bitmap, sx, sy, size, size, 0, 0, 128, 128);
+  bitmap.close();
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (b) => (b ? resolve(b) : reject(new Error('canvas toBlob failed'))),
+      'image/webp',
+      0.7,
+    );
+  });
+
+  const r2Key = `users/${uid}/avatar.webp`;
+  const { url } = await uploadToR2(blob, r2Key, token);
+  // キャッシュバスト用にタイムスタンプ付与
+  return `${url}?t=${Date.now()}`;
+}

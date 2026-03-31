@@ -7,6 +7,7 @@ import { ADRASTEA_VERSION, ADRASTEA_STAGE } from '../config/adrastea';
 import { TopToolbar } from '../components/Adrastea/TopToolbar';
 import { DockLayout } from '../components/Adrastea/DockLayout';
 import { SettingsModal } from '../components/Adrastea/SettingsModal';
+import { ProfileEditModal } from '../components/Adrastea/ProfileEditModal';
 import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
 import { OnboardingModal } from '../components/Adrastea/OnboardingModal';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
@@ -54,10 +55,16 @@ function LoadingScreen({ progress, statusText }: { progress: number; statusText:
 }
 
 /** Dockview + オーバーレイ */
-function AdrasteaRoom() {
+interface AdrasteaRoomProps {
+  uid: string;
+  token: string;
+}
+
+function AdrasteaRoom({ uid: _uid, token: _token }: AdrasteaRoomProps) {
   const ctx = useAdrasteaContext();
   const { can } = usePermission();
   const isOwner = ctx.roomRole === 'owner';
+  const [showProfileEdit, setShowProfileEdit] = useState(false);
 
   // ブラウザ標準の右クリックメニューを抑止（テキスト入力欄は除外）
   useEffect(() => {
@@ -168,7 +175,7 @@ function AdrasteaRoom() {
       <TopToolbar
         onAddPiece={handleAddPiece}
         onOpenSettings={() => ctx.setShowSettings(true, 'room')}
-        onOpenProfile={() => ctx.setShowSettings(true, 'user')}
+        onOpenProfile={() => setShowProfileEdit(true)}
         onOpenLayout={() => ctx.setShowSettings(true, 'layout')}
         onSignOut={ctx.signOut}
         activeScene={ctx.activeScene}
@@ -200,15 +207,20 @@ function AdrasteaRoom() {
           onDeleteRoom={ctx.deleteRoom}
           dockviewApi={ctx.dockviewApi}
           can={can}
-          profile={ctx.profile}
-          onSaveProfile={async (data) => {
-            await ctx.updateProfile(data);
-          }}
           isOwner={isOwner}
           members={flatMembers}
           onAssignRole={handleAssignRole}
-          onSignOut={ctx.signOut}
           onClose={() => ctx.setShowSettings(false)}
+        />
+      )}
+
+      {/* プロフィール編集モーダル */}
+      {showProfileEdit && ctx.profile && (
+        <ProfileEditModal
+          profile={ctx.profile}
+          onSave={async (data) => { await ctx.updateProfile(data); }}
+          onSignOut={ctx.signOut}
+          onClose={() => setShowProfileEdit(false)}
         />
       )}
 
@@ -221,7 +233,7 @@ function AdrasteaRoom() {
 const Adrastea: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { user, loading: authLoading, signIn, onboarded, updateProfile } = useAuth();
+  const { user, loading: authLoading, signIn, onboarded, updateProfile, token } = useAuth();
 
   // Supabase から room データを取得
   const { data: roomDataArray = [] } = useSupabaseQuery<any>({
@@ -506,6 +518,8 @@ const Adrastea: React.FC = () => {
       <OnboardingModal
         defaultName={user?.displayName ?? ''}
         defaultImage={user?.avatarUrl ?? null}
+        uid={user?.uid ?? ''}
+        token={token ?? ''}
         onComplete={async (data) => {
           await updateProfile(data);
           await handleCompleteOnboarding();
@@ -573,7 +587,7 @@ const Adrastea: React.FC = () => {
 
   return (
     <AdrasteaProvider roomId={roomId} roomRole={roomRole}>
-      <AdrasteaRoom />
+      <AdrasteaRoom uid={user?.uid ?? ''} token={token ?? ''} />
     </AdrasteaProvider>
   );
 };

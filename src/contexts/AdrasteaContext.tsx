@@ -148,8 +148,8 @@ export interface AdrasteaContextValue {
   showProfileEdit: boolean;
   setShowProfileEdit: (v: boolean) => void;
   showSettings: boolean;
-  settingsSection: 'room' | 'layout' | 'user';
-  setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'user') => void;
+  settingsSection: 'room' | 'layout' | 'members';
+  setShowSettings: (show: boolean, section?: 'room' | 'layout' | 'members') => void;
   gridVisible: boolean;
   setGridVisible: React.Dispatch<React.SetStateAction<boolean>>;
   dockviewApi: any;

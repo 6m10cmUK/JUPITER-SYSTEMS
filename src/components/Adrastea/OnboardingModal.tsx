@@ -1,19 +1,33 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { theme } from '../../styles/theme';
 import { AdInput, AdButton } from './ui';
-import { AssetPicker } from './AssetPicker';
+import { uploadAvatarToR2 } from '../../services/assetService';
 
 interface OnboardingModalProps {
   defaultName: string;
   defaultImage: string | null;
+  uid: string;
+  token: string;
   onComplete: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
   onSkip: () => Promise<void>;
 }
 
-export function OnboardingModal({ defaultName, defaultImage, onComplete, onSkip }: OnboardingModalProps) {
+export function OnboardingModal({ defaultName, defaultImage, uid, token, onComplete, onSkip }: OnboardingModalProps) {
   const [name, setName] = useState(defaultName);
   const [image, setImage] = useState<string | null>(defaultImage);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const url = await uploadAvatarToR2(file, uid, token);
+      setImage(url);
+    } catch (err) {
+      console.error('アバターアップロード失敗:', err);
+    }
+  };
 
   const handleComplete = async () => {
     if (!name.trim()) return;
@@ -53,11 +67,14 @@ export function OnboardingModal({ defaultName, defaultImage, onComplete, onSkip 
         {/* アバター */}
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '20px' }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{
-              width: 80, height: 80, borderRadius: '50%', overflow: 'hidden',
-              border: `2px solid ${theme.border}`, margin: '0 auto 8px',
-              background: theme.bgDeep,
-            }}>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                width: 80, height: 80, borderRadius: '50%', overflow: 'hidden',
+                border: `2px solid ${theme.border}`, margin: '0 auto 8px',
+                background: theme.bgDeep, cursor: 'pointer',
+              }}
+            >
               {image ? (
                 <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
               ) : (
@@ -69,10 +86,23 @@ export function OnboardingModal({ defaultName, defaultImage, onComplete, onSkip 
                 </div>
               )}
             </div>
-            <AssetPicker
-              currentUrl={image}
-              onSelect={(url) => setImage(url)}
-              label="アバターを変更"
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer',
+                color: theme.accent, fontSize: '12px',
+                padding: 0,
+              }}
+            >
+              変更
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleAvatarChange}
             />
           </div>
         </div>

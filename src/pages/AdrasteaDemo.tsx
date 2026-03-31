@@ -71,7 +71,9 @@ function AdrasteaDemoRoom() {
       <TopToolbar
         onAddPiece={handleAddPiece}
         onOpenSettings={() => ctx.setShowSettings(true, 'room')}
-        onOpenProfile={() => ctx.setShowSettings(true, 'user')}
+        onOpenProfile={() => {
+          ctx.showToast('デモ環境ではプロフィール編集はサポートされていません', 'error');
+        }}
         onOpenLayout={() => ctx.setShowSettings(true, 'layout')}
         onSignOut={() => {
           ctx.showToast('ログアウト機能はデモ環境では無効です', 'error');
@@ -92,7 +94,7 @@ function AdrasteaDemoRoom() {
         onCutinEnd={ctx.clearCutin}
       />
 
-      {ctx.showSettings && ctx.room && (
+      {ctx.showSettings && ctx.room && ctx.user && (
         <SettingsModal
           initialSection={ctx.settingsSection}
           room={ctx.room}
@@ -105,18 +107,10 @@ function AdrasteaDemoRoom() {
           }}
           dockviewApi={ctx.dockviewApi}
           can={can}
-          profile={ctx.profile}
-          onSaveProfile={async (data) => {
-            await ctx.updateProfile(data);
-            ctx.showToast('プロフィールを保存しました', 'success');
-          }}
           isOwner={isOwner}
           members={[]}
           onAssignRole={() => {
             ctx.showToast('デモ環境ではメンバー管理はサポートされていません', 'error');
-          }}
-          onSignOut={() => {
-            ctx.showToast('ログアウト機能はデモ環境では無効です', 'error');
           }}
           onClose={() => ctx.setShowSettings(false)}
         />
