@@ -174,11 +174,12 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
         if (messagesToInsert.length > 1) {
           const { error } = await supabase.from('messages').insert(messagesToInsert);
           if (error) throw error;
-          // 楽観的にローカルに追加（自分が見れるメッセージのみ）
-          for (const msg of messagesToInsert) {
-            if (!msg.allowed_user_ids || msg.allowed_user_ids.length === 0 || msg.allowed_user_ids.includes(senderUid ?? '')) {
-              chatMutation.insert(msg);
-            }
+          // 楽観的にローカル state に追加（DB には既に INSERT 済み）
+          const visibleMsgs = messagesToInsert.filter(msg =>
+            !msg.allowed_user_ids || msg.allowed_user_ids.length === 0 || msg.allowed_user_ids.includes(senderUid ?? '')
+          );
+          if (visibleMsgs.length > 0) {
+            messagesQuery.setData(prev => [...prev, ...visibleMsgs]);
           }
         } else {
           // 通常メッセージは楽観的更新を使用
