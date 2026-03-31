@@ -143,6 +143,16 @@ export function ObjectLayerList({
 
     if (bg) { overrideMap.set(bg.id, 0); if (bg.sort_order !== 0) updates.push({ id: bg.id, sort: 0 }); }
 
+    // キャラクターレイヤーが前景より上にいることを保証（配列上の位置で修正）
+    const charIdx = rest.findIndex(o => o.type === 'characters_layer');
+    const lastFgIdx = rest.reduce((last, o, i) => o.type === 'foreground' ? i : last, -1);
+    if (charIdx >= 0 && lastFgIdx >= 0 && charIdx > lastFgIdx) {
+      // rest は降順（先頭=前面）なのでキャラクターの index が大きい = 後ろ = 下
+      // キャラクターを前景の直前に移動
+      const [charItem] = rest.splice(charIdx, 1);
+      rest.splice(lastFgIdx, 0, charItem);
+    }
+
     const maxOrder = rest.length;
     rest.forEach((o, i) => {
       const newOrder = maxOrder - i;
@@ -265,7 +275,7 @@ export function ObjectLayerList({
   return (
     <div
       data-selection-panel
-      style={{ minHeight: '100%' }}
+      style={{ height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
       onContextMenu={(e) => {
         const objEl = (e.target as HTMLElement).closest('[data-obj-id]');
         const objId = objEl?.getAttribute('data-obj-id');
