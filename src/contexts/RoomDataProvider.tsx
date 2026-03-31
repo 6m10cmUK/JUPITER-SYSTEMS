@@ -116,6 +116,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     loading: objectsLoading,
     addObject,
     updateObject,
+    localUpdateObject,
     removeObject,
     reorderObjects,
     batchUpdateSort,
@@ -228,9 +229,11 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   }, [initialLoadDone, objectsLoading, allObjects, addObject, updateObject]);
 
   // --- 浮きBGMトラックの自動クリーンアップ ---
+  // scenes と bgms の両方がロード完了してから実行（scenes 空状態での誤削除を防ぐ）
   const bgmCleanupDoneRef = useRef(false);
+  const allLoaded = initialLoadDone && !scenesLoading && !bgmsLoading;
   useEffect(() => {
-    if (bgmCleanupDoneRef.current || !initialLoadDone) return;
+    if (bgmCleanupDoneRef.current || !allLoaded || scenes.length === 0) return;
     bgmCleanupDoneRef.current = true;
     const sceneIdSet = new Set(scenes.map(s => s.id));
     const orphans = bgms.filter(b =>
@@ -241,11 +244,11 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
         await Promise.all(orphans.map(b => removeBgm(b.id)));
       })();
     }
-  }, [initialLoadDone, bgms, removeBgm, scenes]);
+  }, [allLoaded, bgms, removeBgm, scenes]);
 
-  // シーン削除後のorphan BGM即時削除（初回ロード後のみ、継続的に実行）
+  // シーン削除後のorphan BGM即時削除（初回クリーンアップ後のみ）
   useEffect(() => {
-    if (!initialLoadDone) return;
+    if (!bgmCleanupDoneRef.current) return;
     const sceneIdSet = new Set(scenes.map(s => s.id));
     const orphans = bgms.filter(b =>
       b.scene_ids.length === 0 || b.scene_ids.every(sid => !sceneIdSet.has(sid))
@@ -255,7 +258,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
         await Promise.all(orphans.map(b => removeBgm(b.id)));
       })();
     }
-  }, [initialLoadDone, scenes, bgms, removeBgm]);
+  }, [scenes, bgms, removeBgm]);
 
   // スナップショット復元後、active_scene_id が未設定ならシーンを自動アクティベート
   useEffect(() => {
@@ -333,6 +336,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   );
   const guardedUpdateObject = withPermission('object_edit', updateObjectWithThumbnailSync);
   const guardedMoveObject = withPermission('object_move', updateObject);
+  const guardedLocalUpdateObject = withPermission('object_move', localUpdateObject);
   const guardedRemoveObject = withPermission('object_edit', removeObject);
   const guardedReorderObjects = withPermission('object_edit', reorderObjects);
   const guardedBatchSort = withPermission('object_edit', batchUpdateSort);
@@ -392,6 +396,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       addObject: guardedAddObject,
       updateObject: guardedUpdateObject,
       moveObject: guardedMoveObject,
+      localUpdateObject: guardedLocalUpdateObject,
       removeObject: guardedRemoveObject,
       reorderObjects: guardedReorderObjects,
       batchUpdateSort: guardedBatchSort,

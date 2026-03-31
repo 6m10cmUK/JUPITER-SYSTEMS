@@ -237,6 +237,14 @@ export function useSupabaseMutation<T extends { id: string }>(
     }
   };
 
+  /** ローカル state のみ更新（通信なし）。ドラッグ中のプレビュー用 */
+  const localUpdate = (id: string, updates: Partial<T>): void => {
+    setData((prev) =>
+      prev.map((row) => row.id === id ? { ...row, ...updates } : row)
+    );
+    markAsPending(table, id);
+  };
+
   const update = async (id: string, updates: Partial<T>): Promise<void> => {
     // スナップショットを closure で保持
     let snapshot: T[] = [];
@@ -335,5 +343,5 @@ export function useSupabaseMutation<T extends { id: string }>(
     }
   };
 
-  return { insert, update, remove, reorder };
+  return { insert, update, localUpdate, remove, reorder };
 }

@@ -97,6 +97,7 @@ export interface AdrasteaContextValue {
   addObject: any;
   updateObject: any;
   moveObject: any;
+  localUpdateObject: any;
   removeObject: any;
   reorderObjects: any;
   batchUpdateSort: any;
@@ -289,8 +290,12 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     };
   }, []);
 
+  // 保存関数を ref で保持（MergeProvider で設定される）
+  const saveEditRef = useRef<(edit: PendingEdit) => void>(() => {});
+
+  const DEBOUNCE_MS = 500;
+
   const setPendingEdit = useCallback((key: string, edit: PendingEdit | null) => {
-    // NOTE: 実装は簡略化。詳細は旧 AdrasteaContext を参照
     if (!edit) {
       const timer = debounceTimersRef.current.get(key);
       if (timer) clearTimeout(timer);
@@ -299,6 +304,19 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       return;
     }
     pendingEditsRef.current.set(key, edit);
+
+    // 既存タイマーをクリアして再設定
+    const existingTimer = debounceTimersRef.current.get(key);
+    if (existingTimer) clearTimeout(existingTimer);
+
+    debounceTimersRef.current.set(key, setTimeout(() => {
+      debounceTimersRef.current.delete(key);
+      const pending = pendingEditsRef.current.get(key);
+      if (pending && pending.id) {
+        saveEditRef.current(pending);
+        pendingEditsRef.current.delete(key);
+      }
+    }, DEBOUNCE_MS));
   }, []);
 
   // --- Flush pending edits ---
@@ -312,8 +330,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // 保留中の全編集を即座に保存
     for (const [, edit] of pendingEditsRef.current.entries()) {
       if (edit && edit.id && edit.data) {
-        // updateObject を通じて保存（同期は後の useEffect で処理される）
-        // NOTE: ここでは単に参照を削除し、デバウンス時間経過で自動保存される処理をスキップ
+        saveEditRef.current(edit);
       }
     }
     pendingEditsRef.current.clear();
@@ -396,6 +413,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       addObject: async () => '',
       updateObject: async () => {},
       moveObject: async () => {},
+      localUpdateObject: () => {},
       removeObject: async () => {},
       reorderObjects: async () => {},
       batchUpdateSort: async () => {},
@@ -492,6 +510,7 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       user={user}
       activeChatChannel={activeChatChannel}
     >
+      <SaveBridge saveEditRef={saveEditRef} />
       <UndoBridge undoRedo={undoRedo} />
       <UIStateProvider setPendingEdit={setPendingEdit}>
         <AdrasteaContext.Provider value={value}>
@@ -501,6 +520,22 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     </RoomDataProvider>
   );
 };
+
+/** Provider 内部: setPendingEdit の保存先を RoomDataProvider の関数にバインド */
+function SaveBridge({ saveEditRef }: { saveEditRef: React.MutableRefObject<(edit: PendingEdit) => void> }) {
+  const roomData = useRoomData();
+  useEffect(() => {
+    saveEditRef.current = (edit: PendingEdit) => {
+      if (!edit.id) return;
+      if (edit.type === 'object') {
+        roomData.updateObject(edit.id, edit.data as any);
+      } else if (edit.type === 'scene') {
+        roomData.updateScene(edit.id, edit.data as any);
+      }
+    };
+  }, [roomData.updateObject, roomData.updateScene, saveEditRef]);
+  return null;
+}
 
 /** Provider 内部: diff 検知 + undo/redo 実行 */
 function UndoBridge({ undoRedo }: { undoRedo: ReturnType<typeof useUndoRedo> }) {
@@ -702,6 +737,7 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       addObject: roomDataCtx.addObject,
       updateObject: roomDataCtx.updateObject,
       moveObject: roomDataCtx.moveObject,
+      localUpdateObject: roomDataCtx.localUpdateObject,
       removeObject: roomDataCtx.removeObject,
       reorderObjects: roomDataCtx.reorderObjects,
       batchUpdateSort: roomDataCtx.batchUpdateSort,
