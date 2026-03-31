@@ -6,6 +6,23 @@ function isAdmin(env: Env, user: AuthUser): boolean {
   return adminIds.includes(user.uid);
 }
 
+function supabaseHeaders(env: Env): Record<string, string> {
+  const key = env.SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_ANON_KEY ?? '';
+  return {
+    'apikey': key,
+    'Authorization': `Bearer ${key}`,
+    'Content-Type': 'application/json',
+  };
+}
+
+async function supabaseFetch(env: Env, path: string, init?: RequestInit): Promise<Response> {
+  const base = env.SUPABASE_URL ?? '';
+  return fetch(`${base}/rest/v1/${path}`, {
+    ...init,
+    headers: { ...supabaseHeaders(env), ...init?.headers },
+  });
+}
+
 export async function handleAdmin(
   request: Request,
   url: URL,
@@ -65,6 +82,87 @@ export async function handleAdmin(
       );
     }
 
+    return json({ ok: true }, headers);
+  }
+
+  // GET /api/admin/users
+  if (resource === 'users' && !resourceId && request.method === 'GET') {
+    const res = await supabaseFetch(
+      env,
+      'users?select=id,display_name,avatar_url,created_at,updated_at&order=created_at.desc'
+    );
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    const data = await res.json();
+    return json(data, headers);
+  }
+
+  // DELETE /api/admin/users/:id
+  if (resource === 'users' && resourceId && !pathParts[2] && request.method === 'DELETE') {
+    const res = await supabaseFetch(env, `users?id=eq.${resourceId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    return json({ ok: true }, headers);
+  }
+
+  // GET /api/admin/rooms
+  if (resource === 'rooms' && !resourceId && request.method === 'GET') {
+    const res = await supabaseFetch(
+      env,
+      'rooms?select=id,name,owner_id,description,archived,created_at,updated_at&order=created_at.desc'
+    );
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    const data = await res.json();
+    return json(data, headers);
+  }
+
+  // DELETE /api/admin/rooms/:id
+  if (resource === 'rooms' && resourceId && !pathParts[2] && request.method === 'DELETE') {
+    // Delete room_members first (foreign key constraint)
+    const rmRes = await supabaseFetch(env, `room_members?room_id=eq.${resourceId}`, { method: 'DELETE' });
+    if (!rmRes.ok) {
+      return json({ error: 'Supabase error', status: rmRes.status }, headers, 502);
+    }
+
+    const res = await supabaseFetch(env, `rooms?id=eq.${resourceId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    return json({ ok: true }, headers);
+  }
+
+  // GET /api/admin/rooms/:id/members
+  if (resource === 'rooms' && resourceId && pathParts[2] === 'members' && !pathParts[3] && request.method === 'GET') {
+    const res = await supabaseFetch(
+      env,
+      `room_members?select=room_id,user_id,role,joined_at,users(display_name,avatar_url)&room_id=eq.${resourceId}&order=joined_at.asc`
+    );
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    const data = await res.json();
+    return json(data, headers);
+  }
+
+  // PUT /api/admin/rooms/:id/members/:userId
+  if (resource === 'rooms' && resourceId && pathParts[2] === 'members' && pathParts[3] && request.method === 'PUT') {
+    const body = await request.json() as { role: string };
+    const res = await supabaseFetch(
+      env,
+      `room_members?room_id=eq.${resourceId}&user_id=eq.${pathParts[3]}`,
+      {
+        method: 'PATCH',
+        headers: { 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ role: body.role }),
+      }
+    );
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
     return json({ ok: true }, headers);
   }
 

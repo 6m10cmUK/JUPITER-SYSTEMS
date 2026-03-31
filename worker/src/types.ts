@@ -5,6 +5,7 @@ export interface Env {
   ADMIN_USER_IDS?: string;
   SUPABASE_URL?: string;
   SUPABASE_ANON_KEY?: string;
+  SUPABASE_SERVICE_ROLE_KEY?: string;
   ARCHIVE_SECRET?: string;
 }
 
