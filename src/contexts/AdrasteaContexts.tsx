@@ -76,6 +76,7 @@ export interface RoomDataContextValue {
   addObject: (data: Partial<BoardObject>) => Promise<string>;
   updateObject: (id: string, data: Partial<BoardObject>) => Promise<void>;
   moveObject: (id: string, data: Partial<BoardObject>) => Promise<void>;
+  localUpdateObject: (id: string, data: Partial<BoardObject>) => void;
   removeObject: (id: string) => Promise<void>;
   reorderObjects: (orderedIds: string[]) => Promise<void>;
   batchUpdateSort: (updates: { id: string; sort: number }[]) => Promise<void>;

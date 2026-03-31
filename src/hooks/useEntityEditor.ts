@@ -34,7 +34,7 @@ interface UseEntityEditorReturn<T> {
   /** マージ済み state（defaults + entity + ローカル編集）。UI はこれを読む */
   state: T;
   /** フィールド更新。debounce/immediate を自動判定 */
-  set: <K extends keyof T>(key: K, value: T[K]) => void;
+  set: <K extends keyof T>(key: K, value: T[K], opts?: { localOnly?: boolean }) => void;
   /** 複数フィールド一括更新 */
   setMany: (updates: Partial<T>) => void;
   /** 未保存の debounce 編集があるか */
@@ -175,12 +175,18 @@ export function useEntityEditor<T extends Record<string, unknown>>(
   }, [debounceMs]);
 
   // --- set: 単一フィールド更新 ---
-  const set = useCallback(<K extends keyof T>(key: K, value: T[K]) => {
-    const fieldDef = optsRef.current.fields[key];
-
+  // localOnly: true → ローカル反映のみ（通信なし、entity変更からの保護あり）
+  const set: <K extends keyof T>(key: K, value: T[K], opts?: { localOnly?: boolean }) => void = useCallback((key: any, value: any, opts?: { localOnly?: boolean }) => {
     // ローカル state 更新
     setLocalEdits(prev => ({ ...prev, [key]: value }));
 
+    if (opts?.localOnly) {
+      // ドラッグ中: ローカルのみ。entity 変更時のクリアから保護
+      debouncingFieldsRef.current.add(key as string);
+      return;
+    }
+
+    const fieldDef = optsRef.current.fields[key];
     if (fieldDef?.immediate && optsRef.current.entityId) {
       // immediate: Supabase に直接書き込み
       optsRef.current.onImmediateUpdate(

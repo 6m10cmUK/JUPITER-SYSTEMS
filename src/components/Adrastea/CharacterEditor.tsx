@@ -2,8 +2,9 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react
 import type { Character, CharacterImage, PieceStatus, CharacterParameter } from '../../types/adrastea.types';
 import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
-import { AdInput, AdTextArea, AdButton, AdColorPicker } from './ui';
+import { AdInput, AdTextArea, AdButton, AdColorPicker, NumberDragInput } from './ui';
 import { Trash2 } from 'lucide-react';
+import { GRID_SIZE } from './Board';
 import { characterToClipboardJson } from '../../utils/clipboardImport';
 import { generateDuplicateName } from '../../utils/nameUtils';
 import { useEntityEditor } from '../../hooks/useEntityEditor';
@@ -364,14 +365,22 @@ function CharacterEditorComponent({
               />
             </div>
             <div style={{ flex: 1 }}>
-              <AdInput
-                type="number"
-                label="駒サイズ"
+              <div style={{ fontSize: '11px', color: theme.textSecondary, marginBottom: '2px' }}>駒サイズ</div>
+              <NumberDragInput
                 value={state.size as number}
-                min={0}
-                onChange={(e) => {
-                  const rounded = Math.round(Number(e.target.value) * 100) / 100;
-                  set('size', Math.max(0, rounded));
+                min={1}
+                max={128}
+                onChange={(v) => set('size', v)}
+                onDrag={(v) => {
+                  set('size', v, { localOnly: true });
+                  if (!character?.id) return;
+                  const el = document.querySelector(`[data-dom-char-id="${character.id}"]`) as HTMLElement | null;
+                  if (el) {
+                    const boardY = (state.board_y as number) ?? 0;
+                    el.style.height = `${v * GRID_SIZE}px`;
+                    el.style.top = `${(boardY - v) * GRID_SIZE}px`;
+                    el.style.transition = 'none';
+                  }
                 }}
               />
             </div>

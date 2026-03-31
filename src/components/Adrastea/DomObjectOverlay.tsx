@@ -522,6 +522,7 @@ const DomObjectWrapper = memo(function DomObjectWrapper({
   return (
     <div
       ref={elRef}
+      data-dom-obj-id={obj.id}
       style={{
         position: 'absolute',
         left: pxX,
@@ -1207,6 +1208,7 @@ const DomCharacterItem = memo(function DomCharacterItem({
   return (
     <div
       ref={elRef}
+      data-dom-char-id={char.id}
       style={{
         position: 'absolute',
         left: pxX,

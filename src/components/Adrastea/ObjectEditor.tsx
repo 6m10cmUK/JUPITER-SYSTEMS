@@ -4,8 +4,9 @@ import { AssetPicker } from './AssetPicker';
 import { theme } from '../../styles/theme';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useEntityEditor } from '../../hooks/useEntityEditor';
-import { AdInput, AdTextArea, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons, AdSlider, FadeInIcon } from './ui';
+import { AdInput, AdTextArea, AdSection, AdCheckbox, AdColorPicker, AdToggleButtons, AdSlider, FadeInIcon, NumberDragInput } from './ui';
 import { Droplets, Grid3X3 } from 'lucide-react';
+import { GRID_SIZE } from './Board';
 
 
 const FONT_OPTIONS = [
@@ -28,6 +29,16 @@ interface ObjectEditorProps {
   onSave: (data: Partial<BoardObject>) => void;
   onDelete?: () => void;
   onClose: () => void;
+}
+
+/** ボード上のオブジェクト DOM 要素のスタイルを直接変更（React 経由なし） */
+function setDomStyle(objId: string | undefined, prop: string, valueMas: number) {
+  if (!objId) return;
+  const el = document.querySelector(`[data-dom-obj-id="${objId}"]`) as HTMLElement | null;
+  if (el) {
+    el.style.setProperty(prop, `${valueMas * GRID_SIZE}px`);
+    el.style.transition = 'none';
+  }
 }
 
 export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _onSave }: ObjectEditorProps) {
@@ -287,41 +298,39 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               <AdSection label="位置">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.x as number)}
-                    onChange={(e) => set('x', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="x:"
+                    value={state.x as number}
+                    onChange={(v) => set('x', v)}
+                    onDrag={(v) => { set('x', v, { localOnly: true }); setDomStyle(object?.id, 'left', v); }}
+                    relativeRange={64}
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.y as number)}
-                    onChange={(e) => set('y', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="y:"
+                    value={state.y as number}
+                    onChange={(v) => set('y', v)}
+                    onDrag={(v) => { set('y', v, { localOnly: true }); setDomStyle(object?.id, 'top', v); }}
+                    relativeRange={64}
                   />
                 </div>
               </AdSection>
               <AdSection label="サイズ">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.width as number)}
-                    onChange={(e) => set('width', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="x:"
+                    value={state.width as number}
+                    onChange={(v) => set('width', v)}
+                    onDrag={(v) => { set('width', v, { localOnly: true }); setDomStyle(object?.id, 'width', v); }}
+                    min={1}
+                    max={128}
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.height as number)}
-                    onChange={(e) => set('height', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="y:"
+                    value={state.height as number}
+                    onChange={(v) => set('height', v)}
+                    onDrag={(v) => { set('height', v, { localOnly: true }); setDomStyle(object?.id, 'height', v); }}
+                    min={1}
+                    max={128}
                   />
                 </div>
               </AdSection>
@@ -435,7 +444,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               <AdSection label="配置">
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>横:</span>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
                   <AdToggleButtons
                     value={state.text_align as string}
                     onChange={(v) => set('text_align', v)}
@@ -447,7 +456,7 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>縦:</span>
+                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
                   <AdToggleButtons
                     value={state.text_vertical_align as string}
                     onChange={(v) => set('text_vertical_align', v)}
@@ -476,21 +485,19 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               </AdSection>
               <AdSection label="位置">
                 <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.x as number)}
-                    onChange={(e) => set('x', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="x:"
+                    value={state.x as number}
+                    onChange={(v) => set('x', v)}
+                    onDrag={(v) => { set('x', v, { localOnly: true }); setDomStyle(object?.id, 'left', v); }}
+                    relativeRange={64}
                   />
-                  <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                  <AdInput
-                    type="number"
-                    value={String(state.y as number)}
-                    onChange={(e) => set('y', Number(e.target.value))}
-                    fullWidth={false}
-                    inputWidth="52px"
+                  <NumberDragInput
+                    label="y:"
+                    value={state.y as number}
+                    onChange={(v) => set('y', v)}
+                    onDrag={(v) => { set('y', v, { localOnly: true }); setDomStyle(object?.id, 'top', v); }}
+                    relativeRange={64}
                   />
                 </div>
               </AdSection>
@@ -502,21 +509,21 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 />
                 {!(state.auto_size as boolean) && (
                   <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginTop: '4px' }}>
-                    <span style={{ fontSize: '11px', color: theme.textMuted }}>x:</span>
-                    <AdInput
-                      type="number"
-                      value={String(state.width as number)}
-                      onChange={(e) => set('width', Number(e.target.value))}
-                      fullWidth={false}
-                      inputWidth="52px"
+                    <NumberDragInput
+                      label="x:"
+                      value={state.width as number}
+                      onChange={(v) => set('width', v)}
+                      onDrag={(v) => { set('width', v, { localOnly: true }); setDomStyle(object?.id, 'width', v); }}
+                      min={1}
+                      max={128}
                     />
-                    <span style={{ fontSize: '11px', color: theme.textMuted }}>y:</span>
-                    <AdInput
-                      type="number"
-                      value={String(state.height as number)}
-                      onChange={(e) => set('height', Number(e.target.value))}
-                      fullWidth={false}
-                      inputWidth="52px"
+                    <NumberDragInput
+                      label="y:"
+                      value={state.height as number}
+                      onChange={(v) => set('height', v)}
+                      onDrag={(v) => { set('height', v, { localOnly: true }); setDomStyle(object?.id, 'height', v); }}
+                      min={1}
+                      max={128}
                     />
                   </div>
                 )}
@@ -568,6 +575,27 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                   )}
                 </>
               )}
+
+              <AdSection label="サイズ（マス数）">
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <NumberDragInput
+                    label="x:"
+                    value={state.width as number}
+                    onChange={(v) => set('width', v)}
+                    onDrag={(v) => { set('width', v, { localOnly: true }); setDomStyle(object?.id, 'width', v); }}
+                    min={1}
+                    max={128}
+                  />
+                  <NumberDragInput
+                    label="y:"
+                    value={state.height as number}
+                    onChange={(v) => set('height', v)}
+                    onDrag={(v) => { set('height', v, { localOnly: true }); setDomStyle(object?.id, 'height', v); }}
+                    min={1}
+                    max={128}
+                  />
+                </div>
+              </AdSection>
 
               <div style={{ marginBottom: '12px' }}>
                 <AdCheckbox

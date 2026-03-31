@@ -103,6 +103,15 @@ export function useObjects(
     [mutation]
   );
 
+  /** ローカルのみ更新（通信なし）。ドラッグ中のプレビュー用 */
+  const localUpdateObject = useCallback(
+    (id: string, updates: Partial<BoardObject>): void => {
+      const rest = omitKeys(updates as BoardObject, ['id', 'room_id', 'type', 'created_at']);
+      mutation.localUpdate(id, rest as Partial<BoardObject>);
+    },
+    [mutation]
+  );
+
   const removeObject = useCallback(
     async (id: string): Promise<void> => {
       const inj = injectRef.current;
@@ -160,6 +169,6 @@ export function useObjects(
 
   return {
     allObjects, activeObjects, loading,
-    addObject, updateObject, removeObject, reorderObjects, batchUpdateSort,
+    addObject, updateObject, localUpdateObject, removeObject, reorderObjects, batchUpdateSort,
   };
 }
