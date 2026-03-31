@@ -478,6 +478,7 @@ const Adrastea: React.FC = () => {
   if (!onboarded) {
     const handleCompleteOnboarding = async () => {
       try {
+        await supabase.auth.updateUser({ data: { onboarded: true } });
         await supabase
           .from('users')
           .update({ onboarded: true })
@@ -493,6 +494,7 @@ const Adrastea: React.FC = () => {
         defaultImage={user?.avatarUrl ?? null}
         onComplete={async (data) => {
           await updateProfile(data);
+          await handleCompleteOnboarding();
         }}
         onSkip={handleCompleteOnboarding}
       />
