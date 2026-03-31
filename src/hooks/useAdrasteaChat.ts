@@ -132,7 +132,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
               room_id: roomId,
               sender_name: senderName,
               content: 'シークレットダイス',
-              message_type: 'dice' as const,
+              message_type: 'secret_dice_notification' as const,
               sender_uid: senderUid,
               sender_avatar_asset_id: senderAvatarAssetId,
               channel,

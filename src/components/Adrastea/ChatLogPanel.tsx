@@ -494,7 +494,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
     () => messages.filter(m => {
       if ((m.channel ?? 'main') !== activeChatChannel) return false;
       // 送信者自身の秘密ダイス通知を非表示（結果メッセージだけ表示）
-      if (m.content === 'シークレットダイス' && m.sender_uid === user?.uid) return false;
+      if (m.message_type === 'secret_dice_notification' && m.sender_uid === user?.uid) return false;
       return true;
     }),
     [messages, activeChatChannel, user?.uid]
