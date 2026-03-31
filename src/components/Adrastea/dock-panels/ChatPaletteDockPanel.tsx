@@ -3,7 +3,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { theme } from '../../../styles/theme';
 import { CharacterEditor, type CharacterEditorHandle } from '../CharacterEditor';
-import { AdModal } from '../ui';
+import { AdModal, Tooltip } from '../ui';
 import { Pencil, Send } from 'lucide-react';
 import { resolveTemplateVars } from '../utils/chatEditorUtils';
 
@@ -121,22 +121,23 @@ export function ChatPaletteDockPanel() {
               >
                 {item}
               </button>
-              <button
-                className="adra-btn adra-btn--ghost"
-                onClick={() => handleSendPaletteMessage(item)}
-                style={{
-                  padding: '4px 6px',
-                  borderRadius: 0,
-                  color: theme.accent,
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title="送信"
-              >
-                <Send size={14} />
-              </button>
+              <Tooltip label="送信">
+                <button
+                  className="adra-btn adra-btn--ghost"
+                  onClick={() => handleSendPaletteMessage(item)}
+                  style={{
+                    padding: '4px 6px',
+                    borderRadius: 0,
+                    color: theme.accent,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Send size={14} />
+                </button>
+              </Tooltip>
             </div>
           ))}
         </div>
@@ -145,22 +146,23 @@ export function ChatPaletteDockPanel() {
       {/* 右下の編集ボタン */}
       {activeCharacter && (
         <div style={{ padding: '4px 8px', display: 'flex', justifyContent: 'flex-end', borderTop: `1px solid ${theme.border}` }}>
-          <button
-            className="adra-btn adra-btn--ghost"
-            onClick={() => setShowEditor(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '4px',
-              padding: '4px 8px',
-              borderRadius: 0,
-              color: theme.textSecondary,
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-            title="チャットパレットを編集"
-          >
-            <Pencil size={11} />
-            編集
-          </button>
+          <Tooltip label="チャットパレットを編集">
+            <button
+              className="adra-btn adra-btn--ghost"
+              onClick={() => setShowEditor(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '4px',
+                padding: '4px 8px',
+                borderRadius: 0,
+                color: theme.textSecondary,
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              <Pencil size={11} />
+              編集
+            </button>
+          </Tooltip>
         </div>
       )}
 

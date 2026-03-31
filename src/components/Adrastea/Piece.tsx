@@ -4,6 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { Piece as PieceType } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import { resolveAssetId } from '../../hooks/useAssets';
+import { Tooltip } from './ui';
 
 interface PieceProps {
   piece: PieceType;
@@ -54,35 +55,36 @@ export function Piece({ piece, onRemove }: PieceProps) {
       >
         {piece.label}
       </span>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove(piece.id);
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        style={{
-          position: 'absolute',
-          top: -8,
-          right: -8,
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          backgroundColor: theme.danger,
-          color: theme.textOnAccent,
-          border: 'none',
-          cursor: 'pointer',
-          fontSize: '12px',
-          lineHeight: '20px',
-          textAlign: 'center',
-          padding: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        title="削除"
-      >
-        ×
-      </button>
+      <Tooltip label="削除">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove(piece.id);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            top: -8,
+            right: -8,
+            width: 20,
+            height: 20,
+            borderRadius: '50%',
+            backgroundColor: theme.danger,
+            color: theme.textOnAccent,
+            border: 'none',
+            cursor: 'pointer',
+            fontSize: '12px',
+            lineHeight: '20px',
+            textAlign: 'center',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          ×
+        </button>
+      </Tooltip>
     </div>
   );
 }

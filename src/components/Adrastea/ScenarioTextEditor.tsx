@@ -104,16 +104,17 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
         <span style={{ fontSize: '12px', fontWeight: 600, color: theme.textPrimary }}>
           テキストメモ
         </span>
-        <button
-          onClick={onClose}
-          title="閉じる"
-          style={{
-            background: 'transparent', border: 'none', cursor: 'pointer',
-            color: theme.textMuted, display: 'flex', alignItems: 'center',
-          }}
-        >
-          <X size={14} />
-        </button>
+        <Tooltip label="閉じる">
+          <button
+            onClick={onClose}
+            style={{
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              color: theme.textMuted, display: 'flex', alignItems: 'center',
+            }}
+          >
+            <X size={14} />
+          </button>
+        </Tooltip>
       </div>
 
       {/* タイトル */}
@@ -134,9 +135,9 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
         />
       </div>
 
-      {/* 発言者選択 */}
+      {/* 送信名選択 */}
       <div style={{ marginBottom: '8px', flexShrink: 0 }}>
-        <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '2px' }}>発言者</div>
+        <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '2px' }}>送信名</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Tooltip label="キャラクター選択">
             <DropdownMenu
@@ -154,7 +155,6 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     padding: 0, outline: 'none',
                   }}
-                  title="キャラクター選択"
                 >
                   {!text.speaker_character_id || !resolveAssetId(ctx.characters.find(c => c.id === text.speaker_character_id)?.images[ctx.characters.find(c => c.id === text.speaker_character_id)!.active_image_index]?.asset_id) ? (
                     <User size={14} color={theme.textSecondary} />
@@ -223,13 +223,14 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
           fillHeight
           placeholder="テキストメモの内容"
         />
-        <button
-          onClick={() => setExpanded(true)}
-          style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '2px', display: 'flex', opacity: 0.6 }}
-          title="テキストエリアを拡大"
-        >
-          <Maximize2 size={12} />
-        </button>
+        <Tooltip label="テキストエリアを拡大">
+          <button
+            onClick={() => setExpanded(true)}
+            style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '2px', display: 'flex', opacity: 0.6 }}
+          >
+            <Maximize2 size={12} />
+          </button>
+        </Tooltip>
       </div>
 
       {/* 拡大モーダル */}
@@ -248,9 +249,11 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: theme.textPrimary }}>テキストメモ - {text.title || '無題'}</span>
-              <button type="button" onClick={closeExpanded} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }} title="縮小">
-                <Minimize2 size={16} />
-              </button>
+              <Tooltip label="縮小">
+                <button type="button" onClick={closeExpanded} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }}>
+                  <Minimize2 size={16} />
+                </button>
+              </Tooltip>
             </div>
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }} onInput={handleModalInput}>
               <ChatEditor

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { MIN_SCALE, MAX_SCALE } from './Board';
 import { theme } from '../../styles/theme';
 import { Maximize } from 'lucide-react';
+import { Tooltip } from './ui';
 
 /** 対数スライダー: スケール値 → スライダー位置 (0–1) */
 function scaleToSlider(scale: number): number {
@@ -63,29 +64,31 @@ export function ZoomBar({ boardRef }: ZoomBarProps) {
         onChange={handleSliderChange}
         style={{ width: 80, accentColor: theme.textPrimary, height: 12 }}
       />
-      <button
-        onClick={handleReset}
-        title="100%にリセット"
-        style={{
-          background: 'transparent', border: `1px solid ${theme.border}`,
-          color: theme.textSecondary, padding: '0 4px',
-          fontSize: '0.65rem', cursor: 'pointer', minWidth: 36, textAlign: 'center',
-          lineHeight: '16px',
-        }}
-      >
-        {pct}%
-      </button>
-      <button
-        onClick={() => boardRef.current?.fitToScreen()}
-        title="全体表示"
-        style={{
-          background: 'transparent', border: 'none',
-          color: theme.textSecondary, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', padding: 0,
-        }}
-      >
-        <Maximize size={12} />
-      </button>
+      <Tooltip label="100%にリセット">
+        <button
+          onClick={handleReset}
+          style={{
+            background: 'transparent', border: `1px solid ${theme.border}`,
+            color: theme.textSecondary, padding: '0 4px',
+            fontSize: '0.65rem', cursor: 'pointer', minWidth: 36, textAlign: 'center',
+            lineHeight: '16px',
+          }}
+        >
+          {pct}%
+        </button>
+      </Tooltip>
+      <Tooltip label="全体表示">
+        <button
+          onClick={() => boardRef.current?.fitToScreen()}
+          style={{
+            background: 'transparent', border: 'none',
+            color: theme.textSecondary, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', padding: 0,
+          }}
+        >
+          <Maximize size={12} />
+        </button>
+      </Tooltip>
     </div>
   );
 }

@@ -15,6 +15,7 @@ export {
 } from './AdComponents';
 
 export { FadeInIcon } from './FadeInIcon';
+export { NumberDragInput } from './NumberDragInput';
 
 export { SortableListPanel, SortableListItem } from './SortableList';
 export { Tooltip } from './Tooltip';

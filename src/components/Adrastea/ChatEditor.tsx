@@ -515,7 +515,6 @@ const ChatEditor = forwardRef<ChatEditorHandle, ChatEditorProps>(
                 justifyContent: 'center',
                 padding: 0,
               }}
-              title="見出し"
             >
               <Heading1 size={14} />
             </button>

@@ -5,6 +5,7 @@ import { useRooms, type RoomUI } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
 import { AdModal, AdInput, AdButton, AdComboBox, ConfirmModal } from './ui/AdComponents';
+import { Tooltip } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import {
   DndContext,
@@ -180,72 +181,75 @@ function SortableRoomCard({
           gap: '2px',
         }}
       >
-        <button
-          className="adra-btn-icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            onShare();
-          }}
-          title="共有"
-          style={{
-            width: '24px',
-            height: '24px',
-            background: 'transparent',
-            border: 'none',
-            color: theme.textSecondary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
-          }}
-        >
-          <Share2 size={12} />
-        </button>
-        <button
-          className="adra-btn-icon"
-          onClick={onEdit}
-          title="編集"
-          style={{
-            width: '24px',
-            height: '24px',
-            background: 'transparent',
-            border: 'none',
-            color: theme.textSecondary,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
-          }}
-        >
-          <Pencil size={12} />
-        </button>
-        <button
-          className="adra-btn-icon adra-btn-icon--danger"
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          title="削除"
-          style={{
-            width: '24px',
-            height: '24px',
-            background: 'transparent',
-            border: 'none',
-            color: theme.danger,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 0,
-            filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
-          }}
-        >
-          <X size={13} />
-        </button>
+        <Tooltip label="共有">
+          <button
+            className="adra-btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: 'transparent',
+              border: 'none',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
+            }}
+          >
+            <Share2 size={12} />
+          </button>
+        </Tooltip>
+        <Tooltip label="編集">
+          <button
+            className="adra-btn-icon"
+            onClick={onEdit}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: 'transparent',
+              border: 'none',
+              color: theme.textSecondary,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
+            }}
+          >
+            <Pencil size={12} />
+          </button>
+        </Tooltip>
+        <Tooltip label="削除">
+          <button
+            className="adra-btn-icon adra-btn-icon--danger"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: 'transparent',
+              border: 'none',
+              color: theme.danger,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 0,
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))',
+            }}
+          >
+            <X size={13} />
+          </button>
+        </Tooltip>
       </div>
     </div>
   );
@@ -418,53 +422,55 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
           TRPGオンラインセッションツール
         </p>
         <div style={{ position: 'absolute', top: '24px', right: '32px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button
-            className="adra-btn-icon"
-            onClick={() => setShowProfileEdit(true)}
-            title="プロフィール"
-            style={{
-              width: '24px',
-              height: '24px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 0,
-              background: 'transparent',
-              border: `1px solid ${theme.border}`,
-              color: theme.textSecondary,
-              cursor: 'pointer',
-              borderRadius: '50%',
-            }}
-          >
-            {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt="プロフィール"
-                style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover' }}
-              />
-            ) : (
-              <User size={12} />
-            )}
-          </button>
-          <button
-            className="adra-btn"
-            onClick={signOut}
-            title="ログアウト"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              fontSize: '12px',
-              background: 'transparent',
-              border: `1px solid ${theme.border}`,
-              color: theme.textSecondary,
-              cursor: 'pointer',
-            }}
-          >
-            <LogOut size={14} />
-            ログアウト
-          </button>
+          <Tooltip label="プロフィール">
+            <button
+              className="adra-btn-icon"
+              onClick={() => setShowProfileEdit(true)}
+              style={{
+                width: '24px',
+                height: '24px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 0,
+                background: 'transparent',
+                border: `1px solid ${theme.border}`,
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                borderRadius: '50%',
+              }}
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt="プロフィール"
+                  style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <User size={12} />
+              )}
+            </button>
+          </Tooltip>
+          <Tooltip label="ログアウト">
+            <button
+              className="adra-btn"
+              onClick={signOut}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 12px',
+                fontSize: '12px',
+                background: 'transparent',
+                border: `1px solid ${theme.border}`,
+                color: theme.textSecondary,
+                cursor: 'pointer',
+              }}
+            >
+              <LogOut size={14} />
+              ログアウト
+            </button>
+          </Tooltip>
         </div>
       </div>
 

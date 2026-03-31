@@ -5,7 +5,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Scene, BgmTrack, BoardObject } from '../../types/adrastea.types';
 import { Plus, Copy, Trash2 } from 'lucide-react';
-import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu } from './ui';
+import { SortableListPanel, SortableListItem, ConfirmModal, DropdownMenu, Tooltip } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
 import { resolveAssetId } from '../../hooks/useAssets';
 
@@ -115,66 +115,69 @@ export function ScenePanel({
       headerActions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '1px' }}>
           {onDuplicateScenes && (
+            <Tooltip label="選択中のシーンを複製">
+              <button
+                onClick={() => onDuplicateScenes(selectedSceneIds)}
+                disabled={!canDuplicate}
+                aria-label="シーンを複製"
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.textSecondary,
+                  cursor: canDuplicate ? 'pointer' : 'default',
+                  padding: '2px 4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  opacity: canDuplicate ? 1 : 0.3,
+                }}
+              >
+                <Copy size={15} />
+              </button>
+            </Tooltip>
+          )}
+          <Tooltip label="選択中のシーンを削除">
             <button
-              onClick={() => onDuplicateScenes(selectedSceneIds)}
-              disabled={!canDuplicate}
-              aria-label="シーンを複製"
-              title="選択中のシーンを複製"
+              onClick={() => {
+                if (canDelete) {
+                  const msg = selectedSceneIds.length > 1
+                    ? `${selectedSceneIds.length}件のシーンを削除しますか？`
+                    : 'このシーンを削除しますか？';
+                  setPendingRemove({ ids: selectedSceneIds, msg });
+                }
+              }}
+              disabled={!canDelete}
+              aria-label="シーンを削除"
               style={{
                 background: 'transparent',
                 border: 'none',
-                color: theme.textSecondary,
-                cursor: canDuplicate ? 'pointer' : 'default',
+                color: theme.danger,
+                cursor: canDelete ? 'pointer' : 'default',
                 padding: '2px 4px',
                 display: 'flex',
                 alignItems: 'center',
-                opacity: canDuplicate ? 1 : 0.3,
+                opacity: canDelete ? 1 : 0.3,
               }}
             >
-              <Copy size={15} />
+              <Trash2 size={15} />
             </button>
-          )}
-          <button
-            onClick={() => {
-              if (canDelete) {
-                const msg = selectedSceneIds.length > 1
-                  ? `${selectedSceneIds.length}件のシーンを削除しますか？`
-                  : 'このシーンを削除しますか？';
-                setPendingRemove({ ids: selectedSceneIds, msg });
-              }
-            }}
-            disabled={!canDelete}
-            aria-label="シーンを削除"
-            title="選択中のシーンを削除"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: theme.danger,
-              cursor: canDelete ? 'pointer' : 'default',
-              padding: '2px 4px',
-              display: 'flex',
-              alignItems: 'center',
-              opacity: canDelete ? 1 : 0.3,
-            }}
-          >
-            <Trash2 size={15} />
-          </button>
-          <button
-            onClick={() => onAddScene(Math.max(1, selectedSceneIds.length))}
-            aria-label="シーンを追加"
-            title={selectedSceneIds.length > 1 ? `シーンを${selectedSceneIds.length}件追加` : 'シーンを追加'}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: theme.accent,
-              cursor: 'pointer',
-              padding: '2px 4px',
-              display: 'flex',
-              alignItems: 'center',
-            }}
-          >
-            <Plus size={15} />
-          </button>
+          </Tooltip>
+          <Tooltip label={selectedSceneIds.length > 1 ? `シーンを${selectedSceneIds.length}件追加` : 'シーンを追加'}>
+            <button
+              onClick={() => onAddScene(Math.max(1, selectedSceneIds.length))}
+              aria-label="シーンを追加"
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: theme.accent,
+                cursor: 'pointer',
+                padding: '2px 4px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <Plus size={15} />
+            </button>
+          </Tooltip>
         </div>
       }
       items={scenes}
@@ -197,8 +200,9 @@ export function ScenePanel({
           `BGM: ${bgmLabel}`,
         ].join('\n');
         return (
-        <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }} title={tooltip}>
-        <SortableListItem
+        <Tooltip label={tooltip}>
+          <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }}>
+          <SortableListItem
           id={scene.id}
           isActive={activeSceneId === scene.id}
           isSelected={isSelected}
@@ -317,7 +321,8 @@ export function ScenePanel({
             </div>
           </div>
         </SortableListItem>
-        </div>
+          </div>
+        </Tooltip>
         );
       })}
     </SortableListPanel>

@@ -191,19 +191,21 @@ export function ScenarioTextPanel({
                   </div>
                 }
               >
+                <Tooltip label={text.speaker_name ? `送信名：${text.speaker_name}` : '送信名：未設定'}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '4px', fontSize: '12px' }}>
                     <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: theme.textPrimary, fontWeight: 600 }}>
                       {text.title || 'テキストメモ'}
                     </span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onSendToChat?.(text.id); }}
-                      disabled={!text.content || !onSendToChat}
-                      title="チャットに送信"
-                      style={{ ...iconBtn, color: theme.accent, opacity: text.content && onSendToChat ? 1 : 0.3 }}
-                    >
-                      <Send size={13} />
-                    </button>
+                    <Tooltip label="チャットに送信">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSendToChat?.(text.id); }}
+                        disabled={!text.content || !onSendToChat}
+                        style={{ ...iconBtn, color: theme.accent, opacity: text.content && onSendToChat ? 1 : 0.3 }}
+                      >
+                        <Send size={13} />
+                      </button>
+                    </Tooltip>
                   </div>
                   <div style={{
                     color: theme.textSecondary,
@@ -219,6 +221,7 @@ export function ScenarioTextPanel({
                     })()}
                   </div>
                 </div>
+                </Tooltip>
               </SortableListItem>
             </div>
           ))}
