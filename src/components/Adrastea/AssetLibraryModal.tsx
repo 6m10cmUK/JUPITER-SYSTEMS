@@ -3,10 +3,11 @@ import { createPortal } from 'react-dom';
 import { theme } from '../../styles/theme';
 import { useAssets } from '../../hooks/useAssets';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
-import { X, Upload, Link, Play, Square, ImageOff, Trash2, Pencil } from 'lucide-react';
+import { X, Upload, Link, ImageOff, Trash2, Pencil } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
-import { AdComboBox, AdModal, AdButton, AdInput, ConfirmModal } from './ui';
+import { AdComboBox, AdModal, AdButton, AdInput, ConfirmModal, Tooltip } from './ui';
+import YouTube from 'react-youtube';
 
 /** blobCache 経由のサムネイル — キャッシュ済みなら即表示 */
 function CachedThumbnail({ src, alt, style }: { src: string; alt: string; style?: React.CSSProperties }) {
@@ -118,7 +119,15 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
   const hasSearchTags = searchTags.length > 0;
   const [uploading, setUploading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'image' | 'audio'>(initialTab);
+  const [activeTab, setActiveTabRaw] = useState<'image' | 'audio'>(() => {
+    if (initialTab !== 'image') return initialTab;
+    const saved = localStorage.getItem('adrastea-asset-tab');
+    return saved === 'audio' ? 'audio' : 'image';
+  });
+  const setActiveTab = useCallback((tab: 'image' | 'audio') => {
+    setActiveTabRaw(tab);
+    localStorage.setItem('adrastea-asset-tab', tab);
+  }, []);
   const [addMode, setAddMode] = useState<AddMode>(null);
   const [urlInput, setUrlInput] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -135,6 +144,12 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
   const searchDropRef = useRef<HTMLDivElement>(null);
   const searchComposingRef = useRef(false);
 
+  /** YouTube URL → videoId を抽出。非YouTube なら null */
+  const extractYouTubeVideoId = useCallback((url: string): string | null => {
+    const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?\s]+)/);
+    return m ? m[1].split(/[?&#]/)[0] : null;
+  }, []);
+
   const handlePreviewAudio = useCallback((e: React.MouseEvent, asset: Asset) => {
     e.stopPropagation();
     if (previewingId === asset.id) {
@@ -143,14 +158,18 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
       setPreviewingId(null);
     } else {
       previewAudioRef.current?.pause();
-      const audio = new Audio(asset.url);
-      audio.volume = 0.5;
-      audio.onended = () => setPreviewingId(null);
-      audio.play().catch(() => {});
-      previewAudioRef.current = audio;
+      previewAudioRef.current = null;
+      // YouTube URL は react-youtube で再生するため Audio は作らない
+      if (!extractYouTubeVideoId(asset.url)) {
+        const audio = new Audio(asset.url);
+        audio.volume = 0.5;
+        audio.onended = () => setPreviewingId(null);
+        audio.play().catch((err) => { console.error('試聴失敗:', asset.url, err); setPreviewingId(null); });
+        previewAudioRef.current = audio;
+      }
       setPreviewingId(asset.id);
     }
-  }, [previewingId]);
+  }, [previewingId, extractYouTubeVideoId]);
 
   const filtered = assets.filter((a) => {
     if (a.asset_type !== activeTab) return false;
@@ -438,14 +457,14 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') handleAddByUrl(); }}
-              placeholder={activeTab === 'audio' ? 'https://... または YouTube URL' : 'https://...'}
+              placeholder="https://..."
               autoFocus
               maxLength={256}
               style={inputStyle}
             />
             {activeTab === 'audio' && (
               <div style={{ fontSize: '0.7rem', color: theme.textMuted }}>
-                YouTube URLにも対応しています
+                YouTube / Dropbox / Google Drive の共有リンクに対応
               </div>
             )}
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -513,8 +532,9 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
     );
   };
 
-  return (
+  return createPortal(
     <div
+      className="adrastea-root"
       style={modalStyle}
       onClick={onClose}
     >
@@ -739,30 +759,32 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => openEditModal(asset)}
-                        title="編集"
-                        style={{
-                          width: '24px', height: '24px', borderRadius: '4px',
-                          background: 'rgba(0,0,0,0.6)', border: 'none',
-                          color: theme.textPrimary, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        <Pencil size={12} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(asset.id)}
-                        title="削除"
-                        style={{
-                          width: '24px', height: '24px', borderRadius: '4px',
-                          background: 'rgba(0,0,0,0.6)', border: 'none',
-                          color: theme.danger, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        <Trash2 size={12} />
-                      </button>
+                      <Tooltip label="編集">
+                        <button
+                          onClick={() => openEditModal(asset)}
+                          style={{
+                            width: '24px', height: '24px', borderRadius: '4px',
+                            background: 'rgba(0,0,0,0.6)', border: 'none',
+                            color: theme.textPrimary, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label="削除">
+                        <button
+                          onClick={() => setConfirmDeleteId(asset.id)}
+                          style={{
+                            width: '24px', height: '24px', borderRadius: '4px',
+                            background: 'rgba(0,0,0,0.6)', border: 'none',
+                            color: theme.danger, cursor: 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </Tooltip>
                     </div>
                     <div style={{ padding: '4px' }}>
                       <div style={{
@@ -783,13 +805,14 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               {filtered.map((asset) => {
                 const isPreviewing = previewingId === asset.id;
+                const ytVideoId = isPreviewing ? extractYouTubeVideoId(asset.url) : null;
                 return (
+                  <div key={asset.id}>
                   <div
-                    key={asset.id}
                     style={{
                       display: 'flex', alignItems: 'center', gap: '8px',
                       padding: '6px 8px',
-                      borderBottom: `1px solid ${theme.borderSubtle}`,
+                      borderBottom: ytVideoId ? 'none' : `1px solid ${theme.borderSubtle}`,
                       cursor: onSelect ? 'pointer' : undefined,
                       transition: 'background 0.1s',
                     }}
@@ -798,18 +821,21 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                   >
                     {/* 試聴ボタン */}
-                    <button
-                      onClick={(e) => handlePreviewAudio(e, asset)}
-                      title={isPreviewing ? '停止' : '試聴'}
-                      style={{
-                        background: 'transparent', border: 'none',
-                        color: isPreviewing ? theme.accent : theme.textSecondary,
-                        cursor: 'pointer', padding: '2px',
-                        display: 'flex', alignItems: 'center', flexShrink: 0,
-                      }}
-                    >
-                      {isPreviewing ? <Square size={14} /> : <Play size={14} />}
-                    </button>
+                    <Tooltip label={isPreviewing ? '停止' : '試聴'}>
+                      <button
+                        onClick={(e) => handlePreviewAudio(e, asset)}
+                        style={{
+                          background: 'transparent', border: 'none',
+                          color: isPreviewing ? theme.accent : theme.textSecondary,
+                          cursor: 'pointer', padding: '2px',
+                          display: 'flex', alignItems: 'center', flexShrink: 0,
+                        }}
+                      >
+                        {isPreviewing
+                          ? <div style={{ width: 11, height: 11, background: 'currentColor', borderRadius: 1 }} />
+                          : <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M6 3v18l15-9z" /></svg>}
+                      </button>
+                    </Tooltip>
                     {/* タイトル + タグ */}
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{
@@ -824,29 +850,45 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
                     </div>
                     {/* 編集・削除ボタン */}
                     <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => openEditModal(asset)}
-                        title="編集"
-                        style={{
-                          background: 'transparent', border: 'none',
-                          color: theme.textSecondary, cursor: 'pointer', padding: '2px',
-                          display: 'flex', alignItems: 'center',
-                        }}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(asset.id)}
-                        title="削除"
-                        style={{
-                          background: 'transparent', border: 'none',
-                          color: theme.danger, cursor: 'pointer', padding: '2px',
-                          display: 'flex', alignItems: 'center',
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <Tooltip label="編集">
+                        <button
+                          onClick={() => openEditModal(asset)}
+                          style={{
+                            background: 'transparent', border: 'none',
+                            color: theme.textSecondary, cursor: 'pointer', padding: '2px',
+                            display: 'flex', alignItems: 'center',
+                          }}
+                        >
+                          <Pencil size={14} />
+                        </button>
+                      </Tooltip>
+                      <Tooltip label="削除">
+                        <button
+                          onClick={() => setConfirmDeleteId(asset.id)}
+                          style={{
+                            background: 'transparent', border: 'none',
+                            color: theme.danger, cursor: 'pointer', padding: '2px',
+                            display: 'flex', alignItems: 'center',
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </Tooltip>
                     </div>
+                  </div>
+                  {ytVideoId && (
+                    <div style={{ padding: '0 8px 8px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
+                      <YouTube
+                        videoId={ytVideoId}
+                        opts={{
+                          width: '100%',
+                          height: '60',
+                          playerVars: { autoplay: 1 },
+                        }}
+                        onEnd={() => setPreviewingId(null)}
+                      />
+                    </div>
+                  )}
                   </div>
                 );
               })}
@@ -952,6 +994,7 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
         </div>,
         document.body,
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }

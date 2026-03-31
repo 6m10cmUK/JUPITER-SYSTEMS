@@ -1,12 +1,12 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
 import { handleClipboardImport } from '../../../hooks/usePasteHandler';
 import { DropdownMenu, shortcutLabel } from '../ui/DropdownMenu';
+import { Tooltip } from '../ui';
 import { resolveAssetId } from '../../../hooks/useAssets';
-import { usePermission } from '../../../hooks/usePermission';
 import { theme } from '../../../styles/theme';
 
 function isLightColor(hex: string): boolean {
@@ -37,14 +37,22 @@ function StatusBar({
   updateStatusValue: (charId: string, statusIndex: number, newValue: number) => void;
 }) {
   const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef<number | null>(null);
+  const [localValue, setLocalValue] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
-  const ratio = status.max > 0 ? status.value / status.max : 0;
+  // status.value が localValue に追いついたらクリア
+  useEffect(() => {
+    if (!isDragging && localValue !== null && status.value === localValue) {
+      setLocalValue(null);
+    }
+  }, [status.value, localValue, isDragging]);
+
+  const displayValue = localValue !== null ? localValue : status.value;
+  const ratio = status.max > 0 ? displayValue / status.max : 0;
   const barColor = status.max > 0 && ratio <= 4 / 5 ? '#d9534f' : 'rgba(255,255,255,0.7)';
 
   const handleBarMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button !== 2) return; // 右クリックのみ
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     if (!canEdit) return;
@@ -62,18 +70,20 @@ function StatusBar({
     const onMouseMove = (moveE: MouseEvent) => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = requestAnimationFrame(() => {
-        const newValue = calcValue(moveE.clientX);
-        dragRef.current = newValue;
-        updateStatusValue(charId, statusIndex, newValue);
+        setLocalValue(calcValue(moveE.clientX));
       });
     };
 
     const onMouseUp = () => {
-      setIsDragging(false);
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      setIsDragging(false);
+      setLocalValue(prev => {
+        if (prev !== null) updateStatusValue(charId, statusIndex, prev);
+        return prev; // Realtime で status.value が更新されるまで保持
+      });
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
     };
@@ -81,10 +91,8 @@ function StatusBar({
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
 
-    // 初回クリック位置も反映
     const initVal = calcValue(e.clientX);
-    dragRef.current = initVal;
-    updateStatusValue(charId, statusIndex, initVal);
+    setLocalValue(initVal);
   };
 
   return (
@@ -128,7 +136,7 @@ function StatusBar({
         pointerEvents: 'none',
         textShadow: '0 0 4px #fff, 0 0 4px #fff',
       }}>
-        {status.value}/{status.max}
+        {displayValue}/{status.max}
       </span>
       {canEdit && (
         <div
@@ -191,12 +199,26 @@ function StatusBar({
   );
 }
 
+const STATUS_COL_MIN_WIDTH = 120;
+
 export function StatusDockPanel() {
   const ctx = useAdrasteaContext();
   const { user } = useAuth();
-  const { can: canEdit } = usePermission();
   const currentUserId = user?.uid ?? '';
   const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [statusCols, setStatusCols] = useState(2);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const obs = new ResizeObserver(([entry]) => {
+      const w = entry.contentRect.width;
+      setStatusCols(Math.max(1, Math.floor(w / STATUS_COL_MIN_WIDTH)));
+    });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
 
   const visible = [...ctx.characters]
     .filter(c => !c.is_hidden_on_board && c.board_visible !== false)
@@ -228,12 +250,6 @@ export function StatusDockPanel() {
     ctx.updateCharacter(charId, { statuses: newStatuses });
   }, [ctx]);
 
-  const updateInitiative = useCallback((charId: string, delta: number) => {
-    const char = ctx.characters.find(c => c.id === charId);
-    if (!char) return;
-    const newInitiative = (char.initiative ?? 0) + delta;
-    ctx.updateCharacter(charId, { initiative: newInitiative });
-  }, [ctx]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -267,6 +283,7 @@ export function StatusDockPanel() {
   return (
     <>
       <div
+        ref={panelRef}
         onContextMenu={(e) => {
           e.preventDefault();
           setContextMenuPos({ x: e.clientX, y: e.clientY });
@@ -348,79 +365,6 @@ export function StatusDockPanel() {
                   }}>
                     {isPrivate ? '?' : formatInitiative(initiative)}
                   </div>
-                  {canEdit('character_edit') && !isPrivate && (
-                    <div style={{
-                      display: 'flex',
-                      gap: 1,
-                    }}>
-                      <button
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '1px 2px',
-                          fontSize: 10,
-                          lineHeight: 1,
-                          color: theme.textMuted,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'color 0.15s ease',
-                          minWidth: 12,
-                          height: 12,
-                        }}
-                        onMouseEnter={(e) => {
-                          const btn = e.currentTarget;
-                          btn.style.color = theme.textPrimary;
-                        }}
-                        onMouseLeave={(e) => {
-                          const btn = e.currentTarget;
-                          btn.style.color = theme.textMuted;
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateInitiative(char.id, 1);
-                        }}
-                        aria-label="initiative増加"
-                        title="initiative +1"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          padding: '1px 2px',
-                          fontSize: 10,
-                          lineHeight: 1,
-                          color: theme.textMuted,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'color 0.15s ease',
-                          minWidth: 12,
-                          height: 12,
-                        }}
-                        onMouseEnter={(e) => {
-                          const btn = e.currentTarget;
-                          btn.style.color = theme.textPrimary;
-                        }}
-                        onMouseLeave={(e) => {
-                          const btn = e.currentTarget;
-                          btn.style.color = theme.textMuted;
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateInitiative(char.id, -1);
-                        }}
-                        aria-label="initiative減少"
-                        title="initiative -1"
-                      >
-                        ▼
-                      </button>
-                    </div>
-                  )}
                 </div>
               </div>
               {/* 右側: 名前 + ステータスバー */}
@@ -445,32 +389,33 @@ export function StatusDockPanel() {
                     {char.name}
                   </span>
                   {/* 外部URL */}
-                  <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      padding: 0,
-                      cursor: hasSheetUrl ? 'pointer' : 'default',
-                      opacity: hasSheetUrl ? 0.8 : 0.25,
-                      color: theme.textPrimary,
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                    title={hasSheetUrl ? char.sheet_url! : '外部URLが未設定'}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (hasSheetUrl) window.open(char.sheet_url!, '_blank', 'noopener');
-                    }}
-                    disabled={!hasSheetUrl}
-                  >
-                    <ExternalLink size={11} />
-                  </button>
+                  <Tooltip label={hasSheetUrl ? char.sheet_url! : '外部URLが未設定'}>
+                    <button
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: hasSheetUrl ? 'pointer' : 'default',
+                        opacity: hasSheetUrl ? 0.8 : 0.25,
+                        color: theme.textPrimary,
+                        display: 'flex',
+                        alignItems: 'center',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (hasSheetUrl) window.open(char.sheet_url!, '_blank', 'noopener');
+                      }}
+                      disabled={!hasSheetUrl}
+                    >
+                      <ExternalLink size={11} />
+                    </button>
+                  </Tooltip>
                 </div>
                 {/* ステータスバー 2列グリッド */}
                 {showStatuses && (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gridTemplateColumns: `repeat(${statusCols}, 1fr)`,
                     gap: 2,
                   }}>
                     {char.statuses.map((s, i) => (

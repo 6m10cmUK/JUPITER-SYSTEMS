@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
-import { AdButton, AdInput, AdTextArea, ConfirmModal } from './ui';
+import { AdButton, AdInput, AdTextArea, ConfirmModal, Tooltip } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
@@ -66,14 +66,18 @@ function RoomSettingsSection({
   onDeleteRoom,
   onClose,
   isOwner,
+  canEdit,
   systems,
+  dockviewApi,
 }: {
   room: Room;
   onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
   isOwner: boolean;
+  canEdit: boolean;
   systems: { id: string; name: string }[];
+  dockviewApi: DockviewApi | null;
 }) {
   const [roomName, setRoomName] = useState(room.name);
   const [description, setDescription] = useState('');
@@ -94,11 +98,12 @@ function RoomSettingsSection({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', opacity: canEdit ? 1 : 0.5, pointerEvents: canEdit ? 'auto' : 'none' }}>
       <AdInput
         label="ルーム名"
         value={roomName}
         onChange={(e) => setRoomName(e.target.value)}
+        disabled={!canEdit}
       />
       <AdTextArea
         label="説明"
@@ -106,6 +111,7 @@ function RoomSettingsSection({
         onChange={(e) => setDescription(e.target.value)}
         placeholder="セッションの説明など（任意）"
         rows={3}
+        disabled={!canEdit}
       />
       <DiceSystemPicker
         value={diceSystem}
@@ -122,10 +128,10 @@ function RoomSettingsSection({
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 11, color: theme.textSecondary, marginBottom: 4 }}>ログインユーザー</div>
               <select
                 value={defaultLoginRole}
                 onChange={(e) => setDefaultLoginRole(e.target.value as 'sub_owner' | 'user' | 'guest')}
+                disabled={!canEdit}
                 style={{
                   width: '100%',
                   padding: '6px 8px',
@@ -144,14 +150,21 @@ function RoomSettingsSection({
           </div>
         </>
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-        <AdButton variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-          ルームを削除
-        </AdButton>
-        <AdButton variant="primary" onClick={handleSave}>
-          保存
-        </AdButton>
-      </div>
+      {canEdit && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+          <AdButton variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+            ルームを削除
+          </AdButton>
+          <AdButton variant="primary" onClick={handleSave}>
+            保存
+          </AdButton>
+        </div>
+      )}
+      {!canEdit && (
+        <div style={{ fontSize: 11, color: theme.textMuted, marginTop: 8 }}>
+          ルーム設定の変更にはオーナー権限が必要です
+        </div>
+      )}
       {showDeleteConfirm && (
         <ConfirmModal
           message={`「${room.name}」を削除しますか？この操作は取り消せません。`}
@@ -161,6 +174,35 @@ function RoomSettingsSection({
           onCancel={() => setShowDeleteConfirm(false)}
         />
       )}
+
+      {/* 開発者 */}
+      <div style={{ pointerEvents: 'auto', opacity: 1 }}>
+        <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, marginTop: 16 }}>
+          開発者
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 12, color: theme.textPrimary }}>デバッグコンソール</span>
+          <AdButton
+            onClick={() => {
+              if (!dockviewApi) return;
+              const existing = dockviewApi.getPanel('debugConsole');
+              if (existing) {
+                existing.api.setActive();
+              } else {
+                let targetGroup = dockviewApi.activeGroup;
+                if (targetGroup?.panels.some(p => p.id === 'board')) {
+                  targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
+                }
+                if (targetGroup) {
+                  dockviewApi.addPanel({ id: 'debugConsole', component: 'debugConsole', title: 'Debug Console', position: { referenceGroup: targetGroup, direction: 'within' } });
+                }
+              }
+            }}
+          >
+            {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
+          </AdButton>
+        </div>
+      </div>
     </div>
   );
 }
@@ -468,12 +510,14 @@ function LayoutSection({
 function MembersSection({
   members,
   onAssignRole,
+  canEdit,
 }: {
   members: Array<{ user_id: string; role: string; joined_at: number; display_name: string | null; avatar_url: string | null }>;
   onAssignRole: (targetUserId: string, role: 'sub_owner' | 'user' | 'guest') => void;
+  canEdit: boolean;
 }) {
   return (
-    <div>
+    <div style={{ opacity: canEdit ? 1 : 0.5, pointerEvents: canEdit ? 'auto' : 'none' }}>
       <div style={{
         fontSize: 11,
         color: theme.textMuted,
@@ -555,13 +599,11 @@ function UserSection({
   onSaveProfile,
   onSignOut,
   onClose,
-  dockviewApi,
 }: {
   profile: { display_name?: string; avatar_url?: string | null } | null;
   onSaveProfile: (data: { display_name: string; avatar_url: string | null }) => Promise<void>;
   onSignOut: () => void;
   onClose: () => void;
-  dockviewApi: DockviewApi | null;
 }) {
   const [displayName, setDisplayName] = useState(profile?.display_name ?? '');
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? '');
@@ -620,34 +662,6 @@ function UserSection({
         </AdButton>
       </div>
 
-      {/* 開発者モード */}
-      <div>
-        <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8, marginTop: 16 }}>
-          開発者
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 12, color: theme.textPrimary }}>デバッグコンソール</span>
-          <AdButton
-            onClick={() => {
-              if (!dockviewApi) return;
-              const existing = dockviewApi.getPanel('debugConsole');
-              if (existing) {
-                existing.api.setActive();
-              } else {
-                let targetGroup = dockviewApi.activeGroup;
-                if (targetGroup?.panels.some(p => p.id === 'board')) {
-                  targetGroup = dockviewApi.groups.find(g => !g.panels.some(p => p.id === 'board')) ?? undefined;
-                }
-                if (targetGroup) {
-                  dockviewApi.addPanel({ id: 'debugConsole', component: 'debugConsole', title: 'Debug Console', position: { referenceGroup: targetGroup, direction: 'within' } });
-                }
-              }
-            }}
-          >
-            {dockviewApi?.getPanel('debugConsole') ? '表示中' : '表示する'}
-          </AdButton>
-        </div>
-      </div>
     </div>
   );
 }
@@ -729,18 +743,22 @@ export function SettingsModal({
             設定
           </div>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            {NAV_ITEMS.filter(item => item.key !== 'members' || isOwner).map((item) => (
+            {NAV_ITEMS.map((item) => {
+              const restricted = (item.key === 'room' && !can('room_settings')) || (item.key === 'members' && !isOwner);
+              return (
               <button
                 key={item.key}
-                onClick={() => setSection(item.key)}
+                onClick={() => !restricted && setSection(item.key)}
+                disabled={restricted}
                 style={{
                   padding: '8px 12px',
                   fontSize: '12px',
-                  cursor: 'pointer',
+                  cursor: restricted ? 'not-allowed' : 'pointer',
                   border: 'none',
                   width: '100%',
                   textAlign: 'left',
                   display: 'block',
+                  opacity: restricted ? 0.35 : 1,
                   background:
                     section === item.key ? theme.bgElevated : 'transparent',
                   color:
@@ -749,7 +767,8 @@ export function SettingsModal({
               >
                 {item.label}
               </button>
-            ))}
+              );
+            })}
             <div style={{ flex: 1 }} />
             <div style={{ borderTop: `1px solid ${theme.border}` }}>
               <button
@@ -772,27 +791,28 @@ export function SettingsModal({
           </div>
 
           {/* 閉じるボタン */}
-          <button
-            onClick={onClose}
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: '8px',
-              background: 'transparent',
-              border: 'none',
-              color: theme.textMuted,
-              cursor: 'pointer',
-              fontSize: '16px',
-              lineHeight: 1,
-              padding: '4px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-            title="閉じる"
-          >
-            <X size={16} />
-          </button>
+          <Tooltip label="閉じる">
+            <button
+              onClick={onClose}
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '8px',
+                background: 'transparent',
+                border: 'none',
+                color: theme.textMuted,
+                cursor: 'pointer',
+                fontSize: '16px',
+                lineHeight: 1,
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <X size={16} />
+            </button>
+          </Tooltip>
         </div>
 
         {/* コンテンツエリア */}
@@ -811,7 +831,9 @@ export function SettingsModal({
               onDeleteRoom={onDeleteRoom}
               onClose={onClose}
               isOwner={isOwner}
+              canEdit={can('room_settings')}
               systems={diceSystems}
+              dockviewApi={dockviewApi}
             />
           )}
           {section === 'layout' && (
@@ -827,13 +849,13 @@ export function SettingsModal({
               onSaveProfile={onSaveProfile}
               onSignOut={onSignOut}
               onClose={onClose}
-              dockviewApi={dockviewApi}
             />
           )}
           {section === 'members' && (
             <MembersSection
               members={members}
               onAssignRole={onAssignRole}
+              canEdit={isOwner}
             />
           )}
         </div>

@@ -278,8 +278,20 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
       const normalizedUrl = url.includes('dropbox.com')
         ? url.replace(/([?&])dl=0(&|$)/, '$1dl=1$2').replace(/www\.dropbox\.com\/s\//, 'dl.dropboxusercontent.com/s/')
         : url;
-      const filename = decodeURIComponent(normalizedUrl.split('/').pop() || normalizedUrl).replace(/[?#].*$/, '');
-      const title = filename;
+      let filename = decodeURIComponent(normalizedUrl.split('/').pop() || normalizedUrl).replace(/[?#].*$/, '');
+      let title = filename;
+
+      // YouTube URL の場合はタイトルを取得
+      const ytMatch = normalizedUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?\s]+)/);
+      if (ytMatch) {
+        filename = ytMatch[1];
+        title = ytMatch[1];
+        try {
+          const res = await fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${ytMatch[1]}`);
+          const data = await res.json();
+          if (data.title) title = data.title;
+        } catch { /* タイトル取得失敗時は videoId のまま */ }
+      }
 
       // デモモード: URL をそのまま登録（通信なし）
       if (disabled) {
