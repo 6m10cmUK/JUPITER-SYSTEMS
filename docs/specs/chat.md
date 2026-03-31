@@ -18,7 +18,7 @@ ChatInputPanel で送信。sender_name / sender_uid / sender_avatar（URL）を�
 
 BCDice API 送信前に、チャットパレットのテンプレート変数（`{ラベル名}`）を送信者キャラクターのステータス・パラメーター値で展開する。キャラクター未選択時は展開せずそのまま送信（BCDice が解釈できなければ通常チャットとして送信）。
 
-秘密ダイス（BCDice の `secret` フラグ）に対応。秘密ダイス時は2つのメッセージを送信する。全員向けに「シークレットダイス」通知（送信者名・アバター付きで誰が振ったかは分かる）と、送信者のみに表示されるダイス結果（allowed_user_ids で制限）。送信者のみに表示される結果メッセージには「オープン」ボタンが表示され、押すと allowed_user_ids が解除されて全員にダイス結果が公開される。
+秘密ダイス（BCDice の `secret` フラグ）に対応。秘密ダイス時は message_type='secret_dice' で1メッセージのみ INSERT する。RLS により送信者のみが SELECT 可能。他ユーザーへの通知はクライアントサイド Broadcast（content なし）で配信し、受信側はダミーメッセージ「シークレットダイス」をローカルに表示する。Broadcast 通知は localStorage にも保存され、リロード後も復元される。送信者には結果とともに公開アイコン（MessageSquareShare）が表示され、クリックすると message_type が 'dice' に UPDATE されて全ユーザーに結果が公開される。オープン時に localStorage の通知も自動削除される。
 
 ### チャンネル
 

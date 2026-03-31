@@ -36,6 +36,14 @@ objects テーブルの color_enabled フラグで「単色モード」と「画
 
 選択オブジェクト（複数可）の name / x / y / width / height / visible / opacity / position_locked / size_locked / z_order（sort_order）を編集。
 
+### 数値入力フィールド
+
+数値入力フィールド（x, y, width, height 等）は NumberDragInput コンポーネントを使用。左右ドラッグで値変更、Blender 風の操作感。DOM 直操作で即時反映し、ドラッグ中は Supabase 同期を遮断（localOnly モード）、ドラッグ終了時に一括保存。Shift+ドラッグで小数点刻みの微調整が可能。ボード上・プロパティパネル両対応。
+
+### 前景プロパティ補足
+
+前景（foreground）プロパティにサイズ（width/height）を追加。
+
 panel type：image_url / background_color / image_fit（contain/cover/stretch）。
 
 text type：text_content / font_size / font_family / letter_spacing / line_height / auto_size / text_align / text_vertical_align / text_color / scale_x / scale_y。

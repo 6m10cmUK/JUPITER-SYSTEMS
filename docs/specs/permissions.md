@@ -14,7 +14,7 @@ owner：全機能。ロール割当・ルーム設定変更可能。
 
 ## ロール変更UI
 
-SettingsModal の「メンバー一覧」セクションでメンバーのロールを変更できる。owner のみ操作可能。owner 自身のロールは変更不可（「オーナーのロールは変更できません」と表示）。変更対象ロールは sub_owner / user / guest の3種。
+SettingsModal の「メンバー一覧」セクションでメンバーのロールを変更できる。ロール変更操作は owner のみ可能。owner 自身のロールは変更不可（「オーナーのロールは変更できません」と表示）。変更対象ロールは sub_owner / user / guest の3種。メンバー一覧の取得（display_name・avatar_url 含む）は全ルームメンバーが可能（room_members + users JOIN）。users テーブルは認証済みユーザーに SELECT を許可（RLS）。
 
 ## パーミッション定義
 
@@ -34,3 +34,7 @@ guest ログイン時、アクセス権限なしパネルは表示・入力不�
 ## checkPermission()
 
 withPermission()ラッパーで各操作にガード。権限不足時は toast error 表示で通知。
+
+## デフォルトログインロール
+
+新規ユーザーがルームに入室する際、ルーム設定で定義された default_login_role が自動適用される。デフォルト値は user。owner は SettingsModal でこの設定を変更可能。
