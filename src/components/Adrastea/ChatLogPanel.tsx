@@ -21,7 +21,7 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { DEFAULT_CHANNELS } from '../../hooks/useChannels';
 import { resolveAssetId } from '../../hooks/useAssets';
-import { ConfirmModal, DropdownMenu } from './ui';
+import { ConfirmModal, DropdownMenu, Tooltip } from './ui';
 import { genId } from '../../utils/id';
 import { API_BASE_URL } from '../../config/api';
 
@@ -903,22 +903,23 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
           {!showCreateChannel && (
             <DropdownMenu
               trigger={
-                <button
-                  type="button"
-                  className="adra-btn adra-btn--ghost"
-                  title="メニュー"
-                  style={{
-                    border: 'none',
-                    color: theme.textSecondary,
-                    cursor: 'pointer',
-                    padding: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MoreVertical size={16} />
-                </button>
+                <Tooltip label="メニュー">
+                  <button
+                    type="button"
+                    className="adra-btn adra-btn--ghost"
+                    style={{
+                      border: 'none',
+                      color: theme.textSecondary,
+                      cursor: 'pointer',
+                      padding: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                </Tooltip>
               }
               items={[
                 {

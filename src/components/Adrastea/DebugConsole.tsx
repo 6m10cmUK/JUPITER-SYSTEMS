@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { theme } from '../../styles/theme';
 import { Trash2, Copy } from 'lucide-react';
+import { Tooltip } from './ui';
 
 interface LogEntry {
   level: 'log' | 'warn' | 'error' | 'info';
@@ -136,12 +137,16 @@ export function DebugConsoleContent() {
           ))}
         </div>
         <div style={{ display: 'flex', gap: '6px' }}>
-          <button onClick={handleCopy} title="全コピー" style={{ background: 'transparent', border: 'none', color: copied ? '#4ade80' : theme.textSecondary, cursor: 'pointer' }}>
-            <Copy size={14} />
-          </button>
-          <button onClick={handleClear} style={{ background: 'transparent', border: 'none', color: theme.textSecondary, cursor: 'pointer' }}>
-            <Trash2 size={14} />
-          </button>
+          <Tooltip label="全コピー">
+            <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: copied ? '#4ade80' : theme.textSecondary, cursor: 'pointer' }}>
+              <Copy size={14} />
+            </button>
+          </Tooltip>
+          <Tooltip label="クリア">
+            <button onClick={handleClear} style={{ background: 'transparent', border: 'none', color: theme.textSecondary, cursor: 'pointer' }}>
+              <Trash2 size={14} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

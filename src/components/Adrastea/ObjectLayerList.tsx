@@ -340,22 +340,23 @@ export function ObjectLayerList({
           </Tooltip>
           <DropdownMenu
             trigger={
-              <button
-                type="button"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: theme.accent,
-                  cursor: 'pointer',
-                  padding: '2px 4px',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-                title="追加"
-                aria-label="オブジェクト追加"
-              >
-                <Plus size={15} />
-              </button>
+              <Tooltip label="追加">
+                <button
+                  type="button"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: theme.accent,
+                    cursor: 'pointer',
+                    padding: '2px 4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  aria-label="オブジェクト追加"
+                >
+                  <Plus size={15} />
+                </button>
+              </Tooltip>
             }
             items={[
               { icon: <Image size={15} />, label: 'シーン画像追加', onClick: () => onImageAdd?.(false) },

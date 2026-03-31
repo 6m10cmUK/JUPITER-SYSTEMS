@@ -142,7 +142,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
                   padding: 0,
                   outline: 'none',
                 }}
-                title="キャラクター選択"
               >
                 {!selectedCharacterForIcon || !resolveAssetId(selectedCharacterForIcon.images[selectedCharacterForIcon.active_image_index]?.asset_id) ? (
                   <User size={14} color={theme.textSecondary} />
@@ -211,7 +210,6 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
               const text = editorRef.current?.getText() ?? '';
               handleSend(text);
             }}
-            title="送信"
             style={{
               width: '32px',
               height: '32px',
@@ -244,13 +242,14 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           activeChannelId={ctx.activeChatChannel}
           onChannelChange={ctx.setActiveChatChannel}
         />
-        <button
-          onClick={() => setExpanded(true)}
-          style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '2px', display: 'flex', opacity: 0.6 }}
-          title="テキストエリアを拡大"
-        >
-          <Maximize2 size={12} />
-        </button>
+        <Tooltip label="テキストエリアを拡大">
+          <button
+            onClick={() => setExpanded(true)}
+            style={{ position: 'absolute', top: '4px', right: '4px', background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '2px', display: 'flex', opacity: 0.6 }}
+          >
+            <Maximize2 size={12} />
+          </button>
+        </Tooltip>
       </div>
 
 
@@ -270,9 +269,11 @@ const ChatInputPanel: React.FC<ChatInputPanelProps> = ({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', borderBottom: `1px solid ${theme.borderSubtle}` }}>
               <span style={{ fontSize: '13px', fontWeight: 600, color: theme.textPrimary }}>チャット入力</span>
-              <button type="button" onClick={closeExpanded} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }} title="縮小">
-                <Minimize2 size={16} />
-              </button>
+              <Tooltip label="縮小">
+                <button type="button" onClick={closeExpanded} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, display: 'flex' }}>
+                  <Minimize2 size={16} />
+                </button>
+              </Tooltip>
             </div>
             <ChatEditor
               ref={modalEditorRef}

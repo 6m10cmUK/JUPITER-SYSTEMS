@@ -79,7 +79,7 @@ export function Tooltip({ label, delay = 0, children }: TooltipProps) {
           color: theme.textPrimary,
           fontSize: '11px',
           padding: '2px 6px',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'pre',
           zIndex: 10000,
           pointerEvents: 'none',
           boxShadow: theme.shadowSm,

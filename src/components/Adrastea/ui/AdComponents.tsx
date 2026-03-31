@@ -2,9 +2,10 @@ import React, { useState, useRef, useEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { RgbaColorPicker } from 'react-colorful';
 import { theme } from '../../../styles/theme';
-import { ChevronRight, ChevronDown, X, Palette, Maximize2 } from 'lucide-react';
+import { X, Palette, Maximize2 } from 'lucide-react';
 import { calcPopupPos } from '../../../utils/calcPopupPos';
 import { DropdownMenu } from './DropdownMenu';
+import { Tooltip } from './Tooltip';
 
 // ── Shared compact styles ──
 const FONT_SIZE = '12px';
@@ -85,25 +86,26 @@ export function AdTextArea({ label, style, expandable, ...props }: AdTextAreaPro
           }}
         />
         {expandable && (
-          <button
-            type="button"
-            onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
-            title="テキストエリアを拡大"
-            style={{
-              position: 'absolute',
-              top: 2,
-              right: 2,
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: theme.textMuted,
-              padding: '2px',
+          <Tooltip label="テキストエリアを拡大">
+            <button
+              type="button"
+              onClick={() => { setLocalValue(String(props.value ?? '')); setExpanded(true); }}
+              style={{
+                position: 'absolute',
+                top: 2,
+                right: 2,
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: theme.textMuted,
+                padding: '2px',
               display: 'flex',
               opacity: 0.6,
             }}
           >
             <Maximize2 size={12} />
-          </button>
+            </button>
+          </Tooltip>
         )}
       </div>
       {expanded && createPortal(
@@ -339,41 +341,27 @@ export function AdSlider({ label, value, min, max, step = 1, displayValue, suffi
 interface AdSectionProps {
   title?: string;
   label?: string;
-  defaultOpen?: boolean;
   children: React.ReactNode;
 }
 
-export function AdSection({ title, label, defaultOpen = true, children }: AdSectionProps) {
+export function AdSection({ title, label, children }: AdSectionProps) {
   const heading = title ?? label;
-  const [open, setOpen] = useState(defaultOpen);
   return (
     <div style={{ marginBottom: GAP }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '2px',
-          width: '100%',
+      {heading && (
+        <div style={{
           padding: '2px 0',
-          background: 'transparent',
-          border: 'none',
           borderBottom: `1px solid ${theme.border}`,
           color: theme.textPrimary,
           fontSize: FONT_SIZE,
           fontWeight: 600,
-          cursor: 'pointer',
-          textAlign: 'left',
-        }}
-      >
-        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        {heading}
-      </button>
-      {open && (
-        <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: GAP }}>
-          {children}
+        }}>
+          {heading}
         </div>
       )}
+      <div style={{ padding: '4px 0', display: 'flex', flexDirection: 'column', gap: GAP }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -538,23 +526,24 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
       {label && !compact && <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{label}</label>}
       <div style={{ display: 'flex', gap: GAP, alignItems: 'center' }}>
         {compact ? (
-          <button
-            ref={btnRef}
-            className="adra-btn-icon"
-            onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
-            style={{
-              width: '24px', height: '24px',
-              border: 'none',
-              borderRadius: 0,
-              color: theme.textSecondary,
-              cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: 0,
-            }}
-            title="カラー"
-          >
-            <Palette size={14} />
-          </button>
+          <Tooltip label="カラー">
+            <button
+              ref={btnRef}
+              className="adra-btn-icon"
+              onClick={() => { if (!open) onOpen?.(); setOpen(!open); }}
+              style={{
+                width: '24px', height: '24px',
+                border: 'none',
+                borderRadius: 0,
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 0,
+              }}
+            >
+              <Palette size={14} />
+            </button>
+          </Tooltip>
         ) : (
           <>
             <button
@@ -655,18 +644,19 @@ export function AdColorPicker({ label, value, onChange, enableAlpha, compact, on
               display: 'grid', gridTemplateColumns: 'repeat(5, 16px)', gap: '3px',
             }}>
               {/* 現在色を保存するボタン */}
-              <button
-                onClick={handleSaveToPalette}
-                title="現在の色を保存"
-                style={{
-                  width: '16px', height: '16px', border: `1px dashed ${theme.border}`,
-                  background: 'transparent', cursor: 'pointer', padding: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: theme.textSecondary, fontSize: '14px', lineHeight: 1,
-                }}
-              >
-                +
-              </button>
+              <Tooltip label="現在の色を保存">
+                <button
+                  onClick={handleSaveToPalette}
+                  style={{
+                    width: '16px', height: '16px', border: `1px dashed ${theme.border}`,
+                    background: 'transparent', cursor: 'pointer', padding: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: theme.textSecondary, fontSize: '14px', lineHeight: 1,
+                  }}
+                >
+                  +
+                </button>
+              </Tooltip>
               {palette.filter(c => enableAlpha ? true : cssToRgba(c).a >= 1).map((c, i) => (
                 <button
                   key={`u-${i}`}
@@ -788,7 +778,7 @@ export function AdModal({ title, width = '600px', maxHeight = '80vh', onClose, c
         justifyContent: 'center',
         zIndex: 1100,
       }}
-      onClick={onClose}
+      onClick={(e) => { e.stopPropagation(); onClose(); }}
     >
       <div
         ref={modalRef}
