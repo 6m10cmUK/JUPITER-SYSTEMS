@@ -4,7 +4,7 @@ import type { DragEndEvent } from '@dnd-kit/core';
 import { theme } from '../../styles/theme';
 import type { Character } from '../../types/adrastea.types';
 import { resolveAssetId } from '../../hooks/useAssets';
-import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu } from './ui';
+import { SortableListPanel, SortableListItem, Tooltip, ConfirmModal, DropdownMenu, AdModal } from './ui';
 import { shortcutLabel } from './ui/DropdownMenu';
 import { useThrottledCallback } from '../../hooks/useThrottledUpdate';
 import { usePermission } from '../../hooks/usePermission';
@@ -24,6 +24,8 @@ interface CharacterPanelProps {
   onDuplicateCharacters?: (ids: string[]) => void;
   onCopy?: (ids: string[]) => void;
   onPaste?: () => void;
+  members?: Array<{ user_id: string; role: string; display_name: string | null; avatar_url: string | null }>;
+  onTransferCharacter?: (charId: string, newOwnerId: string) => void;
 }
 
 export function CharacterPanel({
@@ -40,9 +42,12 @@ export function CharacterPanel({
   onDuplicateCharacters,
   onCopy,
   onPaste,
+  members,
+  onTransferCharacter,
 }: CharacterPanelProps) {
   const [pendingRemove, setPendingRemove] = useState<{ ids: string[]; msg: string } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; charId?: string } | null>(null);
+  const [transferTarget, setTransferTarget] = useState<{ charId: string; charName: string } | null>(null);
   const { can, roomRole } = usePermission();
   const canEditChar = can('character_edit');
   const filteredCharacters = characters.filter(c => c.owner_id === currentUserId);
@@ -355,6 +360,26 @@ export function CharacterPanel({
             setContextMenu(null);
           },
         },
+        {
+          label: '譲渡',
+          disabled: (() => {
+            if (!contextMenu?.charId) return true;
+            if (!members || members.length <= 1) return true;
+            if (!onTransferCharacter) return true;
+            // 自分のキャラのみ譲渡可能（sub_owner以上は全キャラ可）
+            if (hasRole(roomRole, 'sub_owner')) return false;
+            const c = characters.find(ch => ch.id === contextMenu.charId);
+            return !c || c.owner_id !== currentUserId;
+          })(),
+          onClick: () => {
+            if (!contextMenu?.charId) return;
+            const c = characters.find(ch => ch.id === contextMenu.charId);
+            if (c) {
+              setTransferTarget({ charId: c.id, charName: c.name });
+            }
+            setContextMenu(null);
+          },
+        },
         'separator',
         {
           label: '貼り付け',
@@ -376,6 +401,79 @@ export function CharacterPanel({
         onConfirm={() => { onRemoveCharacters(pendingRemove.ids); setPendingRemove(null); }}
         onCancel={() => setPendingRemove(null)}
       />
+    )}
+
+    {transferTarget && members && (
+      <AdModal
+        title={`「${transferTarget.charName}」を譲渡`}
+        width="320px"
+        onClose={() => setTransferTarget(null)}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {members
+            .filter(m => m.user_id !== currentUserId)
+            .map(m => (
+              <button
+                key={m.user_id}
+                type="button"
+                onClick={() => {
+                  onTransferCharacter?.(transferTarget.charId, m.user_id);
+                  setTransferTarget(null);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 12px',
+                  background: 'none',
+                  border: `1px solid ${theme.borderSubtle}`,
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  color: theme.textPrimary,
+                  fontSize: '13px',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = theme.bgHover ?? theme.bgInput;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'none';
+                }}
+              >
+                {m.avatar_url ? (
+                  <img
+                    src={m.avatar_url}
+                    alt=""
+                    style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  <div style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    background: theme.bgInput,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                    color: theme.textMuted,
+                  }}>
+                    {(m.display_name ?? '?')[0]}
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 500 }}>{m.display_name ?? 'ユーザー'}</div>
+                  <div style={{ fontSize: '10px', color: theme.textMuted }}>{m.role}</div>
+                </div>
+              </button>
+            ))}
+          {members.filter(m => m.user_id !== currentUserId).length === 0 && (
+            <div style={{ color: theme.textMuted, fontSize: '12px', textAlign: 'center', padding: '16px 0' }}>
+              他のメンバーがいません
+            </div>
+          )}
+        </div>
+      </AdModal>
     )}
     </>
   );

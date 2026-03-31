@@ -246,7 +246,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
       // Fields that belong in characters_stats
       const statsFields = [
         'name', 'color', 'active_image_index',
-        'statuses', 'parameters',
+        'statuses', 'parameters', 'owner_id',
         'is_hidden_on_board',
         'sort_order',
         'board_x', 'board_y', 'board_visible'

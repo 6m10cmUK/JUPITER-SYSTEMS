@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObjectType } from '../../types/adrastea.types';
-import { ConfirmModal, DropdownMenu } from './ui';
+import { ConfirmModal, DropdownMenu, AdModal } from './ui';
+import { theme } from '../../styles/theme';
 import { AssetLibraryModal } from './AssetLibraryModal';
 import { useCharacterContextMenu } from './useCharacterContextMenu';
 import { objectToClipboardJson } from '../../utils/clipboardImport';
@@ -25,11 +26,15 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     getBoardCenter,
     removeObject,
     keyboardActionsRef,
+    members,
+    updateCharacter,
+    user,
   } = useAdrasteaContext();
 
   const [pendingRemove, setPendingRemove] = useState<{ msg: string; action: () => void } | null>(null);
   const [pendingImageAdd, setPendingImageAdd] = useState<{ global: boolean } | null>(null);
   const [charContextMenu, setCharContextMenu] = useState<{ charId: string; x: number; y: number } | null>(null);
+  const [transferTarget, setTransferTarget] = useState<typeof contextChar>(null);
 
   const selectedCharIds = panelSelection?.panel === 'character' ? panelSelection.ids : [];
 
@@ -38,7 +43,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
     ? layerOrderedCharacters.find(c => c.id === charContextMenu.charId) ?? null
     : null;
   const { items: charCtxMenuItems, confirmModal: charCtxConfirmModal } = useCharacterContextMenu(contextChar, {
-    currentUserId: '',
+    currentUserId: user?.uid ?? '',
     onClose: () => setCharContextMenu(null),
     onDuplicate: async (c) => {
       const { id: _id, created_at: _ca, updated_at: _ua, ...rest } = c as any;
@@ -49,6 +54,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       setEditingCharacter(undefined);
     },
     onPaste,
+    onTransfer: (c) => setTransferTarget(c),
   });
 
   // グローバルキーボードショートカットにハンドラ登録
@@ -199,6 +205,51 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
       items={charCtxMenuItems}
     />
     {charCtxConfirmModal}
+    {transferTarget && members && members.length > 1 && (
+      <AdModal
+        title={`「${transferTarget.name}」を譲渡`}
+        width="320px"
+        onClose={() => setTransferTarget(null)}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {members
+            .filter(m => m.user_id !== (user?.uid ?? ''))
+            .map(m => (
+              <button
+                key={m.user_id}
+                type="button"
+                onClick={() => {
+                  updateCharacter(transferTarget.id, { owner_id: m.user_id });
+                  setTransferTarget(null);
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px',
+                  background: 'none', border: `1px solid ${theme.borderSubtle}`, borderRadius: '6px',
+                  cursor: 'pointer', color: theme.textPrimary, fontSize: '13px', textAlign: 'left',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = theme.bgHover ?? theme.bgInput; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+              >
+                {m.avatar_url ? (
+                  <img src={m.avatar_url} alt="" style={{ width: 28, height: 28, borderRadius: '50%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{
+                    width: 28, height: 28, borderRadius: '50%', background: theme.bgInput,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '12px', color: theme.textMuted,
+                  }}>
+                    {(m.display_name ?? '?')[0]}
+                  </div>
+                )}
+                <div>
+                  <div style={{ fontWeight: 500 }}>{m.display_name ?? 'ユーザー'}</div>
+                  <div style={{ fontSize: '10px', color: theme.textMuted }}>{m.role}</div>
+                </div>
+              </button>
+            ))}
+        </div>
+      </AdModal>
+    )}
     {pendingImageAdd && (
       <AssetLibraryModal
         autoTags={['オブジェクト']}

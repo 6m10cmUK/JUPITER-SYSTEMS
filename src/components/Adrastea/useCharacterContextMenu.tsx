@@ -15,6 +15,7 @@ interface UseCharacterContextMenuOptions {
   onDuplicate?: (char: Character) => void;
   onRemove?: (charId: string) => void;
   onPaste?: () => void;
+  onTransfer?: (char: Character) => void;
   showUndoRedo?: boolean;
 }
 
@@ -29,7 +30,7 @@ interface UseCharacterContextMenuResult {
  */
 export function useCharacterContextMenu(
   char: Character | null,
-  { currentUserId, onClose, onDuplicate, onRemove, onPaste, showUndoRedo = false }: UseCharacterContextMenuOptions
+  { currentUserId, onClose, onDuplicate, onRemove, onPaste, onTransfer, showUndoRedo = false }: UseCharacterContextMenuOptions
 ): UseCharacterContextMenuResult {
   const { can, roomRole } = usePermission();
   const { undoRedo } = useAdrasteaContext();
@@ -73,6 +74,16 @@ export function useCharacterContextMenu(
     disabled: !char || !canModify,
     onClick: () => {
       setPendingRemove(true);
+      onClose();
+    },
+  });
+
+  // 譲渡
+  items.push({
+    label: '譲渡',
+    disabled: !char || !canModify || !onTransfer,
+    onClick: () => {
+      if (char && onTransfer) onTransfer(char);
       onClose();
     },
   });

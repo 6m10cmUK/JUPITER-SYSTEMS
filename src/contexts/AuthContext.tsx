@@ -40,6 +40,17 @@ function profileFromSupabase(user: User): UserProfile {
   };
 }
 
+/** ログイン時に public.users の display_name / avatar_url を auth メタデータから同期 */
+async function syncUserProfile(user: User) {
+  const displayName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'ユーザー';
+  const avatarUrl = user.user_metadata?.avatar_url ?? null;
+  await supabase.from('users').update({
+    display_name: displayName,
+    avatar_url: avatarUrl,
+    updated_at: Date.now(),
+  }).eq('id', user.id);
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,12 +60,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
+      if (session?.user) syncUserProfile(session.user);
     });
 
     // セッション変化を購読
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
+      if (session?.user) syncUserProfile(session.user);
     });
 
     return () => subscription.unsubscribe();

@@ -695,7 +695,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                 {parseContent(msg.content)}
               </div>
               {canOpen && onOpenSecretDice && (
-                <Tooltip text="メッセージを公開">
+                <Tooltip label="メッセージを公開">
                   <button
                     type="button"
                     onClick={() => onOpenSecretDice(msg.id)}
