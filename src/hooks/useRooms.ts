@@ -120,7 +120,7 @@ export function useRooms(_uid?: string) {
   }, []);
 
   const addRoom = useCallback(
-    async (name: string, dice_system: string, _tags: string[]): Promise<string> => {
+    async (name: string, dice_system: string, tags: string[]): Promise<string> => {
       const id = generateUUID();
       const now = Date.now();
       let roomCreated = false;
@@ -136,6 +136,7 @@ export function useRooms(_uid?: string) {
           id,
           name,
           dice_system,
+          tags,
           owner_id: user.uid,
           gm_can_see_secret_memo: false,
           created_at: now,
