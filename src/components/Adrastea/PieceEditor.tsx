@@ -116,9 +116,23 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
         <div style={sectionStyle}>
           <AdInput
             label="イニシアティブ"
-            type="number"
-            value={initiative}
-            onChange={(e) => setInitiative(Number(e.target.value))}
+            key={`piece-initiative-${initiative}`}
+            type="text"
+            inputMode="decimal"
+            defaultValue={String(initiative)}
+            onBlur={(e) => {
+              const raw = e.target.value.trim();
+              if (!raw || raw === '-') return;
+              const parsed = Number(raw);
+              if (Number.isFinite(parsed)) {
+                setInitiative(parsed);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                (e.currentTarget as HTMLInputElement).blur();
+              }
+            }}
           />
         </div>
 
@@ -136,12 +150,46 @@ export function PieceEditor({ piece, characters = [], roomId, onSave, onClose: _
               <AdInput fullWidth={false} value={s.label}
                 onChange={(e) => updateStatus(i, 'label', e.target.value)} placeholder="HP"
                 style={{ width: '60px' }} />
-              <AdInput type="number" fullWidth={false} value={s.value}
-                onChange={(e) => updateStatus(i, 'value', Number(e.target.value))}
+              <AdInput
+                key={`piece-status-value-${i}-${s.value}`}
+                type="text"
+                inputMode="decimal"
+                fullWidth={false}
+                defaultValue={String(s.value)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    updateStatus(i, 'value', parsed);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
                 style={{ width: '60px' }} />
               <span style={{ color: theme.textMuted, fontSize: '12px' }}>/</span>
-              <AdInput type="number" fullWidth={false} value={s.max}
-                onChange={(e) => updateStatus(i, 'max', Number(e.target.value))}
+              <AdInput
+                key={`piece-status-max-${i}-${s.max}`}
+                type="text"
+                inputMode="decimal"
+                fullWidth={false}
+                defaultValue={String(s.max)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    updateStatus(i, 'max', parsed);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
                 style={{ width: '60px' }} />
               <AdColorPicker value={s.color ?? STATUS_COLORS[i % STATUS_COLORS.length]} onChange={(v) => updateStatus(i, 'color', v)} />
               <button onClick={() => removeStatus(i)} style={{

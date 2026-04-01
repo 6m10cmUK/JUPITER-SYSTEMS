@@ -682,11 +682,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
         >
           <Avatar src={resolveAssetId(msg.sender_avatar_asset_id)} name={msg.sender_name} color={charColor} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
-                🎲 {msg.sender_name}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+              <span style={{ color: charColor ?? accent, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '1 1 auto' }}>
+                {msg.sender_name}
               </span>
-              <span style={{ color: theme.textMuted, fontSize: '10px' }}>
+              <span style={{ color: theme.textMuted, fontSize: '10px', flexShrink: 0 }}>
                 {formatTime(msg.created_at)}
               </span>
             </div>
@@ -701,7 +701,7 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
                     onClick={() => onOpenSecretDice(msg.id)}
                     style={{
                       position: 'absolute',
-                      top: '-14px',
+                      top: '2px',
                       right: 0,
                       padding: '2px',
                       color: theme.textMuted,
@@ -741,11 +741,11 @@ const ChatLogPanel: React.FC<ChatLogPanelProps> = ({
       >
         <Avatar src={resolveAssetId(msg.sender_avatar_asset_id)} name={msg.sender_name} color={charColor} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: 0 }}>
+            <span style={{ color: charColor ?? theme.textSecondary, fontSize: '11px', fontWeight: 600, textShadow: charColor ? '0 1px 3px rgba(0,0,0,0.7)' : undefined, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, flex: '1 1 auto' }}>
               {msg.sender_name}
             </span>
-            <span style={{ color: theme.textMuted, fontSize: '10px' }}>
+            <span style={{ color: theme.textMuted, fontSize: '10px', flexShrink: 0 }}>
               {formatTime(msg.created_at)}
             </span>
           </div>

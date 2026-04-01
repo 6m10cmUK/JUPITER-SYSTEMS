@@ -150,10 +150,49 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       const senderUid = user?.uid;
       // キャラクター名からキャラクターを検索し、テンプレート変数を展開
       const character = characterName ? (characters.find(c => c.name === characterName) ?? null) : null;
+      const commandMatch = content.trim().match(/^:([^+\-=]+)([+\-=])(-?\d+(?:\.\d+)?)$/);
+      if (character && commandMatch) {
+        const [, rawLabel, operator, rawAmount] = commandMatch;
+        const label = rawLabel.trim();
+        const amount = Number(rawAmount);
+        if (Number.isFinite(amount)) {
+          const statusIndex = character.statuses.findIndex((s) => s.label === label);
+          if (statusIndex >= 0) {
+            const target = character.statuses[statusIndex];
+            const current = Number(target.value);
+            if (Number.isFinite(current)) {
+              const next =
+                operator === '+' ? current + amount :
+                operator === '-' ? current - amount :
+                amount;
+              const nextStatuses = [...character.statuses];
+              nextStatuses[statusIndex] = { ...target, value: next };
+              void updateCharacter(character.id, { statuses: nextStatuses });
+              return;
+            }
+          }
+
+          const paramIndex = character.parameters.findIndex((p) => p.label === label);
+          if (paramIndex >= 0) {
+            const target = character.parameters[paramIndex];
+            const current = Number(target.value);
+            if (Number.isFinite(current)) {
+              const next =
+                operator === '+' ? current + amount :
+                operator === '-' ? current - amount :
+                amount;
+              const nextParameters = [...character.parameters];
+              nextParameters[paramIndex] = { ...target, value: next };
+              void updateCharacter(character.id, { parameters: nextParameters });
+              return;
+            }
+          }
+        }
+      }
       const resolved = resolveTemplateVars(content, character);
       sendMessage(senderName, resolved, messageType, senderUid, characterAvatarAssetId ?? null, room?.dice_system, channel ?? activeChatChannel);
     },
-    [sendMessage, user?.uid, activeChatChannel, room?.dice_system, characters],
+    [sendMessage, user?.uid, activeChatChannel, room?.dice_system, characters, updateCharacter],
   );
 
   // --- Image preload（ローカルストレージ読み込み後に全画像を blobCache にプリロード） ---

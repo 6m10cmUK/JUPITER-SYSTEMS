@@ -10,9 +10,11 @@ const esc = (s: string) =>
 export function resolveTemplateVars(text: string, character: Character | null): string {
   if (!character) return text;
   return text.replace(/\{([^}]+)\}/g, (match, label: string) => {
-    const status = character.statuses.find((s) => s.label === label);
+    const key = label.trim();
+    if (key === 'name') return character.name;
+    const status = character.statuses.find((s) => s.label === key);
     if (status) return String(status.value);
-    const param = character.parameters.find((p) => p.label === label);
+    const param = character.parameters.find((p) => p.label === key);
     if (param) return String(param.value);
     return match; // 該当なしならそのまま残す
   });

@@ -25,9 +25,9 @@ export function useRooms(_uid?: string) {
   const { user } = useAuth();
   const roomsQuery = useSupabaseQuery<Room>({
     table: 'rooms',
-    columns: 'id,name,dice_system,tags,created_at,updated_at,thumbnail_asset_id,archived,room_members!inner(user_id)',
+    columns: 'id,name,dice_system,tags,created_at,updated_at,thumbnail_asset_id,archived,owner_id',
     roomId: 'global',
-    filter: (q) => q.eq('archived', false).eq('room_members.user_id', user?.uid ?? ''),
+    filter: (q) => q.eq('archived', false).eq('owner_id', user?.uid ?? ''),
   });
 
   const loading = roomsQuery.loading;

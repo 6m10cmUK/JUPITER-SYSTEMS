@@ -381,12 +381,22 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
               <AdSection label="フォントサイズ">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <AdInput
-                    type="number"
-                    value={String(state.font_size as number)}
-                    onChange={(e) => {
-                  const n = Number(e.target.value);
-                  set('font_size', Number.isNaN(n) || n < 1 ? 16 : Math.max(1, n));
-                }}
+                    key={`font-size-${state.font_size as number}`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={String(state.font_size as number)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw || raw === '-') return;
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      set('font_size', Math.max(1, n));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
                     fullWidth={false}
                     inputWidth="64px"
                   />
@@ -397,9 +407,23 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>文字:</span>
                   <AdInput
-                    type="number"
-                    value={String(state.letter_spacing as number)}
-                    onChange={(e) => set('letter_spacing', Number(e.target.value))}
+                    key={`letter-spacing-${state.letter_spacing as number}`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={String(state.letter_spacing as number)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw || raw === '-') return;
+                      const parsed = Number(raw);
+                      if (Number.isFinite(parsed)) {
+                        set('letter_spacing', parsed);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
                     fullWidth={false}
                     inputWidth="52px"
                   />
@@ -408,9 +432,23 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>行:</span>
                   <AdInput
-                    type="number"
-                    value={String(state.line_height as number)}
-                    onChange={(e) => set('line_height', Math.max(0.5, Number(e.target.value)))}
+                    key={`line-height-${state.line_height as number}`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={String(state.line_height as number)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw || raw === '-') return;
+                      const parsed = Number(raw);
+                      if (Number.isFinite(parsed)) {
+                        set('line_height', Math.max(0.5, parsed));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"
@@ -422,9 +460,23 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>水平:</span>
                   <AdInput
-                    type="number"
-                    value={String(state.scale_x as number)}
-                    onChange={(e) => set('scale_x', Math.max(0.01, Number(e.target.value)))}
+                    key={`scale-x-${state.scale_x as number}`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={String(state.scale_x as number)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw || raw === '-') return;
+                      const parsed = Number(raw);
+                      if (Number.isFinite(parsed)) {
+                        set('scale_x', Math.max(0.01, parsed));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"
@@ -433,9 +485,23 @@ export function ObjectEditor({ object, defaultType, roomId: _roomId, onSave: _on
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
                   <span style={{ fontSize: '11px', color: theme.textMuted, whiteSpace: 'nowrap' }}>垂直:</span>
                   <AdInput
-                    type="number"
-                    value={String(state.scale_y as number)}
-                    onChange={(e) => set('scale_y', Math.max(0.01, Number(e.target.value)))}
+                    key={`scale-y-${state.scale_y as number}`}
+                    type="text"
+                    inputMode="decimal"
+                    defaultValue={String(state.scale_y as number)}
+                    onBlur={(e) => {
+                      const raw = e.target.value.trim();
+                      if (!raw || raw === '-') return;
+                      const parsed = Number(raw);
+                      if (Number.isFinite(parsed)) {
+                        set('scale_y', Math.max(0.01, parsed));
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        (e.currentTarget as HTMLInputElement).blur();
+                      }
+                    }}
                     fullWidth={false}
                     inputWidth="52px"
                     step="0.1"

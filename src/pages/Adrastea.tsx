@@ -182,7 +182,6 @@ function AdrasteaRoom({ uid: _uid, token: _token }: AdrasteaRoomProps) {
         profile={ctx.profile}
         dockviewApi={ctx.dockviewApi}
         roomName={ctx.room?.name}
-        canEditSettings={can('room_settings')}
       />
 
       {/* Dockviewエリア */}

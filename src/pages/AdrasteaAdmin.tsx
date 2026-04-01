@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { theme } from '../styles/theme';
 
 type TabType = 'users' | 'rooms' | 'assets';
+type SortOrder = 'asc' | 'desc';
 
 interface AdminUser {
   id: string;
@@ -37,6 +38,42 @@ interface AssetItem {
   size: number;
   type: string;
   createdAt: number;
+  url?: string;
+}
+
+function CopyableText({ value, compact }: { value: string; compact?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  const displayText = compact && value.length > 8 ? `${value.slice(0, 8)}...` : value;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    } catch {
+      // no-op
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      title={copied ? 'コピーしました' : value}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        margin: 0,
+        color: copied ? theme.accent : theme.textSecondary,
+        cursor: 'copy',
+        fontSize: 'inherit',
+        fontFamily: 'inherit',
+      }}
+    >
+      {displayText}
+    </button>
+  );
 }
 
 export default function AdrasteaAdmin() {
@@ -257,6 +294,47 @@ function UsersTab({
   adminFetch: (path: string, options?: RequestInit) => Promise<any>;
   setUsers: (users: AdminUser[]) => void;
 }) {
+  const [editingNameByUserId, setEditingNameByUserId] = useState<Record<string, string>>({});
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'display_name' | 'created_at'>('display_name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const getEditingUserName = (user: AdminUser) => editingNameByUserId[user.id] ?? user.display_name ?? '';
+  const filteredUsers = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const withName = users.map((user) => ({ ...user, _displayName: user.display_name ?? '' }));
+
+    const searched = normalizedQuery
+      ? withName.filter((user) => {
+          const displayNameMatch = user._displayName.toLowerCase().includes(normalizedQuery);
+          const idMatch = user.id.toLowerCase().includes(normalizedQuery);
+          return displayNameMatch || idMatch;
+        })
+      : withName;
+
+    return searched.sort((a, b) => {
+      let compared = 0;
+      if (sortKey === 'created_at') {
+        compared = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else {
+        compared = a._displayName.localeCompare(b._displayName, 'ja');
+      }
+      return sortOrder === 'asc' ? compared : -compared;
+    });
+  }, [users, searchQuery, sortKey, sortOrder]);
+
+  const toggleSort = (nextKey: 'display_name' | 'created_at') => {
+    if (sortKey === nextKey) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortOrder('asc');
+  };
+
+  const sortMark = (key: 'display_name' | 'created_at') => (sortKey === key ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : '');
+
   const handleDeleteUser = async (userId: string) => {
     if (!window.confirm('このユーザーを削除しますか？')) {
       return;
@@ -269,13 +347,55 @@ function UsersTab({
     }
   };
 
+  const handleSaveUserName = async (user: AdminUser) => {
+    const nextName = getEditingUserName(user).trim();
+    if (!nextName) {
+      alert('表示名は空にできません');
+      return;
+    }
+
+    if (nextName === (user.display_name ?? '')) {
+      return;
+    }
+
+    setSavingUserId(user.id);
+    try {
+      await adminFetch(`/users/${user.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ display_name: nextName }),
+      });
+      setUsers(users.map((u) => (u.id === user.id ? { ...u, display_name: nextName } : u)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update user name');
+    } finally {
+      setSavingUserId(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 600 }}>
         ユーザー一覧 ({users.length})
       </h2>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <input
+          type="text"
+          placeholder="表示名 / ユーザーID で検索"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            minWidth: '220px',
+            padding: '8px 10px',
+            background: theme.bgInput,
+            color: theme.textPrimary,
+            border: `1px solid ${theme.borderInput}`,
+            borderRadius: '4px',
+            fontSize: '0.85rem',
+          }}
+        />
+      </div>
 
-      {users.length === 0 ? (
+      {filteredUsers.length === 0 ? (
         <div style={{ color: theme.textSecondary }}>ユーザーがありません</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -296,7 +416,19 @@ function UsersTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  表示名
+                  <button
+                    onClick={() => toggleSort('display_name')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    表示名{sortMark('display_name')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -326,7 +458,29 @@ function UsersTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  作成日時
+                  <button
+                    onClick={() => toggleSort('created_at')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    作成日時{sortMark('created_at')}
+                  </button>
+                </th>
+                <th
+                  style={{
+                    padding: '12px',
+                    textAlign: 'left',
+                    fontWeight: 600,
+                    color: theme.textSecondary,
+                  }}
+                >
+                  URL
                 </th>
                 <th
                   style={{
@@ -341,16 +495,52 @@ function UsersTab({
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
+              {filteredUsers.map((user) => (
                 <tr
                   key={user.id}
                   style={{
                     borderBottom: `1px solid ${theme.borderSubtle}`,
                   }}
                 >
-                  <td style={{ padding: '12px' }}>{user.display_name || 'N/A'}</td>
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={getEditingUserName(user)}
+                        onChange={(e) =>
+                          setEditingNameByUserId((prev) => ({ ...prev, [user.id]: e.target.value }))
+                        }
+                        style={{
+                          minWidth: '180px',
+                          padding: '6px 8px',
+                          background: theme.bgInput,
+                          color: theme.textPrimary,
+                          border: `1px solid ${theme.borderInput}`,
+                          borderRadius: '4px',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveUserName(user)}
+                        disabled={savingUserId === user.id}
+                        style={{
+                          padding: '6px 10px',
+                          background: theme.accent,
+                          color: theme.textOnAccent,
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: savingUserId === user.id ? 'not-allowed' : 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          opacity: savingUserId === user.id ? 0.7 : 1,
+                        }}
+                      >
+                        保存
+                      </button>
+                    </div>
+                  </td>
                   <td style={{ padding: '12px', color: theme.textSecondary, fontSize: '0.8rem' }}>
-                    <span title={user.id}>{user.id.slice(0, 8)}...</span>
+                    <CopyableText value={user.id} compact />
                   </td>
                   <td style={{ padding: '12px' }}>
                     {user.avatar_url ? (
@@ -410,6 +600,50 @@ function RoomsTab({
   const [expandedRoomId, setExpandedRoomId] = useState<string | null>(null);
   const [membersCache, setMembersCache] = useState<Record<string, RoomMember[]>>({});
   const [membersLoading, setMembersLoading] = useState<string | null>(null);
+  const [editingNameByRoomId, setEditingNameByRoomId] = useState<Record<string, string>>({});
+  const [savingRoomId, setSavingRoomId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'name' | 'owner_id' | 'archived' | 'created_at'>('name');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const getEditingRoomName = (room: AdminRoom) => editingNameByRoomId[room.id] ?? room.name;
+  const filteredRooms = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const searched = normalizedQuery
+      ? rooms.filter((room) => {
+          const nameMatch = room.name.toLowerCase().includes(normalizedQuery);
+          const ownerIdMatch = room.owner_id.toLowerCase().includes(normalizedQuery);
+          const roomIdMatch = room.id.toLowerCase().includes(normalizedQuery);
+          return nameMatch || ownerIdMatch || roomIdMatch;
+        })
+      : rooms;
+
+    return [...searched].sort((a, b) => {
+      let compared = 0;
+      if (sortKey === 'created_at') {
+        compared = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      } else if (sortKey === 'archived') {
+        compared = Number(a.archived) - Number(b.archived);
+      } else if (sortKey === 'owner_id') {
+        compared = a.owner_id.localeCompare(b.owner_id, 'ja');
+      } else {
+        compared = a.name.localeCompare(b.name, 'ja');
+      }
+      return sortOrder === 'asc' ? compared : -compared;
+    });
+  }, [rooms, searchQuery, sortKey, sortOrder]);
+
+  const toggleSort = (nextKey: 'name' | 'owner_id' | 'archived' | 'created_at') => {
+    if (sortKey === nextKey) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortOrder('asc');
+  };
+
+  const sortMark = (key: 'name' | 'owner_id' | 'archived' | 'created_at') =>
+    sortKey === key ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : '';
 
   const handleDeleteRoom = async (roomId: string) => {
     if (!window.confirm('このルームを削除しますか？関連するすべてのデータが削除されます。')) {
@@ -460,13 +694,55 @@ function RoomsTab({
     }
   };
 
+  const handleSaveRoomName = async (room: AdminRoom) => {
+    const nextName = getEditingRoomName(room).trim();
+    if (!nextName) {
+      alert('ルーム名は空にできません');
+      return;
+    }
+
+    if (nextName === room.name) {
+      return;
+    }
+
+    setSavingRoomId(room.id);
+    try {
+      await adminFetch(`/rooms/${room.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name: nextName }),
+      });
+      setRooms(rooms.map((r) => (r.id === room.id ? { ...r, name: nextName } : r)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update room name');
+    } finally {
+      setSavingRoomId(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 600 }}>
         ルーム一覧 ({rooms.length})
       </h2>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <input
+          type="text"
+          placeholder="ルーム名 / ルームID / オーナーID で検索"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            minWidth: '220px',
+            padding: '8px 10px',
+            background: theme.bgInput,
+            color: theme.textPrimary,
+            border: `1px solid ${theme.borderInput}`,
+            borderRadius: '4px',
+            fontSize: '0.85rem',
+          }}
+        />
+      </div>
 
-      {rooms.length === 0 ? (
+      {filteredRooms.length === 0 ? (
         <div style={{ color: theme.textSecondary }}>ルームがありません</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -487,7 +763,19 @@ function RoomsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  ルーム名
+                  <button
+                    onClick={() => toggleSort('name')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    ルーム名{sortMark('name')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -497,7 +785,19 @@ function RoomsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  オーナーID
+                  <button
+                    onClick={() => toggleSort('owner_id')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    オーナーID{sortMark('owner_id')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -507,7 +807,19 @@ function RoomsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  アーカイブ
+                  <button
+                    onClick={() => toggleSort('archived')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    アーカイブ{sortMark('archived')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -517,7 +829,19 @@ function RoomsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  作成日時
+                  <button
+                    onClick={() => toggleSort('created_at')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    作成日時{sortMark('created_at')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -532,7 +856,7 @@ function RoomsTab({
               </tr>
             </thead>
             <tbody>
-              {rooms.map((room) => (
+              {filteredRooms.map((room) => (
                 <React.Fragment key={room.id}>
                   <tr
                     onClick={() => handleExpandRoom(room.id)}
@@ -542,9 +866,49 @@ function RoomsTab({
                       background: expandedRoomId === room.id ? theme.bgInput : 'transparent',
                     }}
                   >
-                    <td style={{ padding: '12px' }}>{room.name}</td>
+                    <td style={{ padding: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <input
+                          type="text"
+                          value={getEditingRoomName(room)}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            setEditingNameByRoomId((prev) => ({ ...prev, [room.id]: e.target.value }))
+                          }
+                          style={{
+                            minWidth: '180px',
+                            padding: '6px 8px',
+                            background: theme.bgInput,
+                            color: theme.textPrimary,
+                            border: `1px solid ${theme.borderInput}`,
+                            borderRadius: '4px',
+                            fontSize: '0.85rem',
+                          }}
+                        />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSaveRoomName(room);
+                          }}
+                          disabled={savingRoomId === room.id}
+                          style={{
+                            padding: '6px 10px',
+                            background: theme.accent,
+                            color: theme.textOnAccent,
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: savingRoomId === room.id ? 'not-allowed' : 'pointer',
+                            fontSize: '0.8rem',
+                            fontWeight: 500,
+                            opacity: savingRoomId === room.id ? 0.7 : 1,
+                          }}
+                        >
+                          保存
+                        </button>
+                      </div>
+                    </td>
                     <td style={{ padding: '12px', color: theme.textSecondary, fontSize: '0.8rem' }}>
-                      <span title={room.owner_id}>{room.owner_id.slice(0, 8)}...</span>
+                      <CopyableText value={room.owner_id} compact />
                     </td>
                     <td style={{ padding: '12px', color: theme.textSecondary }}>
                       {room.archived ? 'はい' : 'いいえ'}
@@ -627,7 +991,7 @@ function RoomsTab({
                                       {member.users?.display_name || 'N/A'}
                                     </td>
                                     <td style={{ padding: '8px', color: theme.textSecondary, fontSize: '0.75rem' }}>
-                                      <span title={member.user_id}>{member.user_id.slice(0, 8)}...</span>
+                                      <CopyableText value={member.user_id} compact />
                                     </td>
                                     <td style={{ padding: '8px' }}>
                                       <select
@@ -681,6 +1045,53 @@ function AssetsTab({
   adminFetch: (path: string, options?: RequestInit) => Promise<any>;
   setAssets: (assets: AssetItem[]) => void;
 }) {
+  const [editingTitleByAssetId, setEditingTitleByAssetId] = useState<Record<string, string>>({});
+  const [savingAssetId, setSavingAssetId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<'title' | 'ownerId' | 'size' | 'type' | 'createdAt'>('title');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
+
+  const getEditingAssetTitle = (asset: AssetItem) => editingTitleByAssetId[asset.id] ?? asset.title;
+  const filteredAssets = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+    const searched = normalizedQuery
+      ? assets.filter((asset) => {
+          const titleMatch = asset.title.toLowerCase().includes(normalizedQuery);
+          const ownerIdMatch = asset.ownerId.toLowerCase().includes(normalizedQuery);
+          const assetIdMatch = asset.id.toLowerCase().includes(normalizedQuery);
+          return titleMatch || ownerIdMatch || assetIdMatch;
+        })
+      : assets;
+
+    return [...searched].sort((a, b) => {
+      let compared = 0;
+      if (sortKey === 'createdAt') {
+        compared = a.createdAt - b.createdAt;
+      } else if (sortKey === 'size') {
+        compared = a.size - b.size;
+      } else if (sortKey === 'type') {
+        compared = a.type.localeCompare(b.type, 'ja');
+      } else if (sortKey === 'ownerId') {
+        compared = a.ownerId.localeCompare(b.ownerId, 'ja');
+      } else {
+        compared = a.title.localeCompare(b.title, 'ja');
+      }
+      return sortOrder === 'asc' ? compared : -compared;
+    });
+  }, [assets, searchQuery, sortKey, sortOrder]);
+
+  const toggleSort = (nextKey: 'title' | 'ownerId' | 'size' | 'type' | 'createdAt') => {
+    if (sortKey === nextKey) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(nextKey);
+    setSortOrder('asc');
+  };
+
+  const sortMark = (key: 'title' | 'ownerId' | 'size' | 'type' | 'createdAt') =>
+    sortKey === key ? (sortOrder === 'asc' ? ' ▲' : ' ▼') : '';
+
   const handleDeleteAsset = async (assetId: string) => {
     if (!window.confirm('このアセットを削除しますか？')) {
       return;
@@ -693,13 +1104,55 @@ function AssetsTab({
     }
   };
 
+  const handleSaveAssetTitle = async (asset: AssetItem) => {
+    const nextTitle = getEditingAssetTitle(asset).trim();
+    if (!nextTitle) {
+      alert('タイトルは空にできません');
+      return;
+    }
+
+    if (nextTitle === asset.title) {
+      return;
+    }
+
+    setSavingAssetId(asset.id);
+    try {
+      await adminFetch(`/assets/${asset.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ title: nextTitle }),
+      });
+      setAssets(assets.map((a) => (a.id === asset.id ? { ...a, title: nextTitle } : a)));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to update asset title');
+    } finally {
+      setSavingAssetId(null);
+    }
+  };
+
   return (
     <div>
       <h2 style={{ margin: '0 0 16px 0', fontSize: '1.1rem', fontWeight: 600 }}>
         アセット一覧 ({assets.length})
       </h2>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+        <input
+          type="text"
+          placeholder="タイトル / アセットID / オーナーID で検索"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{
+            minWidth: '220px',
+            padding: '8px 10px',
+            background: theme.bgInput,
+            color: theme.textPrimary,
+            border: `1px solid ${theme.borderInput}`,
+            borderRadius: '4px',
+            fontSize: '0.85rem',
+          }}
+        />
+      </div>
 
-      {assets.length === 0 ? (
+      {filteredAssets.length === 0 ? (
         <div style={{ color: theme.textSecondary }}>アセットがありません</div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
@@ -720,7 +1173,19 @@ function AssetsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  タイトル
+                  <button
+                    onClick={() => toggleSort('title')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    タイトル{sortMark('title')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -730,7 +1195,19 @@ function AssetsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  オーナーID
+                  <button
+                    onClick={() => toggleSort('ownerId')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    オーナーID{sortMark('ownerId')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -740,7 +1217,19 @@ function AssetsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  サイズ
+                  <button
+                    onClick={() => toggleSort('size')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    サイズ{sortMark('size')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -750,7 +1239,19 @@ function AssetsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  種別
+                  <button
+                    onClick={() => toggleSort('type')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    種別{sortMark('type')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -760,7 +1261,19 @@ function AssetsTab({
                     color: theme.textSecondary,
                   }}
                 >
-                  作成日時
+                  <button
+                    onClick={() => toggleSort('createdAt')}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.textSecondary,
+                      padding: 0,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                    }}
+                  >
+                    作成日時{sortMark('createdAt')}
+                  </button>
                 </th>
                 <th
                   style={{
@@ -775,16 +1288,52 @@ function AssetsTab({
               </tr>
             </thead>
             <tbody>
-              {assets.map((asset) => (
+              {filteredAssets.map((asset) => (
                 <tr
                   key={asset.id}
                   style={{
                     borderBottom: `1px solid ${theme.borderSubtle}`,
                   }}
                 >
-                  <td style={{ padding: '12px' }}>{asset.title}</td>
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input
+                        type="text"
+                        value={getEditingAssetTitle(asset)}
+                        onChange={(e) =>
+                          setEditingTitleByAssetId((prev) => ({ ...prev, [asset.id]: e.target.value }))
+                        }
+                        style={{
+                          minWidth: '180px',
+                          padding: '6px 8px',
+                          background: theme.bgInput,
+                          color: theme.textPrimary,
+                          border: `1px solid ${theme.borderInput}`,
+                          borderRadius: '4px',
+                          fontSize: '0.85rem',
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveAssetTitle(asset)}
+                        disabled={savingAssetId === asset.id}
+                        style={{
+                          padding: '6px 10px',
+                          background: theme.accent,
+                          color: theme.textOnAccent,
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: savingAssetId === asset.id ? 'not-allowed' : 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 500,
+                          opacity: savingAssetId === asset.id ? 0.7 : 1,
+                        }}
+                      >
+                        保存
+                      </button>
+                    </div>
+                  </td>
                   <td style={{ padding: '12px', color: theme.textSecondary, fontSize: '0.8rem' }}>
-                    <span title={asset.ownerId}>{asset.ownerId.slice(0, 8)}...</span>
+                    <CopyableText value={asset.ownerId} compact />
                   </td>
                   <td style={{ padding: '12px', color: theme.textSecondary }}>
                     {(asset.size / 1024).toFixed(1)} KB
@@ -794,6 +1343,29 @@ function AssetsTab({
                   </td>
                   <td style={{ padding: '12px', color: theme.textSecondary }}>
                     {new Date(asset.createdAt).toLocaleString('ja-JP')}
+                  </td>
+                  <td style={{ padding: '12px', color: theme.textSecondary, maxWidth: '320px' }}>
+                    {asset.url ? (
+                      <a
+                        href={asset.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={asset.url}
+                        style={{
+                          color: theme.accent,
+                          textDecoration: 'underline',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          display: 'inline-block',
+                          maxWidth: '100%',
+                        }}
+                      >
+                        {asset.url}
+                      </a>
+                    ) : (
+                      'N/A'
+                    )}
                   </td>
                   <td
                     style={{

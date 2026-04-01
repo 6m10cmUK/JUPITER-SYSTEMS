@@ -351,16 +351,26 @@ function CharacterEditorComponent({
           <div style={{ ...rowStyle, marginBottom: '8px' }}>
             <div style={{ flex: 1 }}>
               <AdInput
-                type="number"
+                key={`initiative-${state.initiative as number}`}
+                type="text"
+                inputMode="decimal"
                 label="イニシアティブ"
-                value={state.initiative as number}
+                defaultValue={String(state.initiative as number)}
                 min={-99}
                 max={99}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const val = Number(raw);
+                  if (!Number.isFinite(val)) return;
                   const rounded = Math.round(val * 10) / 10;
                   const clamped = Math.max(-99, Math.min(99, rounded));
                   set('initiative', clamped);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
                 }}
               />
             </div>
@@ -389,18 +399,46 @@ function CharacterEditorComponent({
           <div style={rowStyle}>
             <div style={{ flex: 1 }}>
               <AdInput
-                type="number"
+                key={`board-x-${state.board_x as number}`}
+                type="text"
+                inputMode="decimal"
                 label="X"
-                value={state.board_x as number}
-                onChange={(e) => set('board_x', Math.round(Number(e.target.value) * 100) / 100)}
+                defaultValue={String(state.board_x as number)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    set('board_x', Math.round(parsed * 100) / 100);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
               />
             </div>
             <div style={{ flex: 1 }}>
               <AdInput
-                type="number"
+                key={`board-y-${state.board_y as number}`}
+                type="text"
+                inputMode="decimal"
                 label="Y"
-                value={state.board_y as number}
-                onChange={(e) => set('board_y', Math.round(Number(e.target.value) * 100) / 100)}
+                defaultValue={String(state.board_y as number)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    set('board_y', Math.round(parsed * 100) / 100);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
               />
             </div>
           </div>
@@ -418,16 +456,44 @@ function CharacterEditorComponent({
                 style={{ flex: 0, minWidth: '60px' }}
               />
               <AdInput
-                type="number"
-                value={s.value}
-                onChange={(e) => updateStatus(i, 'value', Number(e.target.value))}
+                key={`status-value-${i}-${s.value}`}
+                type="text"
+                inputMode="decimal"
+                defaultValue={String(s.value)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    updateStatus(i, 'value', parsed);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
                 style={{ flex: 0, minWidth: '50px' }}
               />
               <span style={{ color: theme.textMuted, fontSize: '12px' }}>/</span>
               <AdInput
-                type="number"
-                value={s.max}
-                onChange={(e) => updateStatus(i, 'max', Number(e.target.value))}
+                key={`status-max-${i}-${s.max}`}
+                type="text"
+                inputMode="decimal"
+                defaultValue={String(s.max)}
+                onBlur={(e) => {
+                  const raw = e.target.value.trim();
+                  if (!raw || raw === '-') return;
+                  const parsed = Number(raw);
+                  if (Number.isFinite(parsed)) {
+                    updateStatus(i, 'max', parsed);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    (e.currentTarget as HTMLInputElement).blur();
+                  }
+                }}
                 style={{ flex: 0, minWidth: '50px' }}
               />
               <button onClick={() => removeStatus(i)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: theme.textMuted, padding: '4px', display: 'flex', flexShrink: 0 }}>
