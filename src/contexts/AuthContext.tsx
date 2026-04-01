@@ -43,7 +43,19 @@ function profileFromSupabase(user: User): UserProfile {
 /** ログイン時に public.users の display_name / avatar_url を auth メタデータから同期 */
 async function syncUserProfile(user: User) {
   const displayName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? 'ユーザー';
-  const avatarUrl = user.user_metadata?.avatar_url ?? null;
+  const googleAvatarUrl = user.user_metadata?.avatar_url ?? null;
+
+  // public.users の既存 avatar_url を確認
+  const { data: existing } = await supabase
+    .from('users')
+    .select('avatar_url')
+    .eq('id', user.id)
+    .single();
+
+  // 既に R2 URL が設定されていれば Google URL で上書きしない
+  const currentIsR2 = existing?.avatar_url?.includes('workers.dev') ?? false;
+  const avatarUrl = currentIsR2 ? existing!.avatar_url : googleAvatarUrl;
+
   await supabase.from('users').update({
     display_name: displayName,
     avatar_url: avatarUrl,
