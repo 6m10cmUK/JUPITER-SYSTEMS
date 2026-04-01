@@ -10,6 +10,7 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import type { BoardObject, BoardObjectType } from '../../types/adrastea.types';
 import { theme } from '../../styles/theme';
 import { resolveAssetId } from '../../hooks/useAssets';
+import { usePermission } from '../../hooks/usePermission';
 import {
   Image, Type, Layers, Mountain,
   Eye, EyeOff,
@@ -52,6 +53,9 @@ export function ObjectLayerList({
     removeObject,
     panelSelection,
   } = useAdrasteaContext();
+
+  const { can } = usePermission();
+  const canEditObject = can('object_edit');
 
   const {
     handleToggleVisible,
@@ -242,6 +246,7 @@ export function ObjectLayerList({
   };
 
   const onDuplicate = async () => {
+    if (!canEditObject) return;
     await handleDuplicate();
   };
 
@@ -255,6 +260,8 @@ export function ObjectLayerList({
       }
       return;
     }
+    // オブジェクト削除側に権限チェック
+    if (!canEditObject) return;
     // オブジェクト選択中
     const target = selectedObjectIds.length > 0
       ? activeObjects.find(o => selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer')
@@ -323,7 +330,7 @@ export function ObjectLayerList({
                 color: theme.textSecondary,
                 cursor: hasDuplicateTargets ? 'pointer' : 'default',
                 padding: '2px 4px',
-                display: 'flex',
+                display: canEditObject ? 'flex' : 'none',
                 alignItems: 'center',
                 opacity: hasDuplicateTargets ? 1 : 0.3,
               }}
@@ -342,7 +349,7 @@ export function ObjectLayerList({
                 color: theme.danger,
                 cursor: hasRemoveTargets ? 'pointer' : 'default',
                 padding: '2px 4px',
-                display: 'flex',
+                display: canEditObject ? 'flex' : 'none',
                 alignItems: 'center',
                 opacity: hasRemoveTargets ? 1 : 0.3,
               }}
@@ -350,34 +357,36 @@ export function ObjectLayerList({
               <Trash2 size={15} />
             </button>
           </Tooltip>
-          <DropdownMenu
-            trigger={
-              <Tooltip label="追加">
-                <button
-                  type="button"
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: theme.accent,
-                    cursor: 'pointer',
-                    padding: '2px 4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
-                  aria-label="オブジェクト追加"
-                >
-                  <Plus size={15} />
-                </button>
-              </Tooltip>
-            }
-            items={[
-              { icon: <Image size={15} />, label: 'シーン画像追加', onClick: () => onImageAdd?.(false) },
-              { icon: <Type size={15} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
-              'separator',
-              { icon: <Image size={15} />, label: 'ルーム画像追加', onClick: () => onImageAdd?.(true) },
-              { icon: <Type size={15} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
-            ]}
-          />
+          {canEditObject && (
+            <DropdownMenu
+              trigger={
+                <Tooltip label="追加">
+                  <button
+                    type="button"
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: theme.accent,
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                    }}
+                    aria-label="オブジェクト追加"
+                  >
+                    <Plus size={15} />
+                  </button>
+                </Tooltip>
+              }
+              items={[
+                { icon: <Image size={15} />, label: 'シーン画像追加', onClick: () => onImageAdd?.(false) },
+                { icon: <Type size={15} />, label: 'シーンテキスト追加', onClick: () => handleAdd(false, 'text') },
+                'separator',
+                { icon: <Image size={15} />, label: 'ルーム画像追加', onClick: () => onImageAdd?.(true) },
+                { icon: <Type size={15} />, label: 'ルームテキスト追加', onClick: () => handleAdd(true, 'text') },
+              ]}
+            />
+          )}
         </div>
       }
       items={sortedObjects}
@@ -528,6 +537,7 @@ export function ObjectLayerList({
         return [
           {
             label: '新規作成',
+            disabled: !canEditObject,
             onClick: () => {},
             children: [
               { label: 'シーン画像', onClick: () => { onImageAdd?.(false); setContextMenu(null); } },

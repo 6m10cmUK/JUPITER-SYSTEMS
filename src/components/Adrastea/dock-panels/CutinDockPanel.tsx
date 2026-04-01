@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
+import { usePermission } from '../../../hooks/usePermission';
 import { CutinPanel } from '../CutinPanel';
 
 export function CutinDockPanel() {
   const ctx = useAdrasteaContext();
+  const { can } = usePermission();
+  const canManage = can('cutin_manage');
 
   useEffect(() => {
     ctx.registerPanel('cutin');
@@ -14,9 +17,9 @@ export function CutinDockPanel() {
     <CutinPanel
       cutins={ctx.cutins}
       onTrigger={ctx.triggerCutin}
-      onAdd={() => { ctx.clearAllEditing(); ctx.setEditingCutin(null); }}
-      onEdit={(cutin) => { ctx.clearAllEditing(); ctx.setEditingCutin(cutin); }}
-      onRemove={ctx.removeCutin}
+      onAdd={canManage ? () => { ctx.clearAllEditing(); ctx.setEditingCutin(null); } : () => {}}
+      onEdit={canManage ? (cutin) => { ctx.clearAllEditing(); ctx.setEditingCutin(cutin); } : () => {}}
+      onRemove={canManage ? ctx.removeCutin : () => {}}
       onReorderCutins={ctx.reorderCutins}
       onClose={() => {}}
     />
