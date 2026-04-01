@@ -9,7 +9,6 @@ import { DockLayout } from '../components/Adrastea/DockLayout';
 import { SettingsModal } from '../components/Adrastea/SettingsModal';
 import { ProfileEditModal } from '../components/Adrastea/ProfileEditModal';
 import { CutinOverlay } from '../components/Adrastea/CutinOverlay';
-import { OnboardingModal } from '../components/Adrastea/OnboardingModal';
 import { AdrasteaProvider, useAdrasteaContext } from '../contexts/AdrasteaContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePermission } from '../hooks/usePermission';
@@ -18,6 +17,7 @@ import { usePasteHandler } from '../hooks/usePasteHandler';
 import { useGlobalKeyboardShortcuts } from '../hooks/useGlobalKeyboardShortcuts';
 import { pasteSceneFromClipboard, pasteBgmToScene } from '../utils/clipboardImport';
 import { theme } from '../styles/theme';
+import type { UserProfile } from '../types/adrastea.types';
 
 /** 共通ローディング画面 */
 function LoadingScreen({ progress, statusText }: { progress: number; statusText: string }) {
@@ -504,7 +504,7 @@ const Adrastea: React.FC = () => {
     );
   }
 
-  // オンボーディング（初回ログイン時）
+  // オンボーディング（初回ログイン時）— ProfileEditModal で統一
   if (!onboarded) {
     const handleCompleteOnboarding = async () => {
       try {
@@ -514,18 +514,33 @@ const Adrastea: React.FC = () => {
       }
     };
 
+    const prof: UserProfile = {
+      uid: user?.uid ?? '',
+      display_name: user?.displayName ?? '',
+      avatar_url: user?.avatarUrl ?? null,
+      created_at: Date.now(),
+      updated_at: Date.now(),
+    };
+
     return (
-      <OnboardingModal
-        defaultName={user?.displayName ?? ''}
-        defaultImage={user?.avatarUrl ?? null}
-        uid={user?.uid ?? ''}
-        token={token ?? ''}
-        onComplete={async (data) => {
-          await updateProfile(data);
-          await handleCompleteOnboarding();
-        }}
-        onSkip={handleCompleteOnboarding}
-      />
+      <>
+        <div style={{
+          position: 'fixed', inset: 0,
+          background: theme.bgBase, zIndex: 1099,
+        }} />
+        <ProfileEditModal
+          profile={prof}
+          onSave={async (data) => {
+            await updateProfile(data);
+            await handleCompleteOnboarding();
+          }}
+          onSignOut={async () => {
+            await supabase.auth.signOut();
+            navigate('/adrastea');
+          }}
+          onClose={handleCompleteOnboarding}
+        />
+      </>
     );
   }
 

@@ -24,7 +24,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, X, Share2, Copy, User } from 'lucide-react';
+import { Plus, Pencil, X, Share2, Copy } from 'lucide-react';
 import { ProfileEditModal } from './ProfileEditModal';
 
 interface RoomLobbyProps {
@@ -422,32 +422,38 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
           TRPGオンラインセッションツール
         </p>
         <div style={{ position: 'absolute', top: '24px', right: '32px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <Tooltip label="プロフィール">
+          <Tooltip label="ユーザー設定">
             <button
-              className="adra-btn-icon"
+              type="button"
               onClick={() => setShowProfileEdit(true)}
+              className="adra-btn adra-btn--ghost"
               style={{
-                width: '24px',
-                height: '24px',
+                width: 28,
+                height: 28,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: 0,
-                background: 'transparent',
-                border: `1px solid ${theme.border}`,
-                color: theme.textSecondary,
-                cursor: 'pointer',
                 borderRadius: '50%',
+                cursor: 'pointer',
+                padding: 0,
               }}
             >
               {profile?.avatar_url ? (
                 <img
                   src={profile.avatar_url}
-                  alt="プロフィール"
-                  style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover' }}
+                  alt=""
+                  style={{ width: 22, height: 22, borderRadius: '50%', objectFit: 'cover' }}
+                  referrerPolicy="no-referrer"
                 />
               ) : (
-                <User size={12} />
+                <div style={{
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: theme.accent, color: theme.bgBase,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.7rem', fontWeight: 700,
+                }}>
+                  {(profile?.display_name ?? 'U').charAt(0).toUpperCase()}
+                </div>
               )}
             </button>
           </Tooltip>
