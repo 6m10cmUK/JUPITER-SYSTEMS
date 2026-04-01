@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
+import { usePermission } from '../../../hooks/usePermission';
 import { ScenarioTextPanel } from '../ScenarioTextPanel';
 import { generateDuplicateName } from '../../../utils/nameUtils';
 import { resolveTemplateVars } from '../utils/chatEditorUtils';
 
 export function ScenarioTextDockPanel() {
   const ctx = useAdrasteaContext();
+  const { can } = usePermission();
+  const canEdit = can('scene_edit');
 
   useEffect(() => {
     ctx.registerPanel('scenarioText');
@@ -32,15 +35,15 @@ export function ScenarioTextDockPanel() {
       }}
       keyboardActionsRef={ctx.keyboardActionsRef}
       panelSelection={ctx.panelSelection}
-      onAdd={() => {
+      onAdd={canEdit ? () => {
         const lastChannel = ctx.scenarioTexts.length > 0
           ? ctx.scenarioTexts[ctx.scenarioTexts.length - 1].channel_id
           : 'info';
         ctx.addScenarioText({ title: '新規テキストメモ', content: '', channel_id: lastChannel });
-      }}
-      onRemove={(ids) => {
+      } : () => {}}
+      onRemove={canEdit ? (ids) => {
         ids.forEach(id => ctx.removeScenarioText(id));
-      }}
+      } : () => {}}
       onReorderTexts={ctx.reorderScenarioTexts}
       onSendToChat={(textId) => {
         const t = ctx.scenarioTexts.find(st => st.id === textId);
@@ -70,7 +73,7 @@ export function ScenarioTextDockPanel() {
           ctx.showToast(`${items.length}件のテキストメモをコピーしました`, 'success');
         }
       }}
-      onDuplicate={(ids) => {
+      onDuplicate={canEdit ? (ids) => {
         const items = ctx.scenarioTexts.filter(t => ids.includes(t.id));
         items.forEach(t => {
           ctx.addScenarioText({
@@ -81,8 +84,8 @@ export function ScenarioTextDockPanel() {
             channel_id: t.channel_id,
           });
         });
-      }}
-      onPaste={async () => {
+      } : () => {}}
+      onPaste={canEdit ? async () => {
         try {
           const text = await navigator.clipboard.readText();
           const parsed = JSON.parse(text);
@@ -99,7 +102,7 @@ export function ScenarioTextDockPanel() {
         } catch {
           // クリップボードが対応フォーマットでない場合は何もしない
         }
-      }}
+      } : async () => {}}
       channels={ctx.channels}
     />
   );

@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import type { DragEndEvent } from '@dnd-kit/core';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { usePermission } from '../../hooks/usePermission';
 import { theme } from '../../styles/theme';
 import { SortableListPanel, SortableListItem, ConfirmModal, Tooltip } from './ui';
 import { DropdownMenu, shortcutLabel } from './ui/DropdownMenu';
@@ -281,6 +282,8 @@ function BgmTrackRow({
 // --- BgmPanel ---
 export function BgmPanel() {
   const { bgms, addBgm, updateBgm, removeBgm, reorderBgms, activeScene, setEditingBgmId, clearAllEditing, showToast, panelSelection, setPanelSelection, keyboardActionsRef } = useAdrasteaContext();
+  const { can } = usePermission();
+  const canManageBgm = can('bgm_manage');
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
@@ -418,6 +421,7 @@ export function BgmPanel() {
   }, [contextMenu, bgms, selectedIds, showToast]);
 
   const handlePaste = useCallback(async () => {
+    if (!canManageBgm) return;
     try {
       const text = await navigator.clipboard.readText();
       const result = parseClipboardData(text);
@@ -429,7 +433,7 @@ export function BgmPanel() {
     } catch {
       showToast('クリップボードの読み取りに失敗しました', 'error');
     }
-  }, [addBgm, showToast, activeScene]);
+  }, [addBgm, showToast, activeScene, canManageBgm]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!pendingRemoveIds) return;
@@ -448,11 +452,11 @@ export function BgmPanel() {
             showToast(tracks.length > 1 ? `${tracks.length}件のBGMをコピーしました` : `${tracks[0].name} をコピーしました`, 'success');
           }
         },
-        delete: () => {
+        delete: canManageBgm ? () => {
           if (selectedIds.length > 0) {
             setPendingRemoveIds(selectedIds);
           }
-        },
+        } : undefined,
       };
     }
     return () => {
@@ -460,7 +464,7 @@ export function BgmPanel() {
         keyboardActionsRef.current = {};
       }
     };
-  }, [selectedIds, bgms, showToast, addBgm, panelSelection, keyboardActionsRef]);
+  }, [selectedIds, bgms, showToast, addBgm, panelSelection, keyboardActionsRef, canManageBgm]);
 
   const handleAddFromPicker = useCallback(async (url: string, _assetId?: string, assetTitle?: string) => {
     if (!activeScene) return;
@@ -557,7 +561,7 @@ export function BgmPanel() {
                 disabled={selectedIds.length === 0}
                 style={{
                   background: 'transparent', border: 'none', cursor: selectedIds.length > 0 ? 'pointer' : 'default',
-                  display: 'flex', alignItems: 'center', padding: '2px 4px',
+                  display: canManageBgm ? 'flex' : 'none', alignItems: 'center', padding: '2px 4px',
                   color: theme.danger, opacity: selectedIds.length > 0 ? 1 : 0.3,
                 }}
               >
@@ -570,7 +574,7 @@ export function BgmPanel() {
                 aria-label="トラック追加"
                 style={{
                   background: 'transparent', border: 'none',
-                  color: theme.accent, cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  color: theme.accent, cursor: 'pointer', display: canManageBgm ? 'flex' : 'none', alignItems: 'center',
                   padding: '2px 4px',
                 }}
               >
@@ -616,10 +620,11 @@ export function BgmPanel() {
             return [
             {
               label: '新規作成',
-              onClick: () => {
+              disabled: !canManageBgm,
+              onClick: canManageBgm ? () => {
                 setShowAddPicker(true);
                 setContextMenu(null);
-              },
+              } : () => {},
             },
             'separator',
             {
@@ -633,11 +638,11 @@ export function BgmPanel() {
               label: targetIds.length > 1 ? `${targetIds.length}件を削除` : '削除',
               shortcut: 'Del',
               danger: true,
-              disabled: !hasTarget,
-              onClick: () => {
+              disabled: !hasTarget || !canManageBgm,
+              onClick: canManageBgm ? () => {
                 setContextMenu(null);
                 if (targetIds.length > 0) setPendingRemoveIds(targetIds);
-              },
+              } : () => {},
             },
             'separator',
             {

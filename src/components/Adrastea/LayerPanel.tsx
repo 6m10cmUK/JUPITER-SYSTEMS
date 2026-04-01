@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
+import { usePermission } from '../../hooks/usePermission';
 import type { BoardObjectType } from '../../types/adrastea.types';
 import { ConfirmModal, DropdownMenu, AdModal } from './ui';
 import { theme } from '../../styles/theme';
@@ -11,6 +12,8 @@ import { CharacterLayerSection } from './CharacterLayerSection';
 import { generateDuplicateName } from '../../utils/nameUtils';
 
 export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
+  const { can } = usePermission();
+  const canEditObject = can('object_edit');
   const {
     activeObjects,
     addObject,
@@ -70,7 +73,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
             showToast(objs.length > 1 ? `${objs.length}件のオブジェクトをコピーしました` : `${objs[0].name} をコピーしました`, 'success');
           }
         },
-        duplicate: () => {
+        duplicate: canEditObject ? () => {
           const targets = activeObjects.filter(o =>
             selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
           );
@@ -84,8 +87,8 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
               });
             }));
           }
-        },
-        delete: () => {
+        } : undefined,
+        delete: canEditObject ? () => {
           const targets = activeObjects.filter(o =>
             selectedObjectIds.includes(o.id) && o.type !== 'background' && o.type !== 'foreground' && o.type !== 'characters_layer'
           );
@@ -93,7 +96,7 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
             const msg = targets.length > 1 ? `${targets.length}件のオブジェクトを削除しますか？` : `「${targets[0].name}」を削除しますか？`;
             setPendingRemove({ msg, action: () => Promise.all(targets.map(o => removeObject(o.id))) });
           }
-        },
+        } : undefined,
       };
     }
     return () => {
@@ -101,11 +104,12 @@ export function LayerPanel({ onPaste }: { onPaste?: () => void }) {
         keyboardActionsRef.current = {};
       }
     };
-  }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast, panelSelection, keyboardActionsRef]);
+  }, [selectedObjectIds, activeObjects, addObject, removeObject, showToast, panelSelection, keyboardActionsRef, canEditObject]);
 
   const handleImageAdd = useCallback((global: boolean) => {
+    if (!canEditObject) return;
     setPendingImageAdd({ global });
-  }, []);
+  }, [canEditObject]);
 
   const handleImageSelected = useCallback((_url: string, _assetId?: string, _title?: string, w?: number, h?: number) => {
     if (!pendingImageAdd) return;
