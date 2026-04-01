@@ -4,7 +4,8 @@ import { theme } from '../../styles/theme';
 import { useRooms, type RoomUI } from '../../hooks/useRooms';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAvailableSystems } from '../../services/diceRoller';
-import { AdModal, AdInput, AdButton, AdComboBox, ConfirmModal } from './ui/AdComponents';
+import { AdModal, AdInput, AdButton, AdComboBox, AdTagInput, ConfirmModal } from './ui/AdComponents';
+import type { ComboTagItem } from './ui/AdComponents';
 import { Tooltip } from './ui';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import {
@@ -262,7 +263,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
   const [diceSystems, setDiceSystems] = useState<{ id: string; name: string }[]>(cachedSystems ?? []);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState<RoomUI | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFilters, setSearchFilters] = useState<ComboTagItem[]>([]);
+  const [searchText, setSearchText] = useState('');
   const [shareRoom, setShareRoom] = useState<RoomUI | null>(null);
   const [copied, setCopied] = useState(false);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
@@ -300,17 +302,54 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       .map(([tag]) => tag);
   }, [rooms]);
 
+  // 検索候補（タグ+ダイスシステムをカテゴリ付きで）
+  const searchSuggestions = useMemo(() => {
+    // タグ（使用回数順）
+    const tagCounts = new Map<string, number>();
+    for (const r of rooms) for (const t of r.tags) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1);
+    const tagItems = Array.from(tagCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => ({ label: tag, category: 'tag' } as ComboTagItem));
+
+    // ダイスシステム
+    const diceItems = diceSystems.map((s) => ({ label: s.name, category: 'dice_system' } as ComboTagItem));
+
+    return [...tagItems, ...diceItems];
+  }, [rooms, diceSystems]);
+
   // フィルター済みルーム（名前・タグ・ダイスシステムで検索）
   const filteredRooms = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return rooms;
-    return rooms.filter((r) =>
-      r.name.toLowerCase().includes(q) ||
-      r.tags.some((t) => t.toLowerCase().includes(q)) ||
-      r.dice_system.toLowerCase().includes(q) ||
-      (diceSystemNameMap.get(r.dice_system)?.toLowerCase().includes(q) ?? false),
-    );
-  }, [rooms, searchQuery, diceSystemNameMap]);
+    // カテゴリ別にフィルタ分離
+    const selectedTags: string[] = [];
+    const selectedDiceSystems: string[] = [];
+    for (const f of searchFilters) {
+      if (typeof f === 'string') continue;
+      if (f.category === 'tag') selectedTags.push(f.label);
+      else if (f.category === 'dice_system') selectedDiceSystems.push(f.label);
+    }
+
+    const q = searchText.trim().toLowerCase();
+
+    return rooms.filter((r) => {
+      // ダイスシステムフィルタ（選択あれば AND）
+      if (selectedDiceSystems.length > 0) {
+        const roomDiceName = diceSystemNameMap.get(r.dice_system) ?? r.dice_system;
+        if (!selectedDiceSystems.includes(roomDiceName) && !selectedDiceSystems.includes(r.dice_system)) return false;
+      }
+      // タグフィルタ（選択タグのいずれかを持っていれば OK = OR）
+      if (selectedTags.length > 0) {
+        if (!selectedTags.some((t) => r.tags.includes(t))) return false;
+      }
+      // フリーテキストでルーム名・タグ・ダイスシステム検索
+      if (q) {
+        return r.name.toLowerCase().includes(q) ||
+          r.tags.some((t) => t.toLowerCase().includes(q)) ||
+          r.dice_system.toLowerCase().includes(q) ||
+          (diceSystemNameMap.get(r.dice_system)?.toLowerCase().includes(q) ?? false);
+      }
+      return true;
+    });
+  }, [rooms, searchFilters, searchText, diceSystemNameMap]);
 
   // ── 作成 ──
   const creatingRef = useRef(false);
@@ -372,7 +411,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
     if (oldIndex === -1 || newIndex === -1) return;
     const newIds = arrayMove(ids, oldIndex, newIndex);
     // 検索中でないときだけ全体の並び順を保存
-    if (!searchQuery.trim()) {
+    if (!searchText.trim() && searchFilters.length === 0) {
       reorderRooms(newIds);
     } else {
       // 検索中はフィルターされてない room の位置を維持しつつ並び替え
@@ -461,25 +500,21 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
       </div>
 
       {/* 検索 */}
-      <div style={{ padding: '0 32px 12px', maxWidth: '400px', margin: '0 auto' }}>
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="ルーム名・タグで検索..."
-          maxLength={128}
-          style={{
-            width: '100%',
-            height: '28px',
-            padding: '2px 10px',
-            fontSize: '12px',
-            background: theme.bgInput,
-            border: `1px solid ${theme.borderInput}`,
-            borderRadius: 0,
-            color: theme.textPrimary,
-            outline: 'none',
-            boxSizing: 'border-box',
+      <div style={{ padding: '0 32px 12px', maxWidth: '500px', margin: '0 auto' }}>
+        <AdComboBox
+          mode="multi"
+          tags={searchFilters}
+          onChange={setSearchFilters}
+          suggestions={searchSuggestions}
+          searchText={searchText}
+          onSearchTextChange={setSearchText}
+          categoryConfig={{
+            tag: { displayName: 'タグ', chipBg: theme.accentBgSubtle, chipBorder: theme.accentBorderSubtle },
+            dice_system: { displayName: 'ダイスシステム', chipBg: theme.greenBgSubtle, chipBorder: theme.greenBorderSubtle },
           }}
+          label=""
+          hideAddButton
+          placeholder="ルーム名・タグ・ダイスシステムで検索..."
         />
       </div>
 
@@ -579,7 +614,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               autoFocus
             />
             <DiceSystemPicker value={createDice} onChange={handleCreateDiceChange} systems={diceSystems} />
-            <AdComboBox mode="multi" tags={createTags} onChange={setCreateTags} suggestions={allExistingTags} />
+            <AdTagInput tags={createTags} onChange={setCreateTags} existingTags={allExistingTags} />
           </div>
         </AdModal>
       )}
@@ -607,7 +642,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               autoFocus
             />
             <DiceSystemPicker value={editDice} onChange={handleEditDiceChange} systems={diceSystems} />
-            <AdComboBox mode="multi" tags={editTags} onChange={setEditTags} suggestions={allExistingTags} />
+            <AdTagInput tags={editTags} onChange={setEditTags} existingTags={allExistingTags} />
           </div>
         </AdModal>
       )}

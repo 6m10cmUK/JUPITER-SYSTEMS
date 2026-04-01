@@ -6,7 +6,7 @@ import { useAdrasteaContext } from '../../contexts/AdrasteaContext';
 import { X, Upload, Link, ImageOff, Trash2, Pencil } from 'lucide-react';
 import type { Asset } from '../../types/adrastea.types';
 import { useAnimatedBlobSrc } from './DomObjectOverlay';
-import { AdComboBox, AdModal, AdButton, AdInput, ConfirmModal, Tooltip } from './ui';
+import { AdTagInput, AdModal, AdButton, AdInput, ConfirmModal, Tooltip } from './ui';
 import YouTube from 'react-youtube';
 
 /** blobCache 経由のサムネイル — キャッシュ済みなら即表示 */
@@ -945,12 +945,10 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
             <div>
               <div style={{ fontSize: '12px', color: theme.textSecondary, marginBottom: '4px' }}>タグ</div>
               <div data-testid="tag-editor">
-                <AdComboBox
-                  mode="multi"
+                <AdTagInput
                   tags={editTags}
                   onChange={setEditTags}
-                  suggestions={allTags}
-                  placeholder="タグを入力..."
+                  existingTags={allTags}
                 />
               </div>
             </div>

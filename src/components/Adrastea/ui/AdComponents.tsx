@@ -903,21 +903,32 @@ interface AdToggleButtonsProps<T extends string | null> {
 }
 
 // ── AdComboBox（単一値 or 複数値のコンボボックス） ──
+// カテゴリ付きサジェスト
+export type ComboSuggestionItem = string | { label: string; category: string };
+export type ComboTagItem = string | { label: string; category: string };
+export type CategoryConfig = Record<string, { displayName: string; chipBg: string; chipBorder: string; showWhenEmpty?: boolean }>;
+
 interface AdComboBoxMultiProps {
   mode: 'multi';
-  tags: string[];
-  onChange: (tags: string[]) => void;
-  suggestions?: string[];
+  tags: ComboTagItem[] | string[];
+  onChange: (tags: ComboTagItem[] | string[]) => void;
+  suggestions?: ComboSuggestionItem[];
   placeholder?: string;
+  categoryConfig?: CategoryConfig;
+  searchText?: string;
+  onSearchTextChange?: (text: string) => void;
+  label?: string;
+  hideAddButton?: boolean;
 }
 
 interface AdComboBoxSingleProps {
   mode: 'single';
   value: string;
   onChange: (value: string) => void;
-  suggestions?: string[];
+  suggestions?: ComboSuggestionItem[];
   placeholder?: string;
   style?: React.CSSProperties;
+  categoryConfig?: CategoryConfig;
 }
 
 type AdComboBoxProps = AdComboBoxMultiProps | AdComboBoxSingleProps;
@@ -933,21 +944,38 @@ export function AdComboBox(props: AdComboBoxProps) {
   const [dropOpen, setDropOpen] = useState(false);
 
   const isSingleMode = props.mode === 'single';
-  const suggestions = React.useMemo(() => {
-    const allSuggestions = props.suggestions ?? [];
-    const q = input.trim().toLowerCase();
+
+  // ヘルパー関数
+  const normalizeItem = (item: ComboSuggestionItem): { label: string; category?: string } =>
+    typeof item === 'string' ? { label: item } : item;
+
+  // suggestions フィルタリング＆正規化
+  const effectiveInput = (!isSingleMode && (props as AdComboBoxMultiProps).searchText !== undefined)
+    ? (props as AdComboBoxMultiProps).searchText! : input;
+  const normalizedSuggestions = React.useMemo(() => {
+    const allSuggestions = (props.suggestions ?? []).map(normalizeItem);
+    const q = effectiveInput.trim().toLowerCase();
     const limit = 20;
     if (isSingleMode) {
       if (!q) return allSuggestions.slice(0, limit);
-      return allSuggestions.filter((t) => t.toLowerCase().includes(q)).slice(0, limit);
+      return allSuggestions.filter((s) => s.label.toLowerCase().includes(q)).slice(0, limit);
     } else {
-      // multi モード: 既に選択済みのタグを常に除外
-      const excluded = new Set((props as AdComboBoxMultiProps).tags);
-      const available = allSuggestions.filter((t) => !excluded.has(t));
-      if (!q) return available.slice(0, limit);
-      return available.filter((t) => t.toLowerCase().includes(q)).slice(0, limit);
+      const multiProps = props as AdComboBoxMultiProps;
+      const getTagLabel = (t: ComboTagItem): string => typeof t === 'string' ? t : t.label;
+      const excludedLabels = new Set(multiProps.tags.map(getTagLabel));
+      const available = allSuggestions.filter((s) => !excludedLabels.has(s.label));
+      if (!q) {
+        // 未入力時: showWhenEmpty なカテゴリだけ表示（categoryConfig 未指定なら全表示）
+        if (multiProps.categoryConfig) {
+          const emptyVisible = available.filter((s) =>
+            s.category && multiProps.categoryConfig![s.category]?.showWhenEmpty);
+          return emptyVisible.slice(0, limit);
+        }
+        return available.slice(0, limit);
+      }
+      return available.filter((s) => s.label.toLowerCase().includes(q)).slice(0, limit);
     }
-  }, [props.suggestions, props.mode, input, isSingleMode, ...(isSingleMode ? [] : [(props as AdComboBoxMultiProps).tags])]);
+  }, [props.suggestions, props.mode, effectiveInput, isSingleMode, ...(isSingleMode ? [] : [(props as AdComboBoxMultiProps).tags])]);
 
   // 外側クリックで閉じる
   useEffect(() => {
@@ -974,17 +1002,21 @@ export function AdComboBox(props: AdComboBoxProps) {
     el?.scrollIntoView({ block: 'nearest' });
   }, [highlightIndex]);
 
-  const handleSelect = (value: string) => {
+  const handleSelect = (item: { label: string; category?: string }) => {
     if (isSingleMode) {
       const singleProps = props as AdComboBoxSingleProps;
-      singleProps.onChange(value);
+      singleProps.onChange(item.label);
       setInput('');
       setDropOpen(false);
     } else {
       const multiProps = props as AdComboBoxMultiProps;
-      const v = value.trim();
-      if (v && !multiProps.tags.includes(v)) {
-        multiProps.onChange([...multiProps.tags, v]);
+      const v = item.label.trim();
+      if (!v) return;
+      const getTagLabel = (t: ComboTagItem): string => typeof t === 'string' ? t : t.label;
+      const existingLabels = new Set(multiProps.tags.map(getTagLabel));
+      if (!existingLabels.has(v)) {
+        const newTag: ComboTagItem = item.category ? { label: v, category: item.category } : v;
+        multiProps.onChange([...multiProps.tags, newTag]);
       }
       setInput('');
       setDropOpen(false);
@@ -999,14 +1031,14 @@ export function AdComboBox(props: AdComboBoxProps) {
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (composingRef.current) return;
-    if (dropOpen && suggestions.length > 0) {
+    if (dropOpen && normalizedSuggestions.length > 0) {
       // 横並びタグ表示なので左右矢印
       const prevKey = 'ArrowLeft';
       const nextKey = 'ArrowRight';
       switch (e.key) {
         case nextKey:
           e.preventDefault();
-          setHighlightIndex((i) => Math.min(i + 1, suggestions.length - 1));
+          setHighlightIndex((i) => Math.min(i + 1, normalizedSuggestions.length - 1));
           return;
         case prevKey:
           e.preventDefault();
@@ -1014,7 +1046,7 @@ export function AdComboBox(props: AdComboBoxProps) {
           return;
         case 'Enter':
           e.preventDefault();
-          handleSelect(suggestions[highlightIndex]);
+          handleSelect(normalizedSuggestions[highlightIndex]);
           return;
         case 'Escape':
           setDropOpen(false);
@@ -1023,7 +1055,7 @@ export function AdComboBox(props: AdComboBoxProps) {
     }
     if (e.key === 'Enter' && input.trim()) {
       e.preventDefault();
-      handleSelect(input);
+      handleSelect({ label: input.trim() });
     }
   };
 
@@ -1061,7 +1093,7 @@ export function AdComboBox(props: AdComboBoxProps) {
             }}
           />
         </div>
-        {dropOpen && suggestions.length > 0 && createPortal(
+        {dropOpen && normalizedSuggestions.length > 0 && createPortal(
           <div
             ref={dropRef}
             className="adrastea-root"
@@ -1079,22 +1111,26 @@ export function AdComboBox(props: AdComboBoxProps) {
             }}
           >
             <div ref={listRef} style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px' }}>
-              {suggestions.map((tag, i) => (
+              {normalizedSuggestions.map((item, i) => (
                 <div
-                  key={tag}
-                  onClick={() => handleSelect(tag)}
+                  key={`${item.category ?? ''}-${item.label}`}
+                  onClick={() => handleSelect(item)}
                   onMouseEnter={() => setHighlightIndex(i)}
                   style={{
                     padding: '2px 8px',
                     fontSize: FONT_SIZE,
                     cursor: 'pointer',
-                    background: i === highlightIndex ? theme.accentHighlight : theme.accentBgSubtle,
+                    background: i === highlightIndex
+                      ? theme.accentHighlight
+                      : ((props as AdComboBoxSingleProps).categoryConfig?.[item.category ?? '']?.chipBg ?? theme.accentBgSubtle),
                     color: theme.textPrimary,
                     borderRadius: '2px',
-                    border: `1px solid ${i === highlightIndex ? theme.accent : theme.accentBorderSubtle}`,
+                    border: `1px solid ${i === highlightIndex
+                      ? theme.accent
+                      : ((props as AdComboBoxSingleProps).categoryConfig?.[item.category ?? '']?.chipBorder ?? theme.accentBorderSubtle)}`,
                   }}
                 >
-                  {tag}
+                  {item.label}
                 </div>
               ))}
             </div>
@@ -1109,42 +1145,52 @@ export function AdComboBox(props: AdComboBoxProps) {
   const multiProps = props as AdComboBoxMultiProps;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-      <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>タグ</label>
+      {(multiProps.label ?? 'タグ') && (
+        <label style={{ fontSize: FONT_SIZE, color: theme.textSecondary }}>{multiProps.label ?? 'タグ'}</label>
+      )}
       {multiProps.tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          {multiProps.tags.map((tag) => (
-            <span
-              key={tag}
-              data-testid="tag-chip"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '2px',
-                padding: '1px 6px',
-                fontSize: '11px',
-                background: theme.accentBgSubtle,
-                color: theme.accent,
-                border: `1px solid ${theme.accentBorderSubtle}`,
-              }}
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => multiProps.onChange(multiProps.tags.filter((t) => t !== tag))}
+          {multiProps.tags.map((tag) => {
+            const label = typeof tag === 'string' ? tag : tag.label;
+            const category = typeof tag === 'string' ? undefined : tag.category;
+            const cc = category ? multiProps.categoryConfig?.[category] : undefined;
+            return (
+              <span
+                key={label}
+                data-testid="tag-chip"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: theme.textMuted,
-                  cursor: 'pointer',
-                  padding: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  padding: '1px 6px',
                   fontSize: '11px',
-                  lineHeight: 1,
+                  background: cc?.chipBg ?? theme.accentBgSubtle,
+                  color: theme.accent,
+                  border: `1px solid ${cc?.chipBorder ?? theme.accentBorderSubtle}`,
                 }}
               >
-                ×
-              </button>
-            </span>
-          ))}
+                {label}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const getLabel = (t: ComboTagItem): string => typeof t === 'string' ? t : t.label;
+                    multiProps.onChange(multiProps.tags.filter((t) => getLabel(t) !== label));
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: theme.textMuted,
+                    cursor: 'pointer',
+                    padding: 0,
+                    fontSize: '11px',
+                    lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
         </div>
       )}
       <div ref={wrapRef} style={{ display: 'flex', gap: '4px' }}>
@@ -1152,9 +1198,13 @@ export function AdComboBox(props: AdComboBoxProps) {
           ref={inputRef}
           type="text"
           maxLength={128}
-          value={input}
+          value={multiProps.searchText !== undefined ? multiProps.searchText : input}
           onChange={(e) => {
-            setInput(e.target.value);
+            if (multiProps.searchText !== undefined) {
+              multiProps.onSearchTextChange?.(e.target.value);
+            } else {
+              setInput(e.target.value);
+            }
             setDropOpen(true);
           }}
           onFocus={() => setDropOpen(true)}
@@ -1175,26 +1225,31 @@ export function AdComboBox(props: AdComboBoxProps) {
             boxSizing: 'border-box',
           }}
         />
-        <button
-          className="adra-btn"
-          type="button"
-          onClick={() => { if (input.trim()) handleSelect(input); }}
-          disabled={!input.trim()}
-          style={{
-            height: HEIGHT,
-            padding: '0 8px',
-            fontSize: FONT_SIZE,
-            background: input.trim() ? theme.accent : theme.bgInput,
-            color: input.trim() ? theme.textOnAccent : theme.textMuted,
-            border: 'none',
-            borderRadius: 0,
-            cursor: input.trim() ? 'pointer' : 'not-allowed',
-          }}
-        >
-          追加
-        </button>
+        {!multiProps.hideAddButton && (
+          <button
+            className="adra-btn"
+            type="button"
+            onClick={() => {
+              const currentInput = multiProps.searchText !== undefined ? multiProps.searchText : input;
+              if (currentInput.trim()) handleSelect({ label: currentInput });
+            }}
+            disabled={!(multiProps.searchText !== undefined ? multiProps.searchText : input).trim()}
+            style={{
+              height: HEIGHT,
+              padding: '0 8px',
+              fontSize: FONT_SIZE,
+              background: (multiProps.searchText !== undefined ? multiProps.searchText : input).trim() ? theme.accent : theme.bgInput,
+              color: (multiProps.searchText !== undefined ? multiProps.searchText : input).trim() ? theme.textOnAccent : theme.textMuted,
+              border: 'none',
+              borderRadius: 0,
+              cursor: (multiProps.searchText !== undefined ? multiProps.searchText : input).trim() ? 'pointer' : 'not-allowed',
+            }}
+          >
+            追加
+          </button>
+        )}
       </div>
-      {dropOpen && suggestions.length > 0 && createPortal(
+      {dropOpen && normalizedSuggestions.length > 0 && createPortal(
         <div
           ref={dropRef}
           className="adrastea-root"
@@ -1212,22 +1267,26 @@ export function AdComboBox(props: AdComboBoxProps) {
           }}
         >
           <div ref={listRef} data-testid="tag-suggestions" style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '6px' }}>
-            {suggestions.map((tag, i) => (
+            {normalizedSuggestions.map((item, i) => (
               <div
-                key={tag}
-                onClick={() => handleSelect(tag)}
+                key={`${item.category ?? ''}-${item.label}`}
+                onClick={() => handleSelect(item)}
                 onMouseEnter={() => setHighlightIndex(i)}
                 style={{
                   padding: '2px 8px',
                   fontSize: FONT_SIZE,
                   cursor: 'pointer',
-                  background: i === highlightIndex ? theme.accentHighlight : theme.accentBgSubtle,
+                  background: i === highlightIndex
+                    ? theme.accentHighlight
+                    : (multiProps.categoryConfig?.[item.category ?? '']?.chipBg ?? theme.accentBgSubtle),
                   color: theme.textPrimary,
                   borderRadius: '2px',
-                  border: `1px solid ${i === highlightIndex ? theme.accent : theme.accentBorderSubtle}`,
+                  border: `1px solid ${i === highlightIndex
+                    ? theme.accent
+                    : (multiProps.categoryConfig?.[item.category ?? '']?.chipBorder ?? theme.accentBorderSubtle)}`,
                 }}
               >
-                {tag}
+                {item.label}
               </div>
             ))}
           </div>
@@ -1246,11 +1305,17 @@ interface AdTagInputProps {
 }
 
 export function AdTagInput({ tags, onChange, existingTags = [] }: AdTagInputProps) {
+  const handleChange = (newTags: ComboTagItem[] | string[]) => {
+    // ComboTagItem[] からラベルのみを抽出して string[] に変換
+    const stringTags = newTags.map(t => typeof t === 'string' ? t : t.label);
+    onChange(stringTags);
+  };
+
   return (
     <AdComboBox
       mode="multi"
       tags={tags}
-      onChange={onChange}
+      onChange={handleChange}
       suggestions={existingTags}
       placeholder="タグを入力"
     />
