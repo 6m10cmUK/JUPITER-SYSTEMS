@@ -4,6 +4,7 @@ import type { UserProfile } from '../../types/adrastea.types';
 import { useAuth } from '../../contexts/AuthContext';
 import { uploadAvatarToR2 } from '../../services/assetService';
 import { AdInput, AdButton, AdModal } from './ui';
+import { LogOut } from 'lucide-react';
 
 interface ProfileEditModalProps {
   profile: UserProfile;
@@ -56,8 +57,25 @@ export function ProfileEditModal({ profile, onSave, onSignOut, onClose }: Profil
       width="400px"
       onClose={onClose}
       footer={
-        <>
-          <AdButton onClick={onClose} disabled={saving}>キャンセル</AdButton>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+          <button
+            type="button"
+            onClick={() => { onSignOut(); onClose(); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 12px',
+              fontSize: '12px',
+              background: 'transparent',
+              border: `1px solid ${theme.border}`,
+              color: theme.textSecondary,
+              cursor: 'pointer',
+            }}
+          >
+            <LogOut size={14} />
+            ログアウト
+          </button>
           <AdButton
             variant="primary"
             onClick={handleSave}
@@ -65,7 +83,7 @@ export function ProfileEditModal({ profile, onSave, onSignOut, onClose }: Profil
           >
             {saving ? '保存中...' : '保存'}
           </AdButton>
-        </>
+        </div>
       }
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -126,15 +144,6 @@ export function ProfileEditModal({ profile, onSave, onSignOut, onClose }: Profil
           placeholder="表示名を入力"
         />
 
-        {/* ログアウト */}
-        <div style={{ borderTop: `1px solid ${theme.border}`, paddingTop: '16px' }}>
-          <AdButton
-            variant="danger"
-            onClick={() => { onSignOut(); onClose(); }}
-          >
-            ログアウト
-          </AdButton>
-        </div>
       </div>
     </AdModal>
   );
