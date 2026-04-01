@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import type { Room } from '../../types/adrastea.types';
 import type { DockviewApi } from 'dockview';
 import type { PermissionKey } from '../../config/permissions';
-import { AdButton, AdInput, AdTextArea, ConfirmModal, Tooltip } from './ui';
+import { AdButton, AdInput, ConfirmModal, Tooltip } from './ui';
+import { AdTagInput } from './ui/AdComponents';
 import { DiceSystemPicker } from './ui/DiceSystemPicker';
 import { DropdownMenu } from './ui/DropdownMenu';
 import { theme } from '../../styles/theme';
@@ -16,7 +17,7 @@ type SettingsSection = 'room' | 'layout' | 'members';
 interface SettingsModalProps {
   initialSection?: SettingsSection;
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
+  onSaveRoom: (updates: { name?: string; tags?: string[]; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   dockviewApi: DockviewApi | null;
   can: (permission: PermissionKey) => boolean;
@@ -66,7 +67,7 @@ function RoomSettingsSection({
   dockviewApi,
 }: {
   room: Room;
-  onSaveRoom: (updates: { name?: string; description?: string; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
+  onSaveRoom: (updates: { name?: string; tags?: string[]; dice_system?: string; default_login_role?: 'sub_owner' | 'user' | 'guest' }) => void;
   onDeleteRoom: () => void;
   onClose: () => void;
   isOwner: boolean;
@@ -75,7 +76,7 @@ function RoomSettingsSection({
   dockviewApi: DockviewApi | null;
 }) {
   const [roomName, setRoomName] = useState(room.name);
-  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState<string[]>(room.tags ?? []);
   const [diceSystem, setDiceSystem] = useState(room.dice_system);
   const [defaultLoginRole, setDefaultLoginRole] = useState<'sub_owner' | 'user' | 'guest'>(room.default_login_role as 'sub_owner' | 'user' | 'guest' ?? 'user');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -83,7 +84,7 @@ function RoomSettingsSection({
   const handleSave = () => {
     onSaveRoom({
       name: roomName,
-      description,
+      tags,
       dice_system: diceSystem,
       ...(isOwner && {
         default_login_role: defaultLoginRole,
@@ -100,14 +101,7 @@ function RoomSettingsSection({
         onChange={(e) => setRoomName(e.target.value)}
         disabled={!canEdit}
       />
-      <AdTextArea
-        label="説明"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        placeholder="セッションの説明など（任意）"
-        rows={3}
-        disabled={!canEdit}
-      />
+      <AdTagInput tags={tags} onChange={setTags} existingTags={[]} />
       <DiceSystemPicker
         value={diceSystem}
         onChange={setDiceSystem}
@@ -147,9 +141,13 @@ function RoomSettingsSection({
       )}
       {canEdit && (
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-          <AdButton variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            ルームを削除
-          </AdButton>
+          {isOwner ? (
+            <AdButton variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              ルームを削除
+            </AdButton>
+          ) : (
+            <div />
+          )}
           <AdButton variant="primary" onClick={handleSave}>
             保存
           </AdButton>
@@ -256,13 +254,11 @@ function LayoutSection({
     forceUpdate((n) => n + 1);
   };
 
-  const filteredPanels = PANEL_DEFS.filter((p) => can(p.permission));
-
   // ユーザー権限とサブオーナー以上で分ける
-  const userPanels = filteredPanels.filter((p) =>
+  const userPanels = PANEL_DEFS.filter((p) =>
     ['panel_board', 'panel_character', 'panel_chat', 'panel_status', 'panel_property', 'panel_pdfViewer'].includes(p.permission)
   );
-  const subOwnerPanels = filteredPanels.filter((p) =>
+  const subOwnerPanels = PANEL_DEFS.filter((p) =>
     ['panel_scene', 'panel_layer', 'panel_bgm', 'panel_scenarioText', 'panel_cutin'].includes(p.permission)
   );
 
@@ -277,6 +273,8 @@ function LayoutSection({
 
   const renderPanelRow = (p: PanelDef) => {
     const exists = !!dockviewApi?.getPanel(p.id);
+    const lacksPermission = !can(p.permission);
+    const disabled = Boolean(p.disabled) || lacksPermission;
     return (
       <div
         key={p.id}
@@ -286,16 +284,15 @@ function LayoutSection({
           justifyContent: 'space-between',
           padding: '6px 0',
           borderBottom: `1px solid ${theme.borderSubtle}`,
-          opacity: p.disabled ? 0.4 : 1,
         }}
       >
-        <span style={{ fontSize: '12px', color: p.disabled ? theme.textMuted : theme.textPrimary }}>
+        <span style={{ fontSize: '12px', color: theme.textPrimary }}>
           {p.title}
         </span>
         <AdButton
           onClick={() => togglePanel(p.id, p.component, p.title)}
           style={{ fontSize: '11px' }}
-          disabled={p.disabled}
+          disabled={disabled}
         >
           {exists ? '非表示' : '表示する'}
         </AdButton>

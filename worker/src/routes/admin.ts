@@ -85,6 +85,27 @@ export async function handleAdmin(
     return json({ ok: true }, headers);
   }
 
+  // PATCH /api/admin/assets/:id
+  if (resource === 'assets' && resourceId && request.method === 'PATCH') {
+    const body = await request.json() as { title?: string };
+    const title = (body.title ?? '').trim();
+    if (!title) {
+      return json({ error: 'title is required' }, headers, 400);
+    }
+
+    const result = await env.DB.prepare(
+      'UPDATE assets SET title = ? WHERE id = ?'
+    )
+      .bind(title, resourceId)
+      .run();
+
+    if (!result.success || (result.meta.changes ?? 0) === 0) {
+      return json({ error: 'Not Found' }, headers, 404);
+    }
+
+    return json({ ok: true }, headers);
+  }
+
   // GET /api/admin/users
   if (resource === 'users' && !resourceId && request.method === 'GET') {
     const res = await supabaseFetch(
@@ -101,6 +122,25 @@ export async function handleAdmin(
   // DELETE /api/admin/users/:id
   if (resource === 'users' && resourceId && !pathParts[2] && request.method === 'DELETE') {
     const res = await supabaseFetch(env, `users?id=eq.${resourceId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    return json({ ok: true }, headers);
+  }
+
+  // PATCH /api/admin/users/:id
+  if (resource === 'users' && resourceId && !pathParts[2] && request.method === 'PATCH') {
+    const body = await request.json() as { display_name?: string };
+    const displayName = (body.display_name ?? '').trim();
+    if (!displayName) {
+      return json({ error: 'display_name is required' }, headers, 400);
+    }
+
+    const res = await supabaseFetch(env, `users?id=eq.${resourceId}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ display_name: displayName }),
+    });
     if (!res.ok) {
       return json({ error: 'Supabase error', status: res.status }, headers, 502);
     }
@@ -129,6 +169,25 @@ export async function handleAdmin(
     }
 
     const res = await supabaseFetch(env, `rooms?id=eq.${resourceId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      return json({ error: 'Supabase error', status: res.status }, headers, 502);
+    }
+    return json({ ok: true }, headers);
+  }
+
+  // PATCH /api/admin/rooms/:id
+  if (resource === 'rooms' && resourceId && !pathParts[2] && request.method === 'PATCH') {
+    const body = await request.json() as { name?: string };
+    const name = (body.name ?? '').trim();
+    if (!name) {
+      return json({ error: 'name is required' }, headers, 400);
+    }
+
+    const res = await supabaseFetch(env, `rooms?id=eq.${resourceId}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ name }),
+    });
     if (!res.ok) {
       return json({ error: 'Supabase error', status: res.status }, headers, 502);
     }

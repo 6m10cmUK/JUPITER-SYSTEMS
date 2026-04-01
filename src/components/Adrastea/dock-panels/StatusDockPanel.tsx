@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { useAdrasteaContext } from '../../../contexts/AdrasteaContext';
 import { useAuth } from '../../../contexts/AuthContext';
 import { hasRole } from '../../../config/permissions';
@@ -127,7 +127,7 @@ function StatusBar({
       </span>
       <span style={{
         position: 'absolute',
-        right: canEdit ? 14 : 4,
+        right: canEdit ? 40 : 4,
         top: '50%',
         transform: 'translateY(-50%)',
         fontSize: 12,
@@ -146,52 +146,50 @@ function StatusBar({
             top: 0,
             height: '100%',
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'row',
             zIndex: 1,
           }}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <button
             style={{
-              flex: 1,
+              width: 18,
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '0 3px',
-              fontSize: 9,
-              lineHeight: 1,
-              color: '#000',
-              textShadow: '0 0 4px #fff, 0 0 4px #fff',
+              padding: '0 4px',
+              color: '#fff',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
             }}
+            aria-label="ステータスを増やす"
             onClick={(e) => {
               e.stopPropagation();
               updateStatusValue(charId, statusIndex, status.value + 1);
             }}
           >
-            ▲
+            <ChevronUp size={12} strokeWidth={3} style={{ filter: 'drop-shadow(0 0 1px #000)' }} />
           </button>
           <button
             style={{
-              flex: 1,
+              width: 18,
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '0 3px',
-              fontSize: 9,
-              lineHeight: 1,
-              color: '#000',
-              textShadow: '0 0 4px #fff, 0 0 4px #fff',
+              padding: '0 4px',
+              color: '#fff',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'center',
             }}
+            aria-label="ステータスを減らす"
             onClick={(e) => {
               e.stopPropagation();
               updateStatusValue(charId, statusIndex, status.value - 1);
             }}
           >
-            ▼
+            <ChevronDown size={12} strokeWidth={3} style={{ filter: 'drop-shadow(0 0 1px #000)' }} />
           </button>
         </div>
       )}
@@ -245,7 +243,7 @@ export function StatusDockPanel() {
     const char = ctx.characters.find(c => c.id === charId);
     if (!char) return;
     const newStatuses = char.statuses.map((s, i) =>
-      i === statusIndex ? { ...s, value: Math.max(0, Math.min(s.max, newValue)) } : s
+      i === statusIndex ? { ...s, value: newValue } : s
     );
     ctx.updateCharacter(charId, { statuses: newStatuses });
   }, [ctx]);

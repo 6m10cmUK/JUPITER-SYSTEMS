@@ -50,3 +50,18 @@ export async function getAvailableSystems(): Promise<
     return FALLBACK;
   }
 }
+
+export async function getGameSystemHelp(gameSystem: string = 'DiceBot'): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://bcdice.onlinesession.app/v2/game_system/${encodeURIComponent(gameSystem)}`
+    );
+    if (!response.ok) return null;
+
+    const data = await response.json() as { ok?: boolean; help_message?: string };
+    if (data.ok === false) return null;
+    return data.help_message ?? null;
+  } catch {
+    return null;
+  }
+}
