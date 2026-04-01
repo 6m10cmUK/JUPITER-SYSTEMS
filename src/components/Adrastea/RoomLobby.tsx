@@ -24,7 +24,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Plus, Pencil, X, Share2, Copy, LogOut, User } from 'lucide-react';
+import { Plus, Pencil, X, Share2, Copy, User } from 'lucide-react';
 import { ProfileEditModal } from './ProfileEditModal';
 
 interface RoomLobbyProps {
@@ -449,26 +449,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ onRoomCreated }) => {
               ) : (
                 <User size={12} />
               )}
-            </button>
-          </Tooltip>
-          <Tooltip label="ログアウト">
-            <button
-              className="adra-btn"
-              onClick={signOut}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '4px 12px',
-                fontSize: '12px',
-                background: 'transparent',
-                border: `1px solid ${theme.border}`,
-                color: theme.textSecondary,
-                cursor: 'pointer',
-              }}
-            >
-              <LogOut size={14} />
-              ログアウト
             </button>
           </Tooltip>
         </div>
