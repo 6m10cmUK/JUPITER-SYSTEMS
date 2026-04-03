@@ -150,7 +150,7 @@ export function CutinOverlay({ cutins, activeCutin, onCutinEnd }: CutinOverlayPr
       >
         {currentCutin.image_asset_id && resolveAssetId(currentCutin.image_asset_id) && (
           <img
-            src={resolveAssetId(currentCutin.image_asset_id) || ''}
+            src={resolveAssetId(currentCutin.image_asset_id) || undefined}
             alt=""
             style={{
               maxWidth: '400px',

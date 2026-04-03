@@ -82,7 +82,7 @@ export function CutinPanel({ cutins, onTrigger, onAdd, onEdit, onRemove, onReord
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               {cutin.image_asset_id && resolveAssetId(cutin.image_asset_id) ? (
                 <img
-                  src={resolveAssetId(cutin.image_asset_id) || ''}
+                  src={resolveAssetId(cutin.image_asset_id) || undefined}
                   alt=""
                   style={{ width: '36px', height: '36px', borderRadius: 0, objectFit: 'cover', flexShrink: 0 }}
                 />

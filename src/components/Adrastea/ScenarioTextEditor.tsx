@@ -180,7 +180,7 @@ export function ScenarioTextEditor({ text, onUpdate, onClose }: ScenarioTextEdit
                       background: char?.color ?? theme.textMuted, overflow: 'hidden', flexShrink: 0,
                     }}>
                       {char?.images[char.active_image_index]?.asset_id && (
-                        <img src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                        <img src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? undefined} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
                       )}
                     </div>
                     <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'left' }}>{item.label}</span>

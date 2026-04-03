@@ -218,8 +218,8 @@ export function ScenePanel({
           `BGM: ${bgmLabel}`,
         ].join('\n');
         return (
-        <Tooltip label={tooltip}>
-          <div key={scene.id} data-scene-id={scene.id} style={{ display: 'contents' }}>
+        <Tooltip key={scene.id} label={tooltip}>
+          <div data-scene-id={scene.id} style={{ display: 'contents' }}>
           <SortableListItem
           id={scene.id}
           isActive={activeSceneId === scene.id}

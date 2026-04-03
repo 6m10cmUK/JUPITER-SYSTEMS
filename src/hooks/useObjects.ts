@@ -8,9 +8,9 @@ import { omitKeys } from '../utils/object';
 export function useObjects(
   roomId: string,
   activeSceneId: string | null,
-  options?: { inject?: ObjectsInject; initialData?: unknown[] }
+  options?: { inject?: ObjectsInject; initialData?: unknown[]; enabled?: boolean }
 ) {
-  const { inject, initialData } = options ?? {};
+  const { inject, initialData, enabled } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const { data: objectsData, loading: objectsLoading, setData: setObjectsData } = useSupabaseQuery<BoardObject>({
@@ -18,7 +18,7 @@ export function useObjects(
     columns: 'id,room_id,type,name,global,scene_ids,x,y,width,height,visible,opacity,sort_order,position_locked,size_locked,image_asset_id,background_color,image_fit,color_enabled,text_content,font_size,font_family,letter_spacing,line_height,auto_size,text_align,text_vertical_align,text_color,scale_x,scale_y,memo,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
-    enabled: !inject,
+    enabled: !inject && enabled !== false,
     initialData,
   });
 

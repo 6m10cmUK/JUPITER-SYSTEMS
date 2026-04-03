@@ -451,7 +451,7 @@ export function ObjectLayerList({
               }} />
             ) : obj.image_asset_id && resolveAssetId(obj.image_asset_id) ? (
               <img
-                src={resolveAssetId(obj.image_asset_id) || ''}
+                src={resolveAssetId(obj.image_asset_id) || undefined}
                 alt=""
                 style={{
                   flexShrink: 0, width: '20px', height: '20px',

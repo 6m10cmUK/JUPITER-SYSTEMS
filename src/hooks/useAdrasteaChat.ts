@@ -61,8 +61,8 @@ interface ArchiveMessagesResponse {
   has_more: boolean;
 }
 
-export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject; initialData?: unknown[] }) {
-  const { inject, initialData } = options ?? {};
+export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject; initialData?: unknown[]; enabled?: boolean }) {
+  const { inject, initialData, enabled } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const { user, token } = useAuth();
@@ -72,7 +72,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject;
     columns: 'id,room_id,sender_name,sender_uid,sender_avatar_asset_id,content,message_type,channel,allowed_user_ids,created_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(200),
-    enabled: !inject,
+    enabled: !inject && enabled !== false,
     initialData,
   });
   const messagesData = messagesQuery.data;
@@ -85,7 +85,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject;
 
   // 秘密ダイス Broadcast 購読（他ユーザーの秘密ダイス通知を受信）
   useEffect(() => {
-    if (inject) return;
+    if (inject || enabled === false) return;
     const channel = supabase.channel(`room:${roomId}:broadcast`);
     broadcastChannelRef.current = channel;
 

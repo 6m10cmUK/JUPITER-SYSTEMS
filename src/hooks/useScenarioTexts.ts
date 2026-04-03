@@ -3,13 +3,14 @@ import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import type { ScenarioText } from '../types/adrastea.types';
 import { genId } from '../utils/id';
 
-export function useScenarioTexts(roomId: string, _enabled = true, options?: { initialData?: unknown[] }) {
+export function useScenarioTexts(roomId: string, enabled = true, options?: { initialData?: unknown[] }) {
   const { initialData } = options ?? {};
   const textsQuery = useSupabaseQuery<ScenarioText>({
     table: 'scenario_texts',
     columns: 'id,room_id,title,content,visible,speaker_character_id,speaker_name,channel_id,sort_order,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
+    enabled,
     initialData,
   });
   const textsData = textsQuery.data;
