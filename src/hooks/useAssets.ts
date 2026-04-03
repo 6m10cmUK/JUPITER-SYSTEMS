@@ -5,6 +5,7 @@ import { uploadAssetToR2, uploadAudioAssetToR2, deleteR2File } from '../services
 import { apiFetch } from '../config/api';
 import { supabase } from '../services/supabase';
 import { registerPreloadedBlob } from '../components/Adrastea/DomObjectOverlay';
+import { isAdrasteaQueryDebug } from '../utils/debugFlags';
 
 // モジュールレベルキャッシュ（モーダル再マウント時の再取得を防止）
 let assetCache: { uid: string; assets: Asset[] } | null = null;
@@ -35,6 +36,18 @@ export function resolveAssetId(assetId: string | null | undefined): string | nul
     fetchSingleAssetFn(assetId);
   }
   return null;
+}
+
+/** 複数アセットをキャッシュに一括注入する。RPC初期データのプリフェッチ用 */
+export function primeAssetCache(assets: Asset[], uid: string | undefined): void {
+  if (!uid || !assets || assets.length === 0) return;
+  if (assetCache?.uid !== uid) return; // UID不一致時は注入しない（別ユーザー対策）
+  // 既存アセットとマージ（IDで重複排除）
+  const existingIds = new Set(assetCache.assets.map(a => a.id));
+  const newAssets = assets.filter(a => !existingIds.has(a.id));
+  if (newAssets.length > 0) {
+    assetCache = { uid, assets: [...newAssets, ...assetCache.assets] };
+  }
 }
 
 export function useAssets(options?: { disabled?: boolean; defaultTags?: string[] }) {
@@ -94,6 +107,9 @@ export function useAssets(options?: { disabled?: boolean; defaultTags?: string[]
   // 単体アセットをバックグラウンドで取得する
   const fetchSingleAsset = useCallback(
     async (assetId: string) => {
+      if (isAdrasteaQueryDebug()) {
+        console.log('[Adrastea:Query] fetchSingleAsset', { assetId });
+      }
       // デモモード時はフェッチしない
       if (disabled) return;
       if (!uid || !token) return;

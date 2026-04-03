@@ -8,9 +8,9 @@ import { omitKeys } from '../utils/object';
 export function useObjects(
   roomId: string,
   activeSceneId: string | null,
-  options?: { inject?: ObjectsInject }
+  options?: { inject?: ObjectsInject; initialData?: unknown[] }
 ) {
-  const { inject } = options ?? {};
+  const { inject, initialData } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const { data: objectsData, loading: objectsLoading, setData: setObjectsData } = useSupabaseQuery<BoardObject>({
@@ -19,6 +19,7 @@ export function useObjects(
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
+    initialData,
   });
 
   const mutation = useSupabaseMutation<BoardObject>('objects', setObjectsData);

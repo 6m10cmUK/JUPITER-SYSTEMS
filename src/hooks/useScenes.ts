@@ -14,9 +14,10 @@ export function useScenes(
     inject?: ScenesInject;
     onObjectsCreated?: OnObjectsCreated;
     onActivateScene?: (sceneId: string | null) => Promise<void>;
+    initialData?: unknown[];
   }
 ) {
-  const { inject, onObjectsCreated, onActivateScene } = options ?? {};
+  const { inject, onObjectsCreated, onActivateScene, initialData } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const onActivateSceneRef = useRef(onActivateScene);
@@ -28,6 +29,7 @@ export function useScenes(
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
+    initialData,
   });
 
   const scenesMutation = useSupabaseMutation<Scene>('scenes', setScenesData);

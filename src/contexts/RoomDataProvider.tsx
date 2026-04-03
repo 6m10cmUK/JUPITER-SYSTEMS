@@ -4,13 +4,15 @@ import type {
   BoardObject,
 } from '../types/adrastea.types';
 import type { AuthUser } from './AuthContext';
+import { supabase } from '../services/supabase';
 import { useAdrastea } from '../hooks/useAdrastea';
 import { useAdrasteaChat } from '../hooks/useAdrasteaChat';
 import { useScenes } from '../hooks/useScenes';
 import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
-import { useAssets, resolveAssetId } from '../hooks/useAssets';
+import { useAssets, resolveAssetId, primeAssetCache } from '../hooks/useAssets';
+import { useInitialRoomData } from '../hooks/useInitialRoomData';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
@@ -46,6 +48,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   // --- onObjectsCreated コールバック用 Ref（循環依存を回避） ---
   const objectsCreatedRef = useRef<((objects: BoardObject[]) => void) | null>(null);
 
+  // --- RPC 一括取得（初回のみ） ---
+  const { data: initialRoomData } = useInitialRoomData(roomId);
+
   // --- Data hooks ---
 
   const {
@@ -57,7 +62,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removePiece,
     updatePiece,
     updateRoom,
-  } = useAdrastea(roomId);
+  } = useAdrastea(roomId, {
+    initialRoom: initialRoomData?.room ? [initialRoomData.room] : undefined,
+    initialPieces: initialRoomData?.pieces,
+  });
 
   const {
     messages,
@@ -68,7 +76,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     loadMore,
     clearMessages,
     openSecretDice,
-  } = useAdrasteaChat(roomId);
+  } = useAdrasteaChat(roomId, {
+    initialData: initialRoomData?.messages,
+  });
 
   // NOTE: channels, upsertChannel, deleteChannel は AdrasteaContext で管理される
 
@@ -89,6 +99,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       }
       await updateRoom({ active_scene_id: sceneId });
     },
+    initialData: initialRoomData?.scenes,
   });
 
   const {
@@ -101,7 +112,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeCharacter,
     reorderCharacters,
     reorderLayerCharacters,
-  } = useCharacters(roomId);
+  } = useCharacters(roomId, {
+    initialStats: initialRoomData?.characters_stats,
+    initialBase: initialRoomData?.characters_base,
+  });
 
   const effectiveSceneId = room?.active_scene_id ?? null;
 
@@ -128,7 +142,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     removeObject,
     reorderObjects,
     batchUpdateSort,
-  } = useObjects(roomId, effectiveSceneId);
+  } = useObjects(roomId, effectiveSceneId, {
+    initialData: initialRoomData?.objects,
+  });
 
 
   // NOTE: scenarioTexts と cutins は AdrasteaContext で管理される
@@ -141,9 +157,68 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     updateBgm,
     removeBgm,
     reorderBgms,
-  } = useBgms(roomId);
+  } = useBgms(roomId, {
+    initialData: initialRoomData?.bgms,
+  });
 
   const { loading: assetsLoading } = useAssets();
+
+  // --- RPC データから asset_id を抽出して一括プリフェッチ ---
+  const assetPrimingDoneRef = useRef(false);
+  useEffect(() => {
+    if (assetPrimingDoneRef.current || !initialRoomData || !user?.uid) return;
+    assetPrimingDoneRef.current = true;
+
+    const assetIds = new Set<string>();
+
+    // objects の image_asset_id
+    for (const obj of initialRoomData.objects ?? []) {
+      const id = (obj as any).image_asset_id;
+      if (id && typeof id === 'string' && !id.startsWith('http')) assetIds.add(id);
+    }
+
+    // scenes の background_asset_id, foreground_asset_id
+    for (const scene of initialRoomData.scenes ?? []) {
+      const s = scene as any;
+      if (s.background_asset_id && typeof s.background_asset_id === 'string') assetIds.add(s.background_asset_id);
+      if (s.foreground_asset_id && typeof s.foreground_asset_id === 'string') assetIds.add(s.foreground_asset_id);
+    }
+
+    // characters_base の images[].asset_id
+    for (const char of initialRoomData.characters_base ?? []) {
+      const images = (char as any).images;
+      if (Array.isArray(images)) {
+        for (const img of images) {
+          if (img?.asset_id && typeof img.asset_id === 'string') assetIds.add(img.asset_id);
+        }
+      }
+    }
+
+    // pieces の image_asset_id
+    for (const piece of initialRoomData.pieces ?? []) {
+      const id = (piece as any).image_asset_id;
+      if (id && typeof id === 'string' && !id.startsWith('http')) assetIds.add(id);
+    }
+
+    if (assetIds.size === 0) return;
+
+    // 一括取得（非同期、ノンブロッキング）
+    const ids = [...assetIds];
+    supabase
+      .from('assets')
+      .select('*')
+      .in('id', ids)
+      .then(({ data: assets, error }) => {
+        if (error || !assets) {
+          console.error('[RoomDataProvider] Asset prefetch failed:', error);
+          return;
+        }
+        const typed = assets.map(a => ({ ...a, tags: a.tags ?? [] })) as any[];
+        primeAssetCache(typed, user.uid);
+      }, (err: any) => {
+        console.error('[RoomDataProvider] Asset prefetch error:', err);
+      });
+  }, [initialRoomData, user?.uid]);
 
   // --- handleSendMessage: sendMessage の wrapper ---
   const handleSendMessage = useCallback(
@@ -309,13 +384,16 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   }, [scenes, bgms, removeBgm]);
 
   // スナップショット復元後、active_scene_id が未設定ならシーンを自動アクティベート
+  const updateRoomRef = useRef(updateRoom);
+  updateRoomRef.current = updateRoom;
+
   useEffect(() => {
     if (!initialLoadDone) return;
     if (effectiveSceneId) return; // すでにアクティブなシーンがある
     if (scenes.length > 0) {
-      void updateRoom({ active_scene_id: scenes[0].id });
+      void updateRoomRef.current({ active_scene_id: scenes[0].id });
     }
-  }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
+  }, [initialLoadDone, effectiveSceneId, scenes]);
 
   // --- Loading state aggregate ---
   const [imagesReady, setImagesReady] = useState(false);
