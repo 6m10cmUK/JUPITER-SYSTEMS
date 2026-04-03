@@ -39,8 +39,15 @@ interface CharacterBaseRow {
   is_status_private: boolean;
 }
 
-export function useCharacters(roomId: string, options?: { inject?: CharactersInject }) {
-  const { inject } = options ?? {};
+export function useCharacters(
+  roomId: string,
+  options?: {
+    inject?: CharactersInject;
+    initialStats?: unknown[];
+    initialBase?: unknown[];
+  }
+) {
+  const { inject, initialStats, initialBase } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
@@ -50,6 +57,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
+    initialData: initialStats,
   });
   const baseQuery = useSupabaseQuery<CharacterBaseRow>({
     table: 'characters_base',
@@ -57,6 +65,7 @@ export function useCharacters(roomId: string, options?: { inject?: CharactersInj
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
+    initialData: initialBase,
   });
 
   const statsData = statsQuery.data;

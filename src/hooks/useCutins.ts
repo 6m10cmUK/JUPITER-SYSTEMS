@@ -11,9 +11,9 @@ export function useCutins(
   roomId: string,
   _enabled = true,
   onRoomUpdate?: OnRoomUpdate,
-  options?: { inject?: CutinsInject }
+  options?: { inject?: CutinsInject; initialData?: unknown[] }
 ) {
-  const { inject } = options ?? {};
+  const { inject, initialData } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
@@ -23,6 +23,7 @@ export function useCutins(
     roomId,
     filter: (q) => q.eq('room_id', roomId),
     enabled: !inject,
+    initialData,
   });
   const cutinsData = cutinsQuery.data;
   const cutinsMutation = useSupabaseMutation<Cutin>('cutins', cutinsQuery.setData);

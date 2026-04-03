@@ -29,8 +29,8 @@ export function mergeBgmSubsetOrderIntoFull(fullIds: string[], orderedSubsetIds:
   return [...prefix, ...orderedSubsetIds, ...suffix];
 }
 
-export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
-  const { inject } = options ?? {};
+export function useBgms(roomId: string, options?: { inject?: BgmsInject; initialData?: unknown[] }) {
+  const { inject, initialData } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
@@ -41,6 +41,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     filter: (q) => q.eq('room_id', roomId),
     orderBy: { column: 'sort_order', ascending: true },
     enabled: !inject,
+    initialData,
   });
   const bgmsData = bgmsQuery.data;
 

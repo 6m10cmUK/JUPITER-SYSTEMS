@@ -20,12 +20,14 @@ export const DEFAULT_CHANNELS: ChatChannel[] = [
   { channel_id: 'other', label: '雑談', order: 2, is_archived: false, allowed_user_ids: [] },
 ];
 
-export function useChannels(roomId: string) {
+export function useChannels(roomId: string, options?: { initialData?: unknown[] }) {
+  const { initialData } = options ?? {};
   const channelsQuery = useSupabaseQuery<ChannelRow>({
     table: 'channels',
     columns: 'id,room_id,channel_id,label,"order",is_archived,allowed_user_ids',
     roomId,
     filter: (q) => q.eq('room_id', roomId ?? ''),
+    initialData,
   });
   const channelsData = channelsQuery.data;
   const channelsMutation = useSupabaseMutation<ChannelRow>('channels', channelsQuery.setData);

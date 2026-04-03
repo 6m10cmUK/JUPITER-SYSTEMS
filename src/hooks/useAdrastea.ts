@@ -4,7 +4,10 @@ import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { genId } from '../utils/id';
 import { omitKeys } from '../utils/object';
 
-export function useAdrastea(roomId: string) {
+export function useAdrastea(
+  roomId: string,
+  options?: { initialRoom?: unknown[]; initialPieces?: unknown[] }
+) {
   // postgres_changes の server-side filter は型・エスケープでイベントが来ない事例があるため付けない。
   // 自ルーム以外の行は matchesFilter(data.id === roomId) で無視する。
   const roomsQuery = useSupabaseQuery<Room>({
@@ -12,6 +15,7 @@ export function useAdrastea(roomId: string) {
     columns: 'id,name,dice_system,created_at,updated_at,active_scene_id,active_cutin,thumbnail_asset_id,gm_can_see_secret_memo,owner_id,description,default_login_role',
     roomId,
     filter: (q) => q.eq('id', roomId),
+    initialData: options?.initialRoom,
   });
 
   const piecesQuery = useSupabaseQuery<Piece>({
@@ -19,6 +23,7 @@ export function useAdrastea(roomId: string) {
     columns: 'id,room_id,x,y,width,height,label,color,image_asset_id,z_index,statuses,initiative,memo,character_id,created_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
+    initialData: options?.initialPieces,
   });
 
   const roomsMutation = useSupabaseMutation<Room>('rooms', roomsQuery.setData);

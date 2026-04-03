@@ -61,8 +61,8 @@ interface ArchiveMessagesResponse {
   has_more: boolean;
 }
 
-export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject }) {
-  const { inject } = options ?? {};
+export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject; initialData?: unknown[] }) {
+  const { inject, initialData } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const { user, token } = useAuth();
@@ -73,6 +73,7 @@ export function useAdrasteaChat(roomId: string, options?: { inject?: ChatInject 
     roomId,
     filter: (q) => q.eq('room_id', roomId).order('created_at', { ascending: false }).limit(200),
     enabled: !inject,
+    initialData,
   });
   const messagesData = messagesQuery.data;
   const chatMutation = useSupabaseMutation<ChatMessage>('messages', messagesQuery.setData);

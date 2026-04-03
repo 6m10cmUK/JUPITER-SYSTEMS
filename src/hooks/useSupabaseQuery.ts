@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
-import { isAdrasteaRealtimeDebug } from '../utils/debugFlags';
+import { isAdrasteaRealtimeDebug, isAdrasteaQueryDebug } from '../utils/debugFlags';
 
 /**
  * Supabase Realtime 購読オプション
@@ -20,6 +20,8 @@ export interface UseSupabaseQueryOptions {
    * 同一 table で channel 名が被ると2本目の subscribe が無視され、片方だけイベントが届かない。
    */
   realtime?: boolean;
+  /** RPC 等で取得済みの初期データ。指定時は初回 SELECT をスキップ */
+  initialData?: unknown[];
 }
 
 export interface UseSupabaseQueryResult<T> {
@@ -89,6 +91,7 @@ export function useSupabaseQuery<T extends { id: string }>(
     realtimeFilter,
     enabled = true,
     realtime = true,
+    initialData,
   } = options;
 
   const [data, setData] = useState<T[]>([]);
@@ -98,11 +101,13 @@ export function useSupabaseQuery<T extends { id: string }>(
   const filterRef = useRef(filter);
   const orderByRef = useRef(orderBy);
   const realtimeFilterRef = useRef(realtimeFilter);
+  const initialDataRef = useRef(initialData);
 
-  // filter と orderBy を ref で保持（毎レンダーの新参照を防ぐ）
+  // filter, orderBy, initialData を ref で保持（毎レンダーの新参照を防ぐ）
   filterRef.current = filter;
   orderByRef.current = orderBy;
   realtimeFilterRef.current = realtimeFilter;
+  initialDataRef.current = initialData;
 
   useEffect(() => {
     if (!enabled) {
@@ -221,36 +226,48 @@ export function useSupabaseQuery<T extends { id: string }>(
       });
     }
 
-    // 4. 初回データ取得（並行）
-    const fetchInitial = async () => {
-      try {
-        let query = supabase.from(table).select(columns);
-        if (filterRef.current) {
-          query = filterRef.current(query);
-        }
-        if (orderByRef.current) {
-          query = query.order(orderByRef.current.column, {
-            ascending: orderByRef.current.ascending !== false,
-          });
-        }
-        const { data: fetchedData, error: fetchError } = await query;
-        if (fetchError) {
-          console.debug(`[useSupabaseQuery] ${table} / columns: ${columns}`, fetchError);
-          throw fetchError;
-        }
-        if (!isMounted) return;
-        setData((fetchedData || []) as unknown as T[]);
-        setLoading(false);
-        setError(null);
-      } catch (err) {
-        if (isMounted) {
-          setError(err as Error);
-          setLoading(false);
-        }
+    // 4. 初回データ注入または SELECT
+    if (initialDataRef.current) {
+      // initialData がある場合: effect 内で注入
+      setData(initialDataRef.current as T[]);
+      setLoading(false);
+      if (isAdrasteaQueryDebug()) {
+        console.log('[Adrastea:Query] skip SELECT (initialData provided)', { table });
       }
-    };
-
-    fetchInitial();
+    } else {
+      // initialData がない場合: SELECT で取得
+      const fetchInitial = async () => {
+        try {
+          if (isAdrasteaQueryDebug()) {
+            console.log('[Adrastea:Query] SELECT', { table, columns: columns.substring(0, 50) + '...' });
+          }
+          let query = supabase.from(table).select(columns);
+          if (filterRef.current) {
+            query = filterRef.current(query);
+          }
+          if (orderByRef.current) {
+            query = query.order(orderByRef.current.column, {
+              ascending: orderByRef.current.ascending !== false,
+            });
+          }
+          const { data: fetchedData, error: fetchError } = await query;
+          if (fetchError) {
+            console.debug(`[useSupabaseQuery] ${table} / columns: ${columns}`, fetchError);
+            throw fetchError;
+          }
+          if (!isMounted) return;
+          setData((fetchedData || []) as unknown as T[]);
+          setLoading(false);
+          setError(null);
+        } catch (err) {
+          if (isMounted) {
+            setError(err as Error);
+            setLoading(false);
+          }
+        }
+      };
+      fetchInitial();
+    }
 
     // 5. クリーンアップ
     return () => {
