@@ -12,6 +12,7 @@ import { useCharacters } from '../hooks/useCharacters';
 import { useObjects } from '../hooks/useObjects';
 import { useBgms } from '../hooks/useBgms';
 import { useAssets, resolveAssetId, primeAssetCache } from '../hooks/useAssets';
+import { preloadImageBlobs } from '../components/Adrastea/DomObjectOverlay';
 import { useInitialRoomData } from '../hooks/useInitialRoomData';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
@@ -222,6 +223,11 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
         }
         const typed = assets.map(a => ({ ...a, tags: a.tags ?? [] })) as any[];
         primeAssetCache(typed, user.uid);
+        const imageUrls = typed
+          .filter((a: any) => a.asset_type === 'image')
+          .map((a: any) => a.url as string)
+          .filter(Boolean);
+        if (imageUrls.length > 0) preloadImageBlobs(imageUrls);
       }, (err: any) => {
         console.error('[RoomDataProvider] Asset prefetch error:', err);
       });
@@ -284,26 +290,6 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     },
     [sendMessage, user?.uid, activeChatChannel, room?.dice_system, characters, updateCharacter],
   );
-
-  // --- Image preload（ローカルストレージ読み込み後に全画像を blobCache にプリロード） ---
-  const preloadDoneRef = useRef(false);
-  useEffect(() => {
-    if (preloadDoneRef.current || !initialLoadDone) return;
-    preloadDoneRef.current = true;
-    const assetIds: string[] = [];
-    // シーンの bg/fg asset_id
-    for (const s of scenes) {
-      if (s.background_asset_id) assetIds.push(s.background_asset_id);
-      if (s.foreground_asset_id) assetIds.push(s.foreground_asset_id);
-    }
-    // オブジェクトの画像 asset_id
-    for (const o of allObjects) {
-      if (o.image_asset_id) assetIds.push(o.image_asset_id);
-    }
-    // TODO: asset_id から URL を解決してプリロード
-    // if (assetIds.length > 0) preloadImageBlobs(assetIds);
-  }, [initialLoadDone, scenes, allObjects]);
-
 
   // --- characters_layer 自動生成 ---
   // ルーム入室後、characters_layer オブジェクトがなければ自動作成
