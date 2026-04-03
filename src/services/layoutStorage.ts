@@ -10,6 +10,24 @@ export interface SavedLayout {
   id: string;
   name: string;
   layout: object; // Dockview の api.toJSON() の結果
+  /** ステータスパネル全体を盤面にオーバーレイするか */
+  statusPanelOnBoard?: boolean;
+  /** @deprecated 旧形式（ステータス個別トグル）。読み込み時のみマイグレーションに使用 */
+  statusOverlayVisibility?: Record<string, boolean>;
+}
+
+/** レイアウト JSON から盤面オーバーフラグを復元（旧 Record 形式はいずれか true なら ON） */
+export function migrateStatusPanelBoardOverlay(
+  saved: {
+    statusPanelOnBoard?: boolean;
+    statusOverlayVisibility?: Record<string, boolean>;
+  } | null
+): boolean {
+  if (!saved) return false;
+  if (saved.statusPanelOnBoard !== undefined) return !!saved.statusPanelOnBoard;
+  const vis = saved.statusOverlayVisibility;
+  if (!vis) return false;
+  return Object.values(vis).some(Boolean);
 }
 
 export interface LayoutStore {

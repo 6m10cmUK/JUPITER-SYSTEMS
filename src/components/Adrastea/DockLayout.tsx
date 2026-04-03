@@ -21,7 +21,16 @@ import { BgmEngine } from './BgmEngine';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 import { ZoomBar } from './ZoomBar';
 import { fixGroupWidth, relaxGroupWidth, fixAllNonBoardWidths } from './dock-panels/dockColumnState';
-import { getDefaultLayoutForRole, scaleLayout, DEFAULT_LAYOUT_OWNER, DEFAULT_LAYOUT_USER, DEFAULT_LAYOUT_GUEST, loadStore, persistStore } from '../../services/layoutStorage';
+import {
+  getDefaultLayoutForRole,
+  scaleLayout,
+  DEFAULT_LAYOUT_OWNER,
+  DEFAULT_LAYOUT_USER,
+  DEFAULT_LAYOUT_GUEST,
+  loadStore,
+  persistStore,
+  migrateStatusPanelBoardOverlay,
+} from '../../services/layoutStorage';
 
 /* ── レイアウト保存/復元 ── */
 
@@ -36,23 +45,33 @@ function layoutKey(role: string): string {
   return `adrastea-dock-layout-${role}`;
 }
 
+interface LayoutWrapper {
+  _version: number;
+  layout: object;
+  statusPanelOnBoard?: boolean;
+  /** @deprecated 読み込みマイグレーション用 */
+  statusOverlayVisibility?: Record<string, boolean>;
+}
+
 /* ── Board 専用タブ（閉じるボタンなし） ── */
 
 const BoardTab: React.FunctionComponent<IDockviewPanelHeaderProps> = (props) => {
   return <DockviewDefaultTab {...props} hideClose />;
 };
 
-function saveLayout(api: DockviewApi, role: string) {
+function saveLayout(api: DockviewApi, role: string, statusPanelOnBoard: boolean) {
   try {
     const layoutJson = api.toJSON();
+    const wrapper: LayoutWrapper = {
+      _version: LAYOUT_VERSION,
+      layout: layoutJson,
+      statusPanelOnBoard,
+    };
 
     // 旧形式にも保存（互換性維持）
     localStorage.setItem(
       layoutKey(role),
-      JSON.stringify({
-        _version: LAYOUT_VERSION,
-        layout: layoutJson,
-      }),
+      JSON.stringify(wrapper),
     );
 
     // 新形式のストアにも保存
@@ -63,19 +82,21 @@ function saveLayout(api: DockviewApi, role: string) {
       const layoutEntry = store.layouts.find(l => l.id === defaultId);
       if (layoutEntry) {
         layoutEntry.layout = layoutJson;
+        layoutEntry.statusPanelOnBoard = statusPanelOnBoard;
+        delete layoutEntry.statusOverlayVisibility;
         persistStore(store);
       }
     }
   } catch { /* ignore */ }
 }
 
-function loadLayout(role: string): object | null {
+function loadLayout(role: string): LayoutWrapper | null {
   const saved = localStorage.getItem(layoutKey(role));
   if (!saved) return null;
   try {
-    const wrapper = JSON.parse(saved);
+    const wrapper = JSON.parse(saved) as LayoutWrapper;
     if (wrapper._version === LAYOUT_VERSION) {
-      return wrapper.layout;
+      return wrapper;
     }
   } catch { /* ignore */ }
   return null;
@@ -288,9 +309,13 @@ function RightHeaderActions({ containerApi, group }: IDockviewHeaderActionsProps
 const DockviewInner = memo(function DockviewInner({
   onApiReady,
   role,
+  statusPanelBoardOverlay,
+  setStatusPanelBoardOverlay,
 }: {
   onApiReady: (api: DockviewApi) => void;
   role: string;
+  statusPanelBoardOverlay: boolean;
+  setStatusPanelBoardOverlay: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
   const dockviewComponents = useMemo(() => {
     const comps: Record<string, React.FunctionComponent<IDockviewPanelProps>> = {};
@@ -307,6 +332,8 @@ const DockviewInner = memo(function DockviewInner({
   }, []);
 
   const apiRef = useRef<DockviewApi | null>(null);
+  const statusPanelBoardOverlayRef = useRef(statusPanelBoardOverlay);
+  statusPanelBoardOverlayRef.current = statusPanelBoardOverlay;
 
   const onReady = useCallback(
     (event: DockviewReadyEvent) => {
@@ -320,6 +347,12 @@ const DockviewInner = memo(function DockviewInner({
         try {
           const scaled = scaleLayout(defaultLayout.layout, api.width, api.height);
           api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
+          setStatusPanelBoardOverlay(
+            migrateStatusPanelBoardOverlay({
+              statusPanelOnBoard: defaultLayout.statusPanelOnBoard,
+              statusOverlayVisibility: defaultLayout.statusOverlayVisibility,
+            })
+          );
           requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
           return;
         } catch { /* フォールスルー */ }
@@ -329,7 +362,8 @@ const DockviewInner = memo(function DockviewInner({
       const saved = loadLayout(role);
       if (saved) {
         try {
-          api.fromJSON(saved as Parameters<DockviewApi['fromJSON']>[0]);
+          api.fromJSON(saved.layout as Parameters<DockviewApi['fromJSON']>[0]);
+          setStatusPanelBoardOverlay(migrateStatusPanelBoardOverlay(saved));
           requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
           return;
         } catch { /* フォールスルー: デフォルトレイアウトを構築 */ }
@@ -344,13 +378,14 @@ const DockviewInner = memo(function DockviewInner({
       try {
         const scaled = scaleLayout(defaultJson, api.width, api.height);
         api.fromJSON(scaled as Parameters<DockviewApi['fromJSON']>[0]);
+        setStatusPanelBoardOverlay(false);
         requestAnimationFrame(() => requestAnimationFrame(() => fixAllNonBoardWidths(api)));
       } catch {
         // フォールスルー: 空のままになる
         api.addPanel({ id: 'board', component: 'board', title: 'Board', tabComponent: 'boardTab' });
       }
     },
-    [onApiReady, role],
+    [onApiReady, role, setStatusPanelBoardOverlay],
   );
 
   // レイアウト変更時に自動保存（debounce で連続変更をまとめる）
@@ -387,7 +422,7 @@ const DockviewInner = memo(function DockviewInner({
 
     const disposable = api.onDidLayoutChange(() => {
       clearTimeout(timer);
-      timer = setTimeout(() => saveLayout(api, roleRef.current), 300);
+      timer = setTimeout(() => saveLayout(api, roleRef.current, statusPanelBoardOverlayRef.current), 300);
     });
 
     return () => {
@@ -414,14 +449,20 @@ const DockviewInner = memo(function DockviewInner({
 /* ── DockLayout ── */
 
 export function DockLayout() {
-  const { setDockviewApi } = useAdrasteaContext();
+  const { setDockviewApi, statusPanelBoardOverlay, setStatusPanelBoardOverlay } = useAdrasteaContext();
   const { roomRole } = usePermission();
 
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column' }}>
       <BgmEngine />
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        <DockviewInner key={roomRole} onApiReady={setDockviewApi} role={roomRole} />
+        <DockviewInner
+          key={roomRole}
+          onApiReady={setDockviewApi}
+          role={roomRole}
+          statusPanelBoardOverlay={statusPanelBoardOverlay}
+          setStatusPanelBoardOverlay={setStatusPanelBoardOverlay}
+        />
       </div>
     </div>
   );

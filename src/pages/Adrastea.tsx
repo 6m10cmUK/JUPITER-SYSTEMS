@@ -241,6 +241,8 @@ const Adrastea: React.FC = () => {
     roomId: roomId ?? 'null',
     filter: (q) => q.eq('id', roomId ?? ''),
     enabled: !!roomId,
+    // セッション内の rooms は useAdrastea が購読。ここも channel を取ると同名で2本目の subscribe が無視され active_scene が死ぬ
+    realtime: false,
   });
   const roomData = roomDataArray[0] ?? (roomId ? null : undefined);
 

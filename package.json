@@ -14,6 +14,7 @@
     "test:watch": "vitest",
     "test:e2e": "npx playwright test",
     "test:e2e:update": "npx playwright test --update-snapshots",
+    "check:realtime-publication": "bash scripts/check-realtime-publication.sh",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {

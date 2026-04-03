@@ -1,4 +1,4 @@
-import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useState } from 'react';
+import { forwardRef, memo, useCallback, useRef, useEffect, useLayoutEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import type { BoardObject, Scene, Character, Asset } from '../../types/adrastea.types';
 import { GRID_SIZE } from './Board';
@@ -10,6 +10,8 @@ import { handleClipboardImport } from '../../hooks/usePasteHandler';
 import { generateDuplicateName } from '../../utils/nameUtils';
 import { resolveAssetId, useAssets } from '../../hooks/useAssets';
 import { theme } from '../../styles/theme';
+import { hasRole } from '../../config/permissions';
+import { EditableStatusBar } from './status/EditableStatusBar';
 
 // --- フラグ・定数 ---
 /** キャラ駒ホバー中のメモスクロール時にBoardのズームを抑止するカウンタ（参照カウント方式） */
@@ -1468,6 +1470,7 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
     selectedCharacterId,
   }, ref) {
     const { assets } = useAssets();
+    const ctx = useAdrasteaContext();
     const visibleObjects = objects.filter((o) => o.visible || o.type === 'characters_layer');
     const prevSlotsRef = useRef<Map<string, PrevSlotInfo>>(new Map());
     const keyedObjects = generateStableKeys(visibleObjects, prevSlotsRef);
@@ -1481,6 +1484,44 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
       if (!canvas) return;
       canvas.dispatchEvent(new WheelEvent('wheel', e.nativeEvent));
     }, [stageRef]);
+
+    const canSeeStatusOverlay = hasRole(ctx.roomRole, 'user');
+    const isSubOwnerPlus = hasRole(ctx.roomRole, 'sub_owner');
+    const visibleCharacters = useMemo(
+      () => characters
+        .filter(c => c.board_visible !== false)
+        .sort((a, b) => {
+          const byInitiative = (b.initiative ?? 0) - (a.initiative ?? 0);
+          if (byInitiative !== 0) return byInitiative;
+          return a.id.localeCompare(b.id);
+        }),
+      [characters],
+    );
+    const selectedStatusEntries = useMemo(() => {
+      const result: { char: Character; statusIndex: number }[] = [];
+      for (const char of visibleCharacters) {
+        for (let i = 0; i < char.statuses.length; i++) {
+          if (ctx.statusOverlayVisibility[`${char.id}:${i}`]) {
+            result.push({ char, statusIndex: i });
+          }
+        }
+      }
+      return result;
+    }, [visibleCharacters, ctx.statusOverlayVisibility]);
+
+    const updateStatusValue = useCallback((charId: string, statusIndex: number, newValue: number) => {
+      const char = ctx.characters.find(c => c.id === charId);
+      if (!char) return;
+      const newStatuses = char.statuses.map((s, i) =>
+        i === statusIndex ? { ...s, value: newValue } : s,
+      );
+      ctx.updateCharacter(charId, { statuses: newStatuses });
+    }, [ctx]);
+
+    const toggleShowOnBoard = useCallback((charId: string, statusIndex: number) => {
+      const key = `${charId}:${statusIndex}`;
+      ctx.setStatusOverlayVisibility(prev => ({ ...prev, [key]: !prev[key] }));
+    }, [ctx]);
 
     return (
       <div
@@ -1567,6 +1608,36 @@ export const DomObjectOverlay = memo(forwardRef<HTMLDivElement, DomObjectOverlay
             }
           })}
         </div>
+        {canSeeStatusOverlay && selectedStatusEntries.length > 0 && (
+          <div
+            className="scrollbar-hide"
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: 8,
+              width: 260,
+              maxHeight: '45vh',
+              overflowY: 'auto',
+              pointerEvents: 'auto',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+              gap: 2,
+            }}
+          >
+            {selectedStatusEntries.map(({ char, statusIndex }) => (
+              <EditableStatusBar
+                key={`${char.id}:${statusIndex}`}
+                charId={char.id}
+                statusIndex={statusIndex}
+                status={char.statuses[statusIndex]}
+                canEdit={char.owner_id === currentUserId || isSubOwnerPlus}
+                showOnBoard={!!ctx.statusOverlayVisibility[`${char.id}:${statusIndex}`]}
+                updateStatusValue={updateStatusValue}
+                toggleShowOnBoard={toggleShowOnBoard}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   }

@@ -54,7 +54,10 @@ function VolumeFader({ value, onChange }: { value: number; onChange: (v: number)
   const pct = Math.round(displayValue * 100);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: '16px' }}>
+    <div
+      style={{ position: 'relative', width: '100%', height: '16px', touchAction: 'none' }}
+      onPointerDown={(e) => e.stopPropagation()}
+    >
       <div style={{
         position: 'absolute', inset: 0,
         background: theme.bgInput,
@@ -287,10 +290,9 @@ export function BgmPanel() {
 
   // 現在のシーンに属する or 再生中のBGMを表示
   const currentSceneId = activeScene?.id ?? '';
+  // bgms は useLocalStorageOrder + DB sort_order で既にルーム全体の順序が付いている。ここでは絞り込みのみ（再ソートしない）
   const filteredBgms = useMemo(
-    () => bgms
-      .filter(b => b.scene_ids.includes(currentSceneId))
-      .sort((a, b) => a.sort_order - b.sort_order),
+    () => bgms.filter(b => b.scene_ids.includes(currentSceneId)),
     [bgms, currentSceneId]
   );
 

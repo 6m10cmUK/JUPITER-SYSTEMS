@@ -14,6 +14,7 @@ import { useAssets, resolveAssetId } from '../hooks/useAssets';
 import { resolveTemplateVars } from '../components/Adrastea/utils/chatEditorUtils';
 import type { RoomDataContextValue } from './AdrasteaContexts';
 import { RoomDataContext } from './AdrasteaContexts';
+import { isAdrasteaRealtimeDebug } from '../utils/debugFlags';
 
 // ---------------------------------------------------------------------------
 // Provider
@@ -82,7 +83,10 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   } = useScenes(roomId, {
     onObjectsCreated: (objs) => objectsCreatedRef.current?.(objs),
     onActivateScene: async (sceneId) => {
-      setOptimisticSceneId(sceneId);
+      // active_scene は rooms の楽観更新 + Realtime のみ。別 state で上書きすると他端末の切替に追随できない
+      if (isAdrasteaRealtimeDebug()) {
+        console.log('[Adrastea:Room] activateScene → updateRoom', { roomId, sceneId });
+      }
       await updateRoom({ active_scene_id: sceneId });
     },
   });
@@ -99,16 +103,20 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     reorderLayerCharacters,
   } = useCharacters(roomId);
 
-  // 楽観的 activeSceneId: ローカルstate反映を待たずシーン切り替えを即座に反映
-  const [optimisticSceneId, setOptimisticSceneId] = useState<string | null>(null);
-  const effectiveSceneId = optimisticSceneId ?? room?.active_scene_id ?? null;
+  const effectiveSceneId = room?.active_scene_id ?? null;
 
-  // ローカルstateが追いついたら楽観値をクリア
+  const prevActiveSceneLoggedRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
-    if (optimisticSceneId && room?.active_scene_id === optimisticSceneId) {
-      setOptimisticSceneId(null);
-    }
-  }, [room?.active_scene_id, optimisticSceneId]);
+    if (!isAdrasteaRealtimeDebug()) return;
+    const next = room?.active_scene_id ?? null;
+    if (prevActiveSceneLoggedRef.current === next) return;
+    console.log('[Adrastea:Room] room.active_scene_id（表示用）', {
+      roomId,
+      from: prevActiveSceneLoggedRef.current,
+      to: next,
+    });
+    prevActiveSceneLoggedRef.current = next;
+  }, [room?.active_scene_id, roomId]);
 
   const {
     allObjects,
@@ -305,8 +313,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     if (!initialLoadDone) return;
     if (effectiveSceneId) return; // すでにアクティブなシーンがある
     if (scenes.length > 0) {
-      setOptimisticSceneId(scenes[0].id);
-      updateRoom({ active_scene_id: scenes[0].id });
+      void updateRoom({ active_scene_id: scenes[0].id });
     }
   }, [initialLoadDone, effectiveSceneId, scenes, updateRoom]);
 

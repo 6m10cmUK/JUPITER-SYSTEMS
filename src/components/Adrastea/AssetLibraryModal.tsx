@@ -217,6 +217,8 @@ export function AssetLibraryModal({ onClose, onSelect, initialTab = 'image', aut
         }
       } catch (err) {
         console.error('アップロード失敗:', err);
+        const msg = err instanceof Error ? err.message : 'アップロードに失敗しました';
+        ctx.showToast(msg, 'error');
       } finally {
         setUploading(false);
         setAddMode(null);
