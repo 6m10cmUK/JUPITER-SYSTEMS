@@ -142,7 +142,7 @@ function generateCSS(
 export function useDiscordObsSettings() {
   const [userId, setUserId] = useState('320897851515207681');
   const [standImageUrl, setStandImageUrl] = useState('/demo.webp');
-  const [userName, setUserName] = useState('デモキャラクター');
+  const [userName, setUserName] = useState('デモ');
   const [animationSettings, setAnimationSettings] = useState<AnimationSettings>(DEFAULT_ANIMATION_SETTINGS);
   const [generalSettings, setGeneralSettings] = useState<GeneralSettings>(DEFAULT_GENERAL_SETTINGS);
   const [generatedCSS, setGeneratedCSS] = useState('');

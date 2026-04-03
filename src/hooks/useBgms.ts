@@ -1,10 +1,33 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSupabaseQuery, useSupabaseMutation } from './useSupabaseQuery';
 import { useLocalStorageOrder } from './useLocalStorageOrder';
 import type { BgmTrack } from '../types/adrastea.types';
 import type { BgmsInject } from '../types/adrastea-persistence';
 import { genId } from '../utils/id';
 import { omitKeys } from '../utils/object';
+
+const PLAYBACK_DEBOUNCE_MS = 48;
+
+function isPlaybackOnlyPatch(updates: Partial<BgmTrack>): boolean {
+  const keys = Object.keys(updates).filter(
+    (k) => k !== 'updated_at' && updates[k as keyof BgmTrack] !== undefined
+  );
+  if (keys.length === 0) return false;
+  return keys.every((k) => k === 'is_playing' || k === 'is_paused');
+}
+
+/** フル ID 列のうち、orderedSubsetIds に含まれるブロックだけを並べ替えた新しい ID 列（シーン絞り込みパネル用） */
+export function mergeBgmSubsetOrderIntoFull(fullIds: string[], orderedSubsetIds: string[]): string[] {
+  const subsetSet = new Set(orderedSubsetIds);
+  if (orderedSubsetIds.length === 0) return fullIds;
+  const firstSubsetIdx = fullIds.findIndex((id) => subsetSet.has(id));
+  if (firstSubsetIdx < 0) {
+    return [...fullIds.filter((id) => !subsetSet.has(id)), ...orderedSubsetIds];
+  }
+  const prefix = fullIds.slice(0, firstSubsetIdx).filter((id) => !subsetSet.has(id));
+  const suffix = fullIds.slice(firstSubsetIdx + 1).filter((id) => !subsetSet.has(id));
+  return [...prefix, ...orderedSubsetIds, ...suffix];
+}
 
 export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   const { inject } = options ?? {};
@@ -16,11 +39,14 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     columns: 'id,room_id,name,bgm_type,bgm_source,bgm_asset_id,bgm_volume,bgm_loop,scene_ids,is_playing,is_paused,auto_play_scene_ids,fade_in,fade_in_duration,fade_out,fade_duration,sort_order,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
+    orderBy: { column: 'sort_order', ascending: true },
     enabled: !inject,
   });
   const bgmsData = bgmsQuery.data;
 
   const bgmsMutation = useSupabaseMutation<BgmTrack>('bgms', bgmsQuery.setData);
+  const bgmsMutationRef = useRef(bgmsMutation);
+  bgmsMutationRef.current = bgmsMutation;
 
   // is_playing / is_paused のローカルオーバーライド
   // Supabase Realtime の楽観更新振動を防ぐ
@@ -28,6 +54,18 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     Map<string, { is_playing: boolean; is_paused: boolean }>
   >(new Map());
   const overrideTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  /** is_playing / is_paused の DB 書き込みをまとめる（シーン切替で Realtime が連打されるのを抑える） */
+  const playbackPendingRef = useRef<Map<string, Partial<Pick<BgmTrack, 'is_playing' | 'is_paused'>>>>(new Map());
+  const playbackDebounceTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    return () => {
+      playbackDebounceTimersRef.current.forEach((t) => clearTimeout(t));
+      playbackDebounceTimersRef.current.clear();
+      playbackPendingRef.current.clear();
+    };
+  }, []);
 
   const setPlaybackOverride = useCallback((id: string, state: { is_playing: boolean; is_paused: boolean }) => {
     setPlaybackOverrides(prev => new Map(prev).set(id, state));
@@ -73,8 +111,8 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     });
   }, [inject, bgmsData, playbackOverrides]);
 
-  // useLocalStorageOrder を使用して BGM の並び順を管理
-  const { orderedItems: bgms, removeFromOrder: removeFromLocalStorageOrder } = useLocalStorageOrder(
+  // useLocalStorageOrder を使用して BGM の並び順を管理（DB sort_order と併用）
+  const { orderedItems: bgms, saveOrder: saveBgmOrder, removeFromOrder: removeFromLocalStorageOrder } = useLocalStorageOrder(
     mergedBgms,
     `adrastea-bgm-order-${roomId}`
   );
@@ -115,6 +153,39 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
     [roomId, bgms.length, bgmsMutation]
   );
 
+  const flushPendingPlaybackWrite = useCallback(
+    async (id: string): Promise<void> => {
+      const timer = playbackDebounceTimersRef.current.get(id);
+      if (timer) {
+        clearTimeout(timer);
+        playbackDebounceTimersRef.current.delete(id);
+      }
+      const patch = playbackPendingRef.current.get(id);
+      playbackPendingRef.current.delete(id);
+      if (!patch || Object.keys(patch).length === 0) return;
+      const rest = omitKeys(patch as BgmTrack, ['id', 'created_at', 'updated_at']);
+      await bgmsMutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BgmTrack>);
+    },
+    [bgmsMutation]
+  );
+
+  const schedulePlaybackWrite = useCallback(
+    (id: string, fragment: Partial<Pick<BgmTrack, 'is_playing' | 'is_paused'>>) => {
+      const prev = playbackPendingRef.current.get(id) ?? {};
+      playbackPendingRef.current.set(id, { ...prev, ...fragment });
+      const existing = playbackDebounceTimersRef.current.get(id);
+      if (existing) clearTimeout(existing);
+      const t = setTimeout(() => {
+        playbackDebounceTimersRef.current.delete(id);
+        void flushPendingPlaybackWrite(id).catch((e) => {
+          console.error('[useBgms] debounced playback flush failed:', e);
+        });
+      }, PLAYBACK_DEBOUNCE_MS);
+      playbackDebounceTimersRef.current.set(id, t);
+    },
+    [flushPendingPlaybackWrite]
+  );
+
   const updateBgm = useCallback(
     async (id: string, updates: Partial<BgmTrack>): Promise<void> => {
       // is_playing / is_paused の変更はローカルオーバーライドで即座に安定化
@@ -139,6 +210,17 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
       }
 
       try {
+        const playbackOnly = isPlaybackOnlyPatch(updates);
+        if (playbackOnly) {
+          const fragment: Partial<Pick<BgmTrack, 'is_playing' | 'is_paused'>> = {};
+          if ('is_playing' in updates) fragment.is_playing = updates.is_playing!;
+          if ('is_paused' in updates) fragment.is_paused = updates.is_paused!;
+          schedulePlaybackWrite(id, fragment);
+          return;
+        }
+
+        await flushPendingPlaybackWrite(id);
+
         const rest = omitKeys(updates as BgmTrack, ['id', 'created_at', 'updated_at']);
         await bgmsMutation.update(id, { ...rest, updated_at: Date.now() } as Partial<BgmTrack>);
         const merged = { ...(bgms.find((b) => b.id === id) ?? {}), ...updates };
@@ -150,7 +232,7 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
         console.error('[useBgms] updateBgm failed:', error);
       }
     },
-    [bgms, removeFromLocalStorageOrder, setPlaybackOverride, bgmsMutation]
+    [bgms, removeFromLocalStorageOrder, setPlaybackOverride, bgmsMutation, schedulePlaybackWrite, flushPendingPlaybackWrite]
   );
 
   const removeBgm = useCallback(
@@ -171,11 +253,20 @@ export function useBgms(roomId: string, options?: { inject?: BgmsInject }) {
   );
 
   const reorderBgms = useCallback(
-    async (orderedIds: string[]): Promise<void> => {
-      const storageKey = `adrastea-bgm-order-${roomId}`;
-      localStorage.setItem(storageKey, JSON.stringify(orderedIds));
+    async (orderedSubsetIds: string[]): Promise<void> => {
+      if (orderedSubsetIds.length === 0) return;
+      const fullIds = bgms.map((b) => b.id);
+      const newFull = mergeBgmSubsetOrderIntoFull(fullIds, orderedSubsetIds);
+      saveBgmOrder(newFull);
+      const inj = injectRef.current;
+      if (inj) return;
+      try {
+        await bgmsMutationRef.current.reorder(newFull);
+      } catch (error) {
+        console.error('[useBgms] reorderBgms failed:', error);
+      }
     },
-    [roomId]
+    [bgms, saveBgmOrder]
   );
 
   return { bgms, loading, addBgm, updateBgm, removeBgm, reorderBgms };

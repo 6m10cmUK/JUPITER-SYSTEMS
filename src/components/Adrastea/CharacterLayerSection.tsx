@@ -198,13 +198,18 @@ export function CharacterLayerSection({
             if (sortableEl) {
               setDraggedHtml(sortableEl.outerHTML);
             }
+            // dnd-kit の rect.initial はネスト DnD 等でビューポート座標とずれることがある。
+            // clientX/Y と整合する getBoundingClientRect() で掴みオフセットを取る（SortableListPanel と同じ）。
             const activatorEvent = event.activatorEvent as PointerEvent | null;
-            const initialRect = event.active.rect.current?.initial;
-            if (activatorEvent && initialRect) {
+            const elRect = sortableEl?.getBoundingClientRect();
+            if (activatorEvent && elRect) {
               setGrabOffset({
-                x: activatorEvent.clientX - initialRect.left,
-                y: activatorEvent.clientY - initialRect.top,
+                x: activatorEvent.clientX - elRect.left,
+                y: activatorEvent.clientY - elRect.top,
               });
+              setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
+            } else if (activatorEvent) {
+              setGrabOffset({ x: 16, y: 14 });
               setCursorPos({ x: activatorEvent.clientX, y: activatorEvent.clientY });
             }
           }}

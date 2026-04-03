@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
+import { isAdrasteaRealtimeDebug } from '../utils/debugFlags';
 
 /**
  * Supabase Realtime 購読オプション
@@ -11,7 +12,14 @@ export interface UseSupabaseQueryOptions {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   filter?: (q: any) => any; // フィルタ関数（e.g., (q) => q.eq('room_id', roomId)）。Supabase の PostgrestFilterBuilder の型は非常に複雑なため any を許容
   orderBy?: { column: string; ascending?: boolean };
+  /** postgres_changes 用 filter（例: rooms は `id=eq.<roomId>` で自ルーム行のみ） */
+  realtimeFilter?: string;
   enabled?: boolean; // false なら購読しない
+  /**
+   * false のとき初回 SELECT のみ（Realtime しない）。
+   * 同一 table で channel 名が被ると2本目の subscribe が無視され、片方だけイベントが届かない。
+   */
+  realtime?: boolean;
 }
 
 export interface UseSupabaseQueryResult<T> {
@@ -28,8 +36,8 @@ export interface UseSupabaseQueryResult<T> {
 const pendingUpdatesRegistry = new Map<string, Map<string, NodeJS.Timeout>>();
 
 /**
- * echo suppression: pending 更新を登録
- * Realtime で同じ ID の UPDATE を受信したら state 更新をスキップ
+ * 楽観更新直後の Realtime echo 用タイマー管理。
+ * UPDATE 受信時は pending を解除したうえで必ず newData をマージする（他端末の更新を落とさない）。
  */
 function markAsPending(table: string, id: string): void {
   if (!pendingUpdatesRegistry.has(table)) {
@@ -78,7 +86,9 @@ export function useSupabaseQuery<T extends { id: string }>(
     roomId,
     filter,
     orderBy,
+    realtimeFilter,
     enabled = true,
+    realtime = true,
   } = options;
 
   const [data, setData] = useState<T[]>([]);
@@ -87,10 +97,12 @@ export function useSupabaseQuery<T extends { id: string }>(
 
   const filterRef = useRef(filter);
   const orderByRef = useRef(orderBy);
+  const realtimeFilterRef = useRef(realtimeFilter);
 
   // filter と orderBy を ref で保持（毎レンダーの新参照を防ぐ）
   filterRef.current = filter;
   orderByRef.current = orderBy;
+  realtimeFilterRef.current = realtimeFilter;
 
   useEffect(() => {
     if (!enabled) {
@@ -100,60 +112,114 @@ export function useSupabaseQuery<T extends { id: string }>(
 
     let isMounted = true;
 
-    // 1. チャネル作成（テーブル別）
-    const channel = supabase.channel(`room:${roomId}:${table}`);
+    let channel: ReturnType<typeof supabase.channel> | null = null;
 
-    // 2. Realtime リスナー登録（subscribe の前に！）
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    channel.on(
-      'postgres_changes',
-      {
-        event: '*',
-        schema: 'public',
-        table: table,
-      },
-      (payload: any) => {
-        const { eventType, new: newData, old: oldData } = payload;
+    if (realtime) {
+      // 1. チャネル作成（テーブル別）
+      channel = supabase.channel(`room:${roomId}:${table}`);
 
-        if (!isMounted) return;
+      // 2. Realtime リスナー登録（subscribe の前に！）
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      channel.on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: table,
+          ...(realtimeFilterRef.current
+            ? { filter: realtimeFilterRef.current }
+            : {}),
+        },
+        (payload: any) => {
+          const { eventType, new: newData, old: oldData } = payload;
 
-        switch (eventType) {
-          case 'INSERT': {
-            if (!matchesFilter(newData, roomId)) return;
-            setData((prev) => {
-              const exists = prev.some((row) => row.id === newData.id);
-              if (exists) return prev;
-              return [...prev, newData];
-            });
-            break;
+          if (!isMounted) return;
+
+          const debug = isAdrasteaRealtimeDebug();
+          if (debug) {
+            const rowId = newData?.id ?? oldData?.id;
+            const detail: Record<string, unknown> = {
+              eventType,
+              rowId,
+              channelTable: table,
+              subscribeRoomId: roomId,
+            };
+            if (newData && table === 'rooms') {
+              detail.active_scene_id = (newData as { active_scene_id?: string | null }).active_scene_id;
+              detail.room_id_field = (newData as { room_id?: unknown }).room_id;
+            }
+            if (newData && table === 'scenes') {
+              detail.scene_id = newData.id;
+              detail.name = (newData as { name?: string }).name;
+            }
+            if (newData) {
+              detail.matchesFilter = matchesFilter(newData, roomId, table);
+            }
+            if (eventType === 'UPDATE' && newData) {
+              detail.wasPending = isPending(table, newData.id);
+            }
+            console.log('[Adrastea:Realtime] postgres_changes', detail);
           }
-          case 'UPDATE': {
-            const id = newData.id;
-            if (isPending(table, id)) {
+
+          switch (eventType) {
+            case 'INSERT': {
+              if (!matchesFilter(newData, roomId, table)) return;
+              setData((prev) => {
+                const exists = prev.some((row) => row.id === newData.id);
+                if (exists) return prev;
+                return [...prev, newData];
+              });
+              break;
+            }
+            case 'UPDATE': {
+              const id = newData.id;
+              if (isPending(table, id)) {
+                clearPending(table, id);
+              }
+              if (!matchesFilter(newData, roomId, table)) {
+                if (debug) {
+                  console.warn('[Adrastea:Realtime] UPDATE skipped (matchesFilter=false)', {
+                    table,
+                    rowId: id,
+                    subscribeRoomId: roomId,
+                  });
+                }
+                // rooms は1行のみ: 誤フィルタで行を消すと active_scene 等が全クライアントで壊れる
+                if (table !== 'rooms') {
+                  setData((prev) => prev.filter((row) => row.id !== id));
+                }
+                break;
+              }
+              setData((prev) =>
+                prev.map((row) =>
+                  row.id === id ? ({ ...row, ...newData } as T) : row
+                )
+              );
+              break;
+            }
+            case 'DELETE': {
+              const id = oldData.id;
               clearPending(table, id);
-              return;
-            }
-            if (!matchesFilter(newData, roomId)) {
               setData((prev) => prev.filter((row) => row.id !== id));
-              return;
+              break;
             }
-            setData((prev) =>
-              prev.map((row) => (row.id === id ? newData : row))
-            );
-            break;
-          }
-          case 'DELETE': {
-            const id = oldData.id;
-            clearPending(table, id);
-            setData((prev) => prev.filter((row) => row.id !== id));
-            break;
           }
         }
-      }
-    );
+      );
 
-    // 3. subscribe（.on() の後）
-    channel.subscribe();
+      // 3. subscribe（.on() の後）
+      channel.subscribe((status, err) => {
+        if (isAdrasteaRealtimeDebug()) {
+          console.log('[Adrastea:Realtime] channel subscribe', {
+            table,
+            subscribeRoomId: roomId,
+            realtimeFilter: realtimeFilterRef.current ?? null,
+            status,
+            err: err?.message ?? null,
+          });
+        }
+      });
+    }
 
     // 4. 初回データ取得（並行）
     const fetchInitial = async () => {
@@ -189,19 +255,27 @@ export function useSupabaseQuery<T extends { id: string }>(
     // 5. クリーンアップ
     return () => {
       isMounted = false;
-      channel.unsubscribe();
+      void channel?.unsubscribe();
     };
-  }, [table, columns, roomId, enabled]);
+  }, [table, columns, roomId, enabled, realtimeFilter, realtime]);
 
   return { data, loading, error, setData };
 }
 
 /**
- * フィルタ関数がデータを満たすかチェック（簡易版）
- * room_id の一致をチェック
+ * Realtime ペイロードがこの購読（roomId）に属するか。
+ * - rooms テーブルは PK が id (= ルームID) で room_id 列がない。payload に room_id:null が付くと従来比較で誤って除外され、
+ *   UPDATE 時にルーム行が state から消え active_scene が同期しなくなることがある。
  */
-function matchesFilter(data: Record<string, unknown>, roomId: string | undefined): boolean {
+function matchesFilter(
+  data: Record<string, unknown>,
+  roomId: string | undefined,
+  table: string
+): boolean {
   if (!roomId) return true;
+  if (table === 'rooms') {
+    return data.id === roomId;
+  }
   if ('room_id' in data && data.room_id !== roomId) return false;
   return true;
 }

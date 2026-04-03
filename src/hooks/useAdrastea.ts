@@ -5,6 +5,8 @@ import { genId } from '../utils/id';
 import { omitKeys } from '../utils/object';
 
 export function useAdrastea(roomId: string) {
+  // postgres_changes の server-side filter は型・エスケープでイベントが来ない事例があるため付けない。
+  // 自ルーム以外の行は matchesFilter(data.id === roomId) で無視する。
   const roomsQuery = useSupabaseQuery<Room>({
     table: 'rooms',
     columns: 'id,name,dice_system,created_at,updated_at,active_scene_id,active_cutin,thumbnail_asset_id,gm_can_see_secret_memo,owner_id,description,default_login_role',
