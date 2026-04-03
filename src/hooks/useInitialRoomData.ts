@@ -35,10 +35,10 @@ export function useInitialRoomData(roomId: string) {
     const fetchInitial = async () => {
       try {
         if (isAdrasteaQueryDebug()) {
-          console.log('[Adrastea:Query] RPC get_room_initial_data', { roomId });
+          console.log('[Adrastea:Query] RPC get_room_data', { roomId });
         }
         const { data: rpcData, error: rpcError } = await supabase.rpc(
-          'get_room_initial_data',
+          'get_room_data',
           { room_id_arg: roomId, message_limit_arg: 200 }
         );
 
