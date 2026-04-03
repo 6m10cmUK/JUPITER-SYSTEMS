@@ -255,7 +255,7 @@ export function CharacterLayerSection({
                 }}>
                   {char.images[char.active_image_index]?.asset_id && resolveAssetId(char.images[char.active_image_index].asset_id) ? (
                     <img
-                      src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''}
+                      src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? undefined}
                       alt={char.name}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }}
                     />

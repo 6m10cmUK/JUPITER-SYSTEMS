@@ -49,7 +49,8 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   const objectsCreatedRef = useRef<((objects: BoardObject[]) => void) | null>(null);
 
   // --- RPC 一括取得（初回のみ） ---
-  const { data: initialRoomData } = useInitialRoomData(roomId);
+  const { data: initialRoomData, loading: initialLoading } = useInitialRoomData(roomId);
+  const rpcReady = !initialLoading;
 
   // --- Data hooks ---
 
@@ -65,6 +66,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   } = useAdrastea(roomId, {
     initialRoom: initialRoomData?.room ? [initialRoomData.room] : undefined,
     initialPieces: initialRoomData?.pieces,
+    enabled: rpcReady,
   });
 
   const {
@@ -78,6 +80,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     openSecretDice,
   } = useAdrasteaChat(roomId, {
     initialData: initialRoomData?.messages,
+    enabled: rpcReady,
   });
 
   // NOTE: channels, upsertChannel, deleteChannel は AdrasteaContext で管理される
@@ -100,6 +103,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
       await updateRoom({ active_scene_id: sceneId });
     },
     initialData: initialRoomData?.scenes,
+    enabled: rpcReady,
   });
 
   const {
@@ -115,6 +119,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   } = useCharacters(roomId, {
     initialStats: initialRoomData?.characters_stats,
     initialBase: initialRoomData?.characters_base,
+    enabled: rpcReady,
   });
 
   const effectiveSceneId = room?.active_scene_id ?? null;
@@ -144,6 +149,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     batchUpdateSort,
   } = useObjects(roomId, effectiveSceneId, {
     initialData: initialRoomData?.objects,
+    enabled: rpcReady,
   });
 
 
@@ -159,6 +165,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
     reorderBgms,
   } = useBgms(roomId, {
     initialData: initialRoomData?.bgms,
+    enabled: rpcReady,
   });
 
   const { loading: assetsLoading } = useAssets();
@@ -302,7 +309,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
   // ルーム入室後、characters_layer オブジェクトがなければ自動作成
   const charactersLayerCreatedRef = useRef(false);
   useEffect(() => {
-    if (!initialLoadDone || objectsLoading) return;
+    if (!initialLoadDone || objectsLoading || !rpcReady) return;
     if (charactersLayerCreatedRef.current) return;
     const hasCharactersLayer = allObjects.some(o => o.type === 'characters_layer');
     if (!hasCharactersLayer) {
@@ -339,6 +346,9 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
             scale_y: 1,
           });
         } catch (e) {
+          // unique constraint violation (23505) = 他タブ/ユーザーが先にINSERT済み → 正常扱い
+          const code = (e as { code?: string })?.code ?? (e as { error?: { code?: string } })?.error?.code;
+          if (code === '23505') return;
           charactersLayerCreatedRef.current = false;
         }
       })();
@@ -348,7 +358,7 @@ export const RoomDataProvider: React.FC<RoomDataProviderProps> = ({
         updateObject(existingCharactersLayer.id, { visible: true });
       }
     }
-  }, [initialLoadDone, objectsLoading, allObjects, addObject, updateObject]);
+  }, [initialLoadDone, objectsLoading, rpcReady, allObjects, addObject, updateObject]);
 
 
   // --- 浮きBGMトラックの自動クリーンアップ ---

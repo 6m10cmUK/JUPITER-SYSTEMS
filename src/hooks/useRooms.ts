@@ -232,7 +232,8 @@ export function useRooms(_uid?: string) {
             created_at: now, updated_at: now,
           },
         ]);
-        if (objectsError) throw objectsError;
+        // 23505: unique violation = 他タブが先にINSERT済み → 正常扱い
+        if (objectsError && objectsError.code !== '23505') throw objectsError;
         objectsCreated = true;
 
         // 4. active_scene_id を設定

@@ -111,7 +111,8 @@ export function useSupabaseQuery<T extends { id: string }>(
 
   useEffect(() => {
     if (!enabled) {
-      setLoading(false);
+      // loading=true のまま返す。enabled=false → true の遷移時に allObjects=[] + loading=false の
+      // 中間状態が生じ、characters_layer 等の自動生成トリガーが誤発火するのを防ぐ。
       return;
     }
 

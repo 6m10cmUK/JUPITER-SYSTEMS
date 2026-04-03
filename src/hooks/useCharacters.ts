@@ -45,9 +45,10 @@ export function useCharacters(
     inject?: CharactersInject;
     initialStats?: unknown[];
     initialBase?: unknown[];
+    enabled?: boolean;
   }
 ) {
-  const { inject, initialStats, initialBase } = options ?? {};
+  const { inject, initialStats, initialBase, enabled } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
 
@@ -56,7 +57,7 @@ export function useCharacters(
     columns: 'id,room_id,owner_id,name,color,active_image_index,statuses,parameters,is_hidden_on_board,sort_order,on_board,board_x,board_y,board_height,board_visible,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
-    enabled: !inject,
+    enabled: !inject && enabled !== false,
     initialData: initialStats,
   });
   const baseQuery = useSupabaseQuery<CharacterBaseRow>({
@@ -64,7 +65,7 @@ export function useCharacters(
     columns: 'id,room_id,images,memo,chat_palette,sheet_url,initiative,size,is_status_private',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
-    enabled: !inject,
+    enabled: !inject && enabled !== false,
     initialData: initialBase,
   });
 

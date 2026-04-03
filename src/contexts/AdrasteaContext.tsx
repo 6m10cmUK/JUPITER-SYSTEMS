@@ -10,6 +10,7 @@ import { useUIState } from './UIStateProvider';
 import { checkPermission, type PermissionKey } from '../config/permissions';
 import { useToast } from '../components/Adrastea/ui/Toast';
 import { useUndoRedo, type UndoRedoHandle } from '../hooks/useUndoRedo';
+import { useInitialRoomData } from '../hooks/useInitialRoomData';
 import { useChannels } from '../hooks/useChannels';
 import { useScenarioTexts } from '../hooks/useScenarioTexts';
 import { useCutins } from '../hooks/useCutins';
@@ -229,15 +230,19 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
     // NOTE: 実装簡略化のため機能削除
   }, []);
 
+  // --- RPC 初期データ（キャッシュ経由で RoomDataProvider と共有） ---
+  const { data: initialRoomData, loading: initialLoading } = useInitialRoomData(roomId);
+  const rpcReady = !initialLoading;
+
   // --- ScenarioTexts & Cutins (lazy-load 廃止、常時ロード) ---
   const {
     scenarioTexts, addScenarioText, updateScenarioText,
     removeScenarioText, reorderScenarioTexts,
-  } = useScenarioTexts(roomId);
+  } = useScenarioTexts(roomId, rpcReady, { initialData: initialRoomData?.scenario_texts });
   const {
     cutins, addCutin, updateCutin, removeCutin,
     reorderCutins, triggerCutin, clearCutin,
-  } = useCutins(roomId);
+  } = useCutins(roomId, rpcReady, undefined, { initialData: initialRoomData?.cutins });
 
   // --- Permission guard ref ---
   const roomRoleRef = useRef(roomRole);
@@ -273,7 +278,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
   }, []);
 
   // --- Channels hook ---
-  const { channels, upsertChannel, deleteChannel } = useChannels('');
+  const { channels, upsertChannel, deleteChannel } = useChannels(roomId, {
+    enabled: rpcReady,
+    initialData: initialRoomData?.channels,
+  });
 
   // --- Chat state ---
   const [activeChatChannel, setActiveChatChannel] = useState<string>('main');

@@ -191,7 +191,7 @@ export function CharacterPanel({
             {/* アバター */}
             {char.images[char.active_image_index]?.asset_id && resolveAssetId(char.images[char.active_image_index].asset_id) ? (
               <img
-                src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? ''}
+                src={resolveAssetId(char.images[char.active_image_index].asset_id) ?? undefined}
                 alt={char.name}
                 style={{
                   width: '40px',

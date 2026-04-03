@@ -15,9 +15,10 @@ export function useScenes(
     onObjectsCreated?: OnObjectsCreated;
     onActivateScene?: (sceneId: string | null) => Promise<void>;
     initialData?: unknown[];
+    enabled?: boolean;
   }
 ) {
-  const { inject, onObjectsCreated, onActivateScene, initialData } = options ?? {};
+  const { inject, onObjectsCreated, onActivateScene, initialData, enabled } = options ?? {};
   const injectRef = useRef(inject);
   injectRef.current = inject;
   const onActivateSceneRef = useRef(onActivateScene);
@@ -28,7 +29,7 @@ export function useScenes(
     columns: 'id,room_id,name,background_asset_id,foreground_asset_id,foreground_opacity,bg_transition,bg_transition_duration,fg_transition,fg_transition_duration,bg_blur,grid_visible,sort_order,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
-    enabled: !inject,
+    enabled: !inject && enabled !== false,
     initialData,
   });
 
@@ -164,8 +165,11 @@ export function useScenes(
             // useSupabaseMutation 非経由: シーン作成時のオブジェクト一括挿入は別テーブルへのバッチ操作のため
             const { error: objectError } = await supabase.from('objects').insert(createdObjects);
             if (objectError) {
-              console.error('[useScenes] addScene object insert failed:', objectError);
-              throw objectError;
+              // 23505: unique violation = 他タブが先にINSERT済み → 正常扱い
+              if (objectError.code !== '23505') {
+                console.error('[useScenes] addScene object insert failed:', objectError);
+                throw objectError;
+              }
             }
             onObjectsCreated?.(createdObjects);
           }

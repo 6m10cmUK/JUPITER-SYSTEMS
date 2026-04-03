@@ -94,7 +94,7 @@ export function MessagePopup({ message, charColor }: MessagePopupProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {display.sender_avatar_asset_id ? (
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor ?? undefined, flexShrink: 0, overflow: 'hidden' }}>
-              <img src={resolveAssetId(display.sender_avatar_asset_id) ?? ''} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
+              <img src={resolveAssetId(display.sender_avatar_asset_id) ?? undefined} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top', display: 'block' }} />
             </div>
           ) : (
             <div style={{ width: 20, height: 20, borderRadius: '50%', background: charColor || theme.bgInput, flexShrink: 0 }} />

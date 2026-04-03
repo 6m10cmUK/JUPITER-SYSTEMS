@@ -9,7 +9,7 @@ export type OnRoomUpdate = (updates: Record<string, unknown>) => void;
 
 export function useCutins(
   roomId: string,
-  _enabled = true,
+  enabled = true,
   onRoomUpdate?: OnRoomUpdate,
   options?: { inject?: CutinsInject; initialData?: unknown[] }
 ) {
@@ -22,7 +22,7 @@ export function useCutins(
     columns: 'id,room_id,name,image_asset_id,text,animation,duration,text_color,background_color,sort_order,created_at,updated_at',
     roomId,
     filter: (q) => q.eq('room_id', roomId),
-    enabled: !inject,
+    enabled: !inject && enabled,
     initialData,
   });
   const cutinsData = cutinsQuery.data;
