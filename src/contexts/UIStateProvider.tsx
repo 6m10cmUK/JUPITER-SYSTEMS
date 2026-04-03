@@ -53,6 +53,8 @@ export const UIStateProvider: React.FC<UIStateProviderProps> = ({
 
   // --- Dockview ---
   const [dockviewApi, setDockviewApi] = useState<DockviewApi | null>(null);
+  const [statusPanelBoardOverlay, setStatusPanelBoardOverlay] = useState(false);
+  const [statusOverlayVisibility, setStatusOverlayVisibility] = useState<Record<string, boolean>>({});
 
   // --- Grid visibility ---
   const [gridVisible, setGridVisible] = useState(false);
@@ -128,6 +130,10 @@ export const UIStateProvider: React.FC<UIStateProviderProps> = ({
       // Dockview
       dockviewApi,
       setDockviewApi,
+      statusPanelBoardOverlay,
+      setStatusPanelBoardOverlay,
+      statusOverlayVisibility,
+      setStatusOverlayVisibility,
       // Auto-save edits
       setPendingEdit: propSetPendingEdit,
       // 排他編集リセット
@@ -149,6 +155,8 @@ export const UIStateProvider: React.FC<UIStateProviderProps> = ({
       bgmMuted,
       gridVisible,
       dockviewApi,
+      statusPanelBoardOverlay,
+      statusOverlayVisibility,
       propSetPendingEdit,
       clearAllEditing,
       setSelectedObjectIds,

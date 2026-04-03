@@ -156,6 +156,13 @@ export interface UIStateContextValue {
   // --- Dockview ---
   dockviewApi: DockviewApi | null;
   setDockviewApi: React.Dispatch<React.SetStateAction<DockviewApi | null>>;
+  /** ステータスパネルに相当する全キャラ行を盤面左上にオーバーレイ */
+  statusPanelBoardOverlay: boolean;
+  setStatusPanelBoardOverlay: React.Dispatch<React.SetStateAction<boolean>>;
+
+  // --- Status overlay visibility ---
+  statusOverlayVisibility: Record<string, boolean>;
+  setStatusOverlayVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 
   // --- Auto-save edits ---
   setPendingEdit: (key: string, edit: PendingEdit | null) => void;

@@ -154,6 +154,10 @@ export interface AdrasteaContextValue {
   setGridVisible: React.Dispatch<React.SetStateAction<boolean>>;
   dockviewApi: any;
   setDockviewApi: React.Dispatch<React.SetStateAction<any>>;
+  statusPanelBoardOverlay: boolean;
+  setStatusPanelBoardOverlay: React.Dispatch<React.SetStateAction<boolean>>;
+  statusOverlayVisibility: Record<string, boolean>;
+  setStatusOverlayVisibility: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
   // Derived/Board
   activeScene: Scene | null;
   boardRef: React.RefObject<BoardHandle | null>;
@@ -475,6 +479,10 @@ export const AdrasteaProvider: React.FC<AdrasteaProviderProps> = ({ children, ro
       setGridVisible: () => {},
       dockviewApi: null,
       setDockviewApi: () => {},
+      statusPanelBoardOverlay: false,
+      setStatusPanelBoardOverlay: () => {},
+      statusOverlayVisibility: {},
+      setStatusOverlayVisibility: () => {},
       activeScene: null,
       boardRef,
       getBoardCenter,
@@ -796,6 +804,8 @@ export function useAdrasteaContext(): AdrasteaContextValue {
       setGridVisible: uiStateCtx.setGridVisible,
       dockviewApi: uiStateCtx.dockviewApi,
       setDockviewApi: uiStateCtx.setDockviewApi,
+      statusPanelBoardOverlay: uiStateCtx.statusPanelBoardOverlay,
+      setStatusPanelBoardOverlay: uiStateCtx.setStatusPanelBoardOverlay,
       setPendingEdit: uiStateCtx.setPendingEdit,
       flushPendingEdits: adrasteaCtx.flushPendingEdits,
       clearAllEditing: uiStateCtx.clearAllEditing,
