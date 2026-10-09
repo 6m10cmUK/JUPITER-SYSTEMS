@@ -1,34 +1,27 @@
-import React, { useState, useRef, useEffect, type DragEvent } from 'react';
-import { AuthService } from '../../services/auth';
-import type { User } from 'firebase/auth';
+import React, { useState, useRef, type DragEvent, type ReactNode } from 'react';
 import styles from './PDFUploader.module.css';
 
 interface PDFUploaderProps {
   onFileSelect: (file: File) => void;
   maxSize?: number; // in MB
+  /** 上限の下に出す補足。画面ごとの文言は呼び出し側から渡す */
+  notice?: ReactNode;
 }
 
 export const PDFUploader: React.FC<PDFUploaderProps> = ({ 
-  onFileSelect, 
-  maxSize = 50 
+  onFileSelect,
+  maxSize = 50,
+  notice,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [user, setUser] = useState<User | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const unsubscribe = AuthService.onAuthStateChanged((user) => {
-      setUser(user);
-    });
-    return () => unsubscribe();
-  }, []);
 
   const validateFile = (file: File): boolean => {
     setError(null);
 
     if (file.type !== 'application/pdf') {
-      setError('PDFファイルのみアップロード可能です');
+      setError('開けるのはPDFファイルだけです');
       return false;
     }
 
@@ -42,13 +35,6 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
   };
 
   const handleFile = (file: File) => {
-    // ログインチェック
-    const currentUser = AuthService.getCurrentUser();
-    if (!currentUser) {
-      setError('この機能を使用するにはログインが必要です');
-      return;
-    }
-    
     if (validateFile(file)) {
       onFileSelect(file);
     }
@@ -125,25 +111,16 @@ export const PDFUploader: React.FC<PDFUploaderProps> = ({
           </svg>
           
           <p className={styles.uploadText}>
-            {user ? (
-              <>
-                PDFファイルをドラッグ&ドロップ
-                <br />
-                または
-                <br />
-                <span className={styles.clickText}>クリックして選択</span>
-              </>
-            ) : (
-              <>
-                この機能を使用するには
-                <br />
-                ログインが必要です
-              </>
-            )}
+            PDFファイルをここにドロップ
+            <br />
+            または
+            <br />
+            <span className={styles.clickText}>クリックしてファイルを開く</span>
           </p>
           
-          <p className={styles.sizeLimit}>
+          <p className={styles.notice}>
             最大ファイルサイズ: {maxSize}MB
+            {notice}
           </p>
         </div>
       </div>

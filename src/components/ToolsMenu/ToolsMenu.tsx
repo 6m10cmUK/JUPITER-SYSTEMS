@@ -19,18 +19,13 @@ export function ToolsMenu() {
   const tools = [
     {
       path: '/pdf2md',
-      name: 'PDF→Markdown',
-      description: 'PDFをMarkdown形式に変換'
+      name: 'Scenario PDF Reader',
+      description: 'シナリオPDFを読みやすく。'
     },
     {
-      path: '/character-display-generator',
-      name: 'Character Display Generator',
-      description: 'TRPGキャラクターシート生成'
-    },
-    {
-      path: '/discord-obs',
-      name: 'Discord Streamkit CSS Generator',
-      description: 'Discord StreamkitをOBS用にカスタマイズ'
+      path: '/juno',
+      name: 'Juno - Darts Scorer',
+      description: 'ダーツスコア計算ツール'
     }
   ];
 

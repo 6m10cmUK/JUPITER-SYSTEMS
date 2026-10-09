@@ -1,155 +1,108 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { PDFUploader } from '../components/PDFUploader'
-import { PDFViewer } from '../components/PDFViewer'
-import { PageNavigator } from '../components/PageNavigator'
-import { TextExtractor } from '../components/TextExtractor'
-import { LayoutAnalyzer } from '../components/LayoutAnalyzer/LayoutAnalyzer'
-import { ServerStatusBanner } from '../components/ServerStatusBanner'
-import { usePDF } from '../hooks/usePDF'
-import { useServerStatus } from '../hooks/useServerStatus'
-import type { LayoutData } from '../types/layout.types'
+import { Pdf2mdViewer } from '../components/Pdf2mdViewer/Pdf2mdViewer'
+import { useConvertPdf } from '../hooks/useConvertPdf'
+import type { ConvertIssues } from '../lib/pdf2md/types'
+
+/** 変換で起きた問題を、利用者向けの文言にする（ビューアが表示する） */
+function warningsOf(issues: ConvertIssues | null): string[] {
+  if (!issues) return []
+  const out: string[] = []
+  if (issues.failedPages.length > 0) out.push(`${issues.failedPages.length}ページを読めませんでした`)
+  if (issues.pagesWithoutText.length > 0) out.push(`${issues.pagesWithoutText.length}ページは文字も画像も取り出せないため表示していません`)
+  if (issues.stylelessPages.length > 0) out.push(`${issues.stylelessPages.length}ページは画像・文字の色・太字を取得できませんでした`)
+  if (issues.imageFailures > 0) out.push(`画像${issues.imageFailures}枚を表示できませんでした`)
+  if (issues.outlineUnreadable) out.push('PDFのしおりを読めなかったため、見出しは本文から推定しています')
+  return out
+}
+
+/** 画面中央に寄せる共通の外枠 */
+function CenteredScreen({ children }: { children: ReactNode }) {
+  return <div className="min-h-[calc(100dvh-var(--app-header-h,0px))] flex items-center bg-gray-50">{children}</div>
+}
 
 export function PDF2MD() {
   useEffect(() => {
-    document.title = 'JUPITER SYSTEMS / PDF→Markdown'
+    document.title = 'JUPITER SYSTEMS / Scenario PDF Reader'
   }, [])
-  
+
   const [file, setFile] = useState<File | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [zoom, setZoom] = useState(100)
-  const [rotation] = useState(0)
-  const [showPdfPreview, setShowPdfPreview] = useState(true)
-  const [layoutData, setLayoutData] = useState<LayoutData | null>(null)
-  const [showLayoutOverlay, setShowLayoutOverlay] = useState(false)
-  
-  const { pdf, numPages, isLoading, error, loadPDF } = usePDF()
-  const { status: serverStatus } = useServerStatus({ autoStart: true })
+  const { state, progress, blocks, issues, imageUrls, fileId, error, convert, reset } = useConvertPdf()
 
-  useEffect(() => {
-    if (file) {
-      loadPDF(file)
-      setCurrentPage(1)
-    }
-  }, [file, loadPDF])
-
-  const handleFileSelect = (selectedFile: File) => {
-    setFile(selectedFile)
+  const handleFileSelect = (f: File) => {
+    setFile(f)
+    convert(f)
   }
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page)
-    // ページ変更時は新しいページのレイアウト解析が必要
-    if (layoutData) {
-      const hasPageData = layoutData.pages?.some((p) => p.page_number === page)
-      if (!hasPageData) {
-        setShowLayoutOverlay(false)
-      }
-    }
+  const handleReset = () => {
+    reset()
+    setFile(null)
+    window.scrollTo(0, 0)
   }
 
-  const handleZoomChange = (newZoom: number) => {
-    setZoom(newZoom)
+  if (!file) {
+    return (
+      <CenteredScreen>
+        <div className="container-jupiter py-12 w-full">
+          <PDFUploader
+            onFileSelect={handleFileSelect}
+            notice={
+              <>
+                <br />
+                ファイルはこの端末から外に送信されません
+                <br />
+                PC表示にのみ対応しています
+              </>
+            }
+          />
+        </div>
+      </CenteredScreen>
+    )
   }
 
-  const handleLayoutAnalyzed = (data: LayoutData) => {
-    setLayoutData(data)
-    setShowLayoutOverlay(true)
+  if (state === 'error') {
+    return (
+      <CenteredScreen>
+        <div className="container-jupiter py-12 w-full text-center">
+          <p className="text-error-600 mb-4">{error ?? '変換に失敗しました'}</p>
+          <button
+            type="button"
+            onClick={handleReset}
+            className="px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+          >
+            別のファイルを開く
+          </button>
+        </div>
+      </CenteredScreen>
+    )
+  }
+
+  if (state !== 'done') {
+    const pct = progress && progress.total > 0 ? (progress.done / progress.total) * 100 : 0
+    return (
+      <CenteredScreen>
+        <div className="container-jupiter py-12 w-full max-w-md mx-auto text-center">
+          <p className="text-gray-700 mb-3">
+            変換しています{progress ? `（${progress.done}/${progress.total} ページ）` : ''}
+          </p>
+          <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+            <div className="h-full bg-jupiter-500 transition-all" style={{ width: `${pct}%` }} />
+          </div>
+        </div>
+      </CenteredScreen>
+    )
   }
 
   return (
-    <div className="pdf2md-page">
-      <ServerStatusBanner status={serverStatus} />
-      <main className="app-main">
-        {!file ? (
-          <div className="upload-container">
-            <PDFUploader onFileSelect={handleFileSelect} />
-          </div>
-        ) : (
-          <div className="pdf-container">
-            {isLoading ? (
-              <div className="loading-container">
-                <div className="loading">PDFを読み込み中...</div>
-              </div>
-            ) : error ? (
-              <div className="error-container">
-                <div className="error">{error}</div>
-                <button onClick={() => setFile(null)} className="reset-button">
-                  別のファイルを選択
-                </button>
-              </div>
-            ) : (
-              <div className="content-container">
-                {showPdfPreview && (
-                  <div className="pdf-section">
-                    <div className="pdf-section-header">
-                      <h3>PDFプレビュー</h3>
-                      <button 
-                        className="close-preview-button"
-                        onClick={() => setShowPdfPreview(false)}
-                        title="プレビューを閉じる"
-                      >
-                        ×
-                      </button>
-                    </div>
-                    <div className="viewer-wrapper">
-                      <PDFViewer 
-                        pdf={pdf}
-                        currentPage={currentPage}
-                        zoom={zoom}
-                        rotation={rotation}
-                        layoutData={layoutData}
-                        showLayoutOverlay={showLayoutOverlay}
-                        onRegionClick={() => {}}
-                      />
-                    </div>
-                    <PageNavigator 
-                      currentPage={currentPage}
-                      totalPages={numPages}
-                      onPageChange={handlePageChange}
-                      zoom={zoom}
-                      onZoomChange={handleZoomChange}
-                    />
-                    <LayoutAnalyzer
-                      pdfFile={file}
-                      currentPage={currentPage}
-                      onLayoutAnalyzed={handleLayoutAnalyzed}
-                    />
-                    {layoutData && (
-                      <div className="overlay-toggle">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={showLayoutOverlay}
-                            onChange={(e) => setShowLayoutOverlay(e.target.checked)}
-                          />
-                          レイアウトオーバーレイを表示
-                        </label>
-                      </div>
-                    )}
-                  </div>
-                )}
-                {!showPdfPreview && (
-                  <div className="preview-toggle">
-                    <button 
-                      className="show-preview-button"
-                      onClick={() => setShowPdfPreview(true)}
-                    >
-                      PDFプレビューを表示
-                    </button>
-                  </div>
-                )}
-                <div className={`extractor-section ${!showPdfPreview ? 'expanded' : ''}`}>
-                  <TextExtractor 
-                    file={file}
-                    numPages={numPages}
-                    currentPage={currentPage}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-    </div>
+    <Pdf2mdViewer
+      key={fileId ?? ''}
+      fileId={fileId}
+      fileName={file.name}
+      blocks={blocks}
+      imageUrls={imageUrls}
+      warnings={warningsOf(issues)}
+      onReset={handleReset}
+    />
   )
 }

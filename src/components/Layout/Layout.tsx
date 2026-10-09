@@ -1,32 +1,31 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
-import { Auth } from '../Auth'
 import { ToolsMenu } from '../ToolsMenu/ToolsMenu'
 import { Footer } from '../Footer'
-import { useState, useMemo } from 'react'
-import type { User } from 'firebase/auth'
+import { useMemo, useRef } from 'react'
+import { APP_HEADER_H_VAR, useHeightVar } from '../../hooks/useHeightVar'
 
 export function Layout() {
-  const [, setUser] = useState<User | null>(null)
   const location = useLocation()
+  const headerRef = useRef<HTMLElement>(null)
+  useHeightVar(headerRef, APP_HEADER_H_VAR)
   
   const pageTitle = useMemo(() => {
     const path = location.pathname
-    if (path === '/pdf2md') return 'JUPITER SYSTEMS / PDF→Markdown'
-    if (path === '/character-display') return 'JUPITER SYSTEMS / Character Display'
+    if (path === '/pdf2md') return 'JUPITER SYSTEMS / Scenario PDF Reader'
+    if (path === '/character-display-generator') return 'JUPITER SYSTEMS / Character Display'
     return 'JUPITER SYSTEMS'
   }, [location.pathname])
   
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header ref={headerRef} className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex justify-between items-center">
-            <Link to="/" className="no-underline">
-              <h1 className="text-jupiter-500 text-2xl font-bold">{pageTitle}</h1>
+          <div className="flex justify-between items-center gap-3">
+            <Link to="/" className="no-underline min-w-0">
+              <h1 className="text-jupiter-500 text-lg sm:text-2xl font-bold truncate">{pageTitle}</h1>
             </Link>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               <ToolsMenu />
-              <Auth onAuthChange={setUser} />
             </div>
           </div>
         </div>

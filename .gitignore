@@ -54,4 +54,7 @@ public/pdf.js/
 
 # Temporary files
 *.tmp
-*.temp.playwright-cli/
+*.temp
+.playwright-cli/
+# pdfjs assets (copied by scripts/copy-pdfjs-assets.mjs)
+public/pdfjs/
