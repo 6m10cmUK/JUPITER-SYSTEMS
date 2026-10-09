@@ -79,10 +79,15 @@ export interface Block {
   displayWidth?: number;
 }
 
-/** 変換の途中だけで使うブロック。公開の Block には top・src を出さない（出力時に toBlock で外す） */
+/** 変換の途中だけで使うブロック。公開の Block には top・segs・src を出さない（出力時に toBlock で外す） */
 export interface WorkBlock extends Block {
   /** ブロック先頭行の y（PDF 座標）。画像の挿入位置決めに使う */
   top?: number;
+  /**
+   * ブロック内の段ごとのかたまり（y が上に戻る行・ページが変わる行で区切る）。画像の段判定に使う。
+   * top はかたまりの先頭行の y、left/right は行の x0 の最小と x1 の最大（PDF 座標）
+   */
+  segs?: { page: number; top: number; left: number; right: number }[];
   /** 行を区切りなしで連結した生テキストと文字ごとの書式。spans の組み立てに使う */
   src?: { text: string; styles: (CharStyle | null)[] };
 }

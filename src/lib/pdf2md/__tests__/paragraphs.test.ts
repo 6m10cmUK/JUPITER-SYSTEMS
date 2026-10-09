@@ -93,3 +93,31 @@ test('しおりと一致する行は同一ページ内でも前後を切る', ()
     ['あいうえおかきくけこ', '概 要', 'さしすせそたちつてと'],
   );
 });
+
+test('単段のブロックは segs が 1 つ', () => {
+  const g = group([full('あいうえお'), full('かきくけこ'), full('さしすせそ')]);
+  const [b] = buildBlocks([g], FS);
+  assert.deepEqual(b.segs, [{ page: 1, top: 700, left: 0, right: FULL }]);
+});
+
+test('ページをまたいで連結した段落は、ページごとに segs が分かれる', () => {
+  const p1 = pageGroup(1, [full('あいうえお'), full('かきくけこ'), full('これは3日の物語')]);
+  const p2 = pageGroup(2, [full('さしすせそ'), full('たちつてと'), full('なにぬねの')]);
+  const blocks = buildBlocks([p1, p2], FS);
+  assert.equal(blocks.length, 1);
+  assert.deepEqual(
+    blocks[0].segs?.map((s) => s.page),
+    [1, 2],
+  );
+});
+
+test('段をまたいで連結した段落は、y が上に戻る所で segs が 2 つに分かれる', () => {
+  const left = group([full('あいうえお'), full('かきくけこ'), full('さしすせそ')]);
+  const right = group([full('たちつてと'), full('なにぬねの'), full('はひふへほ')]);
+  const rg: Group = { ...right, colKey: 'c1' };
+  const blocks = buildBlocks([left, rg], FS);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].segs?.length, 2);
+  assert.equal(blocks[0].segs?.[0].top, 700);
+  assert.equal(blocks[0].segs?.[1].top, 700);
+});

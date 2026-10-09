@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyOutline } from '../outline.ts';
+import { normalizeKey } from '../outlineKeys.ts';
 import type { WorkBlock } from '../types.ts';
 
 const para = (text: string, page: number, kind: WorkBlock['kind'] = 'paragraph'): WorkBlock => ({
@@ -34,4 +35,8 @@ test('しおりのページの隣のページに一致するブロックがあ�
   const blocks = [para('まとめ', 1), para('本文です。', 2)];
   const out = applyOutline(blocks, [{ title: 'まとめ', level: 1, page: 2 }]);
   assert.deepEqual(summary(out), ['h1:1:まとめ', 'p:2:本文です。']);
+});
+
+test('normalizeKey は康熙部首と通常字を同一視する', () => {
+  assert.equal(normalizeKey('⼾棚'), normalizeKey('戸棚'));
 });

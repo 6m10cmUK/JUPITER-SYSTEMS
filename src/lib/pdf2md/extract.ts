@@ -1,6 +1,7 @@
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import { matchNext } from './greedyMatch';
 import type { PageData, RawImage, TextRun } from './types';
+import { jpNfkc } from './jpNfkc';
 
 /** pdfjs-dist 6.x の OPS 値（本ファイルは DOM/worker 非依存にするため pdfjs の実体は import しない） */
 const OP_SAVE = 10;
@@ -89,7 +90,7 @@ interface StreamChar {
   color: string;
 }
 
-/** operator list から、塗り色つきの文字ストリーム（空白除く、NFKC 済み 1 文字ずつ）を作る */
+/** operator list から、塗り色つきの文字ストリーム（空白除く、jpNfkc 済み 1 文字ずつ）を作る */
 function buildColorStream(fnArray: ArrayLike<number>, argsArray: ArrayLike<unknown>): StreamChar[] {
   const out: StreamChar[] = [];
   // PDF 由来色の既定値（色のハードコード禁止の例外）
@@ -101,7 +102,7 @@ function buildColorStream(fnArray: ArrayLike<number>, argsArray: ArrayLike<unkno
       if (typeof g !== 'object' || g === null) continue;
       const u = (g as GlyphLike).unicode;
       if (typeof u !== 'string') continue;
-      for (const ch of u.normalize('NFKC')) {
+      for (const ch of jpNfkc(u)) {
         if (/\s/.test(ch)) continue;
         out.push({ c: ch, color });
       }

@@ -1,32 +1,5 @@
 import { TOC_LEADER_DOTS, isCjkLike } from './chars';
-
-/** CJK 部首補助（U+2E80–2EFF）の主要字 → 通常字 */
-const RADICAL_MAP: Record<string, string> = {
-  '⻄': '西',
-  '⺟': '母',
-  '⻑': '長',
-  '⺠': '民',
-  '⻘': '青',
-  '⻩': '黄',
-  '⻤': '鬼',
-  '⻭': '歯',
-  '⻲': '亀',
-  '⻨': '麦',
-  '⻫': '斉',
-  '⻯': '竜',
-  '⻔': '門',
-  '⻝': '食',
-  '⻢': '馬',
-  '⻣': '骨',
-  '⻏': '阝',
-  '⻌': '辶',
-  '⺼': '肉',
-  '⺮': '竹',
-  '⺡': '氵',
-  '⺅': '亻',
-  '⺘': '扌',
-  '⺾': '艹',
-};
+import { jpNfkc } from './jpNfkc';
 
 /** NFKC で壊したくない文字（三点リーダ類） */
 const NFKC_KEEP = new Set(['…', '‥']);
@@ -35,7 +8,7 @@ function nfkc(s: string): string {
   let out = '';
   let buf = '';
   const flush = () => {
-    if (buf) out += buf.normalize('NFKC');
+    if (buf) out += jpNfkc(buf);
     buf = '';
   };
   for (const ch of s) {
@@ -45,12 +18,6 @@ function nfkc(s: string): string {
     } else buf += ch;
   }
   flush();
-  return out;
-}
-
-function mapRadicals(s: string): string {
-  let out = '';
-  for (const ch of s) out += RADICAL_MAP[ch] ?? ch;
   return out;
 }
 
@@ -76,7 +43,6 @@ function removeCjkSpaces(s: string): string {
 
 export function normalizeText(input: string): string {
   let s = nfkc(input);
-  s = mapRadicals(s);
   s = s.replace(/[\u00a0\u3000]/g, ' ');
   s = s.replace(/[ \t]+/g, ' ');
   s = removeCjkSpaces(s);

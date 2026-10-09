@@ -30,3 +30,7 @@ test('目次のリーダーを空白 1 つにする', () => {
   assert.equal(stripTocLeaders('第1章 はじめに……… 12'), '第1章 はじめに 12');
   assert.equal(stripTocLeaders('本文だけの行'), '本文だけの行');
 });
+
+test('康熙部首を通常字に直してから正規化する', () => {
+  assert.ok(normalizeText('瀬⼾⿊い').includes('瀬戸黒い'));
+});

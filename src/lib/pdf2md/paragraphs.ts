@@ -357,6 +357,22 @@ export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: Rea
 
   const blocks: WorkBlock[] = [];
   let cur: { lines: Line[]; text: string; srcText: string; srcStyles: (CharStyle | null)[]; top: number } | null = null;
+  /** 行を、y が上に戻る所・ページが変わる所で区切ったかたまりにする */
+  const segsOf = (ls: Line[]): NonNullable<WorkBlock['segs']> => {
+    const out: NonNullable<WorkBlock['segs']> = [];
+    let prev: Line | null = null;
+    for (const l of ls) {
+      const last = out[out.length - 1];
+      if (!prev || !last || l.page !== prev.page || l.y > prev.y) {
+        out.push({ page: l.page, top: l.y, left: l.x0, right: l.x1 });
+      } else {
+        last.left = Math.min(last.left, l.x0);
+        last.right = Math.max(last.right, l.x1);
+      }
+      prev = l;
+    }
+    return out;
+  };
   const flush = () => {
     if (!cur) return;
     const ls = cur.lines;
@@ -369,6 +385,7 @@ export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: Rea
       lineCount: ls.length,
       src: { text: cur.srcText, styles: cur.srcStyles },
       top: cur.top,
+      segs: segsOf(ls),
     });
     cur = null;
   };
