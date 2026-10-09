@@ -121,3 +121,102 @@ test('段をまたいで連結した段落は、y が上に戻る所で segs が
   assert.equal(blocks[0].segs?.[0].top, 700);
   assert.equal(blocks[0].segs?.[1].top, 700);
 });
+
+/** [text, x0, x1, 直前の行との追加アキ] から 1 段の合成グループを組む（段落間を空ける組版用） */
+function gapGroup(specs: [string, number, number, number][]): Group {
+  let y = 700;
+  const lines: Line[] = specs.map(([text, x0, x1, extra], i) => {
+    if (i > 0) y -= PITCH + extra;
+    return { page: 1, text, x0, x1, y, fontSize: FS, bold: false, chars: text.length };
+  });
+  return { page: 1, spanning: false, colKey: 'c0', lines };
+}
+
+/** 先頭に「満行で句点終わりの行」を含む段落、続けて 3 行の段落を 6 つ並べる。gap は段落間のアキ */
+function paragraphsDoc(gap: number): Group {
+  const specs: [string, number, number, number][] = [
+    ['あいうえお', 0, FULL, 0],
+    ['かきくけこ。', 0, FULL, 0],
+    ['さしすせそ', 0, FULL, 0],
+    ['たちつてと。', 0, 150, 0],
+  ];
+  for (let p = 0; p < 6; p++) {
+    specs.push([`ぱ${p}いうえお`, 0, FULL, gap]);
+    specs.push([`ぱ${p}きくけこ`, 0, FULL, 0]);
+    specs.push([`ぱ${p}しすせそ。`, 0, 150, 0]);
+  }
+  return gapGroup(specs);
+}
+
+test('字下げ無し・段落間アキありの本では、満行で句点終わりの行のあとを連結する', () => {
+  const out = texts(paragraphsDoc(10));
+  assert.equal(out[0], 'あいうえおかきくけこ。さしすせそたちつてと。');
+  assert.equal(out.length, 7);
+});
+
+test('字下げ無し・段落間アキ無しの本では、満行で句点終わりの行のあとを従来どおり切る', () => {
+  const out = texts(paragraphsDoc(0));
+  assert.equal(out[0], 'あいうえおかきくけこ。');
+  assert.equal(out[1], 'さしすせそたちつてと。');
+});
+
+/**
+ * 先頭の段落のあとに、gaps[i] だけ空けた 3 行の段落を並べる（gap は直前の段落との間の追加アキ、0 ならアキ無し）。
+ * 段落末（短い句点終わりの行）は、先頭の段落と最後以外の各段落の末尾で、合計 gaps.length 件。
+ * 最後の段落の末尾は次の行が無いので数えない。
+ */
+function paragraphsDocGaps(gaps: number[]): Group {
+  const specs: [string, number, number, number][] = [
+    ['あいうえお', 0, FULL, 0],
+    ['かきくけこ。', 0, FULL, 0],
+    ['さしすせそ', 0, FULL, 0],
+    ['たちつてと。', 0, 150, 0],
+  ];
+  gaps.forEach((gap, p) => {
+    specs.push([`ぱ${p}いうえお`, 0, FULL, gap]);
+    specs.push([`ぱ${p}きくけこ`, 0, FULL, 0]);
+    specs.push([`ぱ${p}しすせそ。`, 0, 150, 0]);
+  });
+  return gapGroup(specs);
+}
+
+test('段落末の 70% だけにアキがある本では、満行で句点終わりの行のあとを従来どおり切る', () => {
+  // 段落末 10 件のうち 7 件にアキ（0.7 < GAP_STYLE_RATIO）
+  const out = texts(paragraphsDocGaps([10, 10, 10, 10, 10, 10, 10, 0, 0, 0]));
+  assert.equal(out[0], 'あいうえおかきくけこ。');
+  assert.equal(out[1], 'さしすせそたちつてと。');
+});
+
+test('段落末が 4 件だけの本では、全部アキがあっても満行で句点終わりの行のあとを従来どおり切る', () => {
+  // 段落末 4 件（< GAP_STYLE_MIN_ENDS）
+  const out = texts(paragraphsDocGaps([10, 10, 10, 10]));
+  assert.equal(out[0], 'あいうえおかきくけこ。');
+  assert.equal(out[1], 'さしすせそたちつてと。');
+});
+
+test('段落末の 17/20（0.85）にアキがある本は、アキで段落を示す本とみなして連結する', () => {
+  const out = texts(paragraphsDocGaps([...Array(17).fill(10), 0, 0, 0]));
+  assert.equal(out[0], 'あいうえおかきくけこ。さしすせそたちつてと。');
+});
+
+test('段落末がちょうど 5 件で全部アキありなら、アキで段落を示す本とみなして連結する', () => {
+  const out = texts(paragraphsDocGaps([10, 10, 10, 10, 10]));
+  assert.equal(out[0], 'あいうえおかきくけこ。さしすせそたちつてと。');
+});
+
+test('字下げのある本では、アキの有無にかかわらず満行で句点終わりの行のあとは連結し、字下げで切る', () => {
+  const specs: [string, number, number, number][] = [
+    ['あいうえお', 0, FULL, 0],
+    ['かきくけこ。', 0, FULL, 0],
+    ['さしすせそ', 0, FULL, 0],
+    ['たちつてと。', 0, 150, 0],
+  ];
+  for (let p = 0; p < 12; p++) {
+    specs.push([`ぱ${p}いうえお`, 10, FULL, 10]);
+    specs.push([`ぱ${p}きくけこ`, 0, FULL, 0]);
+    specs.push([`ぱ${p}しすせそ。`, 0, 150, 0]);
+  }
+  const out = texts(gapGroup(specs));
+  assert.equal(out[0], 'あいうえおかきくけこ。さしすせそたちつてと。');
+  assert.equal(out.length, 13);
+});

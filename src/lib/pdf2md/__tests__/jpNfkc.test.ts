@@ -10,6 +10,13 @@ test('CJK 部首補助を漢字に直す', () => {
   assert.equal(jpNfkc('⻑'), '長');
 });
 
+test('部首補助の個別の対応', () => {
+  assert.equal(jpNfkc('⺖'), '忄');
+  assert.equal(jpNfkc('⻍'), '辶');
+  assert.equal(jpNfkc('⺨'), '犭');
+  assert.equal(jpNfkc('⻃'), '覀');
+});
+
 test('全角英数は NFKC で半角にする', () => {
   assert.equal(jpNfkc('ＡＢＣ'), 'ABC');
 });
@@ -36,4 +43,11 @@ test('jpNfkc は二度かけても変わらない', () => {
   const src = Object.keys(RADICAL_TO_KANJI).join('') + '瀬⼾⿊い　ＡＢＣ①';
   const once = jpNfkc(src);
   assert.equal(jpNfkc(once), once);
+});
+
+test('表のキーは 1 コードポイントで、値は NFKC で変わらない', () => {
+  for (const [k, v] of Object.entries(RADICAL_TO_KANJI)) {
+    assert.equal([...k].length, 1, `key ${k}`);
+    assert.equal(v.normalize('NFKC'), v, `value ${v} of ${k}`);
+  }
 });
