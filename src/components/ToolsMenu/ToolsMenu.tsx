@@ -21,6 +21,11 @@ export function ToolsMenu() {
       path: '/pdf2md',
       name: 'Scenario PDF Reader',
       description: 'シナリオPDFを読みやすく。'
+    },
+    {
+      path: '/juno',
+      name: 'Juno - Darts Scorer',
+      description: 'ダーツスコア計算ツール'
     }
   ];
 
