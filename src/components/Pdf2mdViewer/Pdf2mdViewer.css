@@ -1,0 +1,57 @@
+/* Tailwind の @theme 変数を使う */
+::highlight(pdf2md-search) {
+  background-color: var(--color-jupiter-200);
+  color: var(--color-gray-900);
+}
+
+::highlight(pdf2md-current) {
+  background-color: var(--color-jupiter-500);
+  color: var(--color-white);
+}
+
+:root {
+  --pdf2md-note-bg: var(--color-jupiter-50);
+}
+
+/* メモ。検索ハイライト（jupiter-200）より弱い薄い背景＋下線 */
+::highlight(pdf2md-note) {
+  background-color: var(--pdf2md-note-bg);
+  text-decoration: underline;
+  text-decoration-color: var(--color-jupiter-300);
+  text-decoration-thickness: 2px;
+}
+
+/* 書いている／見ているメモ。保存済みより濃い */
+::highlight(pdf2md-note-active) {
+  background-color: var(--color-jupiter-300);
+  text-decoration: underline;
+  text-decoration-color: var(--color-jupiter-600);
+  text-decoration-thickness: 2px;
+}
+
+.pdf2md-ui {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* WebKit は user-select:none の入力欄に文字を打てなくなるので入力欄だけ戻す */
+.pdf2md-ui textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* アプリのヘッダー（sticky）の下にツールバーを重ねる。高さは useHeightVar が実測して入れる */
+.pdf2md-bar {
+  top: var(--app-header-h, 0px);
+}
+
+[data-block] {
+  scroll-margin-top: calc(var(--app-header-h, 0px) + var(--pdf2md-toolbar-h, 0px) + 0.75rem);
+}
+
+@media (min-width: 1024px) {
+  .pdf2md-toc {
+    top: calc(var(--app-header-h, 0px) + var(--pdf2md-toolbar-h, 0px) + 1.5rem);
+    max-height: calc(100vh - var(--app-header-h, 0px) - var(--pdf2md-toolbar-h, 0px) - 3rem);
+  }
+}

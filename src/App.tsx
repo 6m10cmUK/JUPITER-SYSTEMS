@@ -12,7 +12,7 @@ function NotFound() {
     <div style={{ padding: '20px', textAlign: 'center' }}>
       <h1>404 - Page Not Found</h1>
       <p>申し訳ありませんが、お探しのページは見つかりませんでした。</p>
-      <a href="/" style={{ color: '#007bff', textDecoration: 'none' }}>
+      <a href="/" className="text-jupiter-500 hover:text-jupiter-600">
         ホームに戻る
       </a>
     </div>

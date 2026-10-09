@@ -1,1 +1,0 @@
-export { TextExtractor } from './TextExtractor';
