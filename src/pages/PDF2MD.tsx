@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { PDFUploader } from '../components/PDFUploader'
 import { Pdf2mdViewer } from '../components/Pdf2mdViewer/Pdf2mdViewer'
+import { Pdf2mdAbout } from '../components/Pdf2mdAbout'
 import { useConvertPdf } from '../hooks/useConvertPdf'
 import type { ConvertIssues } from '../lib/pdf2md/types'
 
@@ -56,6 +57,7 @@ export function PDF2MD() {
               </>
             }
           />
+          <Pdf2mdAbout />
         </div>
       </CenteredScreen>
     )
