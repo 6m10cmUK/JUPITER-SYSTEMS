@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { autoUpdate, computePosition, flip, inline, offset, shift, type Placement } from '@floating-ui/dom'
-import type { NotePanelState } from './notePanel'
-import type { NoteView } from './useNotes'
+import type { NotePanelState } from '../lib/notePanel'
+import type { NoteView } from '../model/useNotes'
 import { NoteForm } from './NoteForm'
-import { stickyTopHeight } from './stickyOffset'
-import { findNoteAt, readSelection } from './selection'
+import { stickyTopHeight } from '../lib/stickyOffset'
+import { findNoteAt, readSelection } from '../lib/selection'
 
 interface Props {
   containerRef: RefObject<HTMLElement | null>

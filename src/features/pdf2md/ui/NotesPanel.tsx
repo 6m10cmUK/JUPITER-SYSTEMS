@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { NoteView } from './useNotes'
+import type { NoteView } from '../model/useNotes'
 
 interface Props {
   notes: readonly NoteView[]

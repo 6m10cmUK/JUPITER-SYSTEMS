@@ -1,8 +1,8 @@
 import { useEffect, useState, type RefObject } from 'react'
-import type { ResolvedRange } from './notes'
+import type { ResolvedRange } from '../lib/notes'
 import type { NoteView } from './useNotes'
-import { clearHighlight, setHighlight } from './highlightApi'
-import { BLOCK_SELECTOR, blockIndexOf, buildTextMap, pointAt, type TextMap } from './textMap'
+import { clearHighlight, setHighlight } from '../lib/highlightApi'
+import { BLOCK_SELECTOR, blockIndexOf, buildTextMap, pointAt, type TextMap } from '../lib/textMap'
 
 /** 解決済みの範囲を Range に変換する。ブロックごとの対応表は使い回す */
 function rangesFor(

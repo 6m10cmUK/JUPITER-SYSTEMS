@@ -1,5 +1,5 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
-import { InfoDialogButton } from '../InfoDialog'
+import { InfoDialogButton } from './InfoDialog'
 import { PDF2MD_HOWTO } from './infoTexts'
 
 interface Props {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
-import { clearHighlight, setHighlight } from './highlightApi'
-import { BLOCK_SELECTOR, buildTextMap } from './textMap'
+import { clearHighlight, setHighlight } from '../lib/highlightApi'
+import { BLOCK_SELECTOR, buildTextMap } from '../lib/textMap'
 
 /** NFKC＋小文字化。正規化後の各文字が元の何文字目に由来するかも返す。 */
 function normalizeWithMap(text: string): { norm: string; start: number[]; end: number[] } {
