@@ -10,7 +10,7 @@ import { NoteLayer } from './NoteLayer'
 import type { NotePanelState } from './notePanel'
 import { NoteMargin } from './NoteMargin'
 import { BLOCK_ATTR, blockDomId } from './textMap'
-import { TOOLBAR_H_VAR, useHeightVar } from '../../hooks/useHeightVar'
+import { TOOLBAR_H_VAR, useHeightVar } from '../../shared/lib/useHeightVar'
 import { BREAKPOINT_XL, useMediaQuery } from '../../hooks/useMediaQuery'
 import './Pdf2mdViewer.css'
 
