@@ -1,10 +1,11 @@
 name: CI
 
-# 全ブランチの push で回す。pull_request は push と重複するので付けない
+# PR は pull_request で回す（フォークからの PR も含む）。main はマージ後の確認として push で回す
 on:
   push:
     branches:
-      - '**'
+      - main
+  pull_request:
   workflow_dispatch:
 
 # 同一 ref の重複実行（連続 push）は古い方を止める
