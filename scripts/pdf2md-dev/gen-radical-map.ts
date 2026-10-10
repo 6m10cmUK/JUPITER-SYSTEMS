@@ -40,7 +40,7 @@ export const UNICODE_RADICAL_MAP: Readonly<Record<string, string>> = {
 ${body}
 };
 `;
-  const outPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/lib/pdf2md/radicalMap.generated.ts');
+  const outPath = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/features/pdf2md/core/radicalMap.generated.ts');
   writeFileSync(outPath, out);
   console.error(`wrote ${entries.length} entries -> ${outPath}`);
 }

@@ -5,7 +5,7 @@ import { Pdf2mdViewer } from './Pdf2mdViewer'
 import { InfoDialogButton } from './InfoDialog'
 import { PDF2MD_ABOUT, PDF2MD_HOWTO } from './infoTexts'
 import { useConvertPdf } from '../model/useConvertPdf'
-import type { ConvertIssues } from '../../../lib/pdf2md/types'
+import type { ConvertIssues } from '../core/types'
 
 /** 変換で起きた問題を、利用者向けの文言にする（ビューアが表示する） */
 function warningsOf(issues: ConvertIssues | null): string[] {

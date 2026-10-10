@@ -2,8 +2,8 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { convertDocument } from '../../src/lib/pdf2md/index';
-import { renderMarkdown } from '../../src/lib/pdf2md/render';
+import { convertDocument } from '../../src/features/pdf2md/core/index';
+import { renderMarkdown } from '../../src/features/pdf2md/core/render';
 import { loadPdf, closePdf } from '../pdf2md-eval/loadPdf';
 
 async function main() {

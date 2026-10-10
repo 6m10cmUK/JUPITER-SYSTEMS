@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Block } from '../../../lib/pdf2md/types'
+import type { Block } from '../core/types'
 import { BREAKPOINT_LG, useMediaQuery } from '../model/useMediaQuery'
 import { NotesPanel } from './NotesPanel'
 import { stickyTopHeight } from '../lib/stickyOffset'
