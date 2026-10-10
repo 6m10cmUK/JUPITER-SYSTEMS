@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ClipboardEvent, type ReactNode } from 'react'
-import type { Block } from '../../../lib/pdf2md/types'
+import type { Block } from '../core/types'
 import { joinBlocks, selectedBlockTexts, writeClipboard } from '../lib/copyText'
 import { TocSidebar } from './TocSidebar'
 import { Toolbar } from './Toolbar'

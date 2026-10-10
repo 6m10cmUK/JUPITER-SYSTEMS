@@ -1,9 +1,9 @@
 /// <reference lib="webworker" />
 import * as pdfjs from 'pdfjs-dist'
-import { convertDocument } from './index'
-import { encodeImage } from './encodeImage'
-import { fileIdOf } from './fileId'
-import type { WorkerMessage, WorkerRequest } from './types'
+import { convertDocument } from '../core/index'
+import { encodeImage } from '../core/encodeImage'
+import { fileIdOf } from '../core/fileId'
+import type { WorkerMessage, WorkerRequest } from '../core/types'
 
 function post(msg: WorkerMessage) {
   self.postMessage(msg)

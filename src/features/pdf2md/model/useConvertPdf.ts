@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { Block, ConvertIssues, WorkerMessage, WorkerRequest } from '../../../lib/pdf2md/types'
+import type { Block, ConvertIssues, WorkerMessage, WorkerRequest } from '../core/types'
 
 type ConvertState = 'idle' | 'converting' | 'done' | 'error'
 
@@ -59,7 +59,7 @@ export function useConvertPdf(): ConvertView & {
       const run = runRef.current
       setView({ ...INITIAL, state: 'converting' })
 
-      const worker = new Worker(new URL('../../../lib/pdf2md/convert.worker.ts', import.meta.url), { type: 'module' })
+      const worker = new Worker(new URL('../worker/convert.worker.ts', import.meta.url), { type: 'module' })
       workerRef.current = worker
 
       const finish = () => {
