@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { Block } from '../../lib/pdf2md/types'
-import { createNote, notesKey, resolveNote, type Note, type NotePoint, type ResolvedRange } from './notes'
-import { clearNotes, loadNotes, mergeNotes, reportDamaged, saveMerged } from './notesStorage'
+import type { Block } from '../../../lib/pdf2md/types'
+import { createNote, notesKey, resolveNote, type Note, type NotePoint, type ResolvedRange } from '../lib/notes'
+import { clearNotes, loadNotes, mergeNotes, reportDamaged, saveMerged } from '../lib/notesStorage'
 
 export interface NoteView {
   note: Note

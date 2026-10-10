@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { NoteForm } from './NoteForm'
-import type { NoteView } from './useNotes'
-import type { NotePanelState } from './notePanel'
+import type { NoteView } from '../model/useNotes'
+import type { NotePanelState } from '../lib/notePanel'
 
 interface Props {
   /** 幅が足りてカードを出すとき true */

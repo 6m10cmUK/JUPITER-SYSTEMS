@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Block } from '../../lib/pdf2md/types'
-import { BREAKPOINT_LG, useMediaQuery } from '../../hooks/useMediaQuery'
+import type { Block } from '../../../lib/pdf2md/types'
+import { BREAKPOINT_LG, useMediaQuery } from '../model/useMediaQuery'
 import { NotesPanel } from './NotesPanel'
-import { stickyTopHeight } from './stickyOffset'
-import { blockDomId } from './textMap'
-import type { NoteView } from './useNotes'
+import { stickyTopHeight } from '../lib/stickyOffset'
+import { blockDomId } from '../lib/textMap'
+import type { NoteView } from '../model/useNotes'
 
 interface Props {
   blocks: Block[]
