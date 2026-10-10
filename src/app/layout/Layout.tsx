@@ -2,7 +2,8 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { ToolsMenu } from './ToolsMenu'
 import { Footer } from '../../shared/ui/Footer'
 import { useMemo, useRef } from 'react'
-import { APP_HEADER_H_VAR, useHeightVar } from '../../shared/lib/useHeightVar'
+import { APP_HEADER_H_VAR } from '../../shared/lib/cssVars'
+import { useHeightVar } from '../../shared/lib/useHeightVar'
 
 export function Layout() {
   const location = useLocation()
