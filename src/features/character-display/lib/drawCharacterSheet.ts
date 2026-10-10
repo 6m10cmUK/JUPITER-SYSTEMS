@@ -1,0 +1,486 @@
+import type { CharacterData, Theme } from './characterDisplay';
+
+// A4サイズ縦向き（210mm × 297mm）を96dpiで計算
+export const CANVAS_WIDTH = 794;  // 210mm at 96dpi
+export const CANVAS_HEIGHT = 1123; // 297mm at 96dpi
+
+/** キャラクターシートを描く。立ち絵があれば読み込み済みの画像を渡す */
+export function drawCharacterSheet(
+  ctx: CanvasRenderingContext2D,
+  characterData: CharacterData,
+  theme: Theme,
+  img: HTMLImageElement | null,
+) {
+  // キャンバスをクリア
+  ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+  if (img) {
+    // 画質設定を最高に
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+  }
+
+  // 背景を描画
+  drawBackground(ctx, theme);
+
+  // 枠を描画
+  drawBorder(ctx, characterData, theme);
+
+  // キャラクター画像を描画（後ろ）
+  if (img) {
+    drawCharacterImageSync(ctx, theme, img);
+  }
+
+  // テキストを描画（手前）
+  drawTexts(ctx, characterData, theme);
+
+  // 表情差分を描画
+  if (Object.keys(characterData.expressions).length > 0) {
+    drawExpressions(ctx, characterData, theme);
+  }
+}
+
+function drawBackground(ctx: CanvasRenderingContext2D, theme: Theme) {
+  // グラデーション背景
+  const gradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+  gradient.addColorStop(0, theme.backgroundColor);
+  gradient.addColorStop(1, theme.secondaryColor || theme.backgroundColor);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+}
+
+function drawBorder(ctx: CanvasRenderingContext2D, characterData: CharacterData, theme: Theme) {
+  const margin = 20; // 枠線の余白
+  const topMargin = 25; // 上部は少し多めに
+  
+  // システム名を取得
+  const systemName = characterData.system === 'coc' ? 'Call of Cthulhu 6th' :
+                    characterData.system === 'coc7' ? 'Call of Cthulhu 7th' :
+                    characterData.system === 'dnd' ? 'D&D' :
+                    characterData.system === 'other' ? 'その他' : '';
+  
+  ctx.strokeStyle = theme.primaryColor;
+  ctx.lineWidth = 1;
+
+  if (systemName) {
+    // システム名の背景を測定
+    ctx.font = `14px ${theme.fontFamily || 'sans-serif'}`;
+    const textMetrics = ctx.measureText(systemName);
+    const textWidth = textMetrics.width;
+    const textX = margin + 20; // 左から20px
+    const textY = topMargin;
+    
+    // 枠線を描画（システム名の部分を空ける）
+    ctx.beginPath();
+    // 左上から開始
+    ctx.moveTo(margin, topMargin);
+    ctx.lineTo(textX - 10, topMargin); // テキストの左まで
+    
+    // テキスト部分をスキップ
+    ctx.moveTo(textX + textWidth + 10, topMargin); // テキストの右から
+    ctx.lineTo(CANVAS_WIDTH - margin, topMargin); // 右上まで
+    
+    // 右側
+    ctx.lineTo(CANVAS_WIDTH - margin, CANVAS_HEIGHT - margin);
+    // 下側
+    ctx.lineTo(margin, CANVAS_HEIGHT - margin);
+    // 左側
+    ctx.lineTo(margin, topMargin);
+    ctx.stroke();
+    
+    // システム名を描画
+    ctx.fillStyle = theme.textColor || theme.primaryColor;
+    ctx.font = `14px ${theme.fontFamily || 'sans-serif'}`;
+    ctx.fillText(systemName, textX, textY + 4);
+  } else {
+    // システム名がない場合は通常の枠線
+    switch (theme.borderStyle) {
+      case 'solid':
+        ctx.strokeRect(margin, topMargin, CANVAS_WIDTH - margin * 2, CANVAS_HEIGHT - margin - topMargin);
+        break;
+      case 'ornate':
+        // 装飾的な枠
+        ctx.lineWidth = 2;
+        ctx.strokeRect(margin, topMargin, CANVAS_WIDTH - margin * 2, CANVAS_HEIGHT - margin - topMargin);
+        ctx.lineWidth = 1;
+        ctx.strokeRect(margin + 5, topMargin + 5, CANVAS_WIDTH - (margin + 5) * 2, CANVAS_HEIGHT - (margin + 5) - (topMargin + 5));
+        break;
+      case 'gradient': {
+        const borderGradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, 0);
+        borderGradient.addColorStop(0, theme.primaryColor);
+        borderGradient.addColorStop(0.5, theme.secondaryColor);
+        borderGradient.addColorStop(1, theme.primaryColor);
+        ctx.strokeStyle = borderGradient;
+        ctx.lineWidth = 2;
+        ctx.strokeRect(margin, topMargin, CANVAS_WIDTH - margin * 2, CANVAS_HEIGHT - margin - topMargin);
+        break;
+      }
+    }
+  }
+}
+
+function drawCharacterImageSync(ctx: CanvasRenderingContext2D, theme: Theme, img: HTMLImageElement) {
+  // キャラクター画像を上部中央に配置
+  const maxHeight = CANVAS_HEIGHT * 0.9;
+  const maxWidth = CANVAS_WIDTH * 0.9;
+  
+  let drawWidth = img.width;
+  let drawHeight = img.height;
+  
+  // アスペクト比を保持しながらリサイズ
+  const scale = Math.min(maxWidth / img.width, maxHeight / img.height);
+  drawWidth = img.width * scale;
+  drawHeight = img.height * scale;
+  
+  const x = CANVAS_WIDTH * 0.65 - drawWidth / 2; // 右から35%の位置を中心に
+  const y = 80; // 上部に配置
+  
+  // 影の設定を取得
+  const shadowConfig = theme.layout?.characterImage?.shadow || {
+    color: '#000000',
+    offsetX: 12,
+    offsetY: 12,
+    opacity: 0.3
+  };
+  
+  // シャープな影を先に描画
+  ctx.save();
+  ctx.globalAlpha = shadowConfig.opacity;
+  
+  // 影用のキャンバスを作成
+  const shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = drawWidth;
+  shadowCanvas.height = drawHeight;
+  const shadowCtx = shadowCanvas.getContext('2d');
+  
+  if (shadowCtx) {
+    // 画像を影用キャンバスに描画
+    shadowCtx.drawImage(img, 0, 0, drawWidth, drawHeight);
+    
+    // 影の色で塗りつぶし
+    shadowCtx.globalCompositeOperation = 'source-in';
+    shadowCtx.fillStyle = shadowConfig.color;
+    shadowCtx.fillRect(0, 0, drawWidth, drawHeight);
+    
+    // メインキャンバスに影を描画
+    ctx.drawImage(shadowCanvas, x + shadowConfig.offsetX, y + shadowConfig.offsetY);
+  }
+  ctx.restore();
+  
+  // 本体の画像を描画
+  ctx.drawImage(img, x, y, drawWidth, drawHeight);
+}
+
+function drawTexts(ctx: CanvasRenderingContext2D, characterData: CharacterData, theme: Theme) {
+  // キャラクター名
+  if (characterData.characterName) {
+    const nameStyle = theme.textStyles.characterName;
+    const furiganaStyle = theme.textStyles.characterNameFurigana;
+    const namePosition = theme.layout.characterName;
+    
+    // 位置を計算（パーセンテージまたは絶対値）
+    const x = typeof namePosition.x === 'string' && namePosition.x.endsWith('%') 
+      ? CANVAS_WIDTH * (parseFloat(namePosition.x) / 100)
+      : Number(namePosition.x);
+    const y = typeof namePosition.y === 'string' && namePosition.y.endsWith('%')
+      ? CANVAS_HEIGHT * (parseFloat(namePosition.y) / 100)
+      : Number(namePosition.y);
+    
+    ctx.save(); // 現在の状態を保存
+    
+    // 回転の適用
+    if (namePosition.rotation) {
+      ctx.translate(x, y);
+      ctx.rotate((namePosition.rotation * Math.PI) / 180);
+      ctx.translate(-x, -y);
+    }
+    
+    // 文字の拡大縮小を適用
+    const scaleX = nameStyle.scaleX || 1.0;
+    const scaleY = nameStyle.scaleY || 1.0;
+    
+    ctx.font = `${nameStyle.fontWeight || ''} ${nameStyle.fontSize}px ${nameStyle.fontFamily}`;
+    
+    // ふりがなを先に描画（背景より前、本文より前）
+    if (characterData.characterNameFurigana && furiganaStyle) {
+      ctx.save();
+      
+      // ふりがなのフォント設定
+      ctx.font = `${furiganaStyle.fontWeight || 'normal'} ${furiganaStyle.fontSize}px ${furiganaStyle.fontFamily}`;
+      ctx.fillStyle = furiganaStyle.color;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      
+      // ふりがなの位置（本文の上）
+      const furiganaY = y - 5; // 本文の少し上
+      
+      if (namePosition.writingMode === 'vertical') {
+        // 縦書きの場合、ふりがなも縦書き
+        const furiganaChars = characterData.characterNameFurigana.split('');
+        const furiganaLetterSpacing = furiganaStyle.letterSpacing || 0;
+        
+        furiganaChars.forEach((char, index) => {
+          const charY = furiganaY + index * (furiganaStyle.fontSize * 1.2 + furiganaLetterSpacing);
+          ctx.fillText(char, x + nameStyle.fontSize * scaleX + 10, charY);
+        });
+      } else {
+        // 横書きの場合
+        if (furiganaStyle.letterSpacing && furiganaStyle.letterSpacing !== 0) {
+          // 文字間隔がある場合
+          const letterSpacing = furiganaStyle.letterSpacing;
+          const furiganaChars = characterData.characterNameFurigana.split('');
+          let currentX = x;
+          
+          furiganaChars.forEach(char => {
+            ctx.fillText(char, currentX, furiganaY);
+            currentX += ctx.measureText(char).width + letterSpacing;
+          });
+        } else {
+          // 通常の描画
+          ctx.fillText(characterData.characterNameFurigana, x, furiganaY);
+        }
+      }
+      
+      ctx.restore();
+    }
+    
+    // 縦書きの場合
+    if (namePosition.writingMode === 'vertical') {
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      
+      // 背景描画（縦書き用）
+      if (nameStyle.backgroundColor) {
+        ctx.fillStyle = nameStyle.backgroundColor;
+        const letterSpacing = nameStyle.letterSpacing || 0;
+        const charHeight = nameStyle.fontSize * scaleY * 1.2 + letterSpacing;
+        const totalHeight = charHeight * characterData.characterName.length;
+        ctx.fillRect(
+          x - 10,
+          y - 10,
+          nameStyle.fontSize * scaleX + 20,
+          totalHeight + 20
+        );
+      }
+      
+      // 縦書きテキスト描画
+      ctx.fillStyle = nameStyle.color;
+      const chars = characterData.characterName.split('');
+      const letterSpacing = nameStyle.letterSpacing || 0;
+      
+      chars.forEach((char, index) => {
+        const charY = y + index * (nameStyle.fontSize * 1.2 + letterSpacing);
+        ctx.save();
+        ctx.translate(x, charY);
+        ctx.scale(scaleX, scaleY);
+        ctx.fillText(char, 0, 0);
+        ctx.restore();
+      });
+    } else {
+      // 横書き
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      
+      // 文字間隔がある場合は文字ごとに描画
+      if (nameStyle.letterSpacing && nameStyle.letterSpacing !== 0) {
+        const letterSpacing = nameStyle.letterSpacing;
+        // 背景描画（文字間隔考慮）
+        if (nameStyle.backgroundColor) {
+          const chars = characterData.characterName.split('');
+          let totalWidth = 0;
+          chars.forEach(char => {
+            totalWidth += ctx.measureText(char).width * scaleX + letterSpacing;
+          });
+          totalWidth -= letterSpacing; // 最後の文字間隔を除く
+          
+          ctx.fillStyle = nameStyle.backgroundColor;
+          ctx.fillRect(
+            x - 20,
+            y - 10,
+            totalWidth + 40,
+            nameStyle.fontSize * scaleY + 20
+          );
+        }
+        
+        // 文字ごとに描画
+        ctx.fillStyle = nameStyle.color;
+        const chars = characterData.characterName.split('');
+        let currentX = x;
+        
+        chars.forEach(char => {
+          ctx.save();
+          ctx.translate(currentX, y);
+          ctx.scale(scaleX, scaleY);
+          ctx.fillText(char, 0, 0);
+          ctx.restore();
+          currentX += ctx.measureText(char).width * scaleX + letterSpacing;
+        });
+      } else {
+        // 通常の描画（文字間隔なし）
+        const textWidth = ctx.measureText(characterData.characterName).width * scaleX;
+        if (nameStyle.backgroundColor) {
+          ctx.fillStyle = nameStyle.backgroundColor;
+          ctx.fillRect(
+            x - 20,
+            y - 10,
+            textWidth + 40,
+            nameStyle.fontSize * scaleY + 20
+          );
+        }
+        
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scaleX, scaleY);
+        
+        // ストロークがある場合は先に描画
+        if (nameStyle.strokeWidth && nameStyle.strokeWidth > 0) {
+          ctx.strokeStyle = nameStyle.strokeColor || nameStyle.color;
+          ctx.lineWidth = nameStyle.strokeWidth;
+          ctx.lineJoin = 'round';
+          ctx.strokeText(characterData.characterName, 0, 0);
+        }
+        
+        // テキストを描画
+        ctx.fillStyle = nameStyle.color;
+        ctx.fillText(characterData.characterName, 0, 0);
+        ctx.restore();
+      }
+    }
+    
+    ctx.restore(); // 状態を復元
+  }
+
+  // シナリオ名
+  if (characterData.scenarioName) {
+    const scenarioStyle = theme.textStyles.scenarioName;
+    const scenarioPosition = theme.layout.scenarioName;
+    
+    // 位置を計算（パーセンテージまたは絶対値）
+    const x = typeof scenarioPosition.x === 'string' && scenarioPosition.x.endsWith('%')
+      ? CANVAS_WIDTH * (parseFloat(scenarioPosition.x) / 100)
+      : Number(scenarioPosition.x);
+    const y = typeof scenarioPosition.y === 'string' && scenarioPosition.y.endsWith('%')
+      ? CANVAS_HEIGHT * (parseFloat(scenarioPosition.y) / 100)
+      : Number(scenarioPosition.y);
+    
+    ctx.save(); // 現在の状態を保存
+    
+    // 回転の適用
+    if (scenarioPosition.rotation) {
+      ctx.translate(x, y);
+      ctx.rotate((scenarioPosition.rotation * Math.PI) / 180);
+      ctx.translate(-x, -y);
+    }
+    
+    ctx.font = `${scenarioStyle.fontWeight || ''} ${scenarioStyle.fontSize}px ${scenarioStyle.fontFamily}`;
+    
+    // 縦書きの場合
+    if (scenarioPosition.writingMode === 'vertical') {
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = scenarioStyle.color;
+      
+      const letterSpacing = scenarioStyle.letterSpacing || 0;
+      const scaleX = scenarioStyle.scaleX || 1.0;
+      const scaleY = scenarioStyle.scaleY || 1.0;
+      
+      const chars = characterData.scenarioName.split('');
+      chars.forEach((char, index) => {
+        const charY = y + index * (scenarioStyle.fontSize * 1.2 + letterSpacing);
+        ctx.save();
+        ctx.translate(x, charY);
+        ctx.scale(scaleX, scaleY);
+        ctx.fillText(char, 0, 0);
+        ctx.restore();
+      });
+    } else {
+      // 横書き
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = scenarioStyle.color;
+      
+      const scaleX = scenarioStyle.scaleX || 1.0;
+      const scaleY = scenarioStyle.scaleY || 1.0;
+      const letterSpacing = scenarioStyle.letterSpacing || 0;
+      
+      if (letterSpacing && letterSpacing !== 0) {
+        // 文字間隔がある場合は文字ごとに描画
+        const chars = characterData.scenarioName.split('');
+        let currentX = x;
+        
+        chars.forEach(char => {
+          ctx.save();
+          ctx.translate(currentX, y);
+          ctx.scale(scaleX, scaleY);
+          ctx.fillText(char, 0, 0);
+          ctx.restore();
+          currentX += ctx.measureText(char).width * scaleX + letterSpacing;
+        });
+      } else {
+        // 通常の描画
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.scale(scaleX, scaleY);
+        ctx.fillText(characterData.scenarioName, 0, 0);
+        ctx.restore();
+      }
+    }
+    
+    ctx.restore(); // 状態を復元
+  }
+
+}
+
+function drawExpressions(ctx: CanvasRenderingContext2D, characterData: CharacterData, theme: Theme) {
+  const expressionEntries = Object.entries(characterData.expressions);
+  if (expressionEntries.length === 0) return;
+
+  // 表情サムネイルを2列固定で下寄せ配置
+  const thumbnailSize = 130;
+  const gap = 25;
+  const cols = 2;  // 2列固定
+  const maxRows = 3;  // 最大3行（6個まで表示）
+  
+  // 画面左寄りに2列を配置するために開始位置を計算
+  const leftMargin = 30;  // 左端からの余白を減らしてもっと左へ
+  const startX = leftMargin;
+  
+  // 必要な行数を計算
+  const actualRows = Math.min(Math.ceil(expressionEntries.length / cols), maxRows);
+  const rowHeight = thumbnailSize + gap;
+  
+  // 下寄せのための開始Y座標を計算（画面下部から必要な行数分のスペースを確保）
+  const bottomMargin = 50;  // 画面下部からの余白を減らして下に移動
+  const startY = CANVAS_HEIGHT - bottomMargin - (actualRows * rowHeight) + gap;
+  
+  expressionEntries.forEach(([, expression], index) => {
+    if (index >= cols * maxRows) return;  // 最大6個まで
+    
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    
+    // 通常の上から下への配置（ただし全体は下寄せ）
+    const x = startX + col * (thumbnailSize + gap);
+    const y = startY + row * rowHeight;
+
+    const img = new Image();
+    img.onload = () => {
+      // 画質設定を最高に
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      
+      // 白い枠を描画
+      ctx.fillStyle = 'white';
+      ctx.fillRect(x - 2, y - 2, thumbnailSize + 4, thumbnailSize + 4);
+      
+      // 表情画像を描画（元画像のサイズを考慮）
+      ctx.drawImage(img, x, y, thumbnailSize, thumbnailSize);
+      
+      // 枠線を描画
+      ctx.strokeStyle = theme.textStyles.characterName.color;  // テキストと同じ色を使用
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, thumbnailSize, thumbnailSize);
+    };
+    img.src = expression.url;
+  });
+}
