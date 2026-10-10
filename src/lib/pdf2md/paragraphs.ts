@@ -9,6 +9,13 @@ const INDENT_EM = 0.8;
 const GAP_RATIO = 1.5;
 const INDENT_STYLE_RATIO = 0.2;
 const SIZE_TOL = 0.1;
+/** 段落間アキの本と判定する、段落末らしい行の最小件数と、次行との間にアキがある割合 */
+const GAP_STYLE_MIN_ENDS = 5;
+/**
+ * 段落末の次にアキがある割合の下限。段落ごとにアキを入れる組版は 1.0 近くになる。
+ * コーパス 48 組では、段落末のアキ割合は最大 0.69 だった（0.6〜0.7 は場面の区切りだけを空ける本）ので、それらを除外できる 0.85 にしている。
+ */
+const GAP_STYLE_RATIO = 0.85;
 
 const BULLET_START = /^[\s\u3000]*(?:[・■◆◇●○□▲△▼▽★☆※◎◯【]|[0-9０-９]+[.．)）]|[(（][0-9０-９]+[)）]|[①-⑳])/;
 const CLOSE_END = /[」』）)】]$/;
@@ -253,10 +260,47 @@ function usesIndentStyle(groups: Group[], statOf: (g: Group) => ColStat): boolea
   return ends >= 10 && indented / ends >= INDENT_STYLE_RATIO;
 }
 
+/**
+ * 段落の間を空けて段落を示す本か（字下げの代わりに <p> の margin などで区切る組版）。
+ * 方針：段落末らしい行（右端が短く、文末記号で終わる行）の次の行との行間が、
+ * 行送りの GAP_RATIO 倍以上ある割合が高ければ、アキで段落を見分けている本とみなす。
+ * この組版ではアキの有無で段落が決まるので、満行で句点終わりの行を句点だけで切らない。
+ * 判定に足りる件数（GAP_STYLE_MIN_ENDS）が無いときは false（従来どおり切る側に倒す）。
+ * 右端は st.right で測る。FULL_STOP_END で終わる行は SENTENCE_END にも当たるので、
+ * shouldBreak でもその行は st.right で測っている。ここでの「短い行」の判定は shouldBreak の aShort
+ * （右端との差が RIGHT_SHORT_EM 超、かつ次の行頭の語が余白に入らない）と同じ条件で行う。
+ */
+function usesParagraphGapStyle(
+  groups: Group[],
+  statOf: (g: Group) => ColStat,
+  pitchOfGroup: (g: Group) => number,
+): boolean {
+  let ends = 0;
+  let gapped = 0;
+  for (const g of groups) {
+    const st = statOf(g);
+    if (!Number.isFinite(st.right)) continue;
+    const pitch = pitchOfGroup(g);
+    for (let i = 1; i < g.lines.length; i++) {
+      const a = g.lines[i - 1];
+      const b = g.lines[i];
+      if (sizeChanged(a, b)) continue;
+      if (!FULL_STOP_END.test(a.text.trim())) continue;
+      const aShort = st.right - a.x1 > a.fontSize * RIGHT_SHORT_EM && !wrapsInto(a, b, st.right);
+      if (!aShort) continue;
+      ends++;
+      if (a.y - b.y >= pitch * GAP_RATIO) gapped++;
+    }
+  }
+  return ends >= GAP_STYLE_MIN_ENDS && gapped / ends >= GAP_STYLE_RATIO;
+}
+
 /** 区切り判定が文書全体から受け取る情報 */
 interface BreakContext {
   stats: Stats;
   usesIndent: boolean;
+  /** 段落の間を空けて段落を示す本か（字下げではなく行間のアキで見分けられる） */
+  usesParagraphGap: boolean;
   /** しおりの見出し行か（前後とも連結しない） */
   isOutlineLine: (l: Line) => boolean;
 }
@@ -324,8 +368,8 @@ function shouldBreak(
       (!runOn && isCentered(b, st)) ||
       (!g.spanning && colCount(g) === 1 && (isCentered(a, docStat) || (!runOn && isCentered(b, docStat)))) ||
       gap >= pitch * GAP_RATIO ||
-      // 字下げのない本では、満行でも文末記号で終わる行の後は段落を切る（見分けがつかないため切る側に倒す）
-      (!ctx.usesIndent && FULL_STOP_END.test(a.text.trim()))
+      // 字下げも段落間のアキもない本では、満行でも文末記号で終わる行の後は段落を切る（見分けがつかないため切る側に倒す）
+      (!ctx.usesIndent && !ctx.usesParagraphGap && FULL_STOP_END.test(a.text.trim()))
     );
   }
   // 段・ページまたぎ：文末記号か字下げ。前の段の満行で文が終わっていなければ、下がっていても続き
@@ -339,13 +383,6 @@ function shouldBreak(
 export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: ReadonlySet<string>): WorkBlock[] {
   const stats = buildStats(groups, bodySize);
   const { statOf } = stats;
-  const ctx: BreakContext = {
-    stats,
-    usesIndent: usesIndentStyle(groups, statOf),
-    // しおりの見出し行（ページ＋正規化タイトルが完全一致）は、前後とも連結しない
-    isOutlineLine: (l) => !!outlineKeys && outlineKeys.has(outlineKeyOf(l.page, l.text)),
-  };
-
   const pitchRatios: number[] = [];
   const groupPitch = new Map<Group, number | null>();
   for (const g of groups) {
@@ -354,9 +391,35 @@ export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: Rea
     if (p) pitchRatios.push(p / (g.lines[0].fontSize || 1));
   }
   const docRatio = median(pitchRatios) || 1.6;
+  const pitchOfGroup = (g: Group): number => groupPitch.get(g) ?? docRatio * (g.lines[0]?.fontSize ?? bodySize);
+  const usesIndent = usesIndentStyle(groups, statOf);
+  const ctx: BreakContext = {
+    stats,
+    usesIndent,
+    // 字下げの本では使われないので走査しない
+    usesParagraphGap: usesIndent ? false : usesParagraphGapStyle(groups, statOf, pitchOfGroup),
+    // しおりの見出し行（ページ＋正規化タイトルが完全一致）は、前後とも連結しない
+    isOutlineLine: (l) => !!outlineKeys && outlineKeys.has(outlineKeyOf(l.page, l.text)),
+  };
 
   const blocks: WorkBlock[] = [];
   let cur: { lines: Line[]; text: string; srcText: string; srcStyles: (CharStyle | null)[]; top: number } | null = null;
+  /** 行を、y が上に戻る所・ページが変わる所で区切ったかたまりにする */
+  const segsOf = (ls: Line[]): NonNullable<WorkBlock['segs']> => {
+    const out: NonNullable<WorkBlock['segs']> = [];
+    let prev: Line | null = null;
+    for (const l of ls) {
+      const last = out[out.length - 1];
+      if (!prev || !last || l.page !== prev.page || l.y > prev.y) {
+        out.push({ page: l.page, top: l.y, left: l.x0, right: l.x1 });
+      } else {
+        last.left = Math.min(last.left, l.x0);
+        last.right = Math.max(last.right, l.x1);
+      }
+      prev = l;
+    }
+    return out;
+  };
   const flush = () => {
     if (!cur) return;
     const ls = cur.lines;
@@ -369,6 +432,7 @@ export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: Rea
       lineCount: ls.length,
       src: { text: cur.srcText, styles: cur.srcStyles },
       top: cur.top,
+      segs: segsOf(ls),
     });
     cur = null;
   };
@@ -377,7 +441,7 @@ export function buildBlocks(groups: Group[], bodySize: number, outlineKeys?: Rea
   let prevStat: ColStat | null = null;
   for (const g of groups) {
     const st = statOf(g);
-    const pitch = groupPitch.get(g) ?? docRatio * (g.lines[0]?.fontSize ?? bodySize);
+    const pitch = pitchOfGroup(g);
     g.lines.forEach((b, idx) => {
       if (shouldBreak(prevLine, b, g, idx, st, pitch, prevStat, ctx) || !cur) {
         flush();

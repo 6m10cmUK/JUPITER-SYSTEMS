@@ -1,10 +1,11 @@
 import type { ExtractedImage } from './extract';
 import type { Block, ConvertImage, PageData, WorkBlock } from './types';
 
-/** 作業用の top・src を外して公開用の Block にする */
+/** 作業用の top・segs・src を外して公開用の Block にする */
 function toBlock(b: WorkBlock): Block {
   const block: WorkBlock = { ...b };
   delete block.top;
+  delete block.segs;
   delete block.src;
   return block;
 }
@@ -44,8 +45,11 @@ function indexByPage(blocks: WorkBlock[]): {
 }
 
 /**
- * 画像を読み順の位置に image ブロックとして挟み、作業用の top・src を取り除く。
- * 挿入位置は同じページで top が画像の上端以上（画像より上）のブロックの最後の直後。
+ * 画像を読み順の位置に image ブロックとして挟み、作業用の top・segs・src を取り除く。
+ * 挿入位置は、同じページで画像と横方向に重なるブロック（段）のうち、top が画像の上端以上
+ * （画像より上）の最後のブロックの直後。段をまたぐ連結段落は、段ごとのかたまり（segs）で判定する。無ければ段の最初のブロックの直前。
+ * 重なりは、重なり幅が画像とブロックの幅の小さいほうの半分を超えること。
+ * 重なるブロックが無い（segs 未設定を含む）ときはページ内の全ブロックで決める。
  */
 export function insertImages(
   blocks: WorkBlock[],
@@ -64,12 +68,27 @@ export function insertImages(
   // 挿入位置（元ブロック配列のインデックス。その直前に入れる）を求める
   const { byPage, lastBefore } = indexByPage(blocks);
   const slotOf = (e: ExtractedImage): number => {
-    const idxs = byPage.get(e.page);
-    if (idxs) {
+    const all = byPage.get(e.page);
+    if (all) {
+      // 画像と同じページで横方向に重なるかたまり（ブロックの page と違うページのかたまりは使わない）
+      const overlapSegs = (b: WorkBlock) =>
+        (b.segs ?? []).filter((s) => {
+          if (s.page !== b.page) return false;
+          const ov = Math.min(e.x1, s.right) - Math.max(e.x0, s.left);
+          const narrow = Math.min(e.x1 - e.x0, s.right - s.left);
+          return ov > narrow / 2;
+        });
+      const col = all.filter((i) => overlapSegs(blocks[i]).length > 0);
       let lastAbove = -1;
-      for (const i of idxs) {
-        const t = blocks[i].top;
-        if (t !== undefined && t >= e.y1) lastAbove = i;
+      let idxs = all;
+      if (col.length > 0) {
+        idxs = col;
+        for (const i of col) if (overlapSegs(blocks[i]).some((s) => s.top >= e.y1)) lastAbove = i;
+      } else {
+        for (const i of all) {
+          const t = blocks[i].top;
+          if (t !== undefined && t >= e.y1) lastAbove = i;
+        }
       }
       return lastAbove >= 0 ? lastAbove + 1 : idxs[0];
     }

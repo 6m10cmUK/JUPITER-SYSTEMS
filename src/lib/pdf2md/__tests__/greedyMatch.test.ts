@@ -29,3 +29,8 @@ test('末尾を超えて進めない', () => {
   const s = Array.from('xf').map((c) => ({ c }));
   assert.deepEqual(matchNext(s, 0, 'ﬁ', 32), { index: 1, next: 2 });
 });
+
+test('康熙部首は日本の字形の漢字として探す', () => {
+  const s = [{ c: '戸' }];
+  assert.deepEqual(matchNext(s, 0, '⼾', 32), { index: 0, next: 1 });
+});

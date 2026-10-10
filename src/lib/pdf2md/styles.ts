@@ -1,3 +1,4 @@
+import { jpNfkc } from './jpNfkc';
 import { matchNext } from './greedyMatch';
 import { argmaxWeight } from './stats';
 import type { CharStyle, PageData, StyledSpan, WorkBlock } from './types';
@@ -36,7 +37,7 @@ function nonSpaceSeq(text: string): { c: string; idx: number }[] {
   const out: { c: string; idx: number }[] = [];
   let k = 0;
   for (const ch of text) {
-    if (!/\s/.test(ch)) for (const c of ch.normalize('NFKC')) if (!/\s/.test(c)) out.push({ c, idx: k });
+    if (!/\s/.test(ch)) for (const c of jpNfkc(ch)) if (!/\s/.test(c)) out.push({ c, idx: k });
     k += ch.length;
   }
   return out;
@@ -76,7 +77,7 @@ function alignStyles(text: string, src: { text: string; styles: (CharStyle | nul
   return out;
 }
 
-/** 各ブロックに spans を付け、作業用の src を取り除く（top は画像の挿入位置決めのために残す） */
+/** 各ブロックに spans を付け、作業用の src を取り除く（top・segs は画像の挿入位置決めのために残す） */
 export function attachSpans(blocks: WorkBlock[], bodyColor: string): { blocks: WorkBlock[]; coloredBlocks: number } {
   let coloredBlocks = 0;
   const result = blocks.map((b) => {
