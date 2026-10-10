@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import CharacterCanvas from './CharacterCanvas';
 import CharacterForm from './CharacterForm';
 import ThemeModal from './ThemeModal';
-import { Footer } from '../../../shared/ui/Footer/Footer';
 import type { CharacterData, Theme } from '../lib/characterDisplay';
 import { themes } from '../lib/themes';
 
@@ -144,8 +143,6 @@ const CharacterDisplayGenerator: React.FC = () => {
         selectedTheme={selectedTheme}
         onThemeChange={setSelectedTheme}
       />
-      
-      <Footer />
     </div>
   );
 };
