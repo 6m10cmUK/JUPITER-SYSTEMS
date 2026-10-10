@@ -9,7 +9,7 @@ const LAST_PLAYER_COUNT_STORAGE_KEY = 'juno-last-player-count'
 const LAST_SHUFFLE_STORAGE_KEY = 'juno-last-shuffle'
 
 function safeSetItem(key: string, value: string) {
-  try { localStorage.setItem(key, value) } catch {}
+  try { localStorage.setItem(key, value) } catch { /* 保存できなくてもゲームはそのまま続ける */ }
 }
 
 function loadNameHistory(): string[] {
@@ -39,7 +39,9 @@ function loadLastMode(): GameMode {
     if (saved && ['count-up', 'zero-one', 'cricket', 'cricket-secret'].includes(saved)) {
       return saved as GameMode
     }
-  } catch {}
+  } catch {
+    /* localStorage が使えない環境では既定値で続ける */
+  }
   return 'count-up'
 }
 
@@ -49,7 +51,9 @@ function loadLastStartScore(): 301 | 501 | 701 {
     if (saved && ['301', '501', '701'].includes(saved)) {
       return Number(saved) as 301 | 501 | 701
     }
-  } catch {}
+  } catch {
+    /* localStorage が使えない環境では既定値で続ける */
+  }
   return 501
 }
 
@@ -62,7 +66,9 @@ function loadLastPlayerCount(): number {
         return parsed
       }
     }
-  } catch {}
+  } catch {
+    /* localStorage が使えない環境では既定値で続ける */
+  }
   return 2
 }
 
@@ -99,7 +105,7 @@ export function PlayerSetup({ dispatch }: Props) {
   }, [])
 
   const handleStart = () => {
-    let playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`)
+    const playerNames = names.slice(0, playerCount).map((n, i) => n.trim() || `Player ${i + 1}`)
     saveNameHistory(names.slice(0, playerCount).filter(n => n.trim()))
     const gameMode: GameMode = isCricketSecret ? 'cricket-secret' : selectedMode
     safeSetItem(LAST_MODE_STORAGE_KEY, gameMode)

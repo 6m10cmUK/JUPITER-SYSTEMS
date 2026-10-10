@@ -1,0 +1,70 @@
+name: CI
+
+# 全ブランチの push で回す。pull_request は push と重複するので付けない
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+# 同一 ref の重複実行（連続 push）は古い方を止める
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: CI
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.2.0'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # lint・型チェック・テストを並列で回し、全部の結果を出してから失敗にする
+      - name: Run all checks
+        run: |
+          set -euo pipefail
+
+          PIDS=()
+          NAMES=()
+
+          echo "🔍 Starting Lint..."
+          npm run lint &
+          PIDS+=($!)
+          NAMES+=("Lint")
+
+          echo "🔍 Starting TypeCheck..."
+          npm run typecheck &
+          PIDS+=($!)
+          NAMES+=("TypeCheck")
+
+          echo "🔍 Starting Unit Tests..."
+          npm test &
+          PIDS+=($!)
+          NAMES+=("Unit Tests")
+
+          FAILED=0
+          for i in "${!PIDS[@]}"; do
+            if wait ${PIDS[$i]}; then
+              echo "✅ ${NAMES[$i]} - Success"
+            else
+              echo "❌ ${NAMES[$i]} - Failed"
+              FAILED=1
+            fi
+          done
+
+          exit $FAILED
+
+      # prebuild で pdfjs の資産をコピーし、ルート別の OGP HTML も書き出す
+      - name: Build
+        run: npm run build

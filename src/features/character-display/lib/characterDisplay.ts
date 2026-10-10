@@ -122,7 +122,7 @@ interface Theme {
       type: 'image' | 'text';
       content: string;
       position: Position;
-      style?: any;
+      style?: Record<string, string | number>;
     }>;
   };
 }

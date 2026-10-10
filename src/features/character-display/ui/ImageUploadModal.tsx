@@ -91,7 +91,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
     } else {
       // 表情差分は正方形固定（顔だけだから）
       return {
-        aspectRatio: 1,
+        aspectRatio: { minimum: 1, maximum: 1 },
         minWidth: 100,
         minHeight: 100,
         className: "h-[600px] bg-gray-100"
@@ -250,7 +250,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
                   ref={cropperRef}
                   src={imageSrc}
                   className="h-full"
-                  aspectRatio={settings.aspectRatio as any}
+                  aspectRatio={settings.aspectRatio}
                   style={{
                     background: '#f3f4f6',
                     height: '100%'
