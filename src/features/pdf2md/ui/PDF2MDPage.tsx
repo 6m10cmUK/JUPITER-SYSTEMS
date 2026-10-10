@@ -5,19 +5,7 @@ import { Pdf2mdViewer } from './Pdf2mdViewer'
 import { InfoDialogButton } from './InfoDialog'
 import { PDF2MD_ABOUT, PDF2MD_HOWTO } from './infoTexts'
 import { useConvertPdf } from '../model/useConvertPdf'
-import type { ConvertIssues } from '../core/types'
-
-/** 変換で起きた問題を、利用者向けの文言にする（ビューアが表示する） */
-function warningsOf(issues: ConvertIssues | null): string[] {
-  if (!issues) return []
-  const out: string[] = []
-  if (issues.failedPages.length > 0) out.push(`${issues.failedPages.length}ページを読めませんでした`)
-  if (issues.pagesWithoutText.length > 0) out.push(`${issues.pagesWithoutText.length}ページは文字も画像も取り出せないため表示していません`)
-  if (issues.stylelessPages.length > 0) out.push(`${issues.stylelessPages.length}ページは画像・文字の色・太字を取得できませんでした`)
-  if (issues.imageFailures > 0) out.push(`画像${issues.imageFailures}枚を表示できませんでした`)
-  if (issues.outlineUnreadable) out.push('PDFのしおりを読めなかったため、見出しは本文から推定しています')
-  return out
-}
+import { warningsOf } from '../lib/convertWarnings'
 
 const infoBtn =
   'px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50 shadow-sm whitespace-nowrap'
