@@ -13,5 +13,5 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/__tests__/*.ts", "scripts/pdf2md-eval/*.ts", "scripts/pdf2md-dev/*.ts"]
+  "include": ["src/**/__tests__/*.ts", "scripts/pdf2md-eval/*.ts", "scripts/pdf2md-dev/*.ts", "scripts/route-ogp/**/*.ts"]
 }
