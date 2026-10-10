@@ -212,7 +212,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
         if (state.mode === 'cricket-secret') {
           const secretNumbers = state.secretNumbers ?? []
-          let newRevealedNumbers = [...(state.revealedNumbers ?? [])]
+          const newRevealedNumbers = [...(state.revealedNumbers ?? [])]
           let nextState: GameState = { ...state, currentThrows: newThrows }
 
           // 投げたナンバーがsecretNumbersに含まれるかチェック
@@ -271,7 +271,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       // Cricket Secret: マーク・スコア更新（3投目の確定時）
       if (state.mode === 'cricket-secret') {
         const secretNumbers = state.secretNumbers ?? []
-        let revealedNumbers = [...(state.revealedNumbers ?? [])]
+        const revealedNumbers = [...(state.revealedNumbers ?? [])]
 
         // 3投目のチェック
         if (action.dart !== 'miss' && secretNumbers.includes(action.dart.number)) {
@@ -351,7 +351,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         }
 
         // cricket-secret の場合、revealed ナンバーを追跡
-        let revealed = new Set<number>()
+        const revealed = new Set<number>()
 
         // 確定済みラウンドを再計算（秒序順）
         for (let r = 0; r < maxRoundCount; r++) {

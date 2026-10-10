@@ -96,7 +96,7 @@ const cricketStrategy: GameModeStrategy = {
     }, 0)
   },
 
-  getTotalScore(_player: PlayerState): number {
+  getTotalScore(): number {
     // GameView側でstate.cricketScoresを直接参照する
     return 0
   },
@@ -152,7 +152,7 @@ const cricketSecretStrategy: GameModeStrategy = {
     }, 0)
   },
 
-  getTotalScore(_player: PlayerState): number {
+  getTotalScore(): number {
     // GameView側でstate.cricketScoresを直接参照する
     return 0
   },

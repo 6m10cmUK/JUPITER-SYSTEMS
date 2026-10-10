@@ -15,7 +15,9 @@ function loadState(): GameState {
         return parsed as GameState
       }
     }
-  } catch {}
+  } catch {
+    /* 保存データが壊れているか localStorage が使えないときは新規で始める */
+  }
   return initialState
 }
 

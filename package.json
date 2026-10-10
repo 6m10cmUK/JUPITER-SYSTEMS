@@ -9,6 +9,7 @@
     "prebuild": "node scripts/copy-pdfjs-assets.mjs",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "typecheck": "tsc -b",
     "preview": "vite preview",
     "build:serve": "npm run build && npm run preview",
     "clean:dev": "rm -rf node_modules/.vite && npm run dev",
