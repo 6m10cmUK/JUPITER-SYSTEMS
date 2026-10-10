@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { PDFUploader } from '../components/PDFUploader'
 import { Pdf2mdViewer } from '../components/Pdf2mdViewer/Pdf2mdViewer'
-import { Pdf2mdAbout } from '../components/Pdf2mdAbout'
+import { InfoDialogButton } from '../components/InfoDialog'
+import { PDF2MD_ABOUT, PDF2MD_HOWTO } from '../components/Pdf2mdViewer/infoTexts'
 import { useConvertPdf } from '../hooks/useConvertPdf'
 import type { ConvertIssues } from '../lib/pdf2md/types'
 
@@ -17,6 +18,9 @@ function warningsOf(issues: ConvertIssues | null): string[] {
   if (issues.outlineUnreadable) out.push('PDFのしおりを読めなかったため、見出しは本文から推定しています')
   return out
 }
+
+const infoBtn =
+  'px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700 hover:bg-gray-50 shadow-sm whitespace-nowrap'
 
 /** 画面中央に寄せる共通の外枠 */
 function CenteredScreen({ children }: { children: ReactNode }) {
@@ -57,7 +61,10 @@ export function PDF2MD() {
               </>
             }
           />
-          <Pdf2mdAbout />
+          <div className="fixed bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+            <InfoDialogButton label="使い方" items={PDF2MD_HOWTO} buttonClassName={infoBtn} />
+            <InfoDialogButton label="このツールについて" items={PDF2MD_ABOUT} buttonClassName={infoBtn} />
+          </div>
         </div>
       </CenteredScreen>
     )

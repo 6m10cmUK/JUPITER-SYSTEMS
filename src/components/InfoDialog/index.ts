@@ -1,0 +1,1 @@
+export { InfoDialogButton } from './InfoDialogButton'

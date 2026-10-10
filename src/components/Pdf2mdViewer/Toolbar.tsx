@@ -1,4 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { InfoDialogButton } from '../InfoDialog'
+import { PDF2MD_HOWTO } from './infoTexts'
 
 interface Props {
   fileName: string
@@ -76,6 +78,7 @@ export function Toolbar(p: Props) {
           <button type="button" className={btn} onClick={p.onReset}>
             別のファイル
           </button>
+          <InfoDialogButton label="使い方" items={PDF2MD_HOWTO} buttonClassName={btn} />
         </div>
       </div>
       {p.notice && (
