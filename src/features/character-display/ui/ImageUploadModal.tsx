@@ -187,7 +187,7 @@ const ImageUploadModal: React.FC<ImageUploadModalProps> = ({
         }, 'image/png');
       }
     }
-  }, [imageFile, onImageUpload, onClose, mode]);
+  }, [imageFile, onImageUpload, onClose, mode, onCropPositionSave]);
 
   if (!isOpen) return null;
 
