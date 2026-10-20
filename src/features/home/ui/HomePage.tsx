@@ -81,9 +81,13 @@ export function Home() {
             <div className="space-y-4">
               <div>
                 <h3 className="font-semibold text-gray-800 mb-2">クトゥルフ神話TRPG</h3>
+                <p className="text-sm text-jupiter-700 bg-jupiter-50 rounded-lg px-3 py-2 mb-2">6版・7版のルールブックはサブスクで全部読める</p>
                 <div className="flex flex-wrap gap-2">
                   <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
                     基本ルールブック6版
+                  </span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                    基本ルールブック7版
                   </span>
                   <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
                   マレウスモンストロルム
@@ -126,6 +130,12 @@ export function Home() {
                   </span>
                   <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
                     マスカレイドスタイル v2.8
+                  </span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                    ACVI TRPG
+                  </span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-lg text-sm">
+                    フタリソウサ
                   </span>
                 </div>
               </div>
