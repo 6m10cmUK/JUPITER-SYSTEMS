@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CharacterModalProps } from '../lib/character.types';
+import { useDragScroll } from '../model/useDragScroll';
 
 export function CharacterModal({ character, isOpen, onClose }: CharacterModalProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const thumbsRef = useRef<HTMLDivElement>(null);
+  useDragScroll(thumbsRef, [isOpen, character]);
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -22,7 +25,54 @@ export function CharacterModal({ character, isOpen, onClose }: CharacterModalPro
     };
   }, [isOpen, onClose]);
 
+  // 立ち絵サムネのはみ出し状態（左右に隠れた分があるか）
+  const [edges, setEdges] = useState({ left: false, right: false });
+  useEffect(() => {
+    if (!isOpen || !character) return;
+    const el = thumbsRef.current;
+    if (!el) {
+      setEdges({ left: false, right: false });
+      return;
+    }
+
+    const update = () => {
+      const left = el.scrollLeft > 1;
+      const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+      setEdges((prev) =>
+        prev.left === left && prev.right === right ? prev : { left, right }
+      );
+    };
+
+    el.addEventListener('scroll', update, { passive: true });
+    const resizeObserver = new ResizeObserver(update);
+    resizeObserver.observe(el);
+    // 画像読み込み後のずれ対策として初回計算を1回遅らせる
+    const frame = requestAnimationFrame(update);
+
+    return () => {
+      el.removeEventListener('scroll', update);
+      resizeObserver.disconnect();
+      cancelAnimationFrame(frame);
+    };
+  }, [isOpen, character]);
+
   if (!isOpen || !character) return null;
+
+  const fadeLeft = edges.left ? 'transparent 0, black 32px' : 'black 0';
+  const fadeRight = edges.right ? 'black calc(100% - 32px), transparent 100%' : 'black 100%';
+  const thumbMask =
+    edges.left || edges.right
+      ? `linear-gradient(to right, ${fadeLeft}, ${fadeRight})`
+      : undefined;
+  const thumbMaskStyle = thumbMask
+    ? { maskImage: thumbMask, WebkitMaskImage: thumbMask }
+    : undefined;
+
+  const scrollThumbs = (direction: -1 | 1) => {
+    const el = thumbsRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction * el.clientWidth * 0.8, behavior: 'smooth' });
+  };
 
   return (
     <>
@@ -52,24 +102,56 @@ export function CharacterModal({ character, isOpen, onClose }: CharacterModalPro
                   </div>
                   {/* 画像サムネイル切り替え */}
                   {character.fullImages.length > 1 && (
-                    <div className="flex gap-2 flex-wrap justify-center">
-                      {character.fullImages.map((imageUrl, index) => (
+                    <div className="relative w-full">
+                      <div
+                        ref={thumbsRef}
+                        className="w-full overflow-x-auto cursor-grab data-[dragging=true]:cursor-grabbing data-[dragging=true]:[&_*]:cursor-grabbing!"
+                        style={thumbMaskStyle}
+                      >
+                        <div className="flex gap-2 w-max mx-auto px-1 py-2">
+                          {character.fullImages.map((imageUrl, index) => (
+                            <button
+                              key={index}
+                              onClick={() => setSelectedImageIndex(index)}
+                              className={`shrink-0 w-16 h-20 rounded-lg overflow-hidden transition-all ${
+                                index === selectedImageIndex
+                                  ? 'ring-2 ring-jupiter-500 ring-offset-2'
+                                  : 'opacity-70 hover:opacity-100'
+                              }`}
+                            >
+                              <img
+                                src={imageUrl}
+                                alt={`立ち絵${index + 1}`}
+                                className="w-full h-full object-cover object-top"
+                              />
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      {edges.left && (
                         <button
-                          key={index}
-                          onClick={() => setSelectedImageIndex(index)}
-                          className={`w-16 h-20 rounded-lg overflow-hidden transition-all ${
-                            index === selectedImageIndex
-                              ? 'ring-2 ring-jupiter-500 ring-offset-2'
-                              : 'opacity-70 hover:opacity-100'
-                          }`}
+                          type="button"
+                          onClick={() => scrollThumbs(-1)}
+                          aria-label="前の立ち絵"
+                          className="absolute top-1/2 -translate-y-1/2 left-0 w-8 h-8 rounded-full bg-white/90 shadow-md text-gray-700 hover:bg-white flex items-center justify-center z-10"
                         >
-                          <img 
-                            src={imageUrl}
-                            alt={`立ち絵${index + 1}`}
-                            className="w-full h-full object-cover object-top"
-                          />
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
                         </button>
-                      ))}
+                      )}
+                      {edges.right && (
+                        <button
+                          type="button"
+                          onClick={() => scrollThumbs(1)}
+                          aria-label="次の立ち絵"
+                          className="absolute top-1/2 -translate-y-1/2 right-0 w-8 h-8 rounded-full bg-white/90 shadow-md text-gray-700 hover:bg-white flex items-center justify-center z-10"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   )}
                 </>
@@ -83,8 +165,13 @@ export function CharacterModal({ character, isOpen, onClose }: CharacterModalPro
             {/* 右側：詳細情報 */}
             <div className="md:w-1/2 p-8 overflow-y-auto">
               <div className="flex justify-between items-start mb-4">
-                <h2 className="text-3xl font-bold text-gray-900">{character.name}</h2>
-                <button 
+                <div>
+                  {character.reading && (
+                    <p className="text-sm text-gray-500 mb-1">{character.reading}</p>
+                  )}
+                  <h2 className="text-3xl font-bold text-gray-900">{character.name}</h2>
+                </div>
+                <button
                   onClick={onClose}
                   className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
                 >

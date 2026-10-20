@@ -2,6 +2,7 @@
   "characters": [
     {
       "name": "陽那ヶ峰 遊",
+      "reading": "ひながみね ゆう",
       "iconImage": "/images/characters/hinagamine_icon.png",
       "fullImages": [
         "/images/characters/hinagamine_full.png",
@@ -12,7 +13,22 @@
         "/images/characters/hinagamine_full6.png",
         "/images/characters/hinagamine_full7.png",
         "/images/characters/hinagamine_full8.png",
-        "/images/characters/hinagamine_full9.png"
+        "/images/characters/hinagamine_full9.png",
+        "/images/characters/hinagamine_full10.png",
+        "/images/characters/hinagamine_full11.png",
+        "/images/characters/hinagamine_full12.png",
+        "/images/characters/hinagamine_full13.png",
+        "/images/characters/hinagamine_full14.png",
+        "/images/characters/hinagamine_full15.png",
+        "/images/characters/hinagamine_full16.png",
+        "/images/characters/hinagamine_full17.png",
+        "/images/characters/hinagamine_full18.png",
+        "/images/characters/hinagamine_full19.png",
+        "/images/characters/hinagamine_full20.png",
+        "/images/characters/hinagamine_full21.png",
+        "/images/characters/hinagamine_full22.png",
+        "/images/characters/hinagamine_full23.png",
+        "/images/characters/hinagamine_full24.png"
       ],
       "tags": ["CoC6", "風の又三郎"],
       "scenarios": [
@@ -24,12 +40,16 @@
         "そうだ、いちご狩り行こう",
         "猫カフェ行ったら猫耳生えた!?",
         "Snowdrops Hex Sphere",
-        "白波と青に泳ぐ"
+        "白波と青に泳ぐ",
+        "龍哭",
+        "埋葬代行",
+        "戦慄！人喰いあんこう鍋の怪"
       ],
       "characterSheetUrl": "https://iachara.com/view/7618562"
     },
     {
       "name": "相生 航",
+      "reading": "あいおい わたる",
       "iconImage": "/images/characters/aioiwataru_icon.png",
       "fullImages": [
         "/images/characters/aioiwataru_full.png",
@@ -49,9 +69,16 @@
     },
     {
       "name": "各務ヶ原 卯月",
+      "reading": "かかみがはら うづき",
       "iconImage": "/images/characters/uduki_icon.png",
       "fullImages": [
-        "/images/characters/uduki_full.png"
+        "/images/characters/uduki_full.png",
+        "/images/characters/uduki_full2.png",
+        "/images/characters/uduki_full3.png",
+        "/images/characters/uduki_full4.png",
+        "/images/characters/uduki_full5.png",
+        "/images/characters/uduki_full6.png",
+        "/images/characters/uduki_full7.png"
       ],
       "tags": ["CoC6", "ロスト"],
       "scenarios": [
@@ -74,6 +101,7 @@
     },
     {
       "name": "幽川 藍生",
+      "reading": "ゆかわ らんせい",
       "iconImage": "/images/characters/yukawa_icon.png",
       "fullImages": [
         "/images/characters/yukawa_full.png"
@@ -82,10 +110,11 @@
       "scenarios": [
         "㐂梗公立高等学校七不思議譚"
       ],
-      "characterSheetUrl": "https://iachara.com/view/7570150"
+      "characterSheetUrl": "https://iachara.com/view/12029390"
     },
     {
       "name": "七尾 凪津季",
+      "reading": "ななお なつき",
       "iconImage": "/images/characters/nanaonatsuki_icon.png",
       "fullImages": [
         "/images/characters/nanaonatsuki_full.png"
@@ -98,6 +127,7 @@
     },
     {
       "name": "四條 或斗",
+      "reading": "しじょう あると",
       "iconImage": "/images/characters/sijoaruto_icon.png",
       "fullImages": [
         "/images/characters/sijoaruto_full.png",
@@ -107,10 +137,11 @@
       "scenarios": [
         "死に逝く片割れへ"
       ],
-      "characterSheetUrl": ""
+      "characterSheetUrl": "https://iachara.com/view/11169179"
     },
     {
       "name": "椎原 詩音",
+      "reading": "しのはら しのん",
       "iconImage": "/images/characters/shinoharashinon_icon.png",
       "fullImages": [
         "/images/characters/shinoharashinon_full.png",
@@ -124,6 +155,7 @@
     },
     {
       "name": "鳴上 琉夏",
+      "reading": "なるかみ るか",
       "iconImage": "/images/characters/narukamiruka_icon.png",
       "fullImages": [
         "/images/characters/narukamiruka_full.png"
@@ -136,6 +168,7 @@
     },
     {
       "name": "青柳 美琴",
+      "reading": "あおやなぎ みこと",
       "iconImage": "/images/characters/aoyanagimikoto_icon.png",
       "fullImages": [
         "/images/characters/aoyanagimikoto_full.png"
@@ -149,6 +182,7 @@
     },
     {
       "name": "橘 吾漣",
+      "reading": "たちばな あれん",
       "iconImage": "/images/characters/tachibanaaren_icon.png",
       "fullImages": [
         "/images/characters/tachibanaaren_full.png",
@@ -162,6 +196,7 @@
     },
     {
       "name": "御厨 一秋",
+      "reading": "みくりや ちあき",
       "iconImage": "/images/characters/mikuriyatiaki_icon.png",
       "fullImages": [
         "/images/characters/mikuriyatiaki_full.png",
@@ -175,18 +210,21 @@
     },
     {
       "name": "鶴城 一誠",
+      "reading": "つるぎ いっせい",
       "iconImage": "/images/characters/turugiissei_icon.png",
       "fullImages": [
         "/images/characters/turugiissei_full.png"
       ],
       "tags": ["CoC6", "HO傍観者", "ロスト"],
       "scenarios": [
-        "膿み堕とし", "地獄の底で会おう"
+        "膿み堕とし",
+        "地獄の底で会おう"
       ],
       "characterSheetUrl": "https://iachara.com/view/10020675"
     },
     {
       "name": "陽瀬 晴",
+      "reading": "はるせ はる",
       "iconImage": "/images/characters/haruseharu_icon.png",
       "fullImages": [
         "/images/characters/haruseharu_full.png"
@@ -200,6 +238,7 @@
     },
     {
       "name": "鍜示 司",
+      "reading": "かじ つかさ",
       "iconImage": "/images/characters/kajitukasa_icon.png",
       "fullImages": [
         "/images/characters/kajitukasa_full.png"
@@ -228,7 +267,7 @@
       "fullImages": [
         "/images/characters/tela_full.png"
       ],
-      "tags": ["CoC6","HOフォーク"],
+      "tags": ["CoC6", "HOフォーク", "ロスト"],
       "scenarios": [
         "口渇ルルパ"
       ],
@@ -236,6 +275,7 @@
     },
     {
       "name": "黒司 クロ",
+      "reading": "こくし くろ",
       "iconImage": "/images/characters/kokusikuro_icon.png",
       "fullImages": [
         "/images/characters/kokusikuro_full.png"
@@ -248,6 +288,7 @@
     },
     {
       "name": "相馬 賢人",
+      "reading": "そうま けんと",
       "iconImage": "/images/characters/soumakento_icon.png",
       "fullImages": [
         "/images/characters/soumakento_full.png"
@@ -260,17 +301,18 @@
     },
     {
       "name": "南川 美波",
+      "reading": "みなみかわ みなみ",
       "iconImage": "/images/characters/minamikawaminami_icon.png",
       "fullImages": [
         "/images/characters/minamikawaminami_full.png"
       ],
       "tags": ["CoC6"],
-      "scenarios": [
-      ],
+      "scenarios": [],
       "characterSheetUrl": "https://iachara.com/view/9595260"
     },
     {
       "name": "萩都 修也",
+      "reading": "はぎと しゅうや",
       "iconImage": "/images/characters/hagitosyuya_icon.png",
       "fullImages": [
         "/images/characters/hagitosyuya_full.png"
@@ -283,6 +325,7 @@
     },
     {
       "name": "東雲 悠",
+      "reading": "しののめ はるか",
       "iconImage": "/images/characters/sinonomeharuka_icon.png",
       "fullImages": [
         "/images/characters/sinonomeharuka_full.png"
@@ -295,9 +338,11 @@
     },
     {
       "name": "間宮 泰斗",
+      "reading": "まみや ひろと",
       "iconImage": "/images/characters/mamiyahiroto_icon.png",
       "fullImages": [
-        "/images/characters/mamiyahiroto_full.png"
+        "/images/characters/mamiyahiroto_full.png",
+        "/images/characters/mamiyahiroto_full2.png"
       ],
       "tags": ["CoC6"],
       "scenarios": [
@@ -309,11 +354,12 @@
     },
     {
       "name": "唯塚 雪芽",
+      "reading": "ゆいづか ゆきめ",
       "iconImage": "/images/characters/yuidukayukime_icon.png",
       "fullImages": [
         "/images/characters/yuidukayukime_full.png"
       ],
-      "tags": ["CoC6"],
+      "tags": ["CoC6", "HO預言者"],
       "scenarios": [
         "救世主"
       ],
@@ -321,6 +367,7 @@
     },
     {
       "name": "水上 琉生",
+      "reading": "みなかみ るい",
       "iconImage": "/images/characters/minakamirui_icon.png",
       "fullImages": [
         "/images/characters/minakamirui_full.png"
@@ -333,6 +380,7 @@
     },
     {
       "name": "御陵 未鷺",
+      "reading": "みささぎ みさぎ",
       "iconImage": "/images/characters/misasagimisagi_icon.png",
       "fullImages": [
         "/images/characters/misasagimisagi_full.png"
@@ -345,7 +393,8 @@
     },
     {
       "name": "Elise de la Fontaine",
-        "iconImage": "/images/characters/ElisedelaFontaine_icon.png",
+      "reading": "エリーゼ・ド・ラ・フォンテーヌ",
+      "iconImage": "/images/characters/ElisedelaFontaine_icon.png",
       "fullImages": [
         "/images/characters/ElisedelaFontaine_full.png",
         "/images/characters/ElisedelaFontaine_full2.png"
@@ -358,6 +407,7 @@
     },
     {
       "name": "渡部 亜生",
+      "reading": "わたりべ あおい",
       "iconImage": "/images/characters/wataribeaoi_icon.png",
       "fullImages": [
         "/images/characters/wataribeaoi_full.png",
@@ -371,6 +421,7 @@
     },
     {
       "name": "咲倉井 理人",
+      "reading": "さくらい りひと",
       "iconImage": "/images/characters/sakurairihito_icon.png",
       "fullImages": [
         "/images/characters/sakurairihito_full.png"
@@ -383,6 +434,7 @@
     },
     {
       "name": "間霧 紋次郎",
+      "reading": "まきり もんじろう",
       "iconImage": "/images/characters/makirimonjiro_icon.png",
       "fullImages": [
         "/images/characters/makirimonjiro_full.png"
@@ -397,18 +449,21 @@
     },
     {
       "name": "甲賀 晃丸",
+      "reading": "こうが あきまる",
       "iconImage": "/images/characters/kougaakimaru_icon.png",
       "fullImages": [
         "/images/characters/kougaakimaru_full.png"
       ],
       "tags": ["CoC6"],
       "scenarios": [
-        "赫々の女殺人事件"
+        "赫々の女殺人事件",
+        "傀逅"
       ],
       "characterSheetUrl": "https://iachara.com/view/2807443"
     },
     {
       "name": "北村 CHAOS 幸宏",
+      "reading": "きたむら カオス ゆきひろ",
       "iconImage": "/images/characters/kitamurayukihiro_icon.png",
       "fullImages": [
         "/images/characters/kitamurayukihiro_full.png",
@@ -422,6 +477,262 @@
         "奇々怪々同好会chapter3"
       ],
       "characterSheetUrl": "https://iachara.com/view/2541550"
+    },
+    {
+      "name": "黄 之鋒",
+      "reading": "ホァン・ジーフォン",
+      "iconImage": "/images/characters/huangzhifeng_icon.png",
+      "fullImages": [
+        "/images/characters/huangzhifeng_full.png"
+      ],
+      "tags": ["CoC6", "HOオーナー"],
+      "scenarios": [
+        "愛罠蜂"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/15538974"
+    },
+    {
+      "name": "緋川 晄",
+      "reading": "ひかわ ひかり",
+      "iconImage": "/images/characters/hikawaakira_icon.png",
+      "fullImages": [
+        "/images/characters/hikawaakira_full.png"
+      ],
+      "tags": ["CoC6", "HO不偸盗戒"],
+      "scenarios": [
+        "五戒"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/15351557"
+    },
+    {
+      "name": "瀬戸 千歳",
+      "reading": "せと ちとせ",
+      "iconImage": "/images/characters/setochitose_icon.png",
+      "fullImages": [
+        "/images/characters/setochitose_full.png"
+      ],
+      "tags": ["CoC7"],
+      "scenarios": [
+        "GHROTH-mission of skyline-"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14748644"
+    },
+    {
+      "name": "Валтазар Азатлав",
+      "reading": "ヴァルタザール・アズトラフ",
+      "iconImage": "/images/characters/valtazar_icon.png",
+      "fullImages": [
+        "/images/characters/valtazar_full.png"
+      ],
+      "tags": ["CoC7"],
+      "scenarios": [
+        "GHROTH-mission of skyline-"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14748641"
+    },
+    {
+      "name": "漣薙 渚",
+      "reading": "さざなぎ なぎさ",
+      "iconImage": "/images/characters/sazanaginagisa_icon.png",
+      "fullImages": [
+        "/images/characters/sazanaginagisa_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "海も枯れるまで"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14570035"
+    },
+    {
+      "name": "城嶋 眞白",
+      "reading": "しろしま ましろ",
+      "iconImage": "/images/characters/jojimamashiro_icon.png",
+      "fullImages": [
+        "/images/characters/jojimamashiro_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "塔葬の国"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14533485"
+    },
+    {
+      "name": "束埼 司",
+      "reading": "つかさき つかさ",
+      "iconImage": "/images/characters/tsukasakitsukasa_icon.png",
+      "fullImages": [
+        "/images/characters/tsukasakitsukasa_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "燃えゆく海馬"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14533210"
+    },
+    {
+      "name": "四色鷺 世凪",
+      "reading": "よもつさぎ せいな",
+      "iconImage": "/images/characters/shishikisagisena_icon.png",
+      "fullImages": [
+        "/images/characters/shishikisagisena_full.png"
+      ],
+      "tags": ["CoC6", "HO法螺吹き"],
+      "scenarios": [
+        "K県警K課"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14332721"
+    },
+    {
+      "name": "阿留多伎 在夛",
+      "reading": "あるたき あるた",
+      "iconImage": "/images/characters/arutakiarita_icon.png",
+      "fullImages": [
+        "/images/characters/arutakiarita_full.png"
+      ],
+      "tags": ["CoC6", "HOチェイサー"],
+      "scenarios": [
+        "探偵学園島殺人事件"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14226295"
+    },
+    {
+      "name": "スタンリー・バッカス",
+      "reading": "Stanley Bacchus",
+      "iconImage": "/images/characters/stanleybacchus_icon.png",
+      "fullImages": [
+        "/images/characters/stanleybacchus_full.png"
+      ],
+      "tags": ["CoC7", "HO探偵の目"],
+      "scenarios": [
+        "三人探偵"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/14150029"
+    },
+    {
+      "name": "括良 枢",
+      "reading": "くくるい くるる",
+      "iconImage": "/images/characters/kukurikaname_icon.png",
+      "fullImages": [
+        "/images/characters/kukurikaname_full.png"
+      ],
+      "tags": ["CoC6", "HO自由"],
+      "scenarios": [
+        "天啓劫火"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/12705686"
+    },
+    {
+      "name": "ALB",
+      "reading": "アルフ",
+      "iconImage": "/images/characters/alb_icon.png",
+      "fullImages": [
+        "/images/characters/alb_full.png"
+      ],
+      "tags": ["CoC6", "HO怪盗"],
+      "scenarios": [
+        "レプリカントの葬列"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/12695914"
+    },
+    {
+      "name": "海薙 羽稲",
+      "reading": "うみなぎ はいね",
+      "iconImage": "/images/characters/minagiwaina_icon.png",
+      "fullImages": [
+        "/images/characters/minagiwaina_full.png"
+      ],
+      "tags": ["CoC6", "KPC"],
+      "scenarios": [
+        "風の又三郎"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/12654093"
+    },
+    {
+      "name": "柊 暦",
+      "reading": "ひいらぎ こよみ",
+      "iconImage": "/images/characters/hiiragikoyomi_icon.png",
+      "fullImages": [
+        "/images/characters/hiiragikoyomi_full.png",
+        "/images/characters/hiiragikoyomi_full2.png",
+        "/images/characters/hiiragikoyomi_full3.png",
+        "/images/characters/hiiragikoyomi_full4.png",
+        "/images/characters/hiiragikoyomi_full5.png",
+        "/images/characters/hiiragikoyomi_full6.png",
+        "/images/characters/hiiragikoyomi_full7.png",
+        "/images/characters/hiiragikoyomi_full8.png",
+        "/images/characters/hiiragikoyomi_full9.png"
+      ],
+      "tags": ["CoC6", "HO冬"],
+      "scenarios": [
+        "四季送り"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/12132027"
+    },
+    {
+      "name": "阿武隈 吾郎",
+      "reading": "あぶくま ごろう",
+      "iconImage": "/images/characters/abukumagoro_icon.png",
+      "fullImages": [
+        "/images/characters/abukumagoro_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "壊胎"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/11832090"
+    },
+    {
+      "name": "麗羅螺ヶ崎 綺羅雲英良麗美麗丸",
+      "reading": "うららららがざき きらきらららうるわしびれいまる",
+      "iconImage": "/images/characters/reirarazaki_icon.png",
+      "fullImages": [
+        "/images/characters/reirarazaki_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "きみは100億万ドル"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/10940552"
+    },
+    {
+      "name": "煌星 杏",
+      "reading": "きらぼし あんな",
+      "iconImage": "/images/characters/kiraboshian_icon.png",
+      "fullImages": [
+        "/images/characters/kiraboshian_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "ぼくは何も知らない〜この事件の犯人はHO2〜"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/9326469"
+    },
+    {
+      "name": "Leon=Alias",
+      "reading": "レオン=エイリアス",
+      "iconImage": "/images/characters/leonalias_icon.png",
+      "fullImages": [
+        "/images/characters/leonalias_full.png"
+      ],
+      "tags": ["CoC6"],
+      "scenarios": [
+        "同居人"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/9235670"
+    },
+    {
+      "name": "蛇ノ目 三葉",
+      "reading": "じゃのめ みつは",
+      "iconImage": "/images/characters/janomemituha_icon.png",
+      "fullImages": [
+        "/images/characters/janomemituha_full.png",
+        "/images/characters/janomemituha_full2.png"
+      ],
+      "tags": ["CoC6", "HO信者"],
+      "scenarios": [
+        "鰯と柊"
+      ],
+      "characterSheetUrl": "https://iachara.com/view/8960612"
     }
   ]
 }
