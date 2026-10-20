@@ -13,7 +13,22 @@
         "/images/characters/hinagamine_full6.png",
         "/images/characters/hinagamine_full7.png",
         "/images/characters/hinagamine_full8.png",
-        "/images/characters/hinagamine_full9.png"
+        "/images/characters/hinagamine_full9.png",
+        "/images/characters/hinagamine_full10.png",
+        "/images/characters/hinagamine_full11.png",
+        "/images/characters/hinagamine_full12.png",
+        "/images/characters/hinagamine_full13.png",
+        "/images/characters/hinagamine_full14.png",
+        "/images/characters/hinagamine_full15.png",
+        "/images/characters/hinagamine_full16.png",
+        "/images/characters/hinagamine_full17.png",
+        "/images/characters/hinagamine_full18.png",
+        "/images/characters/hinagamine_full19.png",
+        "/images/characters/hinagamine_full20.png",
+        "/images/characters/hinagamine_full21.png",
+        "/images/characters/hinagamine_full22.png",
+        "/images/characters/hinagamine_full23.png",
+        "/images/characters/hinagamine_full24.png"
       ],
       "tags": ["CoC6", "風の又三郎"],
       "scenarios": [
@@ -57,7 +72,13 @@
       "reading": "かかみがはら うづき",
       "iconImage": "/images/characters/uduki_icon.png",
       "fullImages": [
-        "/images/characters/uduki_full.png"
+        "/images/characters/uduki_full.png",
+        "/images/characters/uduki_full2.png",
+        "/images/characters/uduki_full3.png",
+        "/images/characters/uduki_full4.png",
+        "/images/characters/uduki_full5.png",
+        "/images/characters/uduki_full6.png",
+        "/images/characters/uduki_full7.png"
       ],
       "tags": ["CoC6", "ロスト"],
       "scenarios": [
@@ -320,7 +341,8 @@
       "reading": "まみや ひろと",
       "iconImage": "/images/characters/mamiyahiroto_icon.png",
       "fullImages": [
-        "/images/characters/mamiyahiroto_full.png"
+        "/images/characters/mamiyahiroto_full.png",
+        "/images/characters/mamiyahiroto_full2.png"
       ],
       "tags": ["CoC6"],
       "scenarios": [
@@ -630,7 +652,15 @@
       "reading": "ひいらぎ こよみ",
       "iconImage": "/images/characters/hiiragikoyomi_icon.png",
       "fullImages": [
-        "/images/characters/hiiragikoyomi_full.png"
+        "/images/characters/hiiragikoyomi_full.png",
+        "/images/characters/hiiragikoyomi_full2.png",
+        "/images/characters/hiiragikoyomi_full3.png",
+        "/images/characters/hiiragikoyomi_full4.png",
+        "/images/characters/hiiragikoyomi_full5.png",
+        "/images/characters/hiiragikoyomi_full6.png",
+        "/images/characters/hiiragikoyomi_full7.png",
+        "/images/characters/hiiragikoyomi_full8.png",
+        "/images/characters/hiiragikoyomi_full9.png"
       ],
       "tags": ["CoC6", "HO冬"],
       "scenarios": [
