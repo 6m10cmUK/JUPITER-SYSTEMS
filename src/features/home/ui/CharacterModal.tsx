@@ -83,8 +83,13 @@ export function CharacterModal({ character, isOpen, onClose }: CharacterModalPro
             {/* 右側：詳細情報 */}
             <div className="md:w-1/2 p-8 overflow-y-auto">
               <div className="flex justify-between items-start mb-4">
-                <h2 className="text-3xl font-bold text-gray-900">{character.name}</h2>
-                <button 
+                <div>
+                  {character.reading && (
+                    <p className="text-sm text-gray-500 mb-1">{character.reading}</p>
+                  )}
+                  <h2 className="text-3xl font-bold text-gray-900">{character.name}</h2>
+                </div>
+                <button
                   onClick={onClose}
                   className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
                 >
