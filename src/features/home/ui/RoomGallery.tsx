@@ -47,7 +47,7 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
     return [...shuffled, ...shuffled, ...shuffled];
   }, [rooms]);
 
-  useInfiniteDragScroll(scrollRef, rooms, rowCount);
+  useInfiniteDragScroll(scrollRef, rooms, rowCount, -1);
 
   const handleRoomClick = (room: Room) => {
     setSelectedRoom(room);
