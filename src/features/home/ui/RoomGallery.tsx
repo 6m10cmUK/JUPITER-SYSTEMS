@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useInfiniteDragScroll } from '../model/useInfiniteDragScroll';
 import type { Room } from '../lib/room.types';
 import { RoomTile } from './RoomTile';
 import { RoomModal } from './RoomModal';
@@ -46,79 +47,7 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
     return [...shuffled, ...shuffled, ...shuffled];
   }, [rooms]);
 
-  useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer || rooms.length === 0) return;
-
-    // レイアウト変更時のタイミング調整
-    setTimeout(() => {
-      const oneSetWidth = scrollContainer.scrollWidth / 3;
-      scrollContainer.scrollLeft = oneSetWidth;
-    }, 100);
-
-    // 無限ループ処理のチェック
-    const checkInfiniteLoop = () => {
-      const oneSetWidth = scrollContainer.scrollWidth / 3;
-      
-      if (scrollContainer.scrollLeft >= oneSetWidth * 2.5) {
-        scrollContainer.scrollLeft = scrollContainer.scrollLeft - oneSetWidth;
-      } else if (scrollContainer.scrollLeft <= oneSetWidth * 0.5) {
-        scrollContainer.scrollLeft = scrollContainer.scrollLeft + oneSetWidth;
-      }
-    };
-
-    // マウスホイールでの手動スクロール
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      
-      const scrollAmount = e.deltaY * 0.5 + e.deltaX * 0.5;
-      scrollContainer.scrollLeft += scrollAmount;
-      checkInfiniteLoop();
-    };
-
-    // タッチデバイス用のスクロール処理
-    let startX = 0;
-    let scrollLeft = 0;
-    let isDown = false;
-
-    const handleTouchStart = (e: TouchEvent) => {
-      isDown = true;
-      startX = e.touches[0].pageX - scrollContainer.offsetLeft;
-      scrollLeft = scrollContainer.scrollLeft;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!isDown) return;
-      e.preventDefault();
-      const x = e.touches[0].pageX - scrollContainer.offsetLeft;
-      const walk = (x - startX) * 1.5;
-      scrollContainer.scrollLeft = scrollLeft - walk;
-      checkInfiniteLoop();
-    };
-
-    const handleTouchEnd = () => {
-      isDown = false;
-    };
-
-    // スクロール終了時のチェック
-    const handleScroll = () => {
-      checkInfiniteLoop();
-    };
-
-    scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
-    scrollContainer.addEventListener('touchstart', handleTouchStart, { passive: true });
-    scrollContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
-    scrollContainer.addEventListener('touchend', handleTouchEnd);
-    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-
-    return () => {
-      scrollContainer.removeEventListener('wheel', handleWheel);
-      scrollContainer.removeEventListener('touchstart', handleTouchStart);
-      scrollContainer.removeEventListener('touchmove', handleTouchMove);
-      scrollContainer.removeEventListener('touchend', handleTouchEnd);
-      scrollContainer.removeEventListener('scroll', handleScroll);
-    };
-  }, [rooms, rowCount]);
+  useInfiniteDragScroll(scrollRef, rooms, rowCount);
 
   const handleRoomClick = (room: Room) => {
     setSelectedRoom(room);
@@ -142,9 +71,8 @@ export function RoomGallery({ rooms }: RoomGalleryProps) {
         
         {rooms.length > 0 ? (
           <div 
-            className="overflow-x-auto md:overflow-x-hidden touch-pan-x" 
-            ref={scrollRef}
-            style={{ WebkitOverflowScrolling: 'touch' }}>
+            className="w-full overflow-x-auto scrollbar-hide cursor-grab data-[dragging=true]:cursor-grabbing data-[dragging=true]:[&_*]:cursor-grabbing!" 
+            ref={scrollRef}>
             <div 
               className={rowCount === 1 ? "flex gap-4 sm:gap-5 lg:gap-6" : "flex flex-col gap-3 sm:gap-4 lg:gap-5"} 
               style={{ width: 'max-content' }}
