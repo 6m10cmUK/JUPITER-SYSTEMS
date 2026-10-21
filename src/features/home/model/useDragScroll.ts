@@ -1,5 +1,8 @@
 import { useEffect, type RefObject } from 'react';
 
+// 他ボタン押下中の左押しは pointerdown が来ないため、mousedown で開始し最初の pointermove で pointerId を確定する印
+const PENDING_MOUSE_POINTER = -1;
+
 /**
  * マウス（pointerType === 'mouse'）のドラッグで横スクロールさせる。
  * タッチはネイティブスクロールに任せるため対象外。
@@ -25,25 +28,31 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>, deps: readonly
       suppressClick = false;
     };
 
-    const handlePointerEnd = (event: PointerEvent) => {
-      if (event.pointerType !== 'mouse' || event.pointerId !== pointerId) return;
+    const endMouseDrag = () => {
+      if (pointerId !== null && pointerId !== PENDING_MOUSE_POINTER && container.hasPointerCapture(pointerId)) {
+        container.releasePointerCapture(pointerId);
+      }
       pointerId = null;
       dragging = false;
       container.removeAttribute('data-dragging');
       container.style.userSelect = originalUserSelect;
-      if (container.hasPointerCapture(event.pointerId)) {
-        container.releasePointerCapture(event.pointerId);
-      }
       window.clearTimeout(suppressClickTimer);
       suppressClickTimer = window.setTimeout(() => {
         suppressClick = false;
       }, 0);
     };
 
-    const handlePointerMove = (event: PointerEvent) => {
+    const handlePointerEnd = (event: PointerEvent) => {
       if (event.pointerType !== 'mouse' || event.pointerId !== pointerId) return;
-      if (event.buttons === 0) {
-        handlePointerEnd(event);
+      endMouseDrag();
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      if (event.pointerType !== 'mouse') return;
+      if (pointerId === PENDING_MOUSE_POINTER) pointerId = event.pointerId;
+      if (event.pointerId !== pointerId) return;
+      if ((event.buttons & 1) === 0) {
+        endMouseDrag();
         return;
       }
       const delta = event.clientX - previousX;
@@ -69,6 +78,26 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>, deps: readonly
     };
 
     const handleDragStart = (event: DragEvent) => event.preventDefault();
+    // マウスの文字選択とネイティブドラッグを止める。click は発火させる
+    const handleMouseDown = (event: MouseEvent) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      window.getSelection()?.removeAllRanges();
+      // 通常は pointerdown で pointerId が入っているので何もしない。他ボタン押下中はここで開始する
+      if (pointerId === null) {
+        pointerId = PENDING_MOUSE_POINTER;
+        startX = previousX = event.clientX;
+        window.clearTimeout(suppressClickTimer);
+        suppressClick = false;
+      }
+    };
+    const handleMouseUp = (event: MouseEvent) => {
+      if (event.button === 0 && pointerId !== null) endMouseDrag();
+    };
+    // ドラッグ中にカーソルが要素の外へ出ても、ネイティブドラッグを止める
+    const handleDocumentDragStart = (event: DragEvent) => {
+      if (pointerId !== null) event.preventDefault();
+    };
     const handleSelectStart = (event: Event) => {
       if (pointerId !== null) event.preventDefault();
     };
@@ -76,10 +105,13 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>, deps: readonly
     container.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('pointercancel', handlePointerEnd);
     container.addEventListener('lostpointercapture', handlePointerEnd);
     container.addEventListener('click', handleClick, true);
+    container.addEventListener('mousedown', handleMouseDown);
     container.addEventListener('dragstart', handleDragStart);
+    document.addEventListener('dragstart', handleDocumentDragStart, true);
     container.addEventListener('selectstart', handleSelectStart);
 
     return () => {
@@ -87,12 +119,15 @@ export function useDragScroll(ref: RefObject<HTMLElement | null>, deps: readonly
       container.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('pointercancel', handlePointerEnd);
       container.removeEventListener('lostpointercapture', handlePointerEnd);
       container.removeEventListener('click', handleClick, true);
+      container.removeEventListener('mousedown', handleMouseDown);
       container.removeEventListener('dragstart', handleDragStart);
+      document.removeEventListener('dragstart', handleDocumentDragStart, true);
       container.removeEventListener('selectstart', handleSelectStart);
-      if (pointerId !== null && container.hasPointerCapture(pointerId)) {
+      if (pointerId !== null && pointerId !== PENDING_MOUSE_POINTER && container.hasPointerCapture(pointerId)) {
         container.releasePointerCapture(pointerId);
       }
       container.removeAttribute('data-dragging');
