@@ -49,6 +49,21 @@
       "name": "イノセント 霊能心霊社:402",
       "image": "/images/rooms/innocent.png",
       "tags": ["CoC6", "2PL", "秘匿"]
+    },
+    {
+      "name": "TERMINAL ROOM KIT",
+      "image": "/images/rooms/terminalRoomKit.webp",
+      "tags": ["CoC", "汎用", "4PL"]
+    },
+    {
+      "name": "JUVENILE ROOM KIT",
+      "image": "/images/rooms/juvenileRoomKit.webp",
+      "tags": ["CoC", "汎用", "4PL"]
+    },
+    {
+      "name": "ASTRAL ROOM KIT",
+      "image": "/images/rooms/astralRoomKit.webp",
+      "tags": ["CoC", "汎用", "4PL"]
     }
   ]
 }
