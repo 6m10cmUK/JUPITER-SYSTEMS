@@ -28,6 +28,8 @@ export function RoomModal({ room, isOpen, onClose }: RoomModalProps) {
 
   if (!isOpen || !room) return null;
 
+  const roomUrl = room.url;
+
   return (
     <>
       {/* オーバーレイ */}
@@ -65,9 +67,9 @@ export function RoomModal({ room, isOpen, onClose }: RoomModalProps) {
             <h2 className="text-3xl font-bold text-gray-900 mb-4">{room.name}</h2>
             
             {/* タグ */}
-            <div className="flex flex-wrap gap-2">
+            <div className={`flex flex-wrap gap-2${roomUrl ? ' mb-6' : ''}`}>
               {room.tags.map((tag, index) => (
-                <span 
+                <span
                   key={index}
                   className="inline-block px-3 py-1 bg-jupiter-100 text-jupiter-700 rounded-full text-sm font-medium"
                 >
@@ -75,6 +77,28 @@ export function RoomModal({ room, isOpen, onClose }: RoomModalProps) {
                 </span>
               ))}
             </div>
+
+            {/* 購入リンク */}
+            {roomUrl && (
+              <a
+                href={roomUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-jupiter-500 text-white rounded-full font-medium hover:bg-jupiter-600 transition-colors"
+              >
+                {(() => {
+                  try {
+                    const url = new URL(roomUrl);
+                    return url.hostname.replace('www.', '');
+                  } catch {
+                    return 'BOOTH';
+                  }
+                })()}
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
           </div>
         </div>
       </div>
